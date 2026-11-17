@@ -6840,13 +6840,13 @@ var Mesh = class extends Object3D {
   }
 };
 function checkIntersection$1(object, material, raycaster, ray, pA, pB, pC, point) {
-  let intersect;
+  let intersect2;
   if (material.side === BackSide) {
-    intersect = ray.intersectTriangle(pC, pB, pA, true, point);
+    intersect2 = ray.intersectTriangle(pC, pB, pA, true, point);
   } else {
-    intersect = ray.intersectTriangle(pA, pB, pC, material.side === FrontSide, point);
+    intersect2 = ray.intersectTriangle(pA, pB, pC, material.side === FrontSide, point);
   }
-  if (intersect === null) return null;
+  if (intersect2 === null) return null;
   _intersectionPointWorld.copy(point);
   _intersectionPointWorld.applyMatrix4(object.matrixWorld);
   const distance = raycaster.ray.origin.distanceTo(_intersectionPointWorld);
@@ -18606,12 +18606,12 @@ var Sprite = class extends Object3D {
     _uvA.set(0, 0);
     _uvB.set(1, 0);
     _uvC.set(1, 1);
-    let intersect = raycaster.ray.intersectTriangle(_vA, _vB, _vC, false, _intersectPoint);
-    if (intersect === null) {
+    let intersect2 = raycaster.ray.intersectTriangle(_vA, _vB, _vC, false, _intersectPoint);
+    if (intersect2 === null) {
       transformVertex(_vB.set(-0.5, 0.5, 0), _mvPosition, center, _worldScale, sin, cos);
       _uvB.set(0, 1);
-      intersect = raycaster.ray.intersectTriangle(_vA, _vC, _vB, false, _intersectPoint);
-      if (intersect === null) {
+      intersect2 = raycaster.ray.intersectTriangle(_vA, _vC, _vB, false, _intersectPoint);
+      if (intersect2 === null) {
         return;
       }
     }
@@ -18734,32 +18734,32 @@ var Line = class extends Object3D {
       for (let i = start, l = end - 1; i < l; i += step) {
         const a = index.getX(i);
         const b = index.getX(i + 1);
-        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
-        if (intersect) {
-          intersects2.push(intersect);
+        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
+        if (intersect2) {
+          intersects2.push(intersect2);
         }
       }
       if (this.isLineLoop) {
         const a = index.getX(end - 1);
         const b = index.getX(start);
-        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
-        if (intersect) {
-          intersects2.push(intersect);
+        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
+        if (intersect2) {
+          intersects2.push(intersect2);
         }
       }
     } else {
       const start = Math.max(0, drawRange.start);
       const end = Math.min(positionAttribute.count, drawRange.start + drawRange.count);
       for (let i = start, l = end - 1; i < l; i += step) {
-        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, i, i + 1);
-        if (intersect) {
-          intersects2.push(intersect);
+        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, i, i + 1);
+        if (intersect2) {
+          intersects2.push(intersect2);
         }
       }
       if (this.isLineLoop) {
-        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, end - 1, start);
-        if (intersect) {
-          intersects2.push(intersect);
+        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, end - 1, start);
+        if (intersect2) {
+          intersects2.push(intersect2);
         }
       }
     }
@@ -18803,6 +18803,32 @@ function checkIntersection(object, raycaster, ray, thresholdSq, a, b) {
     object
   };
 }
+var _start = /* @__PURE__ */ new Vector3();
+var _end = /* @__PURE__ */ new Vector3();
+var LineSegments = class extends Line {
+  constructor(geometry, material) {
+    super(geometry, material);
+    this.isLineSegments = true;
+    this.type = "LineSegments";
+  }
+  computeLineDistances() {
+    const geometry = this.geometry;
+    if (geometry.index === null) {
+      const positionAttribute = geometry.attributes.position;
+      const lineDistances = [];
+      for (let i = 0, l = positionAttribute.count; i < l; i += 2) {
+        _start.fromBufferAttribute(positionAttribute, i);
+        _end.fromBufferAttribute(positionAttribute, i + 1);
+        lineDistances[i] = i === 0 ? 0 : lineDistances[i - 1];
+        lineDistances[i + 1] = lineDistances[i] + _start.distanceTo(_end);
+      }
+      geometry.setAttribute("lineDistance", new Float32BufferAttribute(lineDistances, 1));
+    } else {
+      console.warn("THREE.LineSegments.computeLineDistances(): Computation only possible with non-indexed BufferGeometry.");
+    }
+    return this;
+  }
+};
 var PointsMaterial = class extends Material {
   static get type() {
     return "PointsMaterial";
@@ -20256,6 +20282,92 @@ var ConeGeometry = class _ConeGeometry extends CylinderGeometry {
   }
   static fromJSON(data) {
     return new _ConeGeometry(data.radius, data.height, data.radialSegments, data.heightSegments, data.openEnded, data.thetaStart, data.thetaLength);
+  }
+};
+var _v0 = /* @__PURE__ */ new Vector3();
+var _v1$1 = /* @__PURE__ */ new Vector3();
+var _normal = /* @__PURE__ */ new Vector3();
+var _triangle = /* @__PURE__ */ new Triangle();
+var EdgesGeometry = class extends BufferGeometry {
+  constructor(geometry = null, thresholdAngle = 1) {
+    super();
+    this.type = "EdgesGeometry";
+    this.parameters = {
+      geometry,
+      thresholdAngle
+    };
+    if (geometry !== null) {
+      const precisionPoints = 4;
+      const precision = Math.pow(10, precisionPoints);
+      const thresholdDot = Math.cos(DEG2RAD * thresholdAngle);
+      const indexAttr = geometry.getIndex();
+      const positionAttr = geometry.getAttribute("position");
+      const indexCount = indexAttr ? indexAttr.count : positionAttr.count;
+      const indexArr = [0, 0, 0];
+      const vertKeys = ["a", "b", "c"];
+      const hashes = new Array(3);
+      const edgeData = {};
+      const vertices = [];
+      for (let i = 0; i < indexCount; i += 3) {
+        if (indexAttr) {
+          indexArr[0] = indexAttr.getX(i);
+          indexArr[1] = indexAttr.getX(i + 1);
+          indexArr[2] = indexAttr.getX(i + 2);
+        } else {
+          indexArr[0] = i;
+          indexArr[1] = i + 1;
+          indexArr[2] = i + 2;
+        }
+        const { a, b, c } = _triangle;
+        a.fromBufferAttribute(positionAttr, indexArr[0]);
+        b.fromBufferAttribute(positionAttr, indexArr[1]);
+        c.fromBufferAttribute(positionAttr, indexArr[2]);
+        _triangle.getNormal(_normal);
+        hashes[0] = `${Math.round(a.x * precision)},${Math.round(a.y * precision)},${Math.round(a.z * precision)}`;
+        hashes[1] = `${Math.round(b.x * precision)},${Math.round(b.y * precision)},${Math.round(b.z * precision)}`;
+        hashes[2] = `${Math.round(c.x * precision)},${Math.round(c.y * precision)},${Math.round(c.z * precision)}`;
+        if (hashes[0] === hashes[1] || hashes[1] === hashes[2] || hashes[2] === hashes[0]) {
+          continue;
+        }
+        for (let j = 0; j < 3; j++) {
+          const jNext = (j + 1) % 3;
+          const vecHash0 = hashes[j];
+          const vecHash1 = hashes[jNext];
+          const v0 = _triangle[vertKeys[j]];
+          const v1 = _triangle[vertKeys[jNext]];
+          const hash = `${vecHash0}_${vecHash1}`;
+          const reverseHash = `${vecHash1}_${vecHash0}`;
+          if (reverseHash in edgeData && edgeData[reverseHash]) {
+            if (_normal.dot(edgeData[reverseHash].normal) <= thresholdDot) {
+              vertices.push(v0.x, v0.y, v0.z);
+              vertices.push(v1.x, v1.y, v1.z);
+            }
+            edgeData[reverseHash] = null;
+          } else if (!(hash in edgeData)) {
+            edgeData[hash] = {
+              index0: indexArr[j],
+              index1: indexArr[jNext],
+              normal: _normal.clone()
+            };
+          }
+        }
+      }
+      for (const key in edgeData) {
+        if (edgeData[key]) {
+          const { index0, index1 } = edgeData[key];
+          _v0.fromBufferAttribute(positionAttr, index0);
+          _v1$1.fromBufferAttribute(positionAttr, index1);
+          vertices.push(_v0.x, _v0.y, _v0.z);
+          vertices.push(_v1$1.x, _v1$1.y, _v1$1.z);
+        }
+      }
+      this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    }
+  }
+  copy(source) {
+    super.copy(source);
+    this.parameters = Object.assign({}, source.parameters);
+    return this;
   }
 };
 var Shape = class extends Path {
@@ -22738,6 +22850,73 @@ PropertyBinding.prototype.SetterByBindingTypeAndVersioning = [
   ]
 ];
 var _controlInterpolantsResultBuffer = new Float32Array(1);
+var _matrix = /* @__PURE__ */ new Matrix4();
+var Raycaster = class {
+  constructor(origin, direction, near = 0, far = Infinity) {
+    this.ray = new Ray(origin, direction);
+    this.near = near;
+    this.far = far;
+    this.camera = null;
+    this.layers = new Layers();
+    this.params = {
+      Mesh: {},
+      Line: { threshold: 1 },
+      LOD: {},
+      Points: { threshold: 1 },
+      Sprite: {}
+    };
+  }
+  set(origin, direction) {
+    this.ray.set(origin, direction);
+  }
+  setFromCamera(coords, camera) {
+    if (camera.isPerspectiveCamera) {
+      this.ray.origin.setFromMatrixPosition(camera.matrixWorld);
+      this.ray.direction.set(coords.x, coords.y, 0.5).unproject(camera).sub(this.ray.origin).normalize();
+      this.camera = camera;
+    } else if (camera.isOrthographicCamera) {
+      this.ray.origin.set(coords.x, coords.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera);
+      this.ray.direction.set(0, 0, -1).transformDirection(camera.matrixWorld);
+      this.camera = camera;
+    } else {
+      console.error("THREE.Raycaster: Unsupported camera type: " + camera.type);
+    }
+  }
+  setFromXRController(controller) {
+    _matrix.identity().extractRotation(controller.matrixWorld);
+    this.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    this.ray.direction.set(0, 0, -1).applyMatrix4(_matrix);
+    return this;
+  }
+  intersectObject(object, recursive = true, intersects2 = []) {
+    intersect(object, this, intersects2, recursive);
+    intersects2.sort(ascSort);
+    return intersects2;
+  }
+  intersectObjects(objects, recursive = true, intersects2 = []) {
+    for (let i = 0, l = objects.length; i < l; i++) {
+      intersect(objects[i], this, intersects2, recursive);
+    }
+    intersects2.sort(ascSort);
+    return intersects2;
+  }
+};
+function ascSort(a, b) {
+  return a.distance - b.distance;
+}
+function intersect(object, raycaster, intersects2, recursive) {
+  let propagate = true;
+  if (object.layers.test(raycaster.layers)) {
+    const result = object.raycast(raycaster, intersects2);
+    if (result === false) propagate = false;
+  }
+  if (propagate === true && recursive === true) {
+    const children = object.children;
+    for (let i = 0, l = children.length; i < l; i++) {
+      intersect(children[i], raycaster, intersects2, true);
+    }
+  }
+}
 var Spherical = class {
   constructor(radius = 1, phi = 0, theta = 0) {
     this.radius = radius;
@@ -26531,6 +26710,7 @@ var SimpleOrbitControls = class {
     this.spherical = new Spherical().setFromVector3(offset);
     this.onPointerDown = (e) => {
       if (!this.enabled) return;
+      if (e.button !== 0) return;
       this.isDragging = true;
       this.prevX = e.clientX;
       this.prevY = e.clientY;
@@ -26567,6 +26747,9 @@ var SimpleOrbitControls = class {
   }
   setEnabled(enabled) {
     this.enabled = enabled;
+    if (!enabled) {
+      this.isDragging = false;
+    }
   }
   setLimits(minDist, maxDist, minPolar, maxPolar) {
     this.minDistance = minDist;
@@ -26596,6 +26779,65 @@ var VAB3DPreview = class {
     this.disposed = false;
     this.onResize = null;
     this.hintDiv = null;
+    // KSP-style building system state
+    this.placedParts = [];
+    this.ghostPart = null;
+    this.pickedUpPart = null;
+    this.selectedPart = null;
+    this.selectionOutline = null;
+    this.symmetryMode = 1;
+    // 1, 2, 3, 4, 6
+    this.pointerDownPos = null;
+    this.isPlacementMode = false;
+    // Callback when parts change
+    this.onPartsChanged = null;
+    // ============================================
+    // 指针事件处理
+    // ============================================
+    this.onCanvasPointerDown = (e) => {
+      this.pointerDownPos = { x: e.clientX, y: e.clientY };
+    };
+    this.onCanvasPointerMove = (e) => {
+      if (this.isPlacementMode && this.pickedUpPart) {
+        this.updateGhostFromMouse(e);
+      }
+    };
+    this.onCanvasPointerUp = (e) => {
+      if (!this.pointerDownPos) return;
+      const dx = e.clientX - this.pointerDownPos.x;
+      const dy = e.clientY - this.pointerDownPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      this.pointerDownPos = null;
+      if (dist > 5) return;
+      if (this.isPlacementMode && this.pickedUpPart) {
+        this.placePartFromMouse(e);
+      } else {
+        this.selectPartFromMouse(e);
+      }
+    };
+    this.onCanvasContextMenu = (e) => {
+      e.preventDefault();
+      if (this.isPlacementMode) {
+        this.cancelPickup();
+      }
+    };
+    this.onKeyDown = (e) => {
+      if (!this.vabPanel) return;
+      if (e.key === "Escape") {
+        if (this.isPlacementMode) {
+          this.cancelPickup();
+        } else if (this.selectedPart) {
+          this.selectPart(null);
+        }
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (this.selectedPart && !this.isPlacementMode) {
+          e.preventDefault();
+          this.removeSelectedPart();
+        }
+      }
+    };
+    // Track VAB panel for keyboard handling
+    this.vabPanel = null;
     this.animate = () => {
       if (this.disposed) return;
       this.animationId = requestAnimationFrame(this.animate);
@@ -26636,15 +26878,46 @@ var VAB3DPreview = class {
     this.createVABFloor();
     this.rocketGroup = new Group();
     this.scene.add(this.rocketGroup);
+    this.mats = {
+      command: new MeshStandardMaterial({ color: 14540253, roughness: 0.35, metalness: 0.5 }),
+      probe: new MeshStandardMaterial({ color: 4478310, roughness: 0.4, metalness: 0.6 }),
+      fuelWhite: new MeshStandardMaterial({ color: 15263976, roughness: 0.25, metalness: 0.65 }),
+      fuelOrange: new MeshStandardMaterial({ color: 13395490, roughness: 0.3, metalness: 0.55 }),
+      fuelGray: new MeshStandardMaterial({ color: 10066329, roughness: 0.3, metalness: 0.6 }),
+      engineBody: new MeshStandardMaterial({ color: 5592405, roughness: 0.5, metalness: 0.55 }),
+      nozzle: new MeshStandardMaterial({ color: 1710618, roughness: 0.7, metalness: 0.3, side: DoubleSide }),
+      parachute: new MeshStandardMaterial({ color: 16729122, roughness: 0.5, metalness: 0.1 }),
+      decoupler: new MeshStandardMaterial({ color: 8939076, roughness: 0.5, metalness: 0.3 }),
+      accent: new MeshStandardMaterial({ color: 3368652, roughness: 0.4, metalness: 0.5 }),
+      booster: new MeshStandardMaterial({ color: 14540253, roughness: 0.3, metalness: 0.5 }),
+      aero: new MeshStandardMaterial({ color: 11184810, roughness: 0.3, metalness: 0.4 }),
+      rcs: new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.5 }),
+      solar: new MeshStandardMaterial({ color: 2241450, roughness: 0.2, metalness: 0.7, emissive: 51 }),
+      solarFrame: new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.6 }),
+      antenna: new MeshStandardMaterial({ color: 10066329, roughness: 0.4, metalness: 0.6 }),
+      science: new MeshStandardMaterial({ color: 14527044, roughness: 0.4, metalness: 0.4 }),
+      landing: new MeshStandardMaterial({ color: 7829367, roughness: 0.5, metalness: 0.4 }),
+      structural: new MeshStandardMaterial({ color: 6710886, roughness: 0.5, metalness: 0.4 }),
+      utility: new MeshStandardMaterial({ color: 10066329, roughness: 0.4, metalness: 0.5 }),
+      glass: new MeshStandardMaterial({ color: 3368618, emissive: 1122884, roughness: 0.1, metalness: 0.9 }),
+      dark: new MeshStandardMaterial({ color: 2236962, roughness: 0.4, metalness: 0.3 }),
+      copper: new MeshStandardMaterial({ color: 13404228, roughness: 0.3, metalness: 0.7 })
+    };
+    this.raycaster = new Raycaster();
     this.controls = new SimpleOrbitControls(this.camera, canvas, new Vector3(0, 2, 0));
-    this.controls.setAutoRotateSpeed(0.3);
+    this.controls.setAutoRotateSpeed(0);
     this.controls.setLimits(5, 40, 0.15, Math.PI / 2 - 0.05);
+    canvas.addEventListener("pointerdown", this.onCanvasPointerDown);
+    canvas.addEventListener("pointermove", this.onCanvasPointerMove);
+    canvas.addEventListener("pointerup", this.onCanvasPointerUp);
+    canvas.addEventListener("contextmenu", this.onCanvasContextMenu);
+    window.addEventListener("keydown", this.onKeyDown);
     this.onResize = () => this.resize();
     window.addEventListener("resize", this.onResize);
     this.resize();
     this.animate();
   }
-  // 创建 VAB 地面 (圆形 + 网格纹理)
+  // 创建 VAB 地面
   createVABFloor() {
     const floorRadius = 15;
     const floorGeo = new CircleGeometry(floorRadius, 64);
@@ -26701,6 +26974,1962 @@ var VAB3DPreview = class {
     ring.position.y = -4.99;
     this.scene.add(ring);
   }
+  // ============================================
+  // 零件类型判断
+  // ============================================
+  isStackType(part) {
+    return ["command", "fuel", "engine", "decoupler", "structural", "parachute", "booster", "adapter"].includes(part.type);
+  }
+  // ============================================
+  // 零件尺寸快速查找 (不创建网格)
+  // ============================================
+  getPartDimensions(part) {
+    switch (part.type) {
+      case "command": {
+        if (part.id.includes("probe")) return { height: 0.5, radius: 0.35 };
+        if (part.id.includes("mk3") || part.mass > 3e3) return { height: 1.6, radius: 0.85 };
+        if (part.id.includes("mk2") || part.mass > 1500) return { height: 1.3, radius: 0.65 };
+        if (part.id.includes("cabin")) return { height: 1, radius: 0.55 };
+        if (part.id.includes("cockpit")) return { height: 0.9, radius: 0.5 };
+        return { height: 1.2, radius: 0.55 };
+      }
+      case "fuel": {
+        if (part.fuelMass > 3e4) return { height: 3.2, radius: 0.85 };
+        if (part.fuelMass > 15e3) return { height: 2.6, radius: 0.75 };
+        if (part.fuelMass > 5e3) return { height: 1.9, radius: 0.65 };
+        if (part.fuelMass > 1e3) return { height: 1.3, radius: 0.55 };
+        return { height: 0.9, radius: 0.45 };
+      }
+      case "engine": {
+        if (part.thrust > 2e6) return { height: 2.8, radius: 1.05 };
+        if (part.thrust > 1e6) return { height: 2.4, radius: 0.9 };
+        if (part.thrust > 5e5) return { height: 2.1, radius: 0.8 };
+        if (part.thrust > 2e5) return { height: 1.9, radius: 0.7 };
+        if (part.thrust > 5e4) return { height: 1.5, radius: 0.55 };
+        if (part.thrust > 1e3) return { height: 1.2, radius: 0.45 };
+        return { height: 0.8, radius: 0.3 };
+      }
+      case "booster": {
+        if (part.thrust > 2e6) return { height: 4.5, radius: 0.5 };
+        if (part.thrust > 5e5) return { height: 3.5, radius: 0.4 };
+        return { height: 2.8, radius: 0.3 };
+      }
+      case "parachute":
+        return { height: 0.6, radius: 0.2 };
+      case "aero": {
+        if (part.id.includes("heatshield")) return { height: 0.3, radius: 0.6 };
+        if (part.id.includes("nosecone") || part.id.includes("nose")) return { height: 0.8, radius: 0.5 };
+        return { height: 0.7, radius: 0.45 };
+      }
+      case "rcs": {
+        if (part.id.includes("tank")) return { height: 0.5, radius: 0.25 };
+        return { height: 0.2, radius: 0.12 };
+      }
+      case "solar": {
+        if (part.id.includes("battery")) return { height: 0.3, radius: 0.2 };
+        if (part.id.includes("gigantor")) return { height: 0.1, radius: 1.2 };
+        return { height: 0.1, radius: 0.6 };
+      }
+      case "antenna": {
+        if (part.id.includes("ra100") || part.id.includes("ra15")) return { height: 1.5, radius: 0.4 };
+        if (part.id.includes("dish") || part.id.includes("88") || part.id.includes("ra2")) return { height: 1, radius: 0.3 };
+        return { height: 0.8, radius: 0.05 };
+      }
+      case "science": {
+        if (part.id.includes("lab")) return { height: 1.5, radius: 0.7 };
+        return { height: 0.3, radius: 0.2 };
+      }
+      case "landing":
+        return { height: 1, radius: 0.5 };
+      case "decoupler":
+        return { height: 0.4, radius: 0.55 };
+      case "adapter":
+        return { height: 0.5, radius: 0.55 };
+      case "structural": {
+        if (part.id.includes("tube_long")) return { height: 1.5, radius: 0.45 };
+        if (part.id.includes("tube_short")) return { height: 0.7, radius: 0.45 };
+        if (part.id.includes("adapter")) return { height: 0.6, radius: 0.55 };
+        return { height: 0.5, radius: 0.3 };
+      }
+      case "utility": {
+        if (part.id.includes("escape") || part.id.includes("tower")) return { height: 2, radius: 0.2 };
+        if (part.id.includes("dock")) return { height: 0.4, radius: 0.35 };
+        return { height: 0.3, radius: 0.2 };
+      }
+      default:
+        return { height: 0.5, radius: 0.3 };
+    }
+  }
+  // ============================================
+  // 零件网格创建 - 总调度
+  // ============================================
+  createPartMesh(part) {
+    switch (part.type) {
+      case "command":
+        return this.createCommandPod(part);
+      case "fuel":
+        return this.createFuelTank(part);
+      case "engine":
+        return this.createEngine(part);
+      case "booster":
+        return this.createBooster(part);
+      case "parachute":
+        return this.createParachute(part);
+      case "aero":
+        return this.createAeroPart(part);
+      case "rcs":
+        return this.createRCSPart(part);
+      case "solar":
+        return this.createSolarPart(part);
+      case "antenna":
+        return this.createAntennaPart(part);
+      case "science":
+        return this.createSciencePart(part);
+      case "landing":
+        return this.createLandingPart(part);
+      case "decoupler":
+        return this.createDecoupler(part);
+      case "adapter":
+        return this.createAdapter(part);
+      case "structural":
+        return this.createStructural(part);
+      case "utility":
+        return this.createUtility(part);
+      default:
+        return this.createGenericPart(part);
+    }
+  }
+  // ============================================
+  // 指挥舱模型 (Command Pods)
+  // ============================================
+  createCommandPod(part) {
+    const group = new Group();
+    const isProbe = part.id.includes("probe");
+    const isCabin = part.id.includes("cabin");
+    const isCockpit = part.id.includes("cockpit");
+    let cmdHeight = 1.2, cmdRadius = 0.55;
+    if (part.id.includes("mk3") || part.mass > 3e3) {
+      cmdRadius = 0.85;
+      cmdHeight = 1.6;
+    } else if (part.id.includes("mk2") || part.mass > 1500) {
+      cmdRadius = 0.65;
+      cmdHeight = 1.3;
+    } else if (isCabin) {
+      cmdHeight = 1;
+      cmdRadius = 0.55;
+    } else if (isCockpit) {
+      cmdHeight = 0.9;
+      cmdRadius = 0.5;
+    } else if (isProbe) {
+      cmdRadius = 0.35;
+      cmdHeight = 0.5;
+    }
+    if (isProbe) {
+      const body = new Mesh(
+        new CylinderGeometry(cmdRadius, cmdRadius * 0.9, cmdHeight, 8),
+        this.mats.probe
+      );
+      body.position.y = 0;
+      body.castShadow = true;
+      group.add(body);
+      const cap = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.5, cmdRadius, 0.1, 8),
+        this.mats.dark
+      );
+      cap.position.y = cmdHeight / 2 + 0.05;
+      cap.castShadow = true;
+      group.add(cap);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+        const panel = new Mesh(
+          new BoxGeometry(0.25, cmdHeight * 0.7, 0.02),
+          this.mats.solar
+        );
+        panel.position.set(Math.cos(angle) * (cmdRadius + 0.02), 0, Math.sin(angle) * (cmdRadius + 0.02));
+        panel.rotation.y = -angle;
+        panel.castShadow = true;
+        group.add(panel);
+      }
+      const ant = new Mesh(
+        new CylinderGeometry(0.015, 0.015, 0.4, 6),
+        this.mats.antenna
+      );
+      ant.position.y = cmdHeight / 2 + 0.25;
+      ant.castShadow = true;
+      group.add(ant);
+      const antTip = new Mesh(
+        new SphereGeometry(0.03, 8, 6),
+        this.mats.accent
+      );
+      antTip.position.y = cmdHeight / 2 + 0.45;
+      group.add(antTip);
+    } else if (isCabin) {
+      const body = new Mesh(
+        new CylinderGeometry(cmdRadius, cmdRadius * 0.95, cmdHeight, 24),
+        this.mats.command
+      );
+      body.castShadow = true;
+      group.add(body);
+      const topCap = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.95, cmdRadius, 0.15, 24),
+        this.mats.dark
+      );
+      topCap.position.y = cmdHeight / 2 - 0.05;
+      topCap.castShadow = true;
+      group.add(topCap);
+      const winCount = part.mass > 1e3 ? 3 : 2;
+      for (let i = 0; i < winCount; i++) {
+        const angle = i / winCount * Math.PI * 2;
+        const win = new Mesh(
+          new SphereGeometry(cmdRadius * 0.15, 12, 8),
+          this.mats.glass
+        );
+        win.position.set(Math.cos(angle) * cmdRadius * 0.75, cmdHeight * 0.1, Math.sin(angle) * cmdRadius * 0.75);
+        win.scale.set(1, 0.6, 0.5);
+        group.add(win);
+      }
+      const heatShield = new Mesh(
+        new CylinderGeometry(cmdRadius * 1.1, cmdRadius * 0.9, 0.12, 24),
+        this.mats.dark
+      );
+      heatShield.position.y = -cmdHeight / 2 + 0.04;
+      heatShield.castShadow = true;
+      group.add(heatShield);
+      const baseRing = new Mesh(
+        new CylinderGeometry(cmdRadius * 1.02, cmdRadius * 0.98, 0.08, 24),
+        this.mats.accent
+      );
+      baseRing.position.y = -cmdHeight / 2 - 0.02;
+      group.add(baseRing);
+    } else {
+      const isMk3 = part.id.includes("mk3") || part.mass > 3e3;
+      const isMk2 = part.id.includes("mk2") || part.mass > 1500;
+      const cone = new Mesh(
+        new ConeGeometry(cmdRadius, cmdHeight, 28),
+        this.mats.command
+      );
+      cone.castShadow = true;
+      cone.receiveShadow = true;
+      group.add(cone);
+      const heatShield = new Mesh(
+        new CylinderGeometry(cmdRadius * 1.15, cmdRadius * 0.95, 0.15, 28),
+        this.mats.dark
+      );
+      heatShield.position.y = -cmdHeight / 2 + 0.05;
+      heatShield.castShadow = true;
+      group.add(heatShield);
+      const stripeMat = isMk3 ? this.mats.copper : isMk2 ? this.mats.accent : this.mats.dark;
+      const stripe1 = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.98, cmdRadius * 1, 0.1, 28),
+        stripeMat
+      );
+      stripe1.position.y = cmdHeight * 0.15;
+      group.add(stripe1);
+      const stripe2 = new Mesh(
+        new CylinderGeometry(cmdRadius * 1, cmdRadius * 1.02, 0.08, 28),
+        this.mats.dark
+      );
+      stripe2.position.y = -cmdHeight * 0.15;
+      group.add(stripe2);
+      const winCount = isMk3 ? 3 : isMk2 ? 2 : 1;
+      for (let i = 0; i < winCount; i++) {
+        const angle = i / winCount * Math.PI * 2 - Math.PI / 2;
+        const win = new Mesh(
+          new SphereGeometry(cmdRadius * 0.16, 14, 10),
+          this.mats.glass
+        );
+        win.position.set(
+          Math.cos(angle) * cmdRadius * 0.7,
+          cmdHeight * 0.1,
+          Math.sin(angle) * cmdRadius * 0.7
+        );
+        win.scale.set(1, 0.7, 0.5);
+        group.add(win);
+        const frame = new Mesh(
+          new TorusGeometry(cmdRadius * 0.16, 0.02, 6, 16),
+          this.mats.dark
+        );
+        frame.position.copy(win.position);
+        frame.lookAt(new Vector3(win.position.x * 3, win.position.y, win.position.z * 3));
+        group.add(frame);
+      }
+      const ant = new Mesh(
+        new CylinderGeometry(0.015, 0.015, 0.35, 6),
+        this.mats.antenna
+      );
+      ant.position.y = cmdHeight / 2 + 0.15;
+      ant.castShadow = true;
+      group.add(ant);
+      const antBall = new Mesh(
+        new SphereGeometry(0.03, 8, 6),
+        this.mats.accent
+      );
+      antBall.position.y = cmdHeight / 2 + 0.35;
+      group.add(antBall);
+      if (isMk2 || isMk3) {
+        const rcsCount = isMk3 ? 4 : 2;
+        for (let i = 0; i < rcsCount; i++) {
+          const angle = i / rcsCount * Math.PI * 2 + Math.PI / 4;
+          const rcsBlock = new Mesh(
+            new BoxGeometry(0.1, 0.1, 0.08),
+            this.mats.rcs
+          );
+          rcsBlock.position.set(
+            Math.cos(angle) * cmdRadius * 0.95,
+            cmdHeight * 0.25,
+            Math.sin(angle) * cmdRadius * 0.95
+          );
+          rcsBlock.rotation.y = -angle;
+          rcsBlock.castShadow = true;
+          group.add(rcsBlock);
+          const rcsNoz = new Mesh(
+            new ConeGeometry(0.025, 0.06, 6),
+            this.mats.dark
+          );
+          rcsNoz.position.set(
+            Math.cos(angle) * (cmdRadius * 0.95 + 0.06),
+            cmdHeight * 0.25,
+            Math.sin(angle) * (cmdRadius * 0.95 + 0.06)
+          );
+          rcsNoz.rotation.y = -angle;
+          group.add(rcsNoz);
+        }
+      }
+      if (isMk3) {
+        const hatch = new Mesh(
+          new CylinderGeometry(0.12, 0.14, 0.1, 16),
+          this.mats.dark
+        );
+        hatch.position.y = cmdHeight / 2 + 0.05;
+        group.add(hatch);
+      }
+      const baseRing = new Mesh(
+        new CylinderGeometry(cmdRadius * 1.02, cmdRadius * 0.98, 0.08, 28),
+        this.mats.accent
+      );
+      baseRing.position.y = -cmdHeight / 2 - 0.04;
+      group.add(baseRing);
+    }
+    return { group, height: cmdHeight, radius: cmdRadius };
+  }
+  // ============================================
+  // 燃料箱模型 (Fuel Tanks)
+  // ============================================
+  createFuelTank(part) {
+    const group = new Group();
+    let tankHeight = 1.3, tankRadius = 0.55;
+    let tankMat = this.mats.fuelWhite;
+    if (part.fuelMass > 3e4) {
+      tankHeight = 3.2;
+      tankRadius = 0.85;
+      tankMat = this.mats.fuelOrange;
+    } else if (part.fuelMass > 15e3) {
+      tankHeight = 2.6;
+      tankRadius = 0.75;
+      tankMat = this.mats.fuelOrange;
+    } else if (part.fuelMass > 5e3) {
+      tankHeight = 1.9;
+      tankRadius = 0.65;
+      tankMat = this.mats.fuelWhite;
+    } else if (part.fuelMass > 1e3) {
+      tankHeight = 1.3;
+      tankRadius = 0.55;
+      tankMat = this.mats.fuelWhite;
+    } else {
+      tankHeight = 0.9;
+      tankRadius = 0.45;
+      tankMat = this.mats.fuelGray;
+    }
+    const tank = new Mesh(
+      new CylinderGeometry(tankRadius, tankRadius, tankHeight, 36),
+      tankMat
+    );
+    tank.castShadow = true;
+    tank.receiveShadow = true;
+    group.add(tank);
+    const topRing = new Mesh(
+      new CylinderGeometry(tankRadius * 1.04, tankRadius * 1.04, 0.14, 36),
+      this.mats.dark
+    );
+    topRing.position.y = tankHeight / 2 - 0.07;
+    topRing.castShadow = true;
+    group.add(topRing);
+    const botRing = new Mesh(
+      new CylinderGeometry(tankRadius * 1.04, tankRadius * 1.04, 0.14, 36),
+      this.mats.dark
+    );
+    botRing.position.y = -tankHeight / 2 + 0.07;
+    botRing.castShadow = true;
+    group.add(botRing);
+    const bandColor = part.fuelMass > 2e4 ? this.mats.copper : part.fuelMass > 5e3 ? this.mats.accent : this.mats.structural;
+    const accentBand = new Mesh(
+      new CylinderGeometry(tankRadius * 1.01, tankRadius * 1.01, 0.08, 36),
+      bandColor
+    );
+    accentBand.position.y = tankHeight * 0.2;
+    group.add(accentBand);
+    const accentBand2 = new Mesh(
+      new CylinderGeometry(tankRadius * 1.01, tankRadius * 1.01, 0.08, 36),
+      bandColor
+    );
+    accentBand2.position.y = -tankHeight * 0.2;
+    group.add(accentBand2);
+    const panelCount = part.fuelMass > 15e3 ? 8 : part.fuelMass > 5e3 ? 6 : 4;
+    for (let s = 0; s < panelCount; s++) {
+      const angle = s / panelCount * Math.PI * 2;
+      const panel = new Mesh(
+        new BoxGeometry(0.03, tankHeight * 0.85, 0.04),
+        this.mats.dark
+      );
+      panel.position.set(
+        Math.cos(angle) * (tankRadius + 0.01),
+        0,
+        Math.sin(angle) * (tankRadius + 0.01)
+      );
+      panel.rotation.y = -angle + Math.PI / 2;
+      group.add(panel);
+    }
+    for (let s = 0; s < panelCount; s++) {
+      const angle = s / panelCount * Math.PI * 2 + Math.PI / panelCount;
+      for (const yOff of [tankHeight / 2 - 0.07, -tankHeight / 2 + 0.07]) {
+        const rivet = new Mesh(
+          new SphereGeometry(0.02, 6, 4),
+          this.mats.dark
+        );
+        rivet.position.set(Math.cos(angle) * tankRadius * 1.04, yOff, Math.sin(angle) * tankRadius * 1.04);
+        group.add(rivet);
+      }
+    }
+    return { group, height: tankHeight, radius: tankRadius };
+  }
+  // ============================================
+  // 引擎模型 (Engines) - 使用 LatheGeometry 喷管
+  // ============================================
+  createEngine(part) {
+    const group = new Group();
+    let bodyR = 0.45, bodyH = 1, nozzleR = 0.6, nozzleH = 0.9;
+    let nozzleCount = 1;
+    if (part.thrust > 2e6) {
+      bodyR = 0.7;
+      bodyH = 1.5;
+      nozzleR = 1.05;
+      nozzleH = 1.3;
+      nozzleCount = part.id.includes("mammoth") ? 4 : part.id.includes("twin") ? 2 : 1;
+    } else if (part.thrust > 1e6) {
+      bodyR = 0.6;
+      bodyH = 1.3;
+      nozzleR = 0.9;
+      nozzleH = 1.1;
+    } else if (part.thrust > 5e5) {
+      bodyR = 0.55;
+      bodyH = 1.1;
+      nozzleR = 0.8;
+      nozzleH = 1;
+    } else if (part.thrust > 2e5) {
+      bodyR = 0.5;
+      bodyH = 0.95;
+      nozzleR = 0.7;
+      nozzleH = 0.85;
+    } else if (part.thrust > 5e4) {
+      bodyR = 0.4;
+      bodyH = 0.75;
+      nozzleR = 0.55;
+      nozzleH = 0.65;
+    } else if (part.thrust > 1e3) {
+      bodyR = 0.3;
+      bodyH = 0.55;
+      nozzleR = 0.4;
+      nozzleH = 0.5;
+    } else {
+      bodyR = 0.2;
+      bodyH = 0.35;
+      nozzleR = 0.25;
+      nozzleH = 0.3;
+    }
+    const isIon = part.id.includes("ion") || part.id.includes("dawn");
+    const totalH = bodyH + nozzleH;
+    if (isIon) {
+      const body = new Mesh(
+        new CylinderGeometry(bodyR, bodyR * 0.85, bodyH, 16),
+        this.mats.engineBody
+      );
+      body.position.y = nozzleH / 2;
+      body.castShadow = true;
+      group.add(body);
+      const grid = new Mesh(
+        new CircleGeometry(nozzleR, 24),
+        new MeshStandardMaterial({ color: 4482730, emissive: 2245768, roughness: 0.3, metalness: 0.8, side: DoubleSide })
+      );
+      grid.rotation.x = Math.PI / 2;
+      grid.position.y = -nozzleH / 2 + 0.01;
+      group.add(grid);
+      const noz = new Mesh(
+        new CylinderGeometry(nozzleR, nozzleR * 0.7, nozzleH, 24, 1, true),
+        this.mats.nozzle
+      );
+      noz.position.y = -nozzleH / 2 + nozzleH / 2;
+      noz.castShadow = true;
+      group.add(noz);
+      const gimbal = new Mesh(
+        new TorusGeometry(bodyR * 1.1, 0.04, 8, 20),
+        this.mats.accent
+      );
+      gimbal.rotation.x = Math.PI / 2;
+      gimbal.position.y = bodyH + nozzleH / 2 - 0.05;
+      group.add(gimbal);
+    } else if (nozzleCount === 1) {
+      const body = new Mesh(
+        new CylinderGeometry(bodyR * 0.85, bodyR, bodyH, 24),
+        this.mats.engineBody
+      );
+      body.position.y = nozzleH / 2;
+      body.castShadow = true;
+      group.add(body);
+      const gimbal = new Mesh(
+        new TorusGeometry(bodyR * 0.9, 0.05, 8, 24),
+        this.mats.accent
+      );
+      gimbal.rotation.x = Math.PI / 2;
+      gimbal.position.y = bodyH + nozzleH / 2 - 0.03;
+      group.add(gimbal);
+      const topRing = new Mesh(
+        new CylinderGeometry(bodyR * 0.9, bodyR * 0.85, 0.12, 24),
+        this.mats.accent
+      );
+      topRing.position.y = bodyH + nozzleH / 2 - 0.08;
+      group.add(topRing);
+      const pipeCount = 3;
+      for (let i = 0; i < pipeCount; i++) {
+        const angle = i / pipeCount * Math.PI * 2;
+        const pipe = new Mesh(
+          new CylinderGeometry(0.03, 0.03, bodyH * 0.6, 8),
+          this.mats.copper
+        );
+        pipe.position.set(
+          Math.cos(angle) * bodyR * 0.7,
+          nozzleH / 2 + bodyH * 0.1,
+          Math.sin(angle) * bodyR * 0.7
+        );
+        pipe.castShadow = true;
+        group.add(pipe);
+      }
+      const nozzlePoints = [];
+      const segs = 12;
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const y = -t * nozzleH;
+        const r = bodyR * 0.7 + (nozzleR - bodyR * 0.7) * Math.pow(t, 0.55);
+        nozzlePoints.push(new Vector2(r, y));
+      }
+      const nozzleGeo = new LatheGeometry(nozzlePoints, 28);
+      const nozzle = new Mesh(nozzleGeo, this.mats.nozzle);
+      nozzle.position.y = nozzleH / 2 - 0.02;
+      nozzle.castShadow = true;
+      group.add(nozzle);
+      const throatRing = new Mesh(
+        new TorusGeometry(bodyR * 0.7, 0.03, 6, 20),
+        this.mats.dark
+      );
+      throatRing.rotation.x = Math.PI / 2;
+      throatRing.position.y = nozzleH / 2 - 0.02;
+      group.add(throatRing);
+    } else {
+      const mainBody = new Mesh(
+        new CylinderGeometry(bodyR, bodyR, bodyH, 24),
+        this.mats.engineBody
+      );
+      mainBody.position.y = nozzleH / 2;
+      mainBody.castShadow = true;
+      group.add(mainBody);
+      const gimbal = new Mesh(
+        new TorusGeometry(bodyR * 1.05, 0.06, 8, 24),
+        this.mats.accent
+      );
+      gimbal.rotation.x = Math.PI / 2;
+      gimbal.position.y = bodyH + nozzleH / 2 - 0.03;
+      group.add(gimbal);
+      const nozzleOffset = bodyR * 0.5;
+      const positions = nozzleCount === 2 ? [[-nozzleOffset, 0], [nozzleOffset, 0]] : [[-nozzleOffset, -nozzleOffset], [nozzleOffset, -nozzleOffset], [-nozzleOffset, nozzleOffset], [nozzleOffset, nozzleOffset]];
+      const nR = nozzleR * 0.55;
+      const nH = nozzleH * 0.8;
+      for (const [px2, pz2] of positions) {
+        const subBody = new Mesh(
+          new CylinderGeometry(nR * 0.9, nR * 0.8, bodyH * 0.7, 16),
+          this.mats.engineBody
+        );
+        subBody.position.set(px2, nozzleH / 2 + bodyH * 0.1, pz2);
+        subBody.castShadow = true;
+        group.add(subBody);
+        const nozzlePoints = [];
+        const segs = 10;
+        for (let i = 0; i <= segs; i++) {
+          const t = i / segs;
+          const y = -t * nH;
+          const r = nR * 0.6 + (nR - nR * 0.6) * Math.pow(t, 0.55);
+          nozzlePoints.push(new Vector2(r, y));
+        }
+        const nozzleGeo = new LatheGeometry(nozzlePoints, 20);
+        const nozzle = new Mesh(nozzleGeo, this.mats.nozzle);
+        nozzle.position.set(px2, nozzleH / 2 + bodyH * 0.1 - 0.02, pz2);
+        nozzle.castShadow = true;
+        group.add(nozzle);
+      }
+      for (const [px2, pz2] of positions) {
+        const pipe = new Mesh(
+          new CylinderGeometry(0.04, 0.04, bodyH * 0.5, 8),
+          this.mats.copper
+        );
+        pipe.position.set(px2 * 0.5, nozzleH / 2 + bodyH * 0.4, pz2 * 0.5);
+        group.add(pipe);
+      }
+    }
+    const offsetGroup = new Group();
+    offsetGroup.add(group);
+    group.position.y = -bodyH / 4;
+    return { group: offsetGroup, height: totalH, radius: nozzleR };
+  }
+  // ============================================
+  // 助推器模型 (Boosters / SRB)
+  // ============================================
+  createBooster(part) {
+    const group = new Group();
+    let bHeight = 2.8, bRadius = 0.3;
+    if (part.thrust > 2e6) {
+      bHeight = 4.5;
+      bRadius = 0.5;
+    } else if (part.thrust > 5e5) {
+      bHeight = 3.5;
+      bRadius = 0.4;
+    }
+    const body = new Mesh(
+      new CylinderGeometry(bRadius, bRadius, bHeight, 20),
+      this.mats.booster
+    );
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+    const bandCount = Math.floor(bHeight / 0.8);
+    for (let i = 0; i < bandCount; i++) {
+      const y = -bHeight / 2 + (i + 1) * (bHeight / (bandCount + 1));
+      const band = new Mesh(
+        new CylinderGeometry(bRadius * 1.02, bRadius * 1.02, 0.1, 20),
+        this.mats.dark
+      );
+      band.position.y = y;
+      band.castShadow = true;
+      group.add(band);
+    }
+    const nose = new Mesh(
+      new ConeGeometry(bRadius, 0.6, 20),
+      this.mats.booster
+    );
+    nose.position.y = bHeight / 2 + 0.3;
+    nose.castShadow = true;
+    group.add(nose);
+    const noseRing = new Mesh(
+      new CylinderGeometry(bRadius * 1.02, bRadius, 0.08, 20),
+      this.mats.dark
+    );
+    noseRing.position.y = bHeight / 2 + 0.04;
+    group.add(noseRing);
+    const nozzlePoints = [];
+    const segs = 8;
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      const y = -t * 0.4;
+      const r = bRadius * 0.6 + (bRadius * 0.9 - bRadius * 0.6) * Math.pow(t, 0.5);
+      nozzlePoints.push(new Vector2(r, y));
+    }
+    const nozzleGeo = new LatheGeometry(nozzlePoints, 16);
+    const nozzle = new Mesh(nozzleGeo, this.mats.nozzle);
+    nozzle.position.y = -bHeight / 2 + 0.02;
+    nozzle.castShadow = true;
+    group.add(nozzle);
+    const nozRing = new Mesh(
+      new CylinderGeometry(bRadius * 0.7, bRadius * 0.7, 0.06, 16),
+      this.mats.dark
+    );
+    nozRing.position.y = -bHeight / 2 + 0.03;
+    group.add(nozRing);
+    for (let i = 0; i < 2; i++) {
+      const y = i === 0 ? bHeight * 0.2 : -bHeight * 0.2;
+      const strut = new Mesh(
+        new BoxGeometry(0.3, 0.06, 0.06),
+        this.mats.structural
+      );
+      strut.position.set(bRadius + 0.15, y, 0);
+      strut.castShadow = true;
+      group.add(strut);
+    }
+    const totalH = bHeight + 0.6 + 0.4;
+    return { group, height: totalH, radius: bRadius };
+  }
+  // ============================================
+  // 降落伞模型 (Parachutes)
+  // ============================================
+  createParachute(part) {
+    const group = new Group();
+    const isDrogue = part.id.includes("drogue");
+    const canH = 0.4, canR = 0.18;
+    const can = new Mesh(
+      new CylinderGeometry(canR, canR * 0.9, canH, 16),
+      this.mats.parachute
+    );
+    can.castShadow = true;
+    group.add(can);
+    const cap = new Mesh(
+      new ConeGeometry(canR, 0.25, 16),
+      this.mats.parachute
+    );
+    cap.position.y = canH / 2 + 0.12;
+    cap.castShadow = true;
+    group.add(cap);
+    const capAccent = new Mesh(
+      new CylinderGeometry(canR * 0.5, canR * 0.5, 0.04, 12),
+      this.mats.dark
+    );
+    capAccent.position.y = canH / 2 + 0.24;
+    group.add(capAccent);
+    const flange = new Mesh(
+      new CylinderGeometry(canR * 1.15, canR * 0.95, 0.08, 16),
+      this.mats.dark
+    );
+    flange.position.y = -canH / 2 + 0.04;
+    flange.castShadow = true;
+    group.add(flange);
+    const indicator = new Mesh(
+      new BoxGeometry(canR * 0.3, canH * 0.6, 0.01),
+      isDrogue ? this.mats.accent : this.mats.copper
+    );
+    indicator.position.set(canR * 0.9, 0, 0);
+    group.add(indicator);
+    const baseRing = new Mesh(
+      new CylinderGeometry(canR * 1.05, canR * 0.9, 0.06, 16),
+      this.mats.accent
+    );
+    baseRing.position.y = -canH / 2 - 0.01;
+    group.add(baseRing);
+    return { group, height: canH + 0.25, radius: canR * 1.15 };
+  }
+  // ============================================
+  // 气动部件模型 (Aerodynamics)
+  // ============================================
+  createAeroPart(part) {
+    const group = new Group();
+    if (part.id.includes("heatshield")) {
+      const radius = part.id.includes("mk2") ? 0.7 : part.id.includes("mk3") ? 0.9 : 0.55;
+      const shield = new Mesh(
+        new CylinderGeometry(radius, radius * 0.8, 0.2, 32),
+        new MeshStandardMaterial({ color: 3811866, roughness: 0.9, metalness: 0.1 })
+      );
+      shield.castShadow = true;
+      shield.receiveShadow = true;
+      group.add(shield);
+      for (let i = 0; i < 8; i++) {
+        const angle = i / 8 * Math.PI * 2;
+        const r = radius * 0.5;
+        const spot = new Mesh(
+          new SphereGeometry(0.04, 6, 4),
+          this.mats.dark
+        );
+        spot.position.set(Math.cos(angle) * r, 0.1, Math.sin(angle) * r);
+        group.add(spot);
+      }
+      const topRing = new Mesh(
+        new CylinderGeometry(radius * 0.85, radius, 0.06, 32),
+        this.mats.dark
+      );
+      topRing.position.y = -0.1;
+      group.add(topRing);
+      return { group, height: 0.3, radius };
+    } else if (part.id.includes("nosecone") || part.id.includes("nose")) {
+      const radius = 0.5;
+      const coneH = 0.8;
+      const cone = new Mesh(
+        new ConeGeometry(radius, coneH, 28),
+        this.mats.aero
+      );
+      cone.castShadow = true;
+      group.add(cone);
+      const baseRing = new Mesh(
+        new CylinderGeometry(radius * 1.02, radius, 0.1, 28),
+        this.mats.dark
+      );
+      baseRing.position.y = -coneH / 2 + 0.05;
+      baseRing.castShadow = true;
+      group.add(baseRing);
+      const tip = new Mesh(
+        new SphereGeometry(0.04, 8, 6),
+        this.mats.accent
+      );
+      tip.position.y = coneH / 2;
+      group.add(tip);
+      return { group, height: coneH, radius };
+    } else {
+      const isDelta = part.id.includes("delta");
+      const isWing = part.id.includes("wing") || part.id.includes("av");
+      const finH = isDelta ? 1 : 0.7;
+      const finW = isDelta ? 0.8 : 0.5;
+      const finThick = 0.04;
+      const finShape = new Shape();
+      finShape.moveTo(0, -finH / 2);
+      finShape.lineTo(0, finH / 2);
+      finShape.lineTo(finW, -finH / 2 + 0.1);
+      finShape.lineTo(finW * 0.8, -finH / 2);
+      finShape.closePath();
+      const finGeo = new ExtrudeGeometry(finShape, {
+        depth: finThick,
+        bevelEnabled: true,
+        bevelThickness: 0.01,
+        bevelSize: 0.01,
+        bevelSegments: 1
+      });
+      finGeo.translate(0, 0, -finThick / 2);
+      const fin = new Mesh(finGeo, this.mats.aero);
+      fin.castShadow = true;
+      fin.receiveShadow = true;
+      group.add(fin);
+      const ctrlShape = new Shape();
+      ctrlShape.moveTo(finW * 0.5, -finH / 2);
+      ctrlShape.lineTo(finW, -finH / 2 + 0.1);
+      ctrlShape.lineTo(finW * 0.8, -finH / 2);
+      ctrlShape.closePath();
+      const ctrlGeo = new ExtrudeGeometry(ctrlShape, {
+        depth: finThick * 1.1,
+        bevelEnabled: false
+      });
+      ctrlGeo.translate(0, 0, -finThick * 0.55);
+      const ctrl = new Mesh(ctrlGeo, this.mats.dark);
+      group.add(ctrl);
+      const rootStrip = new Mesh(
+        new BoxGeometry(0.04, finH, finThick * 1.2),
+        this.mats.structural
+      );
+      rootStrip.position.x = -0.02;
+      group.add(rootStrip);
+      return { group, height: finH, radius: finW };
+    }
+  }
+  // ============================================
+  // RCS 推进器模型
+  // ============================================
+  createRCSPart(part) {
+    const group = new Group();
+    if (part.id.includes("tank")) {
+      const radius = part.id.includes("large") ? 0.3 : 0.2;
+      const tank = new Mesh(
+        new CylinderGeometry(radius, radius, 0.5, 16),
+        this.mats.fuelGray
+      );
+      tank.castShadow = true;
+      group.add(tank);
+      for (const yOff of [0.15, -0.15]) {
+        const band = new Mesh(
+          new CylinderGeometry(radius * 1.03, radius * 1.03, 0.05, 16),
+          this.mats.dark
+        );
+        band.position.y = yOff;
+        group.add(band);
+      }
+      return { group, height: 0.5, radius };
+    }
+    const body = new Mesh(
+      new BoxGeometry(0.15, 0.15, 0.15),
+      this.mats.rcs
+    );
+    body.castShadow = true;
+    group.add(body);
+    const nozGeo = new ConeGeometry(0.03, 0.06, 6);
+    const directions = [
+      [1, 0, 0, -Math.PI / 2],
+      // +X
+      [-1, 0, 0, Math.PI / 2],
+      // -X
+      [0, 0, 1, 0],
+      // +Z
+      [0, 0, -1, Math.PI]
+      // -Z
+    ];
+    for (const [dx, dy, dz, rotY] of directions) {
+      const noz = new Mesh(nozGeo, this.mats.dark);
+      noz.position.set(dx * 0.1, 0, dz * 0.1);
+      noz.rotation.z = Math.PI / 2;
+      noz.rotation.y = rotY;
+      group.add(noz);
+    }
+    return { group, height: 0.2, radius: 0.12 };
+  }
+  // ============================================
+  // 太阳能板/电力模型 (Solar / Electrical)
+  // ============================================
+  createSolarPart(part) {
+    const group = new Group();
+    if (part.id.includes("battery")) {
+      const size = part.id.includes("z1k") ? 0.4 : part.id.includes("z400") ? 0.3 : part.id.includes("z200") ? 0.25 : 0.2;
+      const body = new Mesh(
+        new BoxGeometry(size, size * 0.6, size),
+        this.mats.fuelGray
+      );
+      body.castShadow = true;
+      group.add(body);
+      const led = new Mesh(
+        new SphereGeometry(0.02, 8, 6),
+        new MeshStandardMaterial({ color: 65280, emissive: 17408 })
+      );
+      led.position.set(0, size * 0.3, size * 0.5);
+      group.add(led);
+      const term = new Mesh(
+        new BoxGeometry(size * 0.8, 0.04, size * 0.3),
+        this.mats.copper
+      );
+      term.position.y = -size * 0.3 - 0.02;
+      group.add(term);
+      return { group, height: size * 0.6, radius: size * 0.7 };
+    } else if (part.id.includes("rtg")) {
+      const body = new Mesh(
+        new CylinderGeometry(0.15, 0.15, 0.6, 16),
+        this.mats.dark
+      );
+      body.castShadow = true;
+      group.add(body);
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2;
+        const fin = new Mesh(
+          new BoxGeometry(0.2, 0.5, 0.02),
+          this.mats.structural
+        );
+        fin.position.set(Math.cos(angle) * 0.18, 0, Math.sin(angle) * 0.18);
+        fin.rotation.y = -angle;
+        fin.castShadow = true;
+        group.add(fin);
+      }
+      const cap = new Mesh(
+        new CylinderGeometry(0.16, 0.15, 0.05, 16),
+        this.mats.accent
+      );
+      cap.position.y = 0.32;
+      group.add(cap);
+      return { group, height: 0.65, radius: 0.3 };
+    } else if (part.id.includes("fuel_cell")) {
+      const body = new Mesh(
+        new CylinderGeometry(0.25, 0.25, 0.4, 16),
+        this.mats.fuelGray
+      );
+      body.castShadow = true;
+      group.add(body);
+      for (let i = 0; i < 2; i++) {
+        const pipe = new Mesh(
+          new CylinderGeometry(0.03, 0.03, 0.3, 8),
+          this.mats.copper
+        );
+        pipe.position.set(i === 0 ? 0.15 : -0.15, 0.1, 0);
+        pipe.rotation.z = Math.PI / 2;
+        group.add(pipe);
+      }
+      return { group, height: 0.4, radius: 0.28 };
+    }
+    const isGigantor = part.id.includes("gigantor");
+    const panelW = isGigantor ? 1.1 : 0.55;
+    const panelD = isGigantor ? 0.5 : 0.35;
+    const base = new Mesh(
+      new CylinderGeometry(0.06, 0.08, 0.1, 12),
+      this.mats.solarFrame
+    );
+    base.castShadow = true;
+    group.add(base);
+    const arm = new Mesh(
+      new CylinderGeometry(0.025, 0.025, 0.3, 8),
+      this.mats.solarFrame
+    );
+    arm.rotation.z = Math.PI / 2;
+    arm.position.x = 0.15;
+    arm.castShadow = true;
+    group.add(arm);
+    const hinge = new Mesh(
+      new CylinderGeometry(0.04, 0.04, 0.08, 10),
+      this.mats.dark
+    );
+    hinge.rotation.z = Math.PI / 2;
+    hinge.position.x = 0.3;
+    group.add(hinge);
+    const panel = new Mesh(
+      new BoxGeometry(panelW, 0.02, panelD),
+      this.mats.solar
+    );
+    panel.position.x = 0.3 + panelW / 2 + 0.02;
+    panel.castShadow = true;
+    group.add(panel);
+    const gridLines = isGigantor ? 6 : 3;
+    for (let i = 0; i < gridLines; i++) {
+      const line = new Mesh(
+        new BoxGeometry(panelW * 0.98, 0.022, 5e-3),
+        this.mats.solarFrame
+      );
+      line.position.set(0.3 + panelW / 2 + 0.02, 0, -panelD / 2 + (i + 1) * panelD / (gridLines + 1));
+      group.add(line);
+    }
+    for (const zOff of [-panelD / 2, panelD / 2]) {
+      const edge = new Mesh(
+        new BoxGeometry(panelW, 0.03, 0.02),
+        this.mats.solarFrame
+      );
+      edge.position.set(0.3 + panelW / 2 + 0.02, 0, zOff);
+      group.add(edge);
+    }
+    return { group, height: 0.1, radius: 0.3 + panelW / 2 };
+  }
+  // ============================================
+  // 天线模型 (Antennas)
+  // ============================================
+  createAntennaPart(part) {
+    const group = new Group();
+    const base = new Mesh(
+      new CylinderGeometry(0.04, 0.05, 0.08, 12),
+      this.mats.antenna
+    );
+    base.castShadow = true;
+    group.add(base);
+    if (part.id.includes("whip") || !part.id.includes("dish") && !part.id.includes("ra") && !part.id.includes("88")) {
+      const mast = new Mesh(
+        new CylinderGeometry(0.015, 0.02, 0.7, 8),
+        this.mats.antenna
+      );
+      mast.position.y = 0.39;
+      mast.castShadow = true;
+      group.add(mast);
+      const tip = new Mesh(
+        new SphereGeometry(0.025, 8, 6),
+        this.mats.accent
+      );
+      tip.position.y = 0.74;
+      group.add(tip);
+      return { group, height: 0.8, radius: 0.05 };
+    } else {
+      const dishSize = part.id.includes("ra100") ? 0.4 : part.id.includes("ra15") ? 0.3 : part.id.includes("ra2") ? 0.2 : 0.25;
+      const mastH = part.id.includes("ra100") ? 0.8 : 0.6;
+      const mast = new Mesh(
+        new CylinderGeometry(0.02, 0.025, mastH, 8),
+        this.mats.antenna
+      );
+      mast.position.y = mastH / 2 + 0.04;
+      mast.castShadow = true;
+      group.add(mast);
+      const dishGeo = new SphereGeometry(dishSize, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+      const dish = new Mesh(dishGeo, this.mats.antenna);
+      dish.position.y = mastH + 0.04;
+      dish.rotation.x = Math.PI;
+      dish.castShadow = true;
+      group.add(dish);
+      const dishBack = new Mesh(
+        new SphereGeometry(dishSize * 0.95, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+        this.mats.dark
+      );
+      dishBack.position.y = mastH + 0.04;
+      dishBack.rotation.x = 0;
+      group.add(dishBack);
+      const feed = new Mesh(
+        new ConeGeometry(0.04, 0.1, 8),
+        this.mats.accent
+      );
+      feed.position.y = mastH + 0.04 + dishSize * 0.5;
+      feed.rotation.x = Math.PI;
+      group.add(feed);
+      for (let i = 0; i < 3; i++) {
+        const angle = i / 3 * Math.PI * 2;
+        const strut = new Mesh(
+          new CylinderGeometry(5e-3, 5e-3, dishSize * 0.7, 4),
+          this.mats.antenna
+        );
+        strut.position.set(
+          Math.cos(angle) * dishSize * 0.25,
+          mastH + 0.04 + dishSize * 0.25,
+          Math.sin(angle) * dishSize * 0.25
+        );
+        strut.lookAt(new Vector3(0, mastH + 0.04 + dishSize * 0.5, 0));
+        strut.rotateX(Math.PI / 2);
+        group.add(strut);
+      }
+      return { group, height: mastH + dishSize + 0.1, radius: dishSize };
+    }
+  }
+  // ============================================
+  // 科学仪器模型 (Science Parts)
+  // ============================================
+  createSciencePart(part) {
+    const group = new Group();
+    if (part.id.includes("lab")) {
+      const body2 = new Mesh(
+        new CylinderGeometry(0.7, 0.7, 1.5, 24),
+        this.mats.fuelWhite
+      );
+      body2.castShadow = true;
+      body2.receiveShadow = true;
+      group.add(body2);
+      for (let i = 0; i < 3; i++) {
+        const angle = i / 3 * Math.PI * 2;
+        const win = new Mesh(
+          new SphereGeometry(0.1, 12, 8),
+          this.mats.glass
+        );
+        win.position.set(Math.cos(angle) * 0.65, 0.2, Math.sin(angle) * 0.65);
+        win.scale.set(1, 0.6, 0.4);
+        group.add(win);
+      }
+      for (const yOff of [0.7, -0.7]) {
+        const ring = new Mesh(
+          new CylinderGeometry(0.72, 0.72, 0.08, 24),
+          this.mats.dark
+        );
+        ring.position.y = yOff;
+        group.add(ring);
+      }
+      const ant = new Mesh(
+        new CylinderGeometry(0.01, 0.01, 0.3, 6),
+        this.mats.antenna
+      );
+      ant.position.y = 0.85;
+      group.add(ant);
+      return { group, height: 1.5, radius: 0.72 };
+    }
+    const isSensor = part.id.includes("sensor") || part.id.includes("accel") || part.id.includes("gravity");
+    const isGoop = part.id.includes("goop");
+    const isMatlab = part.id.includes("matlab");
+    const boxSize = isMatlab ? 0.35 : 0.25;
+    const body = new Mesh(
+      new BoxGeometry(boxSize, boxSize, boxSize),
+      this.mats.science
+    );
+    body.castShadow = true;
+    group.add(body);
+    if (isSensor || part.id.includes("barometer") || part.id.includes("thermo") || part.id.includes("atmo")) {
+      const lens = new Mesh(
+        new CylinderGeometry(0.04, 0.05, 0.06, 12),
+        this.mats.glass
+      );
+      lens.rotation.x = Math.PI / 2;
+      lens.position.z = boxSize / 2 + 0.03;
+      group.add(lens);
+      const lensRing = new Mesh(
+        new TorusGeometry(0.045, 0.01, 6, 12),
+        this.mats.dark
+      );
+      lensRing.position.z = boxSize / 2 + 0.04;
+      group.add(lensRing);
+    }
+    if (isGoop) {
+      const container2 = new Mesh(
+        new SphereGeometry(0.12, 16, 12),
+        new MeshStandardMaterial({ color: 4521796, emissive: 17408, roughness: 0.3, metalness: 0.5, transparent: true, opacity: 0.8 })
+      );
+      container2.position.y = boxSize / 2 + 0.05;
+      container2.castShadow = true;
+      group.add(container2);
+    }
+    if (isMatlab) {
+      const screen = new Mesh(
+        new BoxGeometry(boxSize * 0.7, boxSize * 0.5, 0.01),
+        new MeshStandardMaterial({ color: 65280, emissive: 17408 })
+      );
+      screen.position.set(0, 0, boxSize / 2 + 0.01);
+      group.add(screen);
+    }
+    const antStub = new Mesh(
+      new CylinderGeometry(0.01, 0.01, 0.15, 6),
+      this.mats.antenna
+    );
+    antStub.position.y = boxSize / 2 + 0.07;
+    group.add(antStub);
+    return { group, height: boxSize, radius: boxSize * 0.7 };
+  }
+  // ============================================
+  // 着陆装置模型 (Landing Legs)
+  // ============================================
+  createLandingPart(part) {
+    const group = new Group();
+    const upperLen = 0.5;
+    const upperLeg = new Mesh(
+      new CylinderGeometry(0.035, 0.03, upperLen, 8),
+      this.mats.landing
+    );
+    upperLeg.position.set(upperLen * 0.3, -upperLen * 0.3, 0);
+    upperLeg.rotation.z = -Math.PI / 4;
+    upperLeg.castShadow = true;
+    group.add(upperLeg);
+    const knee = new Mesh(
+      new SphereGeometry(0.04, 8, 6),
+      this.mats.dark
+    );
+    knee.position.set(upperLen * 0.6, -upperLen * 0.6, 0);
+    group.add(knee);
+    const lowerLen = 0.45;
+    const lowerLeg = new Mesh(
+      new CylinderGeometry(0.025, 0.02, lowerLen, 8),
+      this.mats.landing
+    );
+    lowerLeg.position.set(upperLen * 0.6 + lowerLen * 0.35, -upperLen * 0.6 - lowerLen * 0.35, 0);
+    lowerLeg.rotation.z = -Math.PI / 4;
+    lowerLeg.castShadow = true;
+    group.add(lowerLeg);
+    const shock = new Mesh(
+      new CylinderGeometry(0.015, 0.015, upperLen * 0.7, 6),
+      this.mats.accent
+    );
+    shock.position.set(upperLen * 0.25, -upperLen * 0.4, 0.05);
+    shock.rotation.z = -Math.PI / 4;
+    group.add(shock);
+    const footR = part.id.includes("lt2") ? 0.12 : part.id.includes("lt5") ? 0.06 : 0.09;
+    const foot = new Mesh(
+      new CylinderGeometry(footR, footR * 0.8, 0.04, 12),
+      this.mats.dark
+    );
+    foot.position.set(upperLen * 0.6 + lowerLen * 0.7 + 0.02, -upperLen * 0.6 - lowerLen * 0.7 - 0.04, 0);
+    foot.castShadow = true;
+    group.add(foot);
+    const mount = new Mesh(
+      new BoxGeometry(0.08, 0.1, 0.08),
+      this.mats.structural
+    );
+    mount.position.set(0, 0.1, 0);
+    group.add(mount);
+    const totalH = upperLen * 0.6 + lowerLen * 0.7 + 0.1;
+    const totalR = upperLen * 0.6 + lowerLen * 0.7 + 0.1;
+    return { group, height: totalH, radius: totalR };
+  }
+  // ============================================
+  // 分离器模型 (Decouplers)
+  // ============================================
+  createDecoupler(part) {
+    const group = new Group();
+    const isHeavy = part.id.includes("heavy");
+    const decH = isHeavy ? 0.5 : 0.4;
+    const decR = isHeavy ? 0.65 : 0.55;
+    const body = new Mesh(
+      new CylinderGeometry(decR, decR, decH, 28),
+      this.mats.decoupler
+    );
+    body.castShadow = true;
+    body.receiveShadow = true;
+    group.add(body);
+    const sepLine = new Mesh(
+      new CylinderGeometry(decR * 1.01, decR * 1.01, 0.04, 28),
+      this.mats.dark
+    );
+    group.add(sepLine);
+    const topRing = new Mesh(
+      new CylinderGeometry(decR * 1.03, decR * 1.03, 0.06, 28),
+      this.mats.dark
+    );
+    topRing.position.y = decH / 2 - 0.03;
+    group.add(topRing);
+    const botRing = new Mesh(
+      new CylinderGeometry(decR * 1.03, decR * 1.03, 0.06, 28),
+      this.mats.dark
+    );
+    botRing.position.y = -decH / 2 + 0.03;
+    group.add(botRing);
+    const boltCount = 8;
+    for (let i = 0; i < boltCount; i++) {
+      const angle = i / boltCount * Math.PI * 2;
+      for (const yOff of [decH / 2 - 0.03, -decH / 2 + 0.03]) {
+        const bolt = new Mesh(
+          new SphereGeometry(0.025, 6, 4),
+          this.mats.dark
+        );
+        bolt.position.set(Math.cos(angle) * decR * 1.03, yOff, Math.sin(angle) * decR * 1.03);
+        group.add(bolt);
+      }
+    }
+    return { group, height: decH, radius: decR };
+  }
+  // ============================================
+  // 适配器模型 (Adapters)
+  // ============================================
+  createAdapter(part) {
+    const group = new Group();
+    const isMulti = part.id.includes("3_1");
+    const adH = 0.5;
+    const adR = 0.55;
+    if (isMulti) {
+      const body = new Mesh(
+        new CylinderGeometry(adR * 0.8, adR, adH, 28),
+        this.mats.structural
+      );
+      body.castShadow = true;
+      group.add(body);
+      const topRing = new Mesh(
+        new CylinderGeometry(adR * 0.82, adR * 0.8, 0.06, 28),
+        this.mats.dark
+      );
+      topRing.position.y = adH / 2 - 0.03;
+      group.add(topRing);
+      const positions = [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]];
+      for (const [px2, pz2] of positions) {
+        const mount = new Mesh(
+          new CylinderGeometry(0.15, 0.15, 0.08, 16),
+          this.mats.dark
+        );
+        mount.position.set(px2, -adH / 2 + 0.04, pz2);
+        group.add(mount);
+      }
+    } else {
+      const body = new Mesh(
+        new CylinderGeometry(adR * 0.55, adR, adH, 28),
+        this.mats.structural
+      );
+      body.castShadow = true;
+      group.add(body);
+      const topRing = new Mesh(
+        new CylinderGeometry(adR * 0.57, adR * 0.55, 0.06, 28),
+        this.mats.dark
+      );
+      topRing.position.y = adH / 2 - 0.03;
+      group.add(topRing);
+      const botRing = new Mesh(
+        new CylinderGeometry(adR * 1.02, adR, 0.06, 28),
+        this.mats.dark
+      );
+      botRing.position.y = -adH / 2 + 0.03;
+      group.add(botRing);
+    }
+    return { group, height: adH, radius: adR };
+  }
+  // ============================================
+  // 结构部件模型 (Structural)
+  // ============================================
+  createStructural(part) {
+    const group = new Group();
+    if (part.id.includes("tube")) {
+      const isLong = part.id.includes("long");
+      const tubeH = isLong ? 1.5 : 0.7;
+      const tubeR = 0.45;
+      const tube = new Mesh(
+        new CylinderGeometry(tubeR, tubeR, tubeH, 24),
+        this.mats.structural
+      );
+      tube.castShadow = true;
+      tube.receiveShadow = true;
+      group.add(tube);
+      for (const yOff of [tubeH / 2 - 0.05, -tubeH / 2 + 0.05]) {
+        const ring = new Mesh(
+          new CylinderGeometry(tubeR * 1.03, tubeR * 1.03, 0.06, 24),
+          this.mats.dark
+        );
+        ring.position.y = yOff;
+        group.add(ring);
+      }
+      return { group, height: tubeH, radius: tubeR };
+    } else if (part.id.includes("adapter")) {
+      const body = new Mesh(
+        new CylinderGeometry(0.4, 0.55, 0.6, 24),
+        this.mats.structural
+      );
+      body.castShadow = true;
+      group.add(body);
+      for (const [r, yOff] of [[0.42, 0.27], [0.57, -0.27]]) {
+        const ring = new Mesh(
+          new CylinderGeometry(r, r, 0.05, 24),
+          this.mats.dark
+        );
+        ring.position.y = yOff;
+        group.add(ring);
+      }
+      return { group, height: 0.6, radius: 0.57 };
+    } else if (part.id.includes("octagon")) {
+      const body = new Mesh(
+        new CylinderGeometry(0.25, 0.25, 0.15, 8),
+        this.mats.structural
+      );
+      body.castShadow = true;
+      group.add(body);
+      for (let i = 0; i < 8; i++) {
+        const angle = i / 8 * Math.PI * 2;
+        const point = new Mesh(
+          new BoxGeometry(0.06, 0.15, 0.06),
+          this.mats.dark
+        );
+        point.position.set(Math.cos(angle) * 0.25, 0, Math.sin(angle) * 0.25);
+        point.rotation.y = -angle;
+        group.add(point);
+      }
+      return { group, height: 0.15, radius: 0.3 };
+    }
+    const isHeavy = part.id.includes("tt70") || part.id.includes("tt14");
+    const armLen = isHeavy ? 0.5 : 0.35;
+    const armThick = isHeavy ? 0.08 : 0.06;
+    const arm = new Mesh(
+      new BoxGeometry(armLen, armThick, armThick),
+      this.mats.structural
+    );
+    arm.position.x = armLen / 2;
+    arm.castShadow = true;
+    group.add(arm);
+    const mount = new Mesh(
+      new BoxGeometry(0.06, armThick * 1.5, armThick * 1.5),
+      this.mats.dark
+    );
+    group.add(mount);
+    const end = new Mesh(
+      new BoxGeometry(0.05, armThick * 2, armThick * 2),
+      this.mats.dark
+    );
+    end.position.x = armLen;
+    group.add(end);
+    const strut = new Mesh(
+      new CylinderGeometry(0.015, 0.015, armLen * 0.9, 6),
+      this.mats.dark
+    );
+    strut.position.set(armLen / 2, -armThick * 0.5, 0);
+    strut.rotation.z = Math.PI / 6;
+    group.add(strut);
+    return { group, height: armThick * 2, radius: armLen };
+  }
+  // ============================================
+  // 实用工具模型 (Utility)
+  // ============================================
+  createUtility(part) {
+    const group = new Group();
+    if (part.id.includes("dock")) {
+      const isSr = part.id.includes("sr");
+      const isJr = part.id.includes("jr");
+      const portR = isSr ? 0.4 : isJr ? 0.15 : 0.25;
+      const body2 = new Mesh(
+        new CylinderGeometry(portR, portR * 0.9, 0.15, 20),
+        this.mats.utility
+      );
+      body2.castShadow = true;
+      group.add(body2);
+      const dockRing = new Mesh(
+        new TorusGeometry(portR * 0.7, 0.04, 8, 20),
+        this.mats.accent
+      );
+      dockRing.rotation.x = Math.PI / 2;
+      dockRing.position.y = 0.08;
+      group.add(dockRing);
+      const center = new Mesh(
+        new CylinderGeometry(portR * 0.3, portR * 0.3, 0.06, 16),
+        this.mats.dark
+      );
+      center.position.y = 0.1;
+      group.add(center);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2;
+        const petal = new Mesh(
+          new BoxGeometry(0.08, 0.02, 0.03),
+          this.mats.accent
+        );
+        petal.position.set(Math.cos(angle) * portR * 0.5, 0.11, Math.sin(angle) * portR * 0.5);
+        petal.rotation.y = -angle;
+        group.add(petal);
+      }
+      return { group, height: 0.15, radius: portR };
+    } else if (part.id.includes("ladder")) {
+      const isLong = part.id.includes("p2");
+      const ladLen = isLong ? 1.2 : 0.6;
+      const rungCount = Math.floor(ladLen / 0.15);
+      for (const xOff of [-0.04, 0.04]) {
+        const rail = new Mesh(
+          new BoxGeometry(0.02, ladLen, 0.02),
+          this.mats.structural
+        );
+        rail.position.set(xOff, 0, 0);
+        rail.castShadow = true;
+        group.add(rail);
+      }
+      for (let i = 0; i < rungCount; i++) {
+        const y = -ladLen / 2 + (i + 1) * (ladLen / (rungCount + 1));
+        const rung = new Mesh(
+          new BoxGeometry(0.1, 0.02, 0.02),
+          this.mats.structural
+        );
+        rung.position.set(0, y, 0);
+        group.add(rung);
+      }
+      return { group, height: ladLen, radius: 0.08 };
+    } else if (part.id.includes("escape") || part.id.includes("tower")) {
+      const towerH = 1.8;
+      const tower = new Mesh(
+        new CylinderGeometry(0.08, 0.1, towerH, 12),
+        this.mats.utility
+      );
+      tower.position.y = towerH / 2;
+      tower.castShadow = true;
+      group.add(tower);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2;
+        const fin = new Mesh(
+          new BoxGeometry(0.15, 0.3, 0.02),
+          this.mats.structural
+        );
+        fin.position.set(Math.cos(angle) * 0.1, towerH * 0.7, Math.sin(angle) * 0.1);
+        fin.rotation.y = -angle;
+        group.add(fin);
+      }
+      const noz = new Mesh(
+        new ConeGeometry(0.1, 0.2, 12),
+        this.mats.nozzle
+      );
+      noz.position.y = towerH + 0.1;
+      noz.castShadow = true;
+      group.add(noz);
+      const base = new Mesh(
+        new CylinderGeometry(0.12, 0.1, 0.08, 12),
+        this.mats.dark
+      );
+      group.add(base);
+      return { group, height: towerH + 0.2, radius: 0.12 };
+    } else if (part.id.includes("light")) {
+      const body2 = new Mesh(
+        new BoxGeometry(0.1, 0.08, 0.1),
+        this.mats.utility
+      );
+      body2.castShadow = true;
+      group.add(body2);
+      const lamp = new Mesh(
+        new CylinderGeometry(0.05, 0.06, 0.04, 12),
+        new MeshStandardMaterial({ color: 16777096, emissive: 4473856, roughness: 0.3, metalness: 0.5 })
+      );
+      lamp.rotation.x = Math.PI / 2;
+      lamp.position.z = 0.06;
+      group.add(lamp);
+      const mount = new Mesh(
+        new BoxGeometry(0.04, 0.04, 0.04),
+        this.mats.dark
+      );
+      mount.position.set(0, -0.05, 0);
+      group.add(mount);
+      return { group, height: 0.1, radius: 0.08 };
+    }
+    const body = new Mesh(
+      new BoxGeometry(0.25, 0.25, 0.25),
+      this.mats.utility
+    );
+    body.castShadow = true;
+    group.add(body);
+    return { group, height: 0.25, radius: 0.18 };
+  }
+  // ============================================
+  // 通用零件 (fallback)
+  // ============================================
+  createGenericPart(part) {
+    const group = new Group();
+    const body = new Mesh(
+      new CylinderGeometry(0.4, 0.4, 0.8, 20),
+      this.mats.structural
+    );
+    body.castShadow = true;
+    group.add(body);
+    return { group, height: 0.8, radius: 0.4 };
+  }
+  // ============================================
+  // KSP 式建造系统 - 核心方法
+  // ============================================
+  // 放置零件 (核心方法)
+  placePart(part, position) {
+    const { group, height, radius } = this.createPartMesh(part);
+    group.position.copy(position);
+    group.traverse((child) => {
+      if (child instanceof Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    this.rocketGroup.add(group);
+    const placed = {
+      part,
+      mesh: group,
+      position: position.clone(),
+      isStack: this.isStackType(part),
+      symmetryParts: [],
+      height,
+      radius
+    };
+    this.placedParts.push(placed);
+    this.adjustCamera();
+    this.onPartsChanged?.();
+    return placed;
+  }
+  // 放置径向零件 (带对称)
+  placeRadialPart(part, basePoint, baseAngle, stackRadius) {
+    const dims = this.getPartDimensions(part);
+    const count = this.symmetryMode;
+    const placedArr = [];
+    for (let i = 0; i < count; i++) {
+      const angle = baseAngle + i / count * Math.PI * 2;
+      const pos = new Vector3(
+        Math.cos(angle) * (stackRadius + 0.02),
+        basePoint.y,
+        Math.sin(angle) * (stackRadius + 0.02)
+      );
+      const { group, height, radius } = this.createPartMesh(part);
+      group.position.copy(pos);
+      group.rotation.y = -angle;
+      group.traverse((child) => {
+        if (child instanceof Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.rocketGroup.add(group);
+      const placed = {
+        part,
+        mesh: group,
+        position: pos,
+        isStack: false,
+        symmetryParts: [],
+        height,
+        radius
+      };
+      placedArr.push(placed);
+      this.placedParts.push(placed);
+    }
+    for (const p of placedArr) {
+      p.symmetryParts = placedArr.filter((other) => other !== p);
+    }
+    this.adjustCamera();
+    this.onPartsChanged?.();
+  }
+  // 放置初始零件 (用于预设火箭)
+  placeInitialPart(part) {
+    if (!this.isStackType(part)) return;
+    if (this.placedParts.filter((p) => p.isStack).length === 0) {
+      this.placePart(part, new Vector3(0, 0, 0));
+    } else {
+      const botY = this.getStackBottomPosition();
+      const dims = this.getPartDimensions(part);
+      this.placePart(part, new Vector3(0, botY - dims.height / 2, 0));
+    }
+  }
+  // 删除零件
+  removePart(placedPart) {
+    const toRemove = [placedPart, ...placedPart.symmetryParts];
+    for (const p of toRemove) {
+      this.rocketGroup.remove(p.mesh);
+      this.disposeObject3D(p.mesh);
+      const idx = this.placedParts.indexOf(p);
+      if (idx >= 0) this.placedParts.splice(idx, 1);
+    }
+    for (const p of this.placedParts) {
+      p.symmetryParts = p.symmetryParts.filter((s) => !toRemove.includes(s));
+    }
+    if (this.selectedPart && toRemove.includes(this.selectedPart)) {
+      this.selectPart(null);
+    }
+    this.adjustCamera();
+    this.onPartsChanged?.();
+  }
+  // 选择零件 (高亮)
+  selectPart(placedPart) {
+    if (this.selectionOutline) {
+      this.scene.remove(this.selectionOutline);
+      this.selectionOutline.geometry.dispose();
+      this.selectionOutline.material.dispose();
+      this.selectionOutline = null;
+    }
+    this.selectedPart = placedPart;
+    if (placedPart) {
+      const allParts = [placedPart, ...placedPart.symmetryParts];
+      for (const p of allParts) {
+        const boxGeo = new BoxGeometry(p.radius * 2 + 0.15, p.height + 0.15, p.radius * 2 + 0.15);
+        const edges = new EdgesGeometry(boxGeo);
+        const outline = new LineSegments(edges, new LineBasicMaterial({ color: 16776960 }));
+        outline.position.copy(p.position);
+        if (!p.isStack) {
+          outline.rotation.copy(p.mesh.rotation);
+        }
+        if (p === placedPart) {
+          this.selectionOutline = outline;
+          this.scene.add(outline);
+        } else {
+          this.scene.add(outline);
+          this.selectionOutline.add(outline);
+        }
+        boxGeo.dispose();
+      }
+    }
+  }
+  // 获取堆栈顶部 Y 位置
+  getStackTopPosition() {
+    let top = 0;
+    let found = false;
+    for (const p of this.placedParts) {
+      if (p.isStack) {
+        const pTop = p.position.y + p.height / 2;
+        if (!found || pTop > top) {
+          top = pTop;
+          found = true;
+        }
+      }
+    }
+    return found ? top : 0;
+  }
+  // 获取堆栈底部 Y 位置
+  getStackBottomPosition() {
+    let bot = 0;
+    let found = false;
+    for (const p of this.placedParts) {
+      if (p.isStack) {
+        const pBot = p.position.y - p.height / 2;
+        if (!found || pBot < bot) {
+          bot = pBot;
+          found = true;
+        }
+      }
+    }
+    return found ? bot : 0;
+  }
+  // 射线检测选中零件
+  raycast(mouseX, mouseY) {
+    const ndc = new Vector2(mouseX, mouseY);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const meshes = this.placedParts.map((p) => p.mesh);
+    const intersects2 = this.raycaster.intersectObjects(meshes, true);
+    if (intersects2.length === 0) return null;
+    let hitObj = intersects2[0].object;
+    while (hitObj) {
+      for (const p of this.placedParts) {
+        if (p.mesh === hitObj) return p;
+      }
+      hitObj = hitObj.parent;
+    }
+    return null;
+  }
+  // ============================================
+  // Ghost 预览系统
+  // ============================================
+  showGhost(part, position) {
+    this.hideGhost();
+    const { group } = this.createPartMesh(part);
+    group.traverse((child) => {
+      if (child instanceof Mesh && child.material) {
+        const mat = child.material;
+        const ghostMat = mat.clone();
+        ghostMat.transparent = true;
+        ghostMat.opacity = 0.4;
+        ghostMat.depthWrite = false;
+        child.material = ghostMat;
+      }
+    });
+    group.position.copy(position);
+    this.scene.add(group);
+    this.ghostPart = group;
+  }
+  hideGhost() {
+    if (this.ghostPart) {
+      this.disposeObject3D(this.ghostPart);
+      this.scene.remove(this.ghostPart);
+      this.ghostPart = null;
+    }
+  }
+  // 从鼠标位置更新 Ghost
+  updateGhostFromMouse(e) {
+    if (!this.pickedUpPart) return;
+    const part = this.pickedUpPart;
+    const dims = this.getPartDimensions(part);
+    const rect = this.canvas.getBoundingClientRect();
+    const ndc = new Vector2(
+      (e.clientX - rect.left) / rect.width * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    if (this.isStackType(part)) {
+      const stackParts = this.placedParts.filter((p) => p.isStack);
+      if (stackParts.length === 0) {
+        if (this.ghostPart) this.ghostPart.position.set(0, 0, 0);
+        else this.showGhost(part, new Vector3(0, 0, 0));
+      } else {
+        const topY = this.getStackTopPosition();
+        const botY = this.getStackBottomPosition();
+        const topScreen = this.worldToScreen(new Vector3(0, topY, 0));
+        const botScreen = this.worldToScreen(new Vector3(0, botY, 0));
+        const midScreenY = (topScreen.y + botScreen.y) / 2;
+        const snapToTop = e.clientY < midScreenY;
+        let posY;
+        if (snapToTop) {
+          posY = topY + dims.height / 2;
+        } else {
+          posY = botY - dims.height / 2;
+        }
+        const pos = new Vector3(0, posY, 0);
+        if (this.ghostPart) {
+          this.ghostPart.position.copy(pos);
+        } else {
+          this.showGhost(part, pos);
+        }
+      }
+    } else {
+      this.raycaster.setFromCamera(ndc, this.camera);
+      const stackMeshes = this.placedParts.filter((p) => p.isStack).map((p) => p.mesh);
+      if (stackMeshes.length === 0) {
+        return;
+      }
+      const intersects2 = this.raycaster.intersectObjects(stackMeshes, true);
+      if (intersects2.length > 0) {
+        const hit = intersects2[0];
+        const point = hit.point;
+        const angle = Math.atan2(point.z, point.x);
+        const r = Math.sqrt(point.x * point.x + point.z * point.z);
+        const pos = new Vector3(
+          Math.cos(angle) * (r + 0.02),
+          point.y,
+          Math.sin(angle) * (r + 0.02)
+        );
+        if (this.ghostPart) {
+          this.ghostPart.position.copy(pos);
+          this.ghostPart.rotation.y = -angle;
+        } else {
+          this.showGhost(part, pos);
+          if (this.ghostPart) this.ghostPart.rotation.y = -angle;
+        }
+      }
+    }
+  }
+  // 世界坐标转屏幕坐标
+  worldToScreen(pos) {
+    const v = pos.clone().project(this.camera);
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: (v.x + 1) / 2 * rect.width + rect.left,
+      y: (-v.y + 1) / 2 * rect.height + rect.top
+    };
+  }
+  // 从鼠标放置零件
+  placePartFromMouse(e) {
+    if (!this.pickedUpPart) return;
+    const part = this.pickedUpPart;
+    const dims = this.getPartDimensions(part);
+    const rect = this.canvas.getBoundingClientRect();
+    const ndc = new Vector2(
+      (e.clientX - rect.left) / rect.width * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    if (this.isStackType(part)) {
+      const stackParts = this.placedParts.filter((p) => p.isStack);
+      if (stackParts.length === 0) {
+        this.placePart(part, new Vector3(0, 0, 0));
+      } else {
+        const topY = this.getStackTopPosition();
+        const botY = this.getStackBottomPosition();
+        const topScreen = this.worldToScreen(new Vector3(0, topY, 0));
+        const botScreen = this.worldToScreen(new Vector3(0, botY, 0));
+        const midScreenY = (topScreen.y + botScreen.y) / 2;
+        const snapToTop = e.clientY < midScreenY;
+        let posY;
+        if (snapToTop) {
+          posY = topY + dims.height / 2;
+        } else {
+          posY = botY - dims.height / 2;
+        }
+        this.placePart(part, new Vector3(0, posY, 0));
+      }
+    } else {
+      this.raycaster.setFromCamera(ndc, this.camera);
+      const stackMeshes = this.placedParts.filter((p) => p.isStack).map((p) => p.mesh);
+      if (stackMeshes.length === 0) {
+        return;
+      }
+      const intersects2 = this.raycaster.intersectObjects(stackMeshes, true);
+      if (intersects2.length > 0) {
+        const hit = intersects2[0];
+        const point = hit.point;
+        const angle = Math.atan2(point.z, point.x);
+        const r = Math.sqrt(point.x * point.x + point.z * point.z);
+        this.placeRadialPart(part, point, angle, r);
+      }
+    }
+  }
+  // 从鼠标选择零件
+  selectPartFromMouse(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const ndc = new Vector2(
+      (e.clientX - rect.left) / rect.width * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const hit = this.raycast(ndc.x, ndc.y);
+    this.selectPart(hit);
+  }
+  // ============================================
+  // 拾取与取消
+  // ============================================
+  pickUpPart(part) {
+    this.pickedUpPart = part;
+    this.isPlacementMode = true;
+    this.controls.setEnabled(false);
+    this.selectPart(null);
+    if (this.isStackType(part)) {
+      const stackParts = this.placedParts.filter((p) => p.isStack);
+      if (stackParts.length === 0) {
+        this.showGhost(part, new Vector3(0, 0, 0));
+      } else {
+        const topY = this.getStackTopPosition();
+        const dims = this.getPartDimensions(part);
+        this.showGhost(part, new Vector3(0, topY + dims.height / 2, 0));
+      }
+    }
+    this.canvas.style.cursor = "crosshair";
+  }
+  cancelPickup() {
+    this.pickedUpPart = null;
+    this.isPlacementMode = false;
+    this.controls.setEnabled(true);
+    this.hideGhost();
+    this.canvas.style.cursor = "grab";
+    this.onPartsChanged?.();
+  }
+  getPickedUpPart() {
+    return this.pickedUpPart;
+  }
+  // 设置对称模式
+  setSymmetryMode(mode) {
+    this.symmetryMode = mode;
+  }
+  getSymmetryMode() {
+    return this.symmetryMode;
+  }
+  // 获取所有已放置零件
+  getPlacedParts() {
+    return this.placedParts;
+  }
+  // 删除选中的零件
+  removeSelectedPart() {
+    if (this.selectedPart) {
+      this.removePart(this.selectedPart);
+    }
+  }
+  // 清空所有零件
+  clearAll() {
+    this.selectPart(null);
+    for (const p of [...this.placedParts]) {
+      this.rocketGroup.remove(p.mesh);
+      this.disposeObject3D(p.mesh);
+    }
+    this.placedParts = [];
+    this.cancelPickup();
+    this.onPartsChanged?.();
+  }
+  // 调整相机以适应火箭大小
+  adjustCamera() {
+    if (this.placedParts.length === 0) {
+      if (this.hintDiv) this.hintDiv.style.display = "flex";
+      this.controls.setLimits(5, 40, 0.15, Math.PI / 2 - 0.05);
+      return;
+    }
+    if (this.hintDiv) this.hintDiv.style.display = "none";
+    let minY = Infinity, maxY = -Infinity;
+    for (const p of this.placedParts) {
+      if (p.isStack) {
+        minY = Math.min(minY, p.position.y - p.height / 2);
+        maxY = Math.max(maxY, p.position.y + p.height / 2);
+      }
+    }
+    const totalHeight = maxY - minY;
+    const camDist = Math.max(8, totalHeight * 1.3);
+    this.controls.setLimits(5, camDist * 2.5, 0.15, Math.PI / 2 - 0.05);
+  }
+  setVABPanel(panel) {
+    this.vabPanel = panel;
+  }
+  // ============================================
+  // 工具方法
+  // ============================================
   resize() {
     const parent = this.canvas.parentElement;
     if (!parent) return;
@@ -26716,476 +28945,8 @@ var VAB3DPreview = class {
   setHint(div) {
     this.hintDiv = div;
   }
-  // Build 3D rocket model from selected parts
-  buildRocket(parts) {
-    this.disposeGroup(this.rocketGroup);
-    if (parts.length === 0) {
-      if (this.hintDiv) this.hintDiv.style.display = "flex";
-      return;
-    }
-    if (this.hintDiv) this.hintDiv.style.display = "none";
-    const parachutes = parts.filter((p) => p.type === "parachute");
-    const commands = parts.filter((p) => p.type === "command");
-    const fuels = parts.filter((p) => p.type === "fuel");
-    const engines = parts.filter((p) => p.type === "engine");
-    const boosters = parts.filter((p) => p.type === "booster");
-    const decouplers = parts.filter((p) => p.type === "decoupler" || p.type === "adapter");
-    const structurals = parts.filter((p) => p.type === "structural");
-    const aeroParts = parts.filter((p) => p.type === "aero");
-    const rcsParts = parts.filter((p) => p.type === "rcs");
-    const solarParts = parts.filter((p) => p.type === "solar");
-    const antennaParts = parts.filter((p) => p.type === "antenna");
-    const scienceParts = parts.filter((p) => p.type === "science");
-    const landingParts = parts.filter((p) => p.type === "landing");
-    const utilityParts = parts.filter((p) => p.type === "utility");
-    const commandMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.35, metalness: 0.5 });
-    const probeMat = new MeshStandardMaterial({ color: 5596791, roughness: 0.4, metalness: 0.6 });
-    const fuelMat = new MeshStandardMaterial({ color: 14737632, roughness: 0.25, metalness: 0.65 });
-    const engineBodyMat = new MeshStandardMaterial({ color: 6710886, roughness: 0.5, metalness: 0.5 });
-    const nozzleMat = new MeshStandardMaterial({ color: 1710618, roughness: 0.7, metalness: 0.3 });
-    const parachuteMat = new MeshStandardMaterial({ color: 16729122, roughness: 0.5, metalness: 0.1 });
-    const decouplerMat = new MeshStandardMaterial({ color: 8939076, roughness: 0.5, metalness: 0.3 });
-    const accentMat = new MeshStandardMaterial({ color: 3368652, roughness: 0.4, metalness: 0.5 });
-    const boosterMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.3, metalness: 0.5 });
-    const aeroMat = new MeshStandardMaterial({ color: 11184810, roughness: 0.3, metalness: 0.4 });
-    const rcsMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.5 });
-    const solarMat = new MeshStandardMaterial({ color: 2241450, roughness: 0.3, metalness: 0.7, emissive: 51 });
-    const solarFrameMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.6 });
-    const antennaMat = new MeshStandardMaterial({ color: 10066329, roughness: 0.4, metalness: 0.6 });
-    const scienceMat = new MeshStandardMaterial({ color: 14527044, roughness: 0.4, metalness: 0.4 });
-    const landingMat = new MeshStandardMaterial({ color: 7829367, roughness: 0.5, metalness: 0.4 });
-    const structuralMat = new MeshStandardMaterial({ color: 6710886, roughness: 0.5, metalness: 0.4 });
-    const utilityMat = new MeshStandardMaterial({ color: 10066329, roughness: 0.4, metalness: 0.5 });
-    const stackParts = [];
-    for (const engine of engines) {
-      const engineGroup = new Group();
-      let bodyR = 0.45, bodyH = 1, nozzleR = 0.6, nozzleH = 0.9;
-      let nozzleCount = 1;
-      if (engine.thrust > 2e6) {
-        bodyR = 0.7;
-        bodyH = 1.5;
-        nozzleR = 1;
-        nozzleH = 1.3;
-        nozzleCount = engine.id.includes("mammoth") ? 4 : engine.id.includes("twin") ? 2 : 1;
-      } else if (engine.thrust > 1e6) {
-        bodyR = 0.6;
-        bodyH = 1.3;
-        nozzleR = 0.85;
-        nozzleH = 1.1;
-      } else if (engine.thrust > 5e5) {
-        bodyR = 0.55;
-        bodyH = 1.1;
-        nozzleR = 0.75;
-        nozzleH = 1;
-      } else if (engine.thrust > 2e5) {
-        bodyR = 0.5;
-        bodyH = 0.95;
-        nozzleR = 0.65;
-        nozzleH = 0.85;
-      }
-      if (nozzleCount === 1) {
-        const body = new Mesh(
-          new CylinderGeometry(bodyR * 0.9, bodyR, bodyH, 24),
-          engineBodyMat
-        );
-        body.position.y = bodyH / 2;
-        body.castShadow = true;
-        engineGroup.add(body);
-        const nozzle = new Mesh(
-          new ConeGeometry(nozzleR, nozzleH, 24, 1, true),
-          nozzleMat
-        );
-        nozzle.rotation.x = Math.PI;
-        nozzle.position.y = -nozzleH / 2;
-        nozzle.castShadow = true;
-        engineGroup.add(nozzle);
-        const ring = new Mesh(
-          new CylinderGeometry(bodyR * 1.02, bodyR * 0.9, 0.15, 24),
-          accentMat
-        );
-        ring.position.y = bodyH + 0.05;
-        engineGroup.add(ring);
-      } else {
-        const mainBody = new Mesh(
-          new CylinderGeometry(bodyR, bodyR, bodyH, 24),
-          engineBodyMat
-        );
-        mainBody.position.y = bodyH / 2;
-        mainBody.castShadow = true;
-        engineGroup.add(mainBody);
-        const nozzleOffset = bodyR * 0.55;
-        const positions = nozzleCount === 2 ? [[-nozzleOffset, 0], [nozzleOffset, 0]] : [[-nozzleOffset, -nozzleOffset], [nozzleOffset, -nozzleOffset], [-nozzleOffset, nozzleOffset], [nozzleOffset, nozzleOffset]];
-        for (const [px2, pz2] of positions) {
-          const nR = nozzleR * 0.6;
-          const nozzle = new Mesh(
-            new ConeGeometry(nR, nozzleH * 0.7, 16, 1, true),
-            nozzleMat
-          );
-          nozzle.rotation.x = Math.PI;
-          nozzle.position.set(px2, -nozzleH * 0.35, pz2);
-          nozzle.castShadow = true;
-          engineGroup.add(nozzle);
-          const nBody = new Mesh(
-            new CylinderGeometry(nR * 0.9, nR * 0.8, bodyH * 0.7, 16),
-            engineBodyMat
-          );
-          nBody.position.set(px2, bodyH * 0.35, pz2);
-          nBody.castShadow = true;
-          engineGroup.add(nBody);
-        }
-      }
-      const totalH = bodyH + nozzleH;
-      engineGroup.position.y = 0;
-      stackParts.push({ mesh: engineGroup, height: totalH });
-    }
-    for (const dec of decouplers) {
-      const decMesh = new Mesh(
-        new CylinderGeometry(0.55, 0.55, 0.35, 24),
-        decouplerMat
-      );
-      decMesh.castShadow = true;
-      decMesh.receiveShadow = true;
-      stackParts.push({ mesh: decMesh, height: 0.35 });
-    }
-    for (const st of structurals) {
-      const stMesh = new Mesh(
-        new CylinderGeometry(0.5, 0.5, 0.5, 20),
-        structuralMat
-      );
-      stMesh.castShadow = true;
-      stackParts.push({ mesh: stMesh, height: 0.5 });
-    }
-    for (const fuel of fuels) {
-      const fuelGroup = new Group();
-      let tankHeight = 1.2, tankRadius = 0.5;
-      if (fuel.fuelMass > 3e4) {
-        tankHeight = 3;
-        tankRadius = 0.8;
-      } else if (fuel.fuelMass > 15e3) {
-        tankHeight = 2.5;
-        tankRadius = 0.7;
-      } else if (fuel.fuelMass > 5e3) {
-        tankHeight = 1.8;
-        tankRadius = 0.6;
-      } else if (fuel.fuelMass > 1e3) {
-        tankHeight = 1.2;
-        tankRadius = 0.5;
-      } else {
-        tankHeight = 0.8;
-        tankRadius = 0.4;
-      }
-      const tank = new Mesh(
-        new CylinderGeometry(tankRadius, tankRadius, tankHeight, 32),
-        fuelMat
-      );
-      tank.castShadow = true;
-      tank.receiveShadow = true;
-      fuelGroup.add(tank);
-      const bandColor = fuel.fuelMass > 2e4 ? 3359846 : fuel.fuelMass > 5e3 ? 3368652 : 6719692;
-      const bandMat = new MeshStandardMaterial({ color: bandColor, roughness: 0.3, metalness: 0.6 });
-      const topBand = new Mesh(
-        new CylinderGeometry(tankRadius * 1.03, tankRadius * 1.03, 0.12, 32),
-        bandMat
-      );
-      topBand.position.y = tankHeight / 2 - 0.06;
-      fuelGroup.add(topBand);
-      const botBand = new Mesh(
-        new CylinderGeometry(tankRadius * 1.03, tankRadius * 1.03, 0.12, 32),
-        bandMat
-      );
-      botBand.position.y = -tankHeight / 2 + 0.06;
-      fuelGroup.add(botBand);
-      for (let s = 0; s < 4; s++) {
-        const angle = s / 4 * Math.PI * 2;
-        const stripe = new Mesh(
-          new BoxGeometry(0.04, tankHeight * 0.85, 0.04),
-          new MeshStandardMaterial({ color: 12303291, roughness: 0.3, metalness: 0.7 })
-        );
-        stripe.position.set(Math.cos(angle) * (tankRadius + 0.01), 0, Math.sin(angle) * (tankRadius + 0.01));
-        fuelGroup.add(stripe);
-      }
-      stackParts.push({ mesh: fuelGroup, height: tankHeight });
-    }
-    for (const cmd of commands) {
-      const cmdGroup = new Group();
-      let isProbe = cmd.id.includes("probe");
-      let cmdHeight = 1.2, cmdRadius = 0.55;
-      if (cmd.id.includes("mk3") || cmd.mass > 3e3) {
-        cmdRadius = 0.8;
-        cmdHeight = 1.5;
-      } else if (cmd.id.includes("mk2") || cmd.mass > 1500) {
-        cmdRadius = 0.6;
-        cmdHeight = 1.2;
-      } else if (isProbe) {
-        cmdRadius = 0.3;
-        cmdHeight = 0.4;
-      }
-      if (isProbe) {
-        const probeBody = new Mesh(
-          new CylinderGeometry(cmdRadius, cmdRadius * 0.9, cmdHeight, 16),
-          probeMat
-        );
-        probeBody.castShadow = true;
-        cmdGroup.add(probeBody);
-        const cap = new Mesh(
-          new CylinderGeometry(cmdRadius * 0.5, cmdRadius, 0.1, 16),
-          new MeshStandardMaterial({ color: 3359829, roughness: 0.3, metalness: 0.7 })
-        );
-        cap.position.y = cmdHeight / 2 + 0.05;
-        cmdGroup.add(cap);
-      } else {
-        const cone = new Mesh(
-          new ConeGeometry(cmdRadius, cmdHeight, 24),
-          commandMat
-        );
-        cone.castShadow = true;
-        cmdGroup.add(cone);
-        const window2 = new Mesh(
-          new SphereGeometry(cmdRadius * 0.18, 12, 8),
-          new MeshStandardMaterial({ color: 3368618, emissive: 1122884, roughness: 0.1, metalness: 0.9 })
-        );
-        window2.position.set(0, cmdHeight * 0.1, cmdRadius * 0.7);
-        cmdGroup.add(window2);
-        const accentBand = new Mesh(
-          new CylinderGeometry(cmdRadius * 0.98, cmdRadius, 0.15, 24),
-          new MeshStandardMaterial({ color: 2236962, roughness: 0.4, metalness: 0.3 })
-        );
-        accentBand.position.y = -cmdHeight / 2 + 0.08;
-        cmdGroup.add(accentBand);
-        const baseRing = new Mesh(
-          new CylinderGeometry(cmdRadius * 1.02, cmdRadius * 0.98, 0.1, 24),
-          accentMat
-        );
-        baseRing.position.y = -cmdHeight / 2 - 0.02;
-        cmdGroup.add(baseRing);
-      }
-      stackParts.push({ mesh: cmdGroup, height: cmdHeight });
-    }
-    for (const para of parachutes) {
-      const paraGroup = new Group();
-      const paraCylinder = new Mesh(
-        new CylinderGeometry(0.18, 0.15, 0.4, 12),
-        parachuteMat
-      );
-      paraCylinder.position.y = 0.1;
-      paraCylinder.castShadow = true;
-      paraGroup.add(paraCylinder);
-      const paraCone = new Mesh(
-        new ConeGeometry(0.18, 0.25, 12),
-        parachuteMat
-      );
-      paraCone.position.y = 0.42;
-      paraCone.castShadow = true;
-      paraGroup.add(paraCone);
-      const paraBase = new Mesh(
-        new CylinderGeometry(0.1, 0.1, 0.1, 8),
-        nozzleMat
-      );
-      paraBase.position.y = -0.1;
-      paraGroup.add(paraBase);
-      stackParts.push({ mesh: paraGroup, height: 0.6 });
-    }
-    let yCursor = 0;
-    for (const part of stackParts) {
-      part.mesh.position.y = yCursor + part.height / 2;
-      yCursor += part.height;
-      this.rocketGroup.add(part.mesh);
-    }
-    const totalHeight = yCursor;
-    this.rocketGroup.position.y = -totalHeight / 2 + 1;
-    const boosterCount = boosters.length;
-    if (boosterCount > 0) {
-      const maxRadius = this.getMaxStackRadius(fuels, commands);
-      const boosterRadius = 0.25;
-      const boosterHeight = 3;
-      const sideDist = maxRadius + boosterRadius + 0.15;
-      boosters.forEach((booster, i) => {
-        const angle = i / boosterCount * Math.PI * 2;
-        const bg = new Group();
-        const bBody = new Mesh(
-          new CylinderGeometry(boosterRadius, boosterRadius, boosterHeight, 16),
-          boosterMat
-        );
-        bBody.castShadow = true;
-        bg.add(bBody);
-        const bNose = new Mesh(
-          new ConeGeometry(boosterRadius, 0.5, 16),
-          boosterMat
-        );
-        bNose.position.y = boosterHeight / 2 + 0.25;
-        bNose.castShadow = true;
-        bg.add(bNose);
-        const bNozzle = new Mesh(
-          new ConeGeometry(boosterRadius * 0.8, 0.4, 12, 1, true),
-          nozzleMat
-        );
-        bNozzle.rotation.x = Math.PI;
-        bNozzle.position.y = -boosterHeight / 2 - 0.2;
-        bg.add(bNozzle);
-        bg.position.set(Math.cos(angle) * sideDist, 0, Math.sin(angle) * sideDist);
-        this.rocketGroup.add(bg);
-      });
-    }
-    const finCount = aeroParts.filter((p) => p.id.includes("fin") || p.id.includes("wing")).length;
-    if (finCount > 0) {
-      const finsToShow = Math.min(finCount, 4);
-      const finY = -totalHeight / 2 + 1.5;
-      const maxRadius = this.getMaxStackRadius(fuels, commands);
-      for (let i = 0; i < finsToShow; i++) {
-        const angle = i / finsToShow * Math.PI * 2;
-        const fin = new Mesh(
-          new BoxGeometry(0.15, 0.6, 0.5),
-          aeroMat
-        );
-        fin.position.set(
-          Math.cos(angle) * (maxRadius + 0.2),
-          finY,
-          Math.sin(angle) * (maxRadius + 0.2)
-        );
-        fin.rotation.y = -angle;
-        fin.castShadow = true;
-        this.rocketGroup.add(fin);
-      }
-    }
-    if (rcsParts.length > 0) {
-      const maxRadius = this.getMaxStackRadius(fuels, commands);
-      const rcsCount = Math.min(rcsParts.length * 2, 4);
-      for (let i = 0; i < rcsCount; i++) {
-        const angle = i / rcsCount * Math.PI * 2;
-        const rcsBox = new Mesh(
-          new BoxGeometry(0.15, 0.15, 0.15),
-          rcsMat
-        );
-        rcsBox.position.set(
-          Math.cos(angle) * (maxRadius + 0.08),
-          totalHeight * 0.2,
-          Math.sin(angle) * (maxRadius + 0.08)
-        );
-        rcsBox.castShadow = true;
-        this.rocketGroup.add(rcsBox);
-      }
-    }
-    solarParts.forEach((solar, i) => {
-      const maxRadius = this.getMaxStackRadius(fuels, commands);
-      const angle = i / Math.max(solarParts.length, 1) * Math.PI * 2;
-      const sg = new Group();
-      const arm = new Mesh(
-        new CylinderGeometry(0.03, 0.03, 0.4, 8),
-        solarFrameMat
-      );
-      arm.rotation.z = Math.PI / 2;
-      sg.add(arm);
-      const panel = new Mesh(
-        new BoxGeometry(0.8, 0.02, 0.5),
-        solarMat
-      );
-      panel.position.x = 0.6;
-      panel.castShadow = true;
-      sg.add(panel);
-      sg.position.set(
-        Math.cos(angle) * (maxRadius + 0.05),
-        totalHeight * 0.3,
-        Math.sin(angle) * (maxRadius + 0.05)
-      );
-      sg.rotation.y = -angle;
-      this.rocketGroup.add(sg);
-    });
-    antennaParts.forEach((ant, i) => {
-      const ag = new Group();
-      const aBody = new Mesh(
-        new CylinderGeometry(0.02, 0.02, 0.8, 8),
-        antennaMat
-      );
-      aBody.position.y = 0.4;
-      ag.add(aBody);
-      const tip = new Mesh(
-        new SphereGeometry(0.08, 8, 6),
-        antennaMat
-      );
-      tip.position.y = 0.8;
-      ag.add(tip);
-      ag.position.set(
-        (i - antennaParts.length / 2) * 0.3,
-        totalHeight / 2 - 0.2,
-        0
-      );
-      this.rocketGroup.add(ag);
-    });
-    scienceParts.forEach((sci, i) => {
-      const maxRadius = this.getMaxStackRadius(fuels, commands);
-      const angle = i / Math.max(scienceParts.length, 1) * Math.PI * 2 + 0.3;
-      const sBox = new Mesh(
-        new BoxGeometry(0.2, 0.2, 0.2),
-        scienceMat
-      );
-      sBox.position.set(
-        Math.cos(angle) * (maxRadius + 0.1),
-        totalHeight * 0.1,
-        Math.sin(angle) * (maxRadius + 0.1)
-      );
-      sBox.castShadow = true;
-      this.rocketGroup.add(sBox);
-    });
-    landingParts.forEach((land, i) => {
-      const legCount = Math.min(landingParts.length, 4);
-      for (let j = 0; j < legCount; j++) {
-        const angle = j / legCount * Math.PI * 2;
-        const lg = new Group();
-        const leg = new Mesh(
-          new CylinderGeometry(0.04, 0.04, 1.2, 8),
-          landingMat
-        );
-        leg.rotation.z = Math.PI / 6;
-        leg.position.set(0.3, -0.3, 0);
-        lg.add(leg);
-        const foot = new Mesh(
-          new CylinderGeometry(0.1, 0.1, 0.06, 8),
-          landingMat
-        );
-        foot.position.set(0.6, -0.85, 0);
-        lg.add(foot);
-        lg.position.set(
-          Math.cos(angle) * 0.3,
-          -totalHeight / 2 + 0.5,
-          Math.sin(angle) * 0.3
-        );
-        lg.rotation.y = -angle;
-        this.rocketGroup.add(lg);
-      }
-    });
-    utilityParts.forEach((util, i) => {
-      const maxRadius = this.getMaxStackRadius(fuels, commands);
-      const angle = i / Math.max(utilityParts.length, 1) * Math.PI * 2 + 0.8;
-      const uBox = new Mesh(
-        new BoxGeometry(0.25, 0.25, 0.25),
-        utilityMat
-      );
-      uBox.position.set(
-        Math.cos(angle) * (maxRadius + 0.12),
-        totalHeight * 0,
-        Math.sin(angle) * (maxRadius + 0.12)
-      );
-      uBox.castShadow = true;
-      this.rocketGroup.add(uBox);
-    });
-    const camDist = Math.max(8, totalHeight * 1.2);
-    this.controls.setLimits(5, camDist * 3, 0.15, Math.PI / 2 - 0.05);
-  }
-  getMaxStackRadius(fuels, commands) {
-    let maxR = 0.5;
-    for (const f of fuels) {
-      if (f.fuelMass > 3e4) maxR = Math.max(maxR, 0.8);
-      else if (f.fuelMass > 15e3) maxR = Math.max(maxR, 0.7);
-      else if (f.fuelMass > 5e3) maxR = Math.max(maxR, 0.6);
-    }
-    for (const c of commands) {
-      if (c.id.includes("mk3") || c.mass > 3e3) maxR = Math.max(maxR, 0.8);
-      else if (c.id.includes("mk2") || c.mass > 1500) maxR = Math.max(maxR, 0.6);
-    }
-    return maxR;
-  }
-  disposeGroup(group) {
-    group.traverse((child) => {
+  disposeObject3D(obj) {
+    obj.traverse((child) => {
       if (child instanceof Mesh) {
         if (child.geometry) child.geometry.dispose();
         if (child.material) {
@@ -27198,16 +28959,26 @@ var VAB3DPreview = class {
         }
       }
     });
-    while (group.children.length > 0) {
-      group.remove(group.children[0]);
-    }
   }
   dispose() {
     this.disposed = true;
     if (this.animationId) cancelAnimationFrame(this.animationId);
     if (this.onResize) window.removeEventListener("resize", this.onResize);
+    this.canvas.removeEventListener("pointerdown", this.onCanvasPointerDown);
+    this.canvas.removeEventListener("pointermove", this.onCanvasPointerMove);
+    this.canvas.removeEventListener("pointerup", this.onCanvasPointerUp);
+    this.canvas.removeEventListener("contextmenu", this.onCanvasContextMenu);
+    window.removeEventListener("keydown", this.onKeyDown);
     this.controls.dispose();
-    this.disposeGroup(this.rocketGroup);
+    this.hideGhost();
+    this.selectPart(null);
+    for (const p of this.placedParts) {
+      this.disposeObject3D(p.mesh);
+    }
+    this.placedParts = [];
+    for (const mat of Object.values(this.mats)) {
+      mat.dispose();
+    }
     this.scene.traverse((child) => {
       if (child instanceof Mesh) {
         if (child.geometry) child.geometry.dispose();
@@ -27631,18 +29402,14 @@ var SpaceCenter = class {
   }
   // ============================================
   // VAB 面板（航天器组装大楼）- KSP 风格全屏布局
+  // 拖放式建造系统
   // ============================================
   openVAB() {
     if (this.callbacks.onEnterVAB) {
       this.callbacks.onEnterVAB();
     }
     this.closeVAB();
-    this.selectedParts = [
-      ROCKET_PARTS.find((p) => p.id === "capsule_mk1"),
-      ROCKET_PARTS.find((p) => p.id === "fuel_medium"),
-      ROCKET_PARTS.find((p) => p.id === "engine_chem"),
-      ROCKET_PARTS.find((p) => p.id === "parachute")
-    ].filter(Boolean);
+    this.selectedParts = [];
     const panel = document.createElement("div");
     panel.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -27684,10 +29451,15 @@ var SpaceCenter = class {
       return btn;
     };
     topBtns.appendChild(makeTopBtn("\u65B0\u5EFA", "#333", "#444", () => {
+      if (this.vabPreview) {
+        this.vabPreview.clearAll();
+      }
       this.selectedParts = [];
       this.vabCraftName = "\u672A\u547D\u540D\u98DE\u884C\u5668";
-      document.getElementById("vab-craft-name").value = this.vabCraftName;
-      this.refreshVAB();
+      const nameInput2 = document.getElementById("vab-craft-name");
+      if (nameInput2) nameInput2.value = this.vabCraftName;
+      this.refreshPartsList();
+      this.refreshVABStats();
     }));
     topBtns.appendChild(makeTopBtn("\u4FDD\u5B58", "#333", "#444", () => {
       this.showVABToast("\u8BBE\u8BA1\u5DF2\u4FDD\u5B58");
@@ -27789,43 +29561,77 @@ var SpaceCenter = class {
     hintDiv.style.cssText = `
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
       color: #555; font-size: 1.2rem; text-align: center; pointer-events: none;
-      display: none; flex-direction: column; align-items: center; gap: 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
     `;
     hintDiv.innerHTML = `
       <div style="font-size: 3rem;">\u{1F680}</div>
-      <div>\u70B9\u51FB\u5DE6\u4FA7\u96F6\u4EF6\u5F00\u59CB\u7EC4\u88C5</div>
+      <div>\u70B9\u51FB\u5DE6\u4FA7\u96F6\u4EF6\uFF0C\u7136\u540E\u57283D\u89C6\u53E3\u4E2D\u653E\u7F6E</div>
+      <div style="font-size: 0.85rem; color: #444;">\u62D6\u62FD\u65CB\u8F6C\u89C6\u89D2 \xB7 \u6EDA\u8F6E\u7F29\u653E \xB7 \u53F3\u952E\u53D6\u6D88\u653E\u7F6E \xB7 Delete\u5220\u9664\u9009\u4E2D</div>
     `;
     viewportContainer.appendChild(hintDiv);
     const viewportBottom = document.createElement("div");
+    viewportBottom.id = "vab-viewport-bottom";
     viewportBottom.style.cssText = `
       position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 8px; z-index: 10;
     `;
     const symBtn = document.createElement("div");
+    symBtn.id = "vab-sym-btn";
     symBtn.style.cssText = `
       background: rgba(30,30,30,0.85); border: 1px solid #444; color: #aaa;
       padding: 4px 12px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s;
     `;
-    symBtn.textContent = "\u5BF9\u79F0: \u5355\u4EF6";
+    symBtn.textContent = "\u5BF9\u79F0: 1\xD7";
+    symBtn.addEventListener("mouseenter", () => {
+      symBtn.style.borderColor = "#666";
+      symBtn.style.color = "#fff";
+    });
+    symBtn.addEventListener("mouseleave", () => {
+      symBtn.style.borderColor = "#444";
+      symBtn.style.color = "#aaa";
+    });
     symBtn.addEventListener("click", () => {
-      const modes = ["\u5355\u4EF6", "\u955C\u50CF", "\u5F84\u5411\xD73", "\u5F84\u5411\xD74", "\u5F84\u5411\xD76"];
-      const cur = modes.find((m) => symBtn.textContent?.includes(m)) || "\u5355\u4EF6";
+      const modes = [1, 2, 3, 4, 6];
+      const cur = this.vabPreview ? this.vabPreview.getSymmetryMode() : 1;
       const idx = modes.indexOf(cur);
       const next = modes[(idx + 1) % modes.length];
-      symBtn.textContent = `\u5BF9\u79F0: ${next}`;
+      if (this.vabPreview) this.vabPreview.setSymmetryMode(next);
+      symBtn.textContent = `\u5BF9\u79F0: ${next}\xD7`;
+      this.updateBottomBarSymmetry(next);
     });
     viewportBottom.appendChild(symBtn);
-    const modeBtn = document.createElement("div");
-    modeBtn.style.cssText = `
-      background: rgba(30,30,30,0.85); border: 1px solid #444; color: #aaa;
+    const deleteBtn = document.createElement("div");
+    deleteBtn.style.cssText = `
+      background: rgba(60,20,20,0.85); border: 1px solid #644; color: #a88;
       padding: 4px 12px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s;
     `;
-    modeBtn.textContent = "\u6A21\u5F0F: \u653E\u7F6E";
-    modeBtn.addEventListener("click", () => {
-      const cur = modeBtn.textContent?.includes("\u653E\u7F6E") ? "\u653E\u7F6E" : "\u5220\u9664";
-      modeBtn.textContent = cur === "\u653E\u7F6E" ? "\u6A21\u5F0F: \u5220\u9664" : "\u6A21\u5F0F: \u653E\u7F6E";
+    deleteBtn.textContent = "\u{1F5D1} \u5220\u9664\u9009\u4E2D";
+    deleteBtn.addEventListener("mouseenter", () => {
+      deleteBtn.style.borderColor = "#a66";
+      deleteBtn.style.color = "#faa";
     });
-    viewportBottom.appendChild(modeBtn);
+    deleteBtn.addEventListener("mouseleave", () => {
+      deleteBtn.style.borderColor = "#644";
+      deleteBtn.style.color = "#a88";
+    });
+    deleteBtn.addEventListener("click", () => {
+      if (this.vabPreview) this.vabPreview.removeSelectedPart();
+    });
+    viewportBottom.appendChild(deleteBtn);
+    const cancelBtn = document.createElement("div");
+    cancelBtn.id = "vab-cancel-btn";
+    cancelBtn.style.cssText = `
+      background: rgba(40,40,20,0.85); border: 1px solid #664; color: #aa8;
+      padding: 4px 12px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s; display: none;
+    `;
+    cancelBtn.textContent = "\u2715 \u53D6\u6D88\u653E\u7F6E";
+    cancelBtn.addEventListener("click", () => {
+      if (this.vabPreview) this.vabPreview.cancelPickup();
+    });
+    viewportBottom.appendChild(cancelBtn);
     viewportContainer.appendChild(viewportBottom);
     midArea.appendChild(viewportContainer);
     const rightPanel = document.createElement("div");
@@ -27872,7 +29678,7 @@ var SpaceCenter = class {
       display: flex; align-items: center; padding: 0 12px; gap: 16px; font-size: 0.75rem; color: #888;
     `;
     bottomBar.innerHTML = `
-      <div>\u5BF9\u79F0: <span style="color:#aaa;">\u5355\u4EF6</span></div>
+      <div>\u5BF9\u79F0: <span id="vab-bottom-sym" style="color:#aaa;">1\xD7</span></div>
       <div>\u90E8\u4EF6: <span id="vab-bottom-parts" style="color:#aaa;">0</span></div>
       <div>\u8D28\u91CF: <span id="vab-bottom-mass" style="color:#aaa;">0 kg</span></div>
       <div style="flex:1;"></div>
@@ -27882,13 +29688,39 @@ var SpaceCenter = class {
     document.body.appendChild(panel);
     this.vabPreview = new VAB3DPreview(previewCanvas);
     this.vabPreview.setHint(hintDiv);
-    this.vabPreview.buildRocket(this.selectedParts);
+    this.vabPreview.setVABPanel(panel);
+    this.vabPreview.onPartsChanged = () => {
+      this.selectedParts = this.vabPreview.getPlacedParts().map((p) => p.part);
+      this.refreshVABStats();
+      this.refreshPartsList();
+      this.updateCancelBtn();
+    };
+    this.vabPreview.placeInitialPart(ROCKET_PARTS.find((p) => p.id === "capsule_mk1"));
+    const paraPart = ROCKET_PARTS.find((p) => p.id === "parachute");
+    const topY = this.vabPreview.getStackTopPosition();
+    const paraDims = { height: 0.6, radius: 0.2 };
+    this.vabPreview.placePart(paraPart, new Vector3(0, topY + paraDims.height / 2, 0));
+    this.vabPreview.placeInitialPart(ROCKET_PARTS.find((p) => p.id === "fuel_medium"));
+    this.vabPreview.placeInitialPart(ROCKET_PARTS.find((p) => p.id === "engine_chem"));
+    this.selectedParts = this.vabPreview.getPlacedParts().map((p) => p.part);
     this.refreshPartsList();
     this.refreshVABStats();
     this.vabResizeHandler = () => {
       if (this.vabPreview) this.vabPreview.resize();
     };
     window.addEventListener("resize", this.vabResizeHandler);
+  }
+  // 显示/隐藏取消放置按钮
+  updateCancelBtn() {
+    const cancelBtn = document.getElementById("vab-cancel-btn");
+    if (!cancelBtn || !this.vabPreview) return;
+    const isPickingUp = this.vabPreview.getPickedUpPart() !== null;
+    cancelBtn.style.display = isPickingUp ? "block" : "none";
+  }
+  // 更新底部对称显示
+  updateBottomBarSymmetry(mode) {
+    const symSpan = document.getElementById("vab-bottom-sym");
+    if (symSpan) symSpan.textContent = `${mode}\xD7`;
   }
   // Refresh the parts list based on category and search
   refreshPartsList() {
@@ -27912,13 +29744,14 @@ var SpaceCenter = class {
       container2.appendChild(this.createPartCard(part));
     });
   }
-  // 创建单个零件卡片
+  // 创建单个零件卡片 (KSP风格: 点击拾取)
   createPartCard(part) {
     const item = document.createElement("div");
-    const isSelected = this.selectedParts.some((p) => p.id === part.id);
+    const pickedUpPart = this.vabPreview?.getPickedUpPart();
+    const isPickedUp = pickedUpPart?.id === part.id;
     item.style.cssText = `
-      background: ${isSelected ? "rgba(60,100,160,0.35)" : "rgba(40,40,40,0.6)"};
-      border: 1px solid ${isSelected ? "rgba(100,180,255,0.5)" : "#3a3a3a"};
+      background: ${isPickedUp ? "rgba(60,120,60,0.35)" : "rgba(40,40,40,0.6)"};
+      border: 1px solid ${isPickedUp ? "rgba(100,255,100,0.5)" : "#3a3a3a"};
       border-radius: 5px; padding: 8px 10px; margin-bottom: 4px; cursor: pointer;
       transition: all 0.12s; display: flex; align-items: flex-start; gap: 8px;
     `;
@@ -27930,36 +29763,36 @@ var SpaceCenter = class {
     item.innerHTML = `
       <div style="font-size: 1.3rem; line-height: 1; flex-shrink: 0; margin-top: 2px;">${PART_TYPE_ICON[part.type]}</div>
       <div style="flex: 1; min-width: 0;">
-        <div style="font-size: 0.8rem; font-weight: 600; color: ${isSelected ? "#9cf" : "#ccc"}; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: ${isPickedUp ? "#8f8" : "#ccc"}; display: flex; justify-content: space-between; align-items: center;">
           <span>${part.name}</span>
-          ${isSelected ? '<span style="color:#4f4;">\u2713</span>' : '<span style="color:#68a;">+</span>'}
+          ${isPickedUp ? '<span style="color:#4f4;">\u{1F4CC} \u62FE\u53D6\u4E2D</span>' : '<span style="color:#68a;">\u{1F446} \u62FE\u53D6</span>'}
         </div>
         <div style="font-size: 0.66rem; color: #777; margin-top: 2px;">${PART_TYPE_CN[part.type]}</div>
         <div style="font-size: 0.66rem; color: #888; margin-top: 3px; line-height: 1.5;">${statsLines.join(" | ")}</div>
       </div>
     `;
     item.addEventListener("mouseenter", () => {
-      if (!isSelected) {
+      if (!isPickedUp) {
         item.style.background = "rgba(55,55,65,0.8)";
         item.style.borderColor = "#555";
       }
     });
     item.addEventListener("mouseleave", () => {
-      if (!isSelected) {
+      if (!isPickedUp) {
         item.style.background = "rgba(40,40,40,0.6)";
         item.style.borderColor = "#3a3a3a";
       }
     });
     item.addEventListener("click", () => {
-      if (isSelected) {
-        this.selectedParts = this.selectedParts.filter((p) => p.id !== part.id);
-      } else {
-        this.selectedParts.push(part);
-      }
-      this.refreshPartsList();
-      this.refreshVABStats();
       if (this.vabPreview) {
-        this.vabPreview.buildRocket(this.selectedParts);
+        const current = this.vabPreview.getPickedUpPart();
+        if (current && current.id === part.id) {
+          this.vabPreview.cancelPickup();
+        } else {
+          this.vabPreview.pickUpPart(part);
+        }
+        this.refreshPartsList();
+        this.updateCancelBtn();
       }
     });
     return item;
@@ -27994,12 +29827,11 @@ var SpaceCenter = class {
     const stagingList = document.getElementById("vab-staging-list");
     if (stagingList) {
       stagingList.innerHTML = "";
-      const decouplers = parts.filter((p) => p.type === "decoupler");
       const stages = this.generateStages(parts);
       if (stages.length === 0) {
         stagingList.innerHTML = '<div style="color:#555;font-size:0.72rem;text-align:center;padding:10px;">\u65E0\u5206\u7EA7\u4FE1\u606F</div>';
       } else {
-        stages.forEach((stage, i) => {
+        stages.forEach((stage) => {
           const stageDiv = document.createElement("div");
           stageDiv.style.cssText = `
             background: rgba(40,40,40,0.6); border: 1px solid #3a3a3a; border-radius: 4px;
@@ -28065,7 +29897,7 @@ var SpaceCenter = class {
       stages.push({ num: 1, parts: [...engines, ...otherParts.slice(0, Math.ceil(otherParts.length / 2))] });
     }
     for (let i = 1; i <= decouplers.length; i++) {
-      const upperEngines = parts.filter((p) => p.type === "engine" && p.id.includes("ion") || p.id.includes("nuclear"));
+      const upperEngines = parts.filter((p) => p.type === "engine" && (p.id.includes("ion") || p.id.includes("nuclear")));
       if (upperEngines.length > 0 && i === 1) {
         stages.push({ num: i + 1, parts: upperEngines });
       } else if (i <= 2) {
@@ -28076,14 +29908,6 @@ var SpaceCenter = class {
       stages.push({ num: 1, parts });
     }
     return stages;
-  }
-  // 刷新整个VAB
-  refreshVAB() {
-    this.refreshPartsList();
-    this.refreshVABStats();
-    if (this.vabPreview) {
-      this.vabPreview.buildRocket(this.selectedParts);
-    }
   }
   // VAB 内部 Toast 提示
   showVABToast(msg) {
@@ -28111,6 +29935,7 @@ var SpaceCenter = class {
       this.vabResizeHandler = null;
     }
     if (this.vabPreview) {
+      this.selectedParts = this.vabPreview.getPlacedParts().map((p) => p.part);
       this.vabPreview.dispose();
       this.vabPreview = null;
     }
@@ -28118,6 +29943,13 @@ var SpaceCenter = class {
       this.vabPanel.remove();
       this.vabPanel = null;
     }
+  }
+  // 获取已选择的零件 (用于发射)
+  getSelectedParts() {
+    if (this.vabPreview) {
+      return this.vabPreview.getPlacedParts().map((p) => p.part);
+    }
+    return this.selectedParts;
   }
   // "敬请期待" 提示
   showComingSoon(name) {
