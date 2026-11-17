@@ -23469,10 +23469,78 @@ function createRocketModel() {
   const rcsMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.2 });
   for (let i = 0; i < 4; i++) {
     const angle = i * Math.PI / 2 + Math.PI / 4;
-    const rcs = new Mesh(new BoxGeometry(0.1, 0.15, 0.1), rcsMat);
-    rcs.position.set(Math.cos(angle) * 0.75, 1.5, Math.sin(angle) * 0.75);
-    group.add(rcs);
+    const rcsBlock = new Mesh(new BoxGeometry(0.12, 0.18, 0.12), rcsMat);
+    rcsBlock.position.set(Math.cos(angle) * 0.75, 1.5, Math.sin(angle) * 0.75);
+    group.add(rcsBlock);
+    const rcsNozU = new Mesh(new CylinderGeometry(0.03, 0.04, 0.06, 6), darkMat);
+    rcsNozU.position.set(Math.cos(angle) * 0.75, 1.62, Math.sin(angle) * 0.75);
+    group.add(rcsNozU);
+    const rcsNozS = new Mesh(new CylinderGeometry(0.03, 0.04, 0.06, 6), darkMat);
+    rcsNozS.position.set(Math.cos(angle) * 0.82, 1.5, Math.sin(angle) * 0.82);
+    rcsNozS.rotation.z = Math.PI / 2;
+    rcsNozS.rotation.y = angle;
+    group.add(rcsNozS);
   }
+  const solarMat = new MeshStandardMaterial({ color: 1127338, emissive: 528708, metalness: 0.7, roughness: 0.2 });
+  const solarFrameMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 });
+  for (const side of [-1, 1]) {
+    const arm = new Mesh(new CylinderGeometry(0.04, 0.04, 0.8, 6), solarFrameMat);
+    arm.position.set(side * 0.9, -0.5, 0);
+    arm.rotation.z = Math.PI / 2;
+    group.add(arm);
+    const panel = new Mesh(new BoxGeometry(1.2, 0.03, 0.7), solarMat);
+    panel.position.set(side * 1.7, -0.5, 0);
+    panel.castShadow = true;
+    group.add(panel);
+    for (let j = 0; j < 3; j++) {
+      const line = new Mesh(new BoxGeometry(1.2, 0.035, 0.02), solarFrameMat);
+      line.position.set(side * 1.7, -0.49, (j - 1) * 0.2);
+      group.add(line);
+    }
+  }
+  const legMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < 3; i++) {
+    const angle = i * 2.094 + 0.5;
+    const strutU = new Mesh(new CylinderGeometry(0.03, 0.03, 0.6, 6), legMat);
+    strutU.position.set(Math.cos(angle) * 0.55, -2.3, Math.sin(angle) * 0.55);
+    strutU.rotation.z = Math.cos(angle) * 0.5;
+    strutU.rotation.x = -Math.sin(angle) * 0.5;
+    group.add(strutU);
+    const strutL = new Mesh(new CylinderGeometry(0.025, 0.03, 0.8, 6), legMat);
+    strutL.position.set(Math.cos(angle) * 0.9, -2.7, Math.sin(angle) * 0.9);
+    strutL.rotation.z = Math.cos(angle) * 0.9;
+    strutL.rotation.x = -Math.sin(angle) * 0.9;
+    group.add(strutL);
+    const pad = new Mesh(new CylinderGeometry(0.1, 0.08, 0.06, 10), darkMat);
+    pad.position.set(Math.cos(angle) * 1.15, -3, Math.sin(angle) * 1.15);
+    group.add(pad);
+  }
+  const chuteCan = new Mesh(new CylinderGeometry(0.12, 0.1, 0.25, 12), redMat);
+  chuteCan.position.y = 2.85;
+  group.add(chuteCan);
+  const chuteCap = new Mesh(new SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), redMat);
+  chuteCap.position.y = 2.95;
+  group.add(chuteCap);
+  const heatShield = new Mesh(
+    new CylinderGeometry(0.55, 0.4, 0.15, 20),
+    new MeshStandardMaterial({ color: 3809296, roughness: 0.9, metalness: 0.1 })
+  );
+  heatShield.position.y = -2.05;
+  group.add(heatShield);
+  const sciBay = new Mesh(new BoxGeometry(0.25, 0.3, 0.2), accentMat);
+  sciBay.position.set(0, 0.5, 0.72);
+  group.add(sciBay);
+  const sciLens = new Mesh(new CircleGeometry(0.06, 10), new MeshBasicMaterial({ color: 65382 }));
+  sciLens.position.set(0, 0.55, 0.83);
+  group.add(sciLens);
+  const dishArm = new Mesh(new CylinderGeometry(0.02, 0.02, 0.5, 6), darkMat);
+  dishArm.position.set(-0.45, 2.3, 0);
+  dishArm.rotation.z = 0.5;
+  group.add(dishArm);
+  const dishCup = new Mesh(new SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), darkMat);
+  dishCup.position.set(-0.75, 2.5, 0);
+  dishCup.rotation.z = -Math.PI / 2;
+  group.add(dishCup);
   const flameGroup = new Group();
   flameGroup.name = "engineFlame";
   const flameCore = new Mesh(

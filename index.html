@@ -183,6 +183,14 @@
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="/dist/bundle.js"></script>
+  <script type="module" src="./dist/bundle.js"></script>
+  <script>
+    window.addEventListener('error', function(e) {
+      var msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a3a;color:#ff6666;padding:20px 40px;border-radius:8px;font-family:monospace;font-size:14px;z-index:9999;white-space:pre-wrap;max-width:80vw;word-break:break-all;border:1px solid #ff4444;';
+      msg.textContent = 'Error: ' + (e.message || 'Unknown error') + '\n' + (e.filename||'') + ':' + (e.lineno||'');
+      document.body.appendChild(msg);
+    });
+  </script>
 </body>
 </html>
