@@ -1,183 +1,283 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Space Program</title>
+  <title>太空计划 - 星际探索模拟器</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #000; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; }
+    body { overflow: hidden; background: #000; font-family: 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', system-ui, sans-serif; color: #fff; }
     #app { width: 100vw; height: 100vh; }
     canvas { display: block; }
 
-    /* === START MENU === */
+    /* === 开始菜单 === */
     #start-menu {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: radial-gradient(ellipse at center, #0a0a2e 0%, #000005 100%);
+      background: radial-gradient(ellipse at center, #0a0a1e 0%, #000003 100%);
       z-index: 1000; display: flex; align-items: center; justify-content: center;
       overflow: hidden;
     }
     .menu-stars { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     .menu-star {
-      position: absolute; background: #fff; border-radius: 50%;
+      position: absolute; background: #888; border-radius: 50%; opacity: 0.3;
       animation: twinkle ease-in-out infinite alternate;
     }
     @keyframes twinkle {
-      0% { opacity: 0.2; transform: scale(0.8); }
-      100% { opacity: 1; transform: scale(1.2); }
+      0% { opacity: 0.1; transform: scale(0.8); }
+      100% { opacity: 0.5; transform: scale(1.1); }
     }
     .menu-content { text-align: center; z-index: 1; position: relative; }
     .game-title {
-      font-size: 5rem; font-weight: 900; letter-spacing: 0.15em;
-      background: linear-gradient(135deg, #4af 0%, #4fa 50%, #af4 100%);
+      font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em;
+      background: linear-gradient(135deg, #4a8fd6 0%, #5ab5a0 50%, #d6b54a 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text; text-shadow: 0 0 60px rgba(64,170,255,0.3);
-      margin-bottom: 0.5rem; line-height: 1.1;
+      background-clip: text; text-shadow: 0 0 40px rgba(74,143,214,0.2);
+      margin-bottom: 0.3rem; line-height: 1.1;
     }
-    .game-subtitle { font-size: 1.1rem; color: #88aacc; margin-bottom: 2.5rem; letter-spacing: 0.2em; }
-    .menu-buttons { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    .game-subtitle { font-size: 1rem; color: #5a7a9a; margin-bottom: 2.5rem; letter-spacing: 0.3em; }
+    .menu-buttons { display: flex; flex-direction: column; gap: 10px; align-items: center; }
     .menu-btn {
-      padding: 14px 60px; font-size: 1rem; font-weight: 600; letter-spacing: 0.1em;
-      background: rgba(30,60,100,0.5); border: 1px solid rgba(80,160,255,0.4);
-      color: #fff; cursor: pointer; border-radius: 4px; transition: all 0.2s;
-      min-width: 260px; backdrop-filter: blur(8px);
+      padding: 12px 50px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.1em;
+      background: rgba(20,40,60,0.6); border: 1px solid rgba(60,100,140,0.4);
+      color: #ccd; cursor: pointer; border-radius: 4px; transition: all 0.2s;
+      min-width: 240px; backdrop-filter: blur(8px);
     }
-    .menu-btn:hover { background: rgba(50,100,180,0.7); border-color: rgba(100,200,255,0.8); transform: translateY(-1px); }
+    .menu-btn:hover { background: rgba(40,80,120,0.7); border-color: rgba(80,140,180,0.7); transform: translateY(-1px); }
     .menu-btn.primary {
-      background: linear-gradient(135deg, rgba(64,128,255,0.6), rgba(64,255,170,0.4));
-      border-color: rgba(100,200,255,0.6); font-size: 1.1rem; padding: 16px 70px;
+      background: linear-gradient(135deg, rgba(50,100,180,0.5), rgba(50,160,120,0.3));
+      border-color: rgba(80,140,200,0.5); font-size: 1.05rem; padding: 14px 60px;
     }
-    .menu-btn.primary:hover { background: linear-gradient(135deg, rgba(80,150,255,0.8), rgba(80,255,180,0.6)); }
-    .quality-selector, .credits-panel {
-      background: rgba(10,20,40,0.85); border: 1px solid rgba(80,160,255,0.3);
-      border-radius: 8px; padding: 30px; max-width: 400px; margin: 0 auto;
+    .menu-btn.primary:hover { background: linear-gradient(135deg, rgba(60,120,200,0.7), rgba(60,180,140,0.5)); }
+    .quality-selector, .credits-panel, .help-panel {
+      background: rgba(8,15,28,0.9); border: 1px solid rgba(60,100,140,0.3);
+      border-radius: 8px; padding: 25px; max-width: 380px; margin: 0 auto;
     }
-    .quality-selector h3, .credits-panel h3 { margin-bottom: 15px; color: #4af; }
-    .quality-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
-    .quality-options label { cursor: pointer; padding: 8px; border-radius: 4px; transition: background 0.2s; }
-    .quality-options label:hover { background: rgba(50,100,180,0.3); }
-    .quality-hint { font-size: 0.85rem; color: #668; margin-bottom: 15px; }
-    .credits-panel p { margin-bottom: 8px; color: #aac; font-size: 0.9rem; }
-    .menu-footer { margin-top: 30px; font-size: 0.75rem; color: #445; }
+    .quality-selector h3, .credits-panel h3, .help-panel h3 { margin-bottom: 12px; color: #5a9abf; }
+    .quality-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .quality-options label { cursor: pointer; padding: 6px; border-radius: 4px; transition: background 0.2s; font-size: 0.9rem; }
+    .quality-options label:hover { background: rgba(40,80,120,0.3); }
+    .quality-hint { font-size: 0.8rem; color: #556; margin-bottom: 12px; }
+    .credits-panel p { margin-bottom: 6px; color: #88a; font-size: 0.85rem; }
+    .menu-footer { margin-top: 25px; font-size: 0.7rem; color: #334; }
 
-    /* === LOADING SCREEN === */
+    /* === 加载画面 === */
     #loading-screen {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,5,0.95); z-index: 1001;
+      background: rgba(0,0,3,0.95); z-index: 1001;
     }
     .loading-content { text-align: center; }
-    .loading-content h2 { font-size: 1.8rem; letter-spacing: 0.3em; color: #4af; margin-bottom: 20px; }
+    .loading-content h2 { font-size: 1.5rem; letter-spacing: 0.3em; color: #5a9abf; margin-bottom: 18px; }
     .loading-bar-container {
-      width: 300px; height: 4px; background: rgba(50,100,200,0.2);
-      border-radius: 2px; overflow: hidden; margin: 0 auto 15px;
+      width: 280px; height: 3px; background: rgba(40,80,140,0.2);
+      border-radius: 2px; overflow: hidden; margin: 0 auto 12px;
     }
     .loading-bar {
-      height: 100%; width: 0%; background: linear-gradient(90deg, #4af, #4fa);
+      height: 100%; width: 0%; background: linear-gradient(90deg, #4a8fd6, #5ab5a0);
       transition: width 0.3s ease; border-radius: 2px;
     }
-    #loading-text { font-size: 0.85rem; color: #88aacc; }
+    #loading-text { font-size: 0.8rem; color: #5a7a9a; }
 
-    /* === HUD === */
-    #hud { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100; }
-    #hud-top-left { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 4px; }
-    #hud-top-right { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-    #hud-bottom-left { position: absolute; bottom: 10px; left: 10px; }
-    #hud-bottom-center { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; }
-    #hud-bottom-right { position: absolute; bottom: 10px; right: 10px; }
-    .hud-panel {
-      background: rgba(0,10,30,0.7); border: 1px solid rgba(60,120,200,0.3);
-      border-radius: 4px; padding: 4px 10px; min-width: 100px; backdrop-filter: blur(4px);
+    /* === 航天中心 === */
+    #space-center {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: radial-gradient(ellipse at 50% 70%, #1a2a1a 0%, #050a05 60%, #000 100%);
+      z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      overflow: hidden;
     }
-    .hud-label { font-size: 0.6rem; color: #4a8; letter-spacing: 0.1em; text-transform: uppercase; }
-    .hud-value { font-size: 0.9rem; font-family: 'Courier New', monospace; color: #ddf; }
-    .hud-orbit-info { font-size: 0.75rem; color: #8ac; font-family: monospace; line-height: 1.4; }
+    .sc-title { font-size: 2rem; font-weight: 700; color: #8abf6a; margin-bottom: 8px; letter-spacing: 0.15em; }
+    .sc-subtitle { font-size: 0.85rem; color: #557; margin-bottom: 30px; }
+    .sc-buildings { display: grid; grid-template-columns: repeat(3, 200px); gap: 20px; }
+    .sc-building {
+      background: rgba(15,25,35,0.85); border: 1px solid rgba(60,100,140,0.3);
+      border-radius: 8px; padding: 20px 16px; cursor: pointer; transition: all 0.2s;
+      text-align: center; backdrop-filter: blur(6px);
+    }
+    .sc-building:hover { background: rgba(30,50,70,0.9); border-color: rgba(80,140,180,0.6); transform: translateY(-2px); }
+    .sc-building.primary { border-color: rgba(90,181,96,0.5); background: rgba(15,35,20,0.85); }
+    .sc-building.primary:hover { background: rgba(25,55,30,0.9); border-color: rgba(90,181,96,0.8); }
+    .sc-building-icon { font-size: 2.5rem; margin-bottom: 8px; }
+    .sc-building-name { font-size: 0.95rem; font-weight: 600; color: #ccd; margin-bottom: 4px; }
+    .sc-building-desc { font-size: 0.75rem; color: #667; line-height: 1.4; }
+    .sc-back-btn { margin-top: 25px; }
 
-    /* Fixed throttle & fuel bars */
-    #throttle-bar-container, #fuel-bar-container { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .throttle-bar-bg, .fuel-bar-bg {
-      width: 12px; height: 80px; background: rgba(0,0,0,0.6);
-      border: 1px solid rgba(100,200,255,0.3); border-radius: 2px; position: relative; overflow: hidden;
+    /* === VAB 面板 === */
+    .vab-panel {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.92); z-index: 998; display: flex; align-items: center; justify-content: center;
+    }
+    .vab-content {
+      background: rgba(10,18,30,0.95); border: 1px solid rgba(60,100,140,0.4);
+      border-radius: 10px; padding: 30px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto;
+    }
+    .vab-content h2 { color: #5a9abf; margin-bottom: 15px; text-align: center; }
+    .vab-parts-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 20px; }
+    .vab-part {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      background: rgba(20,35,50,0.5); border-radius: 4px; font-size: 0.85rem;
+    }
+    .vab-part-name { color: #aac; }
+    .vab-part-type { color: #557a8a; font-size: 0.75rem; margin-left: auto; }
+    .vab-launch-btn {
+      display: block; margin: 0 auto; padding: 14px 60px; font-size: 1.1rem;
+      background: linear-gradient(135deg, rgba(180,80,50,0.6), rgba(200,120,50,0.4));
+      border: 1px solid rgba(200,120,60,0.5); color: #fff; border-radius: 6px;
+      cursor: pointer; transition: all 0.2s; font-weight: 700; letter-spacing: 0.1em;
+    }
+    .vab-launch-btn:hover { background: linear-gradient(135deg, rgba(200,100,60,0.8), rgba(220,140,60,0.6)); }
+
+    /* === 飞行HUD === */
+    #hud { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100; font-family: 'Microsoft YaHei', monospace; }
+
+    /* 顶部中央 - 任务时间 */
+    #hud-top-center {
+      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 20px;
+    }
+    .timer-panel {
+      background: rgba(5,12,20,0.75); border: 1px solid rgba(50,90,130,0.3);
+      border-radius: 4px; padding: 3px 14px; text-align: center; backdrop-filter: blur(4px);
+    }
+    .timer-label { font-size: 0.6rem; color: #4a7; letter-spacing: 0.1em; }
+    .timer-value { font-size: 0.95rem; font-family: 'Courier New', monospace; color: #ddf; font-weight: 600; }
+
+    /* 左上 - 资源面板 */
+    #hud-top-left { position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 3px; }
+    .hud-panel {
+      background: rgba(5,12,20,0.75); border: 1px solid rgba(50,90,130,0.25);
+      border-radius: 4px; padding: 3px 10px; min-width: 95px; backdrop-filter: blur(4px);
+    }
+    .hud-label { font-size: 0.58rem; color: #4a8; letter-spacing: 0.08em; }
+    .hud-value { font-size: 0.88rem; font-family: 'Courier New', monospace; color: #ddf; font-weight: 600; }
+    .hud-orbit-info { font-size: 0.72rem; color: #7aa; font-family: 'Courier New', monospace; line-height: 1.35; }
+
+    /* 右上 - 时间加速 */
+    #hud-top-right { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+    #time-warp-display {
+      background: rgba(5,12,20,0.75); border: 1px solid rgba(50,90,130,0.3);
+      border-radius: 4px; padding: 6px 14px; text-align: center; backdrop-filter: blur(4px);
+    }
+    #warp-level { font-size: 1.3rem; font-weight: bold; color: #5ab5a0; font-family: 'Courier New', monospace; }
+    .warp-hint { font-size: 0.55rem; color: #446; }
+
+    /* 左侧 - 油门和燃料条 */
+    #hud-bottom-left {
+      position: absolute; bottom: 110px; left: 8px;
+      display: flex; gap: 8px; align-items: flex-end;
+    }
+    .bar-container { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .bar-bg {
+      width: 14px; height: 120px; background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(60,100,140,0.3); border-radius: 2px; overflow: hidden;
       display: flex; flex-direction: column-reverse;
     }
     #throttle-bar-fill {
-      width: 100%; background: linear-gradient(to top, #ff6633, #ffaa44);
-      transition: height 0.1s ease; border-radius: 0;
+      width: 100%; background: linear-gradient(to top, #cc4422, #ee8833);
+      transition: height 0.08s ease;
     }
     #fuel-bar-fill {
-      width: 100%; background: linear-gradient(to top, #44ff88, #88ffaa);
-      transition: height 0.1s ease; border-radius: 0;
+      width: 100%; background: linear-gradient(to top, #33aa55, #66cc77);
+      transition: height 0.08s ease;
     }
-    #throttle-text, #fuel-text { font-size: 0.7rem; color: #88aacc; font-family: monospace; }
+    .bar-label { font-size: 0.6rem; color: #668; font-family: monospace; }
+    .bar-value { font-size: 0.65rem; color: #aac; font-family: monospace; }
 
-    #time-warp-display {
-      position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
-      background: rgba(0,10,30,0.8); border: 1px solid rgba(60,120,200,0.3);
-      border-radius: 4px; padding: 8px 15px; text-align: center;
+    /* 左侧 - 分级列表 */
+    #staging-list {
+      position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column-reverse; gap: 4px;
     }
-    #warp-level { font-size: 1.5rem; font-weight: bold; color: #4fa; font-family: monospace; }
-    .warp-hint { font-size: 0.6rem; color: #668; }
-    #navball { border: 1px solid rgba(100,200,255,0.3); border-radius: 50%; background: rgba(0,0,20,0.5); }
+    .stage-item {
+      background: rgba(5,12,20,0.7); border: 1px solid rgba(50,90,130,0.3);
+      border-radius: 3px; padding: 4px 10px; font-size: 0.75rem; color: #89a;
+      font-family: monospace; min-width: 60px; text-align: center;
+    }
+    .stage-item.current { border-color: rgba(200,120,50,0.6); color: #dda; background: rgba(40,25,10,0.7); }
 
-    /* === HELP OVERLAY === */
+    /* 底部中央 - Navball */
+    #hud-bottom-center {
+      position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    #navball { border: 2px solid rgba(60,100,140,0.4); border-radius: 50%; background: rgba(0,0,10,0.6); }
+    .navball-labels { display: flex; gap: 20px; font-size: 0.7rem; color: #668; }
+
+    /* 右下 - 相机/G力 */
+    #hud-bottom-right { position: absolute; bottom: 8px; right: 8px; display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+
+    /* 右侧 - 快捷按钮 */
+    #quick-buttons {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; gap: 4px; pointer-events: auto;
+    }
+    .quick-btn {
+      width: 38px; height: 38px; border-radius: 4px; font-size: 0.65rem; font-weight: 700;
+      background: rgba(5,12,20,0.75); border: 1px solid rgba(50,90,130,0.3);
+      color: #668; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+    }
+    .quick-btn:hover { background: rgba(30,50,70,0.8); }
+    .quick-btn.active { background: rgba(40,80,50,0.8); border-color: rgba(80,180,100,0.5); color: #8d8; }
+    .quick-btn-label { font-size: 0.5rem; color: #446; text-align: center; margin-top: 1px; }
+
+    /* === 帮助覆盖层 === */
     #help-overlay {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;
       z-index: 200; pointer-events: auto;
     }
     .help-content {
-      background: rgba(10,20,40,0.95); border: 1px solid rgba(80,160,255,0.4);
-      border-radius: 8px; padding: 30px; max-width: 500px;
+      background: rgba(8,15,25,0.95); border: 1px solid rgba(60,100,140,0.4);
+      border-radius: 8px; padding: 28px; max-width: 480px;
     }
-    .help-content h2 { color: #4af; margin-bottom: 20px; text-align: center; }
-    .help-grid { display: grid; grid-template-columns: auto 1fr; gap: 8px 20px; margin-bottom: 20px; }
+    .help-content h2 { color: #5a9abf; margin-bottom: 18px; text-align: center; }
+    .help-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin-bottom: 18px; font-size: 0.85rem; }
     .help-grid kbd {
-      background: rgba(60,120,200,0.3); border: 1px solid rgba(100,200,255,0.4);
-      border-radius: 3px; padding: 2px 8px; font-family: monospace; font-size: 0.85rem;
+      background: rgba(40,80,120,0.3); border: 1px solid rgba(60,100,140,0.4);
+      border-radius: 3px; padding: 2px 8px; font-family: monospace; font-size: 0.8rem; text-align: center;
     }
     .help-content button {
-      padding: 10px 40px; background: rgba(50,100,180,0.5); border: 1px solid rgba(100,200,255,0.4);
-      color: #fff; border-radius: 4px; cursor: pointer; display: block; margin: 0 auto;
+      padding: 10px 40px; background: rgba(40,80,120,0.5); border: 1px solid rgba(60,100,140,0.4);
+      color: #ccd; border-radius: 4px; cursor: pointer; display: block; margin: 0 auto; font-size: 0.9rem;
     }
-    .help-content button:hover { background: rgba(70,130,220,0.7); }
+    .help-content button:hover { background: rgba(50,100,140,0.7); }
 
-    /* === STAR MAP === */
+    /* === 星图 === */
     .star-map-overlay {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.88); display: flex; align-items: center; justify-content: center;
       z-index: 300; pointer-events: auto;
     }
     .star-map-content {
-      background: rgba(10,20,40,0.95); border: 1px solid rgba(80,160,255,0.4);
-      border-radius: 8px; padding: 25px; max-width: 500px; max-height: 80vh; overflow-y: auto;
+      background: rgba(8,15,25,0.95); border: 1px solid rgba(60,100,140,0.4);
+      border-radius: 8px; padding: 22px; max-width: 480px; max-height: 80vh; overflow-y: auto;
     }
-    .star-map-content h2 { color: #4af; margin-bottom: 15px; text-align: center; }
-    .star-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 15px; }
+    .star-map-content h2 { color: #5a9abf; margin-bottom: 12px; text-align: center; }
+    .star-list { display: flex; flex-direction: column; gap: 3px; margin-bottom: 12px; }
     .star-item {
-      display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; padding: 8px 12px;
-      background: rgba(30,50,80,0.4); border-radius: 4px; cursor: pointer; transition: background 0.2s;
+      display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; padding: 7px 10px;
+      background: rgba(20,35,50,0.4); border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 0.85rem;
     }
-    .star-item:hover { background: rgba(50,100,180,0.6); }
-    .star-name { color: #ddf; font-weight: 600; }
-    .star-type { color: #8ac; font-size: 0.85rem; }
-    .star-dist { color: #4fa; font-size: 0.85rem; text-align: right; }
+    .star-item:hover { background: rgba(40,70,100,0.6); }
+    .star-name { color: #ccd; font-weight: 600; }
+    .star-type { color: #7aa; font-size: 0.8rem; }
+    .star-dist { color: #5ab5a0; font-size: 0.8rem; text-align: right; }
     .star-map-content button {
-      padding: 10px 40px; background: rgba(50,100,180,0.5); border: 1px solid rgba(100,200,255,0.4);
-      color: #fff; border-radius: 4px; cursor: pointer; display: block; margin: 0 auto;
+      padding: 10px 40px; background: rgba(40,80,120,0.5); border: 1px solid rgba(60,100,140,0.4);
+      color: #ccd; border-radius: 4px; cursor: pointer; display: block; margin: 0 auto; font-size: 0.9rem;
     }
 
-    /* === NOTIFICATIONS === */
+    /* === 通知 === */
     .notification {
-      position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
-      background: rgba(10,30,60,0.9); border: 1px solid rgba(100,200,255,0.5);
-      color: #ddf; padding: 10px 25px; border-radius: 4px; font-size: 0.9rem;
+      position: fixed; top: 55px; left: 50%; transform: translateX(-50%);
+      background: rgba(8,20,35,0.9); border: 1px solid rgba(60,100,140,0.5);
+      color: #ccd; padding: 8px 22px; border-radius: 4px; font-size: 0.85rem;
       z-index: 400; animation: fadeInOut 3s ease forwards; pointer-events: none;
     }
     @keyframes fadeInOut {
-      0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+      0% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
       15% { opacity: 1; transform: translateX(-50%) translateY(0); }
       85% { opacity: 1; }
-      100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
     }
   </style>
 </head>
@@ -187,8 +287,8 @@
   <script>
     window.addEventListener('error', function(e) {
       var msg = document.createElement('div');
-      msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a3a;color:#ff6666;padding:20px 40px;border-radius:8px;font-family:monospace;font-size:14px;z-index:9999;white-space:pre-wrap;max-width:80vw;word-break:break-all;border:1px solid #ff4444;';
-      msg.textContent = 'Error: ' + (e.message || 'Unknown error') + '\n' + (e.filename||'') + ':' + (e.lineno||'');
+      msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a2a;color:#ff6666;padding:20px 40px;border-radius:8px;font-family:monospace;font-size:14px;z-index:9999;white-space:pre-wrap;max-width:80vw;word-break:break-all;border:1px solid #ff4444;';
+      msg.textContent = '错误: ' + (e.message || '未知错误') + '\n' + (e.filename||'') + ':' + (e.lineno||'');
       document.body.appendChild(msg);
     });
   </script>

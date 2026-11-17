@@ -6840,13 +6840,13 @@ var Mesh = class extends Object3D {
   }
 };
 function checkIntersection$1(object, material, raycaster, ray, pA, pB, pC, point) {
-  let intersect2;
+  let intersect;
   if (material.side === BackSide) {
-    intersect2 = ray.intersectTriangle(pC, pB, pA, true, point);
+    intersect = ray.intersectTriangle(pC, pB, pA, true, point);
   } else {
-    intersect2 = ray.intersectTriangle(pA, pB, pC, material.side === FrontSide, point);
+    intersect = ray.intersectTriangle(pA, pB, pC, material.side === FrontSide, point);
   }
-  if (intersect2 === null) return null;
+  if (intersect === null) return null;
   _intersectionPointWorld.copy(point);
   _intersectionPointWorld.applyMatrix4(object.matrixWorld);
   const distance = raycaster.ray.origin.distanceTo(_intersectionPointWorld);
@@ -18585,12 +18585,12 @@ var Sprite = class extends Object3D {
     _uvA.set(0, 0);
     _uvB.set(1, 0);
     _uvC.set(1, 1);
-    let intersect2 = raycaster.ray.intersectTriangle(_vA, _vB, _vC, false, _intersectPoint);
-    if (intersect2 === null) {
+    let intersect = raycaster.ray.intersectTriangle(_vA, _vB, _vC, false, _intersectPoint);
+    if (intersect === null) {
       transformVertex(_vB.set(-0.5, 0.5, 0), _mvPosition, center, _worldScale, sin, cos);
       _uvB.set(0, 1);
-      intersect2 = raycaster.ray.intersectTriangle(_vA, _vC, _vB, false, _intersectPoint);
-      if (intersect2 === null) {
+      intersect = raycaster.ray.intersectTriangle(_vA, _vC, _vB, false, _intersectPoint);
+      if (intersect === null) {
         return;
       }
     }
@@ -18713,32 +18713,32 @@ var Line = class extends Object3D {
       for (let i = start, l = end - 1; i < l; i += step) {
         const a = index.getX(i);
         const b = index.getX(i + 1);
-        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
-        if (intersect2) {
-          intersects2.push(intersect2);
+        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
+        if (intersect) {
+          intersects2.push(intersect);
         }
       }
       if (this.isLineLoop) {
         const a = index.getX(end - 1);
         const b = index.getX(start);
-        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
-        if (intersect2) {
-          intersects2.push(intersect2);
+        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, a, b);
+        if (intersect) {
+          intersects2.push(intersect);
         }
       }
     } else {
       const start = Math.max(0, drawRange.start);
       const end = Math.min(positionAttribute.count, drawRange.start + drawRange.count);
       for (let i = start, l = end - 1; i < l; i += step) {
-        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, i, i + 1);
-        if (intersect2) {
-          intersects2.push(intersect2);
+        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, i, i + 1);
+        if (intersect) {
+          intersects2.push(intersect);
         }
       }
       if (this.isLineLoop) {
-        const intersect2 = checkIntersection(this, raycaster, _ray$1, localThresholdSq, end - 1, start);
-        if (intersect2) {
-          intersects2.push(intersect2);
+        const intersect = checkIntersection(this, raycaster, _ray$1, localThresholdSq, end - 1, start);
+        if (intersect) {
+          intersects2.push(intersect);
         }
       }
     }
@@ -21379,6 +21379,80 @@ var MeshStandardMaterial = class extends Material {
     return this;
   }
 };
+var MeshLambertMaterial = class extends Material {
+  static get type() {
+    return "MeshLambertMaterial";
+  }
+  constructor(parameters) {
+    super();
+    this.isMeshLambertMaterial = true;
+    this.color = new Color(16777215);
+    this.map = null;
+    this.lightMap = null;
+    this.lightMapIntensity = 1;
+    this.aoMap = null;
+    this.aoMapIntensity = 1;
+    this.emissive = new Color(0);
+    this.emissiveIntensity = 1;
+    this.emissiveMap = null;
+    this.bumpMap = null;
+    this.bumpScale = 1;
+    this.normalMap = null;
+    this.normalMapType = TangentSpaceNormalMap;
+    this.normalScale = new Vector2(1, 1);
+    this.displacementMap = null;
+    this.displacementScale = 1;
+    this.displacementBias = 0;
+    this.specularMap = null;
+    this.alphaMap = null;
+    this.envMap = null;
+    this.envMapRotation = new Euler();
+    this.combine = MultiplyOperation;
+    this.reflectivity = 1;
+    this.refractionRatio = 0.98;
+    this.wireframe = false;
+    this.wireframeLinewidth = 1;
+    this.wireframeLinecap = "round";
+    this.wireframeLinejoin = "round";
+    this.flatShading = false;
+    this.fog = true;
+    this.setValues(parameters);
+  }
+  copy(source) {
+    super.copy(source);
+    this.color.copy(source.color);
+    this.map = source.map;
+    this.lightMap = source.lightMap;
+    this.lightMapIntensity = source.lightMapIntensity;
+    this.aoMap = source.aoMap;
+    this.aoMapIntensity = source.aoMapIntensity;
+    this.emissive.copy(source.emissive);
+    this.emissiveMap = source.emissiveMap;
+    this.emissiveIntensity = source.emissiveIntensity;
+    this.bumpMap = source.bumpMap;
+    this.bumpScale = source.bumpScale;
+    this.normalMap = source.normalMap;
+    this.normalMapType = source.normalMapType;
+    this.normalScale.copy(source.normalScale);
+    this.displacementMap = source.displacementMap;
+    this.displacementScale = source.displacementScale;
+    this.displacementBias = source.displacementBias;
+    this.specularMap = source.specularMap;
+    this.alphaMap = source.alphaMap;
+    this.envMap = source.envMap;
+    this.envMapRotation.copy(source.envMapRotation);
+    this.combine = source.combine;
+    this.reflectivity = source.reflectivity;
+    this.refractionRatio = source.refractionRatio;
+    this.wireframe = source.wireframe;
+    this.wireframeLinewidth = source.wireframeLinewidth;
+    this.wireframeLinecap = source.wireframeLinecap;
+    this.wireframeLinejoin = source.wireframeLinejoin;
+    this.flatShading = source.flatShading;
+    this.fog = source.fog;
+    return this;
+  }
+};
 function convertArray(array, type, forceClone) {
   if (!array || // let 'undefined' and 'null' pass
   !forceClone && array.constructor === type) return array;
@@ -21996,21 +22070,6 @@ var Light = class extends Object3D {
     return data;
   }
 };
-var HemisphereLight = class extends Light {
-  constructor(skyColor, groundColor, intensity) {
-    super(skyColor, intensity);
-    this.isHemisphereLight = true;
-    this.type = "HemisphereLight";
-    this.position.copy(Object3D.DEFAULT_UP);
-    this.updateMatrix();
-    this.groundColor = new Color(groundColor);
-  }
-  copy(source, recursive) {
-    super.copy(source, recursive);
-    this.groundColor.copy(source.groundColor);
-    return this;
-  }
-};
 var _projScreenMatrix$1 = /* @__PURE__ */ new Matrix4();
 var _lightPositionWorld$1 = /* @__PURE__ */ new Vector3();
 var _lookTarget$1 = /* @__PURE__ */ new Vector3();
@@ -22213,6 +22272,47 @@ var AmbientLight = class extends Light {
     this.type = "AmbientLight";
   }
 };
+var Clock = class {
+  constructor(autoStart = true) {
+    this.autoStart = autoStart;
+    this.startTime = 0;
+    this.oldTime = 0;
+    this.elapsedTime = 0;
+    this.running = false;
+  }
+  start() {
+    this.startTime = now();
+    this.oldTime = this.startTime;
+    this.elapsedTime = 0;
+    this.running = true;
+  }
+  stop() {
+    this.getElapsedTime();
+    this.running = false;
+    this.autoStart = false;
+  }
+  getElapsedTime() {
+    this.getDelta();
+    return this.elapsedTime;
+  }
+  getDelta() {
+    let diff = 0;
+    if (this.autoStart && !this.running) {
+      this.start();
+      return 0;
+    }
+    if (this.running) {
+      const newTime = now();
+      diff = (newTime - this.oldTime) / 1e3;
+      this.oldTime = newTime;
+      this.elapsedTime += diff;
+    }
+    return diff;
+  }
+};
+function now() {
+  return performance.now();
+}
 var _RESERVED_CHARS_RE = "\\[\\]\\.:\\/";
 var _reservedRe = new RegExp("[" + _RESERVED_CHARS_RE + "]", "g");
 var _wordChar = "[^" + _RESERVED_CHARS_RE + "]";
@@ -22591,73 +22691,6 @@ PropertyBinding.prototype.SetterByBindingTypeAndVersioning = [
   ]
 ];
 var _controlInterpolantsResultBuffer = new Float32Array(1);
-var _matrix = /* @__PURE__ */ new Matrix4();
-var Raycaster = class {
-  constructor(origin, direction, near = 0, far = Infinity) {
-    this.ray = new Ray(origin, direction);
-    this.near = near;
-    this.far = far;
-    this.camera = null;
-    this.layers = new Layers();
-    this.params = {
-      Mesh: {},
-      Line: { threshold: 1 },
-      LOD: {},
-      Points: { threshold: 1 },
-      Sprite: {}
-    };
-  }
-  set(origin, direction) {
-    this.ray.set(origin, direction);
-  }
-  setFromCamera(coords, camera) {
-    if (camera.isPerspectiveCamera) {
-      this.ray.origin.setFromMatrixPosition(camera.matrixWorld);
-      this.ray.direction.set(coords.x, coords.y, 0.5).unproject(camera).sub(this.ray.origin).normalize();
-      this.camera = camera;
-    } else if (camera.isOrthographicCamera) {
-      this.ray.origin.set(coords.x, coords.y, (camera.near + camera.far) / (camera.near - camera.far)).unproject(camera);
-      this.ray.direction.set(0, 0, -1).transformDirection(camera.matrixWorld);
-      this.camera = camera;
-    } else {
-      console.error("THREE.Raycaster: Unsupported camera type: " + camera.type);
-    }
-  }
-  setFromXRController(controller) {
-    _matrix.identity().extractRotation(controller.matrixWorld);
-    this.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    this.ray.direction.set(0, 0, -1).applyMatrix4(_matrix);
-    return this;
-  }
-  intersectObject(object, recursive = true, intersects2 = []) {
-    intersect(object, this, intersects2, recursive);
-    intersects2.sort(ascSort);
-    return intersects2;
-  }
-  intersectObjects(objects, recursive = true, intersects2 = []) {
-    for (let i = 0, l = objects.length; i < l; i++) {
-      intersect(objects[i], this, intersects2, recursive);
-    }
-    intersects2.sort(ascSort);
-    return intersects2;
-  }
-};
-function ascSort(a, b) {
-  return a.distance - b.distance;
-}
-function intersect(object, raycaster, intersects2, recursive) {
-  let propagate = true;
-  if (object.layers.test(raycaster.layers)) {
-    const result = object.raycast(raycaster, intersects2);
-    if (result === false) propagate = false;
-  }
-  if (propagate === true && recursive === true) {
-    const children = object.children;
-    for (let i = 0, l = children.length; i < l; i++) {
-      intersect(children[i], raycaster, intersects2, true);
-    }
-  }
-}
 if (typeof __THREE_DEVTOOLS__ !== "undefined") {
   __THREE_DEVTOOLS__.dispatchEvent(new CustomEvent("register", { detail: {
     revision: REVISION
@@ -22706,54 +22739,103 @@ var STAR_COLOR_TEMP = [
   { temp: 2400, color: 16741688 }
 ];
 var SOLAR_SYSTEM = [
-  { name: "Sun", type: "star", mass: 1989e27, radius: 69634e4, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16768324, color2: 16746496, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126 },
-  { name: "Mercury", type: "planet", mass: 33011e19, radius: 2439700, parent: "Sun", semiMajorAxis: 57909e6, eccentricity: 0.2056, inclination: 0.1222, longitudeOfAscendingNode: 0.8435, argumentOfPeriapsis: 1.3518, meanAnomalyAtEpoch: 3.052, orbitalPeriod: 7600500, rotationPeriod: 5067e3, color: 9205843, color2: 7036234, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12, axialTilt: 6e-4 },
-  { name: "Venus", type: "planet", mass: 48675e20, radius: 6051800, parent: "Sun", semiMajorAxis: 10821e7, eccentricity: 67e-4, inclination: 0.0593, longitudeOfAscendingNode: 2.2956, argumentOfPeriapsis: 0.8753, meanAnomalyAtEpoch: 0.858, orbitalPeriod: 19414e3, rotationPeriod: -20991e3, color: 15253629, color2: 12886106, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.76, axialTilt: 3.096 },
-  { name: "Earth", type: "planet", mass: 597237e19, radius: 6371e3, parent: "Sun", semiMajorAxis: 149598e6, eccentricity: 0.0167, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 1.7968, meanAnomalyAtEpoch: 6.24, orbitalPeriod: 31558e3, rotationPeriod: 86164, color: 2254591, color2: 2271812, hasAtmosphere: true, hasRings: false, textureType: "ocean", albedo: 0.37, axialTilt: 0.409 },
-  { name: "Moon", type: "moon", mass: 7342e19, radius: 1737400, parent: "Earth", semiMajorAxis: 384399e3, eccentricity: 0.0549, inclination: 0.0898, longitudeOfAscendingNode: 0.7266, argumentOfPeriapsis: 0.3575, meanAnomalyAtEpoch: 2.28, orbitalPeriod: 2360600, rotationPeriod: 2360600, color: 13421772, color2: 10066329, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12 },
-  { name: "Mars", type: "planet", mass: 64171e19, radius: 3389500, parent: "Sun", semiMajorAxis: 22792e7, eccentricity: 0.0934, inclination: 0.0323, longitudeOfAscendingNode: 0.8653, argumentOfPeriapsis: 5.865, meanAnomalyAtEpoch: 1.98, orbitalPeriod: 59354e3, rotationPeriod: 88643, color: 13391155, color2: 8925986, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.25, axialTilt: 0.4396 },
-  { name: "Phobos", type: "moon", mass: 10659e12, radius: 11127, parent: "Mars", semiMajorAxis: 9376e3, eccentricity: 0.0151, inclination: 0.0194, longitudeOfAscendingNode: 3.415, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 27554, rotationPeriod: 27554, color: 8939093, color2: 6706500, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07 },
-  { name: "Deimos", type: "moon", mass: 14762e11, radius: 6200, parent: "Mars", semiMajorAxis: 23463e3, eccentricity: 2e-4, inclination: 0.4746, longitudeOfAscendingNode: 4.689, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 109075, rotationPeriod: 109075, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07 },
-  { name: "Jupiter", type: "gas-giant", mass: 18982e23, radius: 69911e3, parent: "Sun", semiMajorAxis: 77857e7, eccentricity: 0.0489, inclination: 0.0227, longitudeOfAscendingNode: 1.754, argumentOfPeriapsis: 0.257, meanAnomalyAtEpoch: 3.45, orbitalPeriod: 37434e4, rotationPeriod: 35720, color: 14207645, color2: 12101752, hasAtmosphere: true, hasRings: false, textureType: "gas", albedo: 0.51, axialTilt: 0.0546 },
-  { name: "Io", type: "moon", mass: 89319e18, radius: 1821600, parent: "Jupiter", semiMajorAxis: 4217e5, eccentricity: 41e-4, inclination: 0.0499, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 152853, rotationPeriod: 152853, color: 16772676, color2: 14527010, hasAtmosphere: false, hasRings: false, textureType: "lava", albedo: 0.63 },
-  { name: "Europa", type: "moon", mass: 47998e18, radius: 1560800, parent: "Jupiter", semiMajorAxis: 67103e4, eccentricity: 9e-3, inclination: 0.0296, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 306877, rotationPeriod: 306877, color: 14535850, color2: 12299144, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.67 },
-  { name: "Ganymede", type: "moon", mass: 14819e19, radius: 2634100, parent: "Jupiter", semiMajorAxis: 10704e5, eccentricity: 13e-4, inclination: 0.0358, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 618153, rotationPeriod: 618153, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.43 },
-  { name: "Callisto", type: "moon", mass: 10759e19, radius: 2410300, parent: "Jupiter", semiMajorAxis: 18827e5, eccentricity: 74e-4, inclination: 0.0328, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1442849, rotationPeriod: 1442849, color: 6706500, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.17 },
-  { name: "Saturn", type: "gas-giant", mass: 56834e22, radius: 58232e3, parent: "Sun", semiMajorAxis: 14335e8, eccentricity: 0.0565, inclination: 0.0434, longitudeOfAscendingNode: 1.984, argumentOfPeriapsis: 1.613, meanAnomalyAtEpoch: 5.54, orbitalPeriod: 92969e4, rotationPeriod: 38362, color: 15390392, color2: 12892310, hasAtmosphere: true, hasRings: true, textureType: "gas", albedo: 0.5, axialTilt: 0.4665 },
-  { name: "Titan", type: "moon", mass: 13452e19, radius: 2574700, parent: "Saturn", semiMajorAxis: 12218e5, eccentricity: 0.0288, inclination: 0.0559, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1374696, rotationPeriod: 1374696, color: 15641156, color2: 13404194, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.22 },
-  { name: "Rhea", type: "moon", mass: 2306518e15, radius: 763700, parent: "Saturn", semiMajorAxis: 52708e4, eccentricity: 12e-4, inclination: 0.0185, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 390644, rotationPeriod: 390644, color: 13421772, color2: 11184810, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.69 },
-  { name: "Iapetus", type: "moon", mass: 1805935e15, radius: 734400, parent: "Saturn", semiMajorAxis: 35608e5, eccentricity: 0.0286, inclination: 0.2823, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 6828804, rotationPeriod: 6828804, color: 8943462, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.25 },
-  { name: "Uranus", type: "ice-giant", mass: 8681e22, radius: 25362e3, parent: "Sun", semiMajorAxis: 28725e8, eccentricity: 0.0457, inclination: 0.0135, longitudeOfAscendingNode: 1.291, argumentOfPeriapsis: 2.984, meanAnomalyAtEpoch: 2.48, orbitalPeriod: 26533e5, rotationPeriod: -62064, color: 8969710, color2: 6732748, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.48, axialTilt: 1.7064 },
-  { name: "Neptune", type: "ice-giant", mass: 102413e21, radius: 24622e3, parent: "Sun", semiMajorAxis: 44951e8, eccentricity: 0.0113, inclination: 0.0309, longitudeOfAscendingNode: 2.298, argumentOfPeriapsis: 0.785, meanAnomalyAtEpoch: 5.31, orbitalPeriod: 52003e5, rotationPeriod: 57996, color: 3368703, color2: 2245836, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.44, axialTilt: 0.4943 },
-  { name: "Triton", type: "moon", mass: 2139e19, radius: 1353400, parent: "Neptune", semiMajorAxis: 35476e4, eccentricity: 16e-6, inclination: 2.7367, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: -489018, rotationPeriod: -489018, color: 14540253, color2: 12303291, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.76 },
-  { name: "Pluto", type: "dwarf", mass: 1303e19, radius: 1188300, parent: "Sun", semiMajorAxis: 59064e8, eccentricity: 0.2488, inclination: 0.2994, longitudeOfAscendingNode: 1.916, argumentOfPeriapsis: 4.241, meanAnomalyAtEpoch: 4.03, orbitalPeriod: 78248e5, rotationPeriod: -551856, color: 12298905, color2: 10061943, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.49, axialTilt: 2.1293 },
-  { name: "Charon", type: "moon", mass: 1586e18, radius: 606e3, parent: "Pluto", semiMajorAxis: 19591e3, eccentricity: 2e-4, inclination: 0.0805, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 551856, rotationPeriod: 551856, color: 11184810, color2: 8947848, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.37 },
-  { name: "Ceres", type: "dwarf", mass: 93835e16, radius: 473e3, parent: "Sun", semiMajorAxis: 41371e7, eccentricity: 0.0758, inclination: 0.1947, longitudeOfAscendingNode: 5.385, argumentOfPeriapsis: 1.386, meanAnomalyAtEpoch: 4.5, orbitalPeriod: 14556e4, rotationPeriod: 32663, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.09 }
+  { name: "Sun", nameCN: "\u592A\u9633", type: "star", mass: 1989e27, radius: 69634e4, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16768324, color2: 16746496, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126 },
+  { name: "Mercury", nameCN: "\u6C34\u661F", type: "planet", mass: 33011e19, radius: 2439700, parent: "Sun", semiMajorAxis: 57909e6, eccentricity: 0.2056, inclination: 0.1222, longitudeOfAscendingNode: 0.8435, argumentOfPeriapsis: 1.3518, meanAnomalyAtEpoch: 3.052, orbitalPeriod: 7600500, rotationPeriod: 5067e3, color: 9205843, color2: 7036234, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12, axialTilt: 6e-4 },
+  { name: "Venus", nameCN: "\u91D1\u661F", type: "planet", mass: 48675e20, radius: 6051800, parent: "Sun", semiMajorAxis: 10821e7, eccentricity: 67e-4, inclination: 0.0593, longitudeOfAscendingNode: 2.2956, argumentOfPeriapsis: 0.8753, meanAnomalyAtEpoch: 0.858, orbitalPeriod: 19414e3, rotationPeriod: -20991e3, color: 15253629, color2: 12886106, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.76, axialTilt: 3.096 },
+  { name: "Earth", nameCN: "\u5730\u7403", type: "planet", mass: 597237e19, radius: 6371e3, parent: "Sun", semiMajorAxis: 149598e6, eccentricity: 0.0167, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 1.7968, meanAnomalyAtEpoch: 6.24, orbitalPeriod: 31558e3, rotationPeriod: 86164, color: 2254591, color2: 2271812, hasAtmosphere: true, hasRings: false, textureType: "ocean", albedo: 0.37, axialTilt: 0.409 },
+  { name: "Moon", nameCN: "\u6708\u7403", type: "moon", mass: 7342e19, radius: 1737400, parent: "Earth", semiMajorAxis: 384399e3, eccentricity: 0.0549, inclination: 0.0898, longitudeOfAscendingNode: 0.7266, argumentOfPeriapsis: 0.3575, meanAnomalyAtEpoch: 2.28, orbitalPeriod: 2360600, rotationPeriod: 2360600, color: 13421772, color2: 10066329, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12 },
+  { name: "Mars", nameCN: "\u706B\u661F", type: "planet", mass: 64171e19, radius: 3389500, parent: "Sun", semiMajorAxis: 22792e7, eccentricity: 0.0934, inclination: 0.0323, longitudeOfAscendingNode: 0.8653, argumentOfPeriapsis: 5.865, meanAnomalyAtEpoch: 1.98, orbitalPeriod: 59354e3, rotationPeriod: 88643, color: 13391155, color2: 8925986, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.25, axialTilt: 0.4396 },
+  { name: "Phobos", nameCN: "\u706B\u536B\u4E00", type: "moon", mass: 10659e12, radius: 11127, parent: "Mars", semiMajorAxis: 9376e3, eccentricity: 0.0151, inclination: 0.0194, longitudeOfAscendingNode: 3.415, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 27554, rotationPeriod: 27554, color: 8939093, color2: 6706500, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07 },
+  { name: "Deimos", nameCN: "\u706B\u536B\u4E8C", type: "moon", mass: 14762e11, radius: 6200, parent: "Mars", semiMajorAxis: 23463e3, eccentricity: 2e-4, inclination: 0.4746, longitudeOfAscendingNode: 4.689, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 109075, rotationPeriod: 109075, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07 },
+  { name: "Jupiter", nameCN: "\u6728\u661F", type: "gas-giant", mass: 18982e23, radius: 69911e3, parent: "Sun", semiMajorAxis: 77857e7, eccentricity: 0.0489, inclination: 0.0227, longitudeOfAscendingNode: 1.754, argumentOfPeriapsis: 0.257, meanAnomalyAtEpoch: 3.45, orbitalPeriod: 37434e4, rotationPeriod: 35720, color: 14207645, color2: 12101752, hasAtmosphere: true, hasRings: false, textureType: "gas", albedo: 0.51, axialTilt: 0.0546 },
+  { name: "Io", nameCN: "\u6728\u536B\u4E00", type: "moon", mass: 89319e18, radius: 1821600, parent: "Jupiter", semiMajorAxis: 4217e5, eccentricity: 41e-4, inclination: 0.0499, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 152853, rotationPeriod: 152853, color: 16772676, color2: 14527010, hasAtmosphere: false, hasRings: false, textureType: "lava", albedo: 0.63 },
+  { name: "Europa", nameCN: "\u6728\u536B\u4E8C", type: "moon", mass: 47998e18, radius: 1560800, parent: "Jupiter", semiMajorAxis: 67103e4, eccentricity: 9e-3, inclination: 0.0296, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 306877, rotationPeriod: 306877, color: 14535850, color2: 12299144, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.67 },
+  { name: "Ganymede", nameCN: "\u6728\u536B\u4E09", type: "moon", mass: 14819e19, radius: 2634100, parent: "Jupiter", semiMajorAxis: 10704e5, eccentricity: 13e-4, inclination: 0.0358, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 618153, rotationPeriod: 618153, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.43 },
+  { name: "Callisto", nameCN: "\u6728\u536B\u56DB", type: "moon", mass: 10759e19, radius: 2410300, parent: "Jupiter", semiMajorAxis: 18827e5, eccentricity: 74e-4, inclination: 0.0328, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1442849, rotationPeriod: 1442849, color: 6706500, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.17 },
+  { name: "Saturn", nameCN: "\u571F\u661F", type: "gas-giant", mass: 56834e22, radius: 58232e3, parent: "Sun", semiMajorAxis: 14335e8, eccentricity: 0.0565, inclination: 0.0434, longitudeOfAscendingNode: 1.984, argumentOfPeriapsis: 1.613, meanAnomalyAtEpoch: 5.54, orbitalPeriod: 92969e4, rotationPeriod: 38362, color: 15390392, color2: 12892310, hasAtmosphere: true, hasRings: true, textureType: "gas", albedo: 0.5, axialTilt: 0.4665 },
+  { name: "Titan", nameCN: "\u571F\u536B\u516D", type: "moon", mass: 13452e19, radius: 2574700, parent: "Saturn", semiMajorAxis: 12218e5, eccentricity: 0.0288, inclination: 0.0559, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1374696, rotationPeriod: 1374696, color: 15641156, color2: 13404194, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.22 },
+  { name: "Rhea", nameCN: "\u571F\u536B\u4E94", type: "moon", mass: 2306518e15, radius: 763700, parent: "Saturn", semiMajorAxis: 52708e4, eccentricity: 12e-4, inclination: 0.0185, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 390644, rotationPeriod: 390644, color: 13421772, color2: 11184810, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.69 },
+  { name: "Iapetus", nameCN: "\u571F\u536B\u516B", type: "moon", mass: 1805935e15, radius: 734400, parent: "Saturn", semiMajorAxis: 35608e5, eccentricity: 0.0286, inclination: 0.2823, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 6828804, rotationPeriod: 6828804, color: 8943462, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.25 },
+  { name: "Uranus", nameCN: "\u5929\u738B\u661F", type: "ice-giant", mass: 8681e22, radius: 25362e3, parent: "Sun", semiMajorAxis: 28725e8, eccentricity: 0.0457, inclination: 0.0135, longitudeOfAscendingNode: 1.291, argumentOfPeriapsis: 2.984, meanAnomalyAtEpoch: 2.48, orbitalPeriod: 26533e5, rotationPeriod: -62064, color: 8969710, color2: 6732748, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.48, axialTilt: 1.7064 },
+  { name: "Neptune", nameCN: "\u6D77\u738B\u661F", type: "ice-giant", mass: 102413e21, radius: 24622e3, parent: "Sun", semiMajorAxis: 44951e8, eccentricity: 0.0113, inclination: 0.0309, longitudeOfAscendingNode: 2.298, argumentOfPeriapsis: 0.785, meanAnomalyAtEpoch: 5.31, orbitalPeriod: 52003e5, rotationPeriod: 57996, color: 3368703, color2: 2245836, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.44, axialTilt: 0.4943 },
+  { name: "Triton", nameCN: "\u6D77\u536B\u4E00", type: "moon", mass: 2139e19, radius: 1353400, parent: "Neptune", semiMajorAxis: 35476e4, eccentricity: 16e-6, inclination: 2.7367, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: -489018, rotationPeriod: -489018, color: 14540253, color2: 12303291, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.76 },
+  { name: "Pluto", nameCN: "\u51A5\u738B\u661F", type: "dwarf", mass: 1303e19, radius: 1188300, parent: "Sun", semiMajorAxis: 59064e8, eccentricity: 0.2488, inclination: 0.2994, longitudeOfAscendingNode: 1.916, argumentOfPeriapsis: 4.241, meanAnomalyAtEpoch: 4.03, orbitalPeriod: 78248e5, rotationPeriod: -551856, color: 12298905, color2: 10061943, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.49, axialTilt: 2.1293 },
+  { name: "Charon", nameCN: "\u51A5\u536B\u4E00", type: "moon", mass: 1586e18, radius: 606e3, parent: "Pluto", semiMajorAxis: 19591e3, eccentricity: 2e-4, inclination: 0.0805, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 551856, rotationPeriod: 551856, color: 11184810, color2: 8947848, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.37 },
+  { name: "Ceres", nameCN: "\u8C37\u795E\u661F", type: "dwarf", mass: 93835e16, radius: 473e3, parent: "Sun", semiMajorAxis: 41371e7, eccentricity: 0.0758, inclination: 0.1947, longitudeOfAscendingNode: 5.385, argumentOfPeriapsis: 1.386, meanAnomalyAtEpoch: 4.5, orbitalPeriod: 14556e4, rotationPeriod: 32663, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.09 }
 ];
 var STAR_SYSTEMS = [
-  { name: "Proxima Centauri", distance: 4.242, ra: 2.5084, dec: -0.8493, starType: "M5.5Ve", mass: 2446e26, radius: 1542e5, temperature: 3042, color: 16729122, planets: 3 },
-  { name: "Alpha Centauri A", distance: 4.367, ra: 3.7462, dec: -1.0403, starType: "G2V", mass: 2145e27, radius: 8511e5, temperature: 5790, color: 16772812, planets: 1 },
-  { name: "Alpha Centauri B", distance: 4.367, ra: 3.7462, dec: -1.0403, starType: "K1V", mass: 1808e27, radius: 6025e5, temperature: 5260, color: 16768426, planets: 0 },
-  { name: "Barnard's Star", distance: 5.963, ra: 2.7413, dec: 0.077, starType: "M4Ve", mass: 2864e26, radius: 1905e5, temperature: 3134, color: 16724770, planets: 4 },
-  { name: "Wolf 359", distance: 7.86, ra: 2.882, dec: 0.1089, starType: "M6V", mass: 179e27, radius: 1443e5, temperature: 2800, color: 16720401, planets: 2 },
-  { name: "Lalande 21185", distance: 8.31, ra: 2.6305, dec: 0.6158, starType: "M2V", mass: 7757e26, radius: 3957e5, temperature: 3601, color: 16733491, planets: 2 },
-  { name: "Sirius A", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "A1V", mass: 411e28, radius: 1191e6, temperature: 9940, color: 14540287, planets: 0 },
-  { name: "Sirius B", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "DA2", mass: 2019e27, radius: 6371e3, temperature: 25e3, color: 16777215, planets: 0 },
-  { name: "Luyten 726-8 A", distance: 8.73, ra: 0.2346, dec: -0.5548, starType: "M5.5Ve", mass: 179e27, radius: 1611e5, temperature: 2670, color: 16720401, planets: 0 },
-  { name: "Ross 154", distance: 9.69, ra: 4.7955, dec: -1.2325, starType: "M3.5Ve", mass: 358e27, radius: 2376e5, temperature: 3134, color: 16724770, planets: 0 },
-  { name: "Ross 248", distance: 10.32, ra: 5.7374, dec: 0.8276, starType: "M5.5Ve", mass: 2327e26, radius: 1737e5, temperature: 2820, color: 16720401, planets: 0 },
-  { name: "Epsilon Eridani", distance: 10.475, ra: 0.8992, dec: -0.5893, starType: "K2V", mass: 1611e27, radius: 6954e5, temperature: 5084, color: 16764040, planets: 2 },
-  { name: "Lacaille 9352", distance: 10.74, ra: 5.5138, dec: -0.853, starType: "M0.5V", mass: 1432e27, radius: 5733e5, temperature: 3677, color: 16733491, planets: 2 },
-  { name: "Ross 128", distance: 11.03, ra: 2.4906, dec: 0.0933, starType: "M4V", mass: 3132e26, radius: 1915e5, temperature: 3192, color: 16724770, planets: 1 },
-  { name: "EZ Aquarii A", distance: 11.27, ra: 3.7125, dec: -0.1005, starType: "M5V", mass: 1789e26, radius: 1611e5, temperature: 3e3, color: 16720401, planets: 0 },
-  { name: "Procyon A", distance: 11.4, ra: 1.7454, dec: 0.0933, starType: "F5IV-V", mass: 2983e27, radius: 1677e6, temperature: 6530, color: 16777198, planets: 0 },
-  { name: "61 Cygni A", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K5V", mass: 1232e27, radius: 6685e5, temperature: 4526, color: 16755302, planets: 0 },
-  { name: "61 Cygni B", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K7V", mass: 1074e27, radius: 6066e5, temperature: 4113, color: 16750933, planets: 0 },
-  { name: "Struve 2398 A", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3V", mass: 6565e26, radius: 3663e5, temperature: 3490, color: 16724770, planets: 0 },
-  { name: "Struve 2398 B", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3.5V", mass: 5371e26, radius: 3288e5, temperature: 3210, color: 16724770, planets: 0 },
-  { name: "Groombridge 34 A", distance: 11.62, ra: 0.3545, dec: 0.7536, starType: "M1.5V", mass: 8155e26, radius: 4032e5, temperature: 3600, color: 16729139, planets: 1 },
-  { name: "Tau Ceti", distance: 11.75, ra: 0.3664, dec: -0.2767, starType: "G8V", mass: 1511e27, radius: 6909e5, temperature: 5344, color: 16768426, planets: 4 },
-  { name: "Epsilon Indi", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 }
+  { name: "Proxima Centauri", nameCN: "\u6BD4\u90BB\u661F", distance: 4.242, ra: 2.5084, dec: -0.8493, starType: "M5.5Ve", mass: 2446e26, radius: 1542e5, temperature: 3042, color: 16729122, planets: 3 },
+  { name: "Alpha Centauri A", nameCN: "\u534A\u4EBA\u9A6C\u5EA7\u03B1\u661FA", distance: 4.367, ra: 3.7462, dec: -1.0403, starType: "G2V", mass: 2145e27, radius: 8511e5, temperature: 5790, color: 16772812, planets: 1 },
+  { name: "Alpha Centauri B", nameCN: "\u534A\u4EBA\u9A6C\u5EA7\u03B1\u661FB", distance: 4.367, ra: 3.7462, dec: -1.0403, starType: "K1V", mass: 1808e27, radius: 6025e5, temperature: 5260, color: 16768426, planets: 0 },
+  { name: "Barnard's Star", nameCN: "\u5DF4\u7EB3\u5FB7\u661F", distance: 5.963, ra: 2.7413, dec: 0.077, starType: "M4Ve", mass: 2864e26, radius: 1905e5, temperature: 3134, color: 16724770, planets: 4 },
+  { name: "Wolf 359", nameCN: "\u6C83\u5C14\u592B359", distance: 7.86, ra: 2.882, dec: 0.1089, starType: "M6V", mass: 179e27, radius: 1443e5, temperature: 2800, color: 16720401, planets: 2 },
+  { name: "Lalande 21185", nameCN: "\u62C9\u5170\u5FB721185", distance: 8.31, ra: 2.6305, dec: 0.6158, starType: "M2V", mass: 7757e26, radius: 3957e5, temperature: 3601, color: 16733491, planets: 2 },
+  { name: "Sirius A", nameCN: "\u5929\u72FC\u661FA", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "A1V", mass: 411e28, radius: 1191e6, temperature: 9940, color: 14540287, planets: 0 },
+  { name: "Sirius B", nameCN: "\u5929\u72FC\u661FB", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "DA2", mass: 2019e27, radius: 6371e3, temperature: 25e3, color: 16777215, planets: 0 },
+  { name: "Luyten 726-8 A", nameCN: "\u5362\u4F0A\u6ED5726-8 A", distance: 8.73, ra: 0.2346, dec: -0.5548, starType: "M5.5Ve", mass: 179e27, radius: 1611e5, temperature: 2670, color: 16720401, planets: 0 },
+  { name: "Ross 154", nameCN: "\u7F57\u65AF154", distance: 9.69, ra: 4.7955, dec: -1.2325, starType: "M3.5Ve", mass: 358e27, radius: 2376e5, temperature: 3134, color: 16724770, planets: 0 },
+  { name: "Ross 248", nameCN: "\u7F57\u65AF248", distance: 10.32, ra: 5.7374, dec: 0.8276, starType: "M5.5Ve", mass: 2327e26, radius: 1737e5, temperature: 2820, color: 16720401, planets: 0 },
+  { name: "Epsilon Eridani", nameCN: "\u6CE2\u6C5F\u5EA7\u03B5\u661F", distance: 10.475, ra: 0.8992, dec: -0.5893, starType: "K2V", mass: 1611e27, radius: 6954e5, temperature: 5084, color: 16764040, planets: 2 },
+  { name: "Lacaille 9352", nameCN: "\u62C9\u5361\u4F0A9352", distance: 10.74, ra: 5.5138, dec: -0.853, starType: "M0.5V", mass: 1432e27, radius: 5733e5, temperature: 3677, color: 16733491, planets: 2 },
+  { name: "Ross 128", nameCN: "\u7F57\u65AF128", distance: 11.03, ra: 2.4906, dec: 0.0933, starType: "M4V", mass: 3132e26, radius: 1915e5, temperature: 3192, color: 16724770, planets: 1 },
+  { name: "EZ Aquarii A", nameCN: "\u5B9D\u74F6\u5EA7EZ A", distance: 11.27, ra: 3.7125, dec: -0.1005, starType: "M5V", mass: 1789e26, radius: 1611e5, temperature: 3e3, color: 16720401, planets: 0 },
+  { name: "Procyon A", nameCN: "\u5357\u6CB3\u4E09A", distance: 11.4, ra: 1.7454, dec: 0.0933, starType: "F5IV-V", mass: 2983e27, radius: 1677e6, temperature: 6530, color: 16777198, planets: 0 },
+  { name: "61 Cygni A", nameCN: "\u5929\u9E45\u5EA761 A", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K5V", mass: 1232e27, radius: 6685e5, temperature: 4526, color: 16755302, planets: 0 },
+  { name: "61 Cygni B", nameCN: "\u5929\u9E45\u5EA761 B", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K7V", mass: 1074e27, radius: 6066e5, temperature: 4113, color: 16750933, planets: 0 },
+  { name: "Struve 2398 A", nameCN: "\u65AF\u7279\u9C81\u7EF42398 A", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3V", mass: 6565e26, radius: 3663e5, temperature: 3490, color: 16724770, planets: 0 },
+  { name: "Struve 2398 B", nameCN: "\u65AF\u7279\u9C81\u7EF42398 B", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3.5V", mass: 5371e26, radius: 3288e5, temperature: 3210, color: 16724770, planets: 0 },
+  { name: "Groombridge 34 A", nameCN: "\u683C\u9C81\u59C6\u5E03\u91CC\u594734 A", distance: 11.62, ra: 0.3545, dec: 0.7536, starType: "M1.5V", mass: 8155e26, radius: 4032e5, temperature: 3600, color: 16729139, planets: 1 },
+  { name: "Tau Ceti", nameCN: "\u9CB8\u9C7C\u5EA7\u03C4\u661F", distance: 11.75, ra: 0.3664, dec: -0.2767, starType: "G8V", mass: 1511e27, radius: 6909e5, temperature: 5344, color: 16768426, planets: 4 },
+  { name: "Epsilon Indi", nameCN: "\u5370\u7B2C\u5B89\u5EA7\u03B5\u661F", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 }
+];
+var ROCKET_PARTS = [
+  // Command pods
+  { id: "capsule_mk1", name: "Mk1 \u6307\u6325\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5355\u5EA7\u518D\u5165\u8FD4\u56DE\u8231" },
+  { id: "capsule_mk2", name: "Mk2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "\u53CC\u5EA7\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u5C4F\u853D" },
+  { id: "capsule_mk3", name: "Mk3 \u4E58\u5458\u8231", type: "command", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u56DB\u5EA7\u4E58\u5458\u8231\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1" },
+  { id: "probe_core", name: "\u63A2\u6D4B\u5668\u6838\u5FC3", type: "command", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u65E0\u4EBA\u63A7\u5236\u5355\u5143" },
+  // Fuel tanks
+  { id: "fuel_small", name: "\u5C0F\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 200, fuelMass: 4e3, thrust: 0, isp: 0, cost: 30, description: "\u7D27\u51D1\u578B\u71C3\u6599\u7BB1" },
+  { id: "fuel_medium", name: "\u4E2D\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 1e4, thrust: 0, isp: 0, cost: 60, description: "\u6807\u51C6\u71C3\u6599\u7BB1" },
+  { id: "fuel_large", name: "\u5927\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 800, fuelMass: 25e3, thrust: 0, isp: 0, cost: 120, description: "\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1" },
+  { id: "fuel_xl", name: "\u8D85\u5927\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 1500, fuelMass: 5e4, thrust: 0, isp: 0, cost: 250, description: "\u5DE8\u578B\u71C3\u6599\u50A8\u7F50" },
+  { id: "fuel_nuclear", name: "\u6838\u71C3\u6599\u7535\u6C60", type: "fuel", mass: 300, fuelMass: 2e3, thrust: 0, isp: 0, cost: 400, description: "\u79BB\u5B50\u5F15\u64CE\u7528\u6838\u71C3\u6599" },
+  // Engines
+  { id: "engine_chem", name: "\u5316\u5B66\u5F15\u64CE", type: "engine", mass: 500, fuelMass: 0, thrust: 2e5, isp: 350, cost: 50, description: "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE" },
+  { id: "engine_heavy", name: "\u91CD\u578B\u5347\u529B\u5F15\u64CE", type: "engine", mass: 1e3, fuelMass: 0, thrust: 5e5, isp: 320, cost: 100, description: "\u5927\u63A8\u529B\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8F7D\u8377" },
+  { id: "engine_ion", name: "\u79BB\u5B50\u5F15\u64CE", type: "engine", mass: 200, fuelMass: 0, thrust: 5e3, isp: 4200, cost: 300, description: "\u8D85\u9AD8\u6548\u7535\u63A8\u8FDB\u7CFB\u7EDF" },
+  { id: "engine_nuclear", name: "\u6838\u5F15\u64CE", type: "engine", mass: 1500, fuelMass: 0, thrust: 15e4, isp: 1800, cost: 500, description: "\u6838\u70ED\u63A8\u8FDB\u7CFB\u7EDF" },
+  { id: "engine_aerospike", name: "\u6C14\u52A8\u585E\u5F0F\u5F15\u64CE", type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 450, cost: 600, description: "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1" },
+  { id: "engine_vector", name: "\u77E2\u91CF\u63A8\u529B\u5F15\u64CE", type: "engine", mass: 800, fuelMass: 0, thrust: 35e4, isp: 380, cost: 250, description: "\u63A8\u529B\u77E2\u91CF\u63A7\u5236" },
+  // Decouplers
+  { id: "decoupler", name: "\u5206\u79BB\u5668", type: "decoupler", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E" },
+  { id: "decoupler_heavy", name: "\u91CD\u578B\u5206\u79BB\u5668", type: "decoupler", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u52A0\u56FA\u578B\uFF0C\u9002\u7528\u4E8E\u5927\u7EA7\u5206\u79BB" },
+  // Science
+  { id: "science_lab", name: "\u79FB\u52A8\u79D1\u5B66\u5B9E\u9A8C\u5BA4", type: "science", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u968F\u65F6\u95F4\u4EA7\u751F\u79D1\u5B66\u70B9\u6570" },
+  { id: "science_sensor", name: "\u4F20\u611F\u5668\u9635\u5217", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668" },
+  { id: "science_comm", name: "\u901A\u4FE1\u7EC4\u4EF6", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u589E\u5F3A\u79D1\u5B66\u6570\u636E\u4F20\u8F93" },
+  // Parachutes
+  { id: "parachute", name: "\u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u4E00\u6B21\u6027\u964D\u843D\u4F1E canopy" },
+  { id: "parachute_drogue", name: "\u51CF\u901F\u4F1E", type: "parachute", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u9AD8\u901F\u4E0B\u964D\u5236\u52A8\u4F1E" },
+  // Aero
+  { id: "aero_fins", name: "\u6C14\u52A8\u5C3E\u7FFC", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u5927\u6C14\u4E2D\u4FDD\u6301\u7A33\u5B9A" },
+  { id: "aero_nosecone", name: "\u6574\u6D41\u5934\u9525", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B" },
+  { id: "aero_heatshield", name: "\u9694\u70ED\u76FE", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u70E7\u8680\u5F0F\u518D\u5165\u9632\u62A4" },
+  // RCS
+  { id: "rcs_block", name: "RCS \u63A8\u8FDB\u5668\u7EC4", type: "rcs", mass: 30, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u56DB\u5411\u59FF\u6001\u63A7\u5236" },
+  { id: "rcs_tank", name: "RCS \u5355\u7EC4\u5143\u50A8\u7BB1", type: "rcs", mass: 50, fuelMass: 200, thrust: 0, isp: 0, cost: 20, description: "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58" },
+  // Solar
+  { id: "solar_panel", name: "\u592A\u9633\u80FD\u677F", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5C55\u5F00\u5F0F\u53D1\u7535\u9762\u677F" },
+  { id: "solar_array", name: "\u592A\u9633\u80FD\u9635\u5217", type: "solar", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217" },
+  // Antenna
+  { id: "antenna_dish", name: "\u901A\u4FE1\u629B\u7269\u9762\u5929\u7EBF", type: "antenna", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u8FDC\u8DDD\u79BB\u901A\u4FE1" },
+  { id: "antenna_whip", name: "\u97AD\u72B6\u5929\u7EBF", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u8FD1\u8DDD\u79BB\u901A\u4FE1" },
+  // Landing
+  { id: "landing_legs", name: "\u7740\u9646\u652F\u67B6", type: "landing", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u53EF\u5C55\u5F00\u7740\u9646\u8D77\u843D\u67B6" },
+  { id: "landing_pads", name: "\u7740\u9646\u811A\u57AB", type: "landing", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5BBD\u5E95\u7740\u9646\u811A\u57AB" },
+  // Adapter
+  { id: "adapter_2_1", name: "2:1 \u9002\u914D\u5668", type: "adapter", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u7F29\u51CF\u76F4\u5F84" },
+  { id: "adapter_3_1", name: "3:1 \u9002\u914D\u5668", type: "adapter", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u591A\u5F15\u64CE\u5B89\u88C5\u5EA7" }
 ];
 
 // src/game/physics.ts
@@ -22927,6 +23009,37 @@ var NBodySystem = class {
 };
 
 // src/game/render.ts
+var HIGH_QUALITY_TEXTURE_SIZE = 2048;
+var ATMOSPHERE_VERT = `
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vWorldNormal = normalize(mat3(modelMatrix) * normal);
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vWorldPos = wp.xyz;
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }
+`;
+var ATMOSPHERE_FRAG = `
+  uniform vec3 uSunPosition;
+  uniform vec3 uAtmColor;
+  uniform float uIntensity;
+  varying vec3 vWorldNormal;
+  varying vec3 vWorldPos;
+  void main() {
+    vec3 n = normalize(vWorldNormal);
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    vec3 sunDir = normalize(uSunPosition - vWorldPos);
+    // Fresnel limb glow (abs handles BackSide rendering)
+    float ndv = abs(dot(n, viewDir));
+    float fresnel = pow(1.0 - ndv, 3.0);
+    // Atmosphere only visible on lit side
+    float sunFactor = smoothstep(-0.15, 0.35, dot(n, sunDir));
+    float alpha = fresnel * uIntensity * sunFactor;
+    vec3 color = uAtmColor * (0.5 + fresnel * 0.5);
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
 var TextureFactory = class {
   static {
     this.canvas = null;
@@ -22945,7 +23058,10 @@ var TextureFactory = class {
     this.canvas.height = size;
     return this.canvas;
   }
-  // --- Improved noise functions ---
+  static getTextureSize() {
+    return this.quality === "high" ? HIGH_QUALITY_TEXTURE_SIZE : QUALITY_CONFIG[this.quality].textureSize;
+  }
+  // --- Enhanced noise functions ---
   static hash(x, y, seed) {
     const n = Math.sin(x * 127.1 + y * 311.7 + seed * 43.7) * 43758.5453;
     return n - Math.floor(n);
@@ -22961,6 +23077,7 @@ var TextureFactory = class {
     const v = fy * fy * (3 - 2 * fy);
     return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
   }
+  // Fractal noise with 8-10 octaves for KSP-level detail
   static fractalNoise(x, y, seed, octaves) {
     let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
     for (let i = 0; i < octaves; i++) {
@@ -22971,7 +23088,7 @@ var TextureFactory = class {
     }
     return value / maxValue;
   }
-  // Ridged noise for mountains and cracks
+  // Ridged noise for mountains, cracks, and river channels
   static ridgedNoise(x, y, seed, octaves) {
     let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
     for (let i = 0; i < octaves; i++) {
@@ -22984,14 +23101,91 @@ var TextureFactory = class {
     }
     return value / maxValue;
   }
+  // Domain-warped noise for organic patterns (gas giants, lava)
+  static warpedNoise(x, y, seed, octaves) {
+    const wx = this.fractalNoise(x + 10.5, y + 5.2, seed + 50, 3) * 2;
+    const wy = this.fractalNoise(x + 3.7, y + 8.1, seed + 60, 3) * 2;
+    return this.fractalNoise(x + wx, y + wy, seed, octaves);
+  }
   // Latitude-aware UV mapping to reduce pole distortion
   static sphericalUV(x, y, size) {
     const u = x / size * 8;
     const v = y / size * 4;
     return { u, v };
   }
+  // Generate crater data (UV-space positions, radii, ages)
+  static generateCraterData(seed, count) {
+    const craters = [];
+    for (let i = 0; i < count; i++) {
+      craters.push({
+        x: this.hash(i * 3 + 1, 7, seed),
+        y: this.hash(i * 3 + 2, 13, seed),
+        r: 4e-3 + this.hash(i * 3 + 3, 19, seed) * 0.022,
+        age: this.hash(i * 3 + 4, 23, seed)
+        // 0=fresh(bright), 1=eroded(dim)
+      });
+    }
+    return craters;
+  }
+  // Draw circular craters on canvas (actual crater shapes, not just noise)
+  static drawCraters(ctx, size, craters) {
+    for (const c of craters) {
+      const cx = c.x * size;
+      const cy = c.y * size;
+      const cr = c.r * size;
+      const fresh = 1 - c.age;
+      const gradEjecta = ctx.createRadialGradient(cx, cy, cr * 0.6, cx, cy, cr * 1.8);
+      gradEjecta.addColorStop(0, `rgba(255,255,255,0)`);
+      gradEjecta.addColorStop(0.6, `rgba(255,250,240,${0.04 + fresh * 0.06})`);
+      gradEjecta.addColorStop(1, `rgba(255,255,255,0)`);
+      ctx.fillStyle = gradEjecta;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      const gradFloor = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr * 0.85);
+      gradFloor.addColorStop(0, `rgba(0,0,0,${0.3 + fresh * 0.1})`);
+      gradFloor.addColorStop(0.6, `rgba(0,0,0,${0.15 + fresh * 0.05})`);
+      gradFloor.addColorStop(1, `rgba(0,0,0,0)`);
+      ctx.fillStyle = gradFloor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255,250,235,${0.1 + fresh * 0.12})`;
+      ctx.lineWidth = Math.max(1, cr * 0.08);
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr * 0.78, 0, Math.PI * 2);
+      ctx.stroke();
+      const gradShadow = ctx.createRadialGradient(
+        cx - cr * 0.2,
+        cy - cr * 0.2,
+        0,
+        cx - cr * 0.2,
+        cy - cr * 0.2,
+        cr * 0.7
+      );
+      gradShadow.addColorStop(0, `rgba(0,0,0,${0.2 + fresh * 0.1})`);
+      gradShadow.addColorStop(1, `rgba(0,0,0,0)`);
+      ctx.fillStyle = gradShadow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      if (fresh > 0.7 && cr > size * 0.01) {
+        const rayCount = 6 + Math.floor(fresh * 6);
+        ctx.strokeStyle = `rgba(255,250,240,${0.04 + fresh * 0.04})`;
+        ctx.lineWidth = Math.max(1, cr * 0.05);
+        for (let r = 0; r < rayCount; r++) {
+          const angle = r / rayCount * Math.PI * 2 + c.age * 3;
+          const rayLen = cr * (2 + fresh * 2);
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(angle) * cr * 0.8, cy + Math.sin(angle) * cr * 0.8);
+          ctx.lineTo(cx + Math.cos(angle) * rayLen, cy + Math.sin(angle) * rayLen);
+          ctx.stroke();
+        }
+      }
+    }
+  }
   static generateTexture(data) {
-    const size = QUALITY_CONFIG[this.quality].textureSize;
+    const size = this.getTextureSize();
     const canvas = this.getCanvas(size);
     const ctx = canvas.getContext("2d");
     const imgData = ctx.createImageData(size, size);
@@ -23008,9 +23202,9 @@ var TextureFactory = class {
           case "star": {
             const cx = size / 2, cy = size / 2;
             const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / (size / 2);
-            const n = this.fractalNoise(u, v, seed, 6);
-            const granule = this.fractalNoise(u * 12, v * 12, seed + 10, 4);
-            const flare = this.ridgedNoise(u * 3, v * 3, seed + 20, 3);
+            const n = this.fractalNoise(u, v, seed, 8);
+            const granule = this.fractalNoise(u * 14, v * 14, seed + 10, 5);
+            const flare = this.ridgedNoise(u * 3, v * 3, seed + 20, 4);
             const limb = Math.max(0, 1 - dist * 1.2);
             const t = limb * (0.5 + n * 0.3 + granule * 0.2);
             const flareBoost = flare > 0.7 ? (flare - 0.7) * 3 : 0;
@@ -23020,108 +23214,141 @@ var TextureFactory = class {
             break;
           }
           case "gas": {
-            const bandFreq = 16 + Math.sin(seed) * 4;
-            const bandNoise = this.fractalNoise(u * 2, v * 0.3, seed, 4);
-            const band = Math.sin(v * bandFreq + bandNoise * 5) * 0.5 + 0.5;
-            const turb = this.fractalNoise(u * 5, v * 10, seed, 6) * 0.3;
-            const vortex = this.ridgedNoise(u * 4, v * 6, seed + 5, 3) * 0.15;
+            const bandFreq = 18 + Math.sin(seed) * 5;
+            const warpNoise = this.warpedNoise(u * 2, v * 0.4, seed, 5);
+            const band = Math.sin(v * bandFreq + warpNoise * 6) * 0.5 + 0.5;
+            const turb = this.fractalNoise(u * 6, v * 12, seed, 8) * 0.35;
+            const turbDetail = this.fractalNoise(u * 20, v * 30, seed + 15, 5) * 0.12;
+            const vortex = this.ridgedNoise(u * 5, v * 7, seed + 5, 4) * 0.18;
             const spotX = 0.3 + this.smoothNoise(seed, seed, seed) * 0.4;
             const spotY = 0.4 + this.smoothNoise(seed + 1, seed + 1, seed) * 0.2;
             const spotDist = Math.sqrt((u / 8 - spotX) ** 2 + (v / 4 - spotY) ** 2);
-            const spot = spotDist < 0.08 ? (1 - spotDist / 0.08) * 0.3 : 0;
-            const storm = this.smoothNoise(u * 8, v * 4, seed + 7) > 0.88 ? 0.12 : 0;
-            const t = Math.max(0, Math.min(1, band + turb + vortex + storm + spot));
-            r = (color1.r * 255 * (1 - t) + color2.r * 255 * t) * (0.8 + latFactor * 0.2);
-            g = (color1.g * 255 * (1 - t) + color2.g * 255 * t) * (0.8 + latFactor * 0.2);
-            b = (color1.b * 255 * (1 - t) + color2.b * 255 * t) * (0.8 + latFactor * 0.2);
+            const spotSwirl = this.fractalNoise(u * 10, v * 6, seed + 77, 4);
+            const spot = spotDist < 0.1 ? (1 - spotDist / 0.1) * (0.3 + spotSwirl * 0.15) : 0;
+            const storm = this.smoothNoise(u * 10, v * 5, seed + 7) > 0.9 ? 0.12 : 0;
+            const storm2 = this.ridgedNoise(u * 15, v * 8, seed + 33, 3) > 0.6 ? 0.08 : 0;
+            const t = Math.max(0, Math.min(1, band + turb + turbDetail + vortex + storm + storm2 + spot));
+            const poleShift = 1 - Math.pow(Math.abs(y / size - 0.5) * 2, 3) * 0.15;
+            r = (color1.r * 255 * (1 - t) + color2.r * 255 * t) * (0.8 + latFactor * 0.2) * poleShift;
+            g = (color1.g * 255 * (1 - t) + color2.g * 255 * t) * (0.8 + latFactor * 0.2) * poleShift;
+            b = (color1.b * 255 * (1 - t) + color2.b * 255 * t) * (0.8 + latFactor * 0.2) * poleShift;
             break;
           }
           case "ice": {
-            const n = this.fractalNoise(u * 6, v * 6, seed, 7);
-            const crack = this.ridgedNoise(u * 14, v * 14, seed + 5, 3);
-            const crackVal = crack > 0.6 ? (crack - 0.6) * 0.5 : 0;
-            const t = Math.max(0, Math.min(1, n * 0.7 + crackVal * 0.3));
+            const n = this.fractalNoise(u * 7, v * 7, seed, 9);
+            const detail = this.fractalNoise(u * 25, v * 25, seed + 8, 5) * 0.12;
+            const crack = this.ridgedNoise(u * 16, v * 16, seed + 5, 5);
+            const crackVal = crack > 0.55 ? (crack - 0.55) * 0.6 : 0;
+            const oceanHint = this.fractalNoise(u * 3, v * 3, seed + 50, 3);
+            const t = Math.max(0, Math.min(1, n * 0.6 + detail + crackVal * 0.3));
             r = (color1.r * 255 * (1 - t * 0.3) + color2.r * 255 * t * 0.3) * (0.85 + latFactor * 0.15);
-            g = (color1.g * 255 * (1 - t * 0.3) + color2.g * 255 * t * 0.3 + 10) * (0.85 + latFactor * 0.15);
-            b = (color1.b * 255 * (1 - t * 0.3) + color2.b * 255 * t * 0.3 + 20) * (0.85 + latFactor * 0.15);
+            g = (color1.g * 255 * (1 - t * 0.3) + color2.g * 255 * t * 0.3 + 10 + oceanHint * 15) * (0.85 + latFactor * 0.15);
+            b = (color1.b * 255 * (1 - t * 0.3) + color2.b * 255 * t * 0.3 + 20 + oceanHint * 25) * (0.85 + latFactor * 0.15);
             break;
           }
           case "ocean": {
-            const n = this.fractalNoise(u * 5, v * 5, seed, 8);
-            const detail = this.fractalNoise(u * 15, v * 15, seed + 3, 4) * 0.15;
-            const elevation = n + detail;
-            const cloud = this.fractalNoise(u * 7, v * 4, seed + 20, 4);
+            const n = this.fractalNoise(u * 5, v * 5, seed, 10);
+            const detail = this.fractalNoise(u * 18, v * 18, seed + 3, 5) * 0.15;
+            const warp = this.warpedNoise(u * 4, v * 4, seed + 40, 4) * 0.08;
+            const elevation = n + detail + warp;
             const landThreshold = 0.5;
             const polarFactor = Math.abs(y / size - 0.5) * 2;
-            const iceCap = polarFactor > 0.82 ? (polarFactor - 0.82) * 5 : 0;
+            const iceNoise = this.fractalNoise(u * 12, v * 8, seed + 90, 4) * 0.06;
+            const iceCap = polarFactor > 0.78 ? Math.min(1, (polarFactor - 0.78) * 5.5 + iceNoise) : 0;
             if (elevation < landThreshold) {
               const depth = elevation / landThreshold;
-              r = 10 + depth * 40;
-              g = 40 + depth * 60;
-              b = 80 + depth * 100;
+              const deepNoise = this.fractalNoise(u * 10, v * 10, seed + 60, 4) * 0.1;
+              r = 8 + (depth + deepNoise) * 35;
+              g = 35 + (depth + deepNoise) * 55;
+              b = 70 + (depth + deepNoise) * 95;
             } else {
               const land = (elevation - landThreshold) / (1 - landThreshold);
-              if (land < 0.15) {
-                r = 200 + land * 100;
-                g = 180 + land * 80;
-                b = 120 + land * 40;
-              } else if (land < 0.5) {
-                r = 40 + land * 80;
-                g = 100 + land * 80;
-                b = 30 + land * 20;
+              const biomeNoise = this.fractalNoise(u * 8, v * 8, seed + 70, 4);
+              if (land < 0.12) {
+                r = 200 + land * 100 + biomeNoise * 20;
+                g = 185 + land * 70 + biomeNoise * 15;
+                b = 130 + land * 40 + biomeNoise * 10;
+              } else if (land < 0.35) {
+                const greenVar = biomeNoise * 0.5 + 0.5;
+                r = 35 + land * 60 + (1 - greenVar) * 30;
+                g = 90 + land * 70 + greenVar * 30;
+                b = 25 + land * 20;
+              } else if (land < 0.55) {
+                r = 50 + land * 40 + biomeNoise * 20;
+                g = 80 + land * 50 + biomeNoise * 15;
+                b = 30 + land * 15;
               } else if (land < 0.75) {
-                r = 90 + land * 50;
-                g = 75 + land * 40;
-                b = 55 + land * 30;
+                r = 95 + land * 45 + biomeNoise * 15;
+                g = 78 + land * 38 + biomeNoise * 12;
+                b = 58 + land * 28 + biomeNoise * 8;
               } else {
-                r = 200 + land * 35;
-                g = 200 + land * 35;
-                b = 210 + land * 30;
+                r = 210 + land * 30;
+                g = 210 + land * 30;
+                b = 220 + land * 25;
               }
             }
             if (iceCap > 0) {
               const ice = Math.min(1, iceCap);
-              r = r * (1 - ice) + 240 * ice;
-              g = g * (1 - ice) + 245 * ice;
-              b = b * (1 - ice) + 255 * ice;
+              r = r * (1 - ice) + 235 * ice;
+              g = g * (1 - ice) + 240 * ice;
+              b = b * (1 - ice) + 250 * ice;
             }
-            if (cloud > 0.55) {
-              const cloudOpacity = (cloud - 0.55) * 2.2;
-              r = r * (1 - cloudOpacity) + 245 * cloudOpacity;
+            const cloud = this.fractalNoise(u * 7, v * 4, seed + 20, 5);
+            if (cloud > 0.62) {
+              const cloudOpacity = (cloud - 0.62) * 1.5;
+              r = r * (1 - cloudOpacity) + 240 * cloudOpacity;
               g = g * (1 - cloudOpacity) + 245 * cloudOpacity;
               b = b * (1 - cloudOpacity) + 250 * cloudOpacity;
             }
             break;
           }
           case "lava": {
-            const n = this.fractalNoise(u * 7, v * 7, seed, 7);
-            const lava = this.ridgedNoise(u * 12, v * 12, seed + 3, 4);
-            const glow = this.fractalNoise(u * 3, v * 3, seed + 7, 3);
-            if (lava > 0.55) {
-              const intensity = (lava - 0.55) * 2.2;
+            const n = this.fractalNoise(u * 8, v * 8, seed, 9);
+            const lavaWarp = this.warpedNoise(u * 5, v * 5, seed + 30, 4) * 2;
+            const lava = this.ridgedNoise(u * 14 + lavaWarp, v * 14 + lavaWarp, seed + 3, 6);
+            const glow = this.fractalNoise(u * 4, v * 4, seed + 7, 4);
+            const heatFlow = this.warpedNoise(u * 6, v * 6, seed + 80, 5);
+            const lakeNoise = this.fractalNoise(u * 6, v * 6, seed + 90, 4);
+            const lake = lakeNoise > 0.7 ? (lakeNoise - 0.7) * 3 : 0;
+            if (lava > 0.52) {
+              const intensity = (lava - 0.52) * 2.2;
+              const heat = intensity * (0.7 + heatFlow * 0.3);
               r = 255;
-              g = 100 + intensity * 120 + glow * 30;
-              b = 10 + intensity * 40;
+              g = 80 + heat * 140 + glow * 25;
+              b = 5 + heat * 50;
+            } else if (lake > 0.3) {
+              const lakeInt = Math.min(1, lake - 0.3);
+              r = 255;
+              g = 120 + lakeInt * 100 + glow * 20;
+              b = 15 + lakeInt * 45;
             } else {
-              const dark = 0.3 + n * 0.4;
-              r = color1.r * 255 * dark + color2.r * 255 * (1 - dark) * 0.3;
-              g = color1.g * 255 * dark + color2.g * 255 * (1 - dark) * 0.2;
-              b = color1.b * 255 * dark + color2.b * 255 * (1 - dark) * 0.1;
+              const dark = 0.25 + n * 0.45;
+              const heatTint = glow * 0.15;
+              r = color1.r * 255 * dark + color2.r * 255 * (1 - dark) * 0.2 + heatTint * 30;
+              g = color1.g * 255 * dark + color2.g * 255 * (1 - dark) * 0.12 + heatTint * 10;
+              b = color1.b * 255 * dark + color2.b * 255 * (1 - dark) * 0.05;
             }
             break;
           }
           default: {
-            const n = this.fractalNoise(u * 6, v * 6, seed, 7);
-            const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 3) * 0.1;
-            const craterBase = this.ridgedNoise(u * 10, v * 10, seed + 7, 3);
-            const craterDetail = this.ridgedNoise(u * 25, v * 25, seed + 13, 2);
-            let craterVal = 0;
-            if (craterBase > 0.65) craterVal = -(craterBase - 0.65) * 0.4;
-            if (craterDetail > 0.7) craterVal += (craterDetail - 0.7) * 0.1;
-            const t = Math.max(0, Math.min(1, n + detail + craterVal));
+            const n = this.fractalNoise(u * 7, v * 7, seed, 9);
+            const detail = this.fractalNoise(u * 25, v * 25, seed + 3, 4) * 0.1;
+            const regolith = this.fractalNoise(u * 40, v * 40, seed + 20, 3) * 0.05;
+            const t = Math.max(0, Math.min(1, n + detail + regolith));
             r = (color1.r * 255 * (1 - t) + color2.r * 255 * t) * (0.85 + latFactor * 0.15);
             g = (color1.g * 255 * (1 - t) + color2.g * 255 * t) * (0.85 + latFactor * 0.15);
             b = (color1.b * 255 * (1 - t) + color2.b * 255 * t) * (0.85 + latFactor * 0.15);
+            if (data.hasAtmosphere) {
+              const polarFactor = Math.abs(y / size - 0.5) * 2;
+              const iceNoise = this.fractalNoise(u * 10, v * 6, seed + 90, 4) * 0.08;
+              const iceCap = polarFactor > 0.8 ? Math.min(1, (polarFactor - 0.8) * 4.5 + iceNoise) : 0;
+              if (iceCap > 0) {
+                const ice = Math.min(1, iceCap);
+                r = r * (1 - ice * 0.8) + 230 * ice * 0.8;
+                g = g * (1 - ice * 0.8) + 235 * ice * 0.8;
+                b = b * (1 - ice * 0.8) + 245 * ice * 0.8;
+              }
+            }
             break;
           }
         }
@@ -23132,6 +23359,11 @@ var TextureFactory = class {
       }
     }
     ctx.putImageData(imgData, 0, 0);
+    if (data.textureType === "rocky" || data.textureType === "ice") {
+      const craterCount = 35 + Math.floor(this.hash(0, 0, seed) * 35);
+      const craters = this.generateCraterData(seed, craterCount);
+      this.drawCraters(ctx, size, craters);
+    }
     const texture = new CanvasTexture(canvas);
     texture.colorSpace = SRGBColorSpace;
     texture.anisotropy = 8;
@@ -23139,7 +23371,7 @@ var TextureFactory = class {
     return texture;
   }
   static generateNormalMap(data) {
-    const size = Math.floor(QUALITY_CONFIG[this.quality].textureSize / 2);
+    const size = Math.floor(this.getTextureSize() / 2);
     const canvas = this.getCanvas(size);
     const ctx = canvas.getContext("2d");
     const imgData = ctx.createImageData(size, size);
@@ -23149,12 +23381,36 @@ var TextureFactory = class {
       for (let x = 0; x < size; x++) {
         const u = x / size * 8;
         const v = y / size * 4;
-        const n = this.fractalNoise(u * 5, v * 5, seed, 5);
-        const ridge = this.ridgedNoise(u * 12, v * 12, seed + 5, 3);
+        const n = this.fractalNoise(u * 6, v * 6, seed, 8);
+        const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 4);
         heightField[y * size + x] = n + ridge * 0.3;
       }
     }
-    const strength = 2;
+    if (data.textureType === "rocky" || data.textureType === "ice") {
+      const craterCount = 25 + Math.floor(this.hash(0, 0, seed) * 20);
+      const craters = this.generateCraterData(seed, craterCount);
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          let h = heightField[y * size + x];
+          for (const c of craters) {
+            const dx = x / size - c.x;
+            const dy = y / size - c.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < c.r) {
+              const t = dist / c.r;
+              const fresh = 1 - c.age;
+              if (t < 0.7) {
+                h -= (1 - t / 0.7) * 0.35 * fresh;
+              } else {
+                h += (t - 0.7) / 0.3 * 0.18 * fresh;
+              }
+            }
+          }
+          heightField[y * size + x] = h;
+        }
+      }
+    }
+    const strength = 2.5;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
@@ -23177,7 +23433,7 @@ var TextureFactory = class {
     return tex;
   }
   static generateBumpMap(data) {
-    const size = Math.floor(QUALITY_CONFIG[this.quality].textureSize / 2);
+    const size = Math.floor(this.getTextureSize() / 2);
     const canvas = this.getCanvas(size);
     const ctx = canvas.getContext("2d");
     const imgData = ctx.createImageData(size, size);
@@ -23187,8 +23443,8 @@ var TextureFactory = class {
         const idx = (y * size + x) * 4;
         const u = x / size * 8;
         const v = y / size * 4;
-        const n = this.fractalNoise(u * 5, v * 5, seed, 5);
-        const ridge = this.ridgedNoise(u * 12, v * 12, seed + 5, 3);
+        const n = this.fractalNoise(u * 6, v * 6, seed, 8);
+        const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 4);
         const val = Math.floor((n + ridge * 0.3) * 255);
         imgData.data[idx] = val;
         imgData.data[idx + 1] = val;
@@ -23197,6 +23453,28 @@ var TextureFactory = class {
       }
     }
     ctx.putImageData(imgData, 0, 0);
+    if (data.textureType === "rocky" || data.textureType === "ice") {
+      const craterCount = 25 + Math.floor(this.hash(0, 0, seed) * 20);
+      const craters = this.generateCraterData(seed, craterCount);
+      for (const c of craters) {
+        const cx = c.x * size;
+        const cy = c.y * size;
+        const cr = c.r * size;
+        const fresh = 1 - c.age;
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr * 0.85);
+        grad.addColorStop(0, `rgba(0,0,0,${0.25 * fresh})`);
+        grad.addColorStop(1, `rgba(0,0,0,0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cr * 0.85, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255,255,255,${0.12 * fresh})`;
+        ctx.lineWidth = Math.max(1, cr * 0.06);
+        ctx.beginPath();
+        ctx.arc(cx, cy, cr * 0.78, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
     const tex = new CanvasTexture(canvas);
     tex.wrapS = RepeatWrapping;
     return tex;
@@ -23222,6 +23500,139 @@ var TextureFactory = class {
     }
     return new CanvasTexture(canvas);
   }
+  // New: Generate roughness map for ocean planets (shiny oceans, rough land)
+  static generateRoughnessMap(data) {
+    const size = Math.floor(this.getTextureSize() / 2);
+    const canvas = this.getCanvas(size);
+    const ctx = canvas.getContext("2d");
+    const imgData = ctx.createImageData(size, size);
+    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const u = x / size * 8;
+        const v = y / size * 4;
+        const n = this.fractalNoise(u * 5, v * 5, seed, 9);
+        const detail = this.fractalNoise(u * 18, v * 18, seed + 3, 5) * 0.15;
+        const elevation = n + detail;
+        const landThreshold = 0.5;
+        let roughness;
+        if (elevation < landThreshold) {
+          const depth = elevation / landThreshold;
+          roughness = 0.08 + depth * 0.07;
+        } else {
+          const land = (elevation - landThreshold) / (1 - landThreshold);
+          if (land < 0.12) roughness = 0.55;
+          else if (land < 0.35) roughness = 0.82;
+          else if (land < 0.55) roughness = 0.88;
+          else if (land < 0.75) roughness = 0.92;
+          else roughness = 0.65;
+        }
+        const polarFactor = Math.abs(y / size - 0.5) * 2;
+        if (polarFactor > 0.78) {
+          roughness = Math.min(roughness, 0.2);
+        }
+        const val = Math.floor(roughness * 255);
+        imgData.data[idx] = val;
+        imgData.data[idx + 1] = val;
+        imgData.data[idx + 2] = val;
+        imgData.data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    const texture = new CanvasTexture(canvas);
+    texture.wrapS = RepeatWrapping;
+    return texture;
+  }
+  // New: Generate city lights emissive texture for earth-like planets
+  static generateCityLightsTexture(data) {
+    const size = Math.floor(this.getTextureSize() / 2);
+    const canvas = this.getCanvas(size);
+    const ctx = canvas.getContext("2d");
+    const imgData = ctx.createImageData(size, size);
+    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const u = x / size * 8;
+        const v = y / size * 4;
+        const n = this.fractalNoise(u * 5, v * 5, seed, 9);
+        const detail = this.fractalNoise(u * 18, v * 18, seed + 3, 5) * 0.15;
+        const elevation = n + detail;
+        const landThreshold = 0.5;
+        const polarFactor = Math.abs(y / size - 0.5) * 2;
+        const iceCap = polarFactor > 0.78 ? (polarFactor - 0.78) * 5.5 : 0;
+        if (elevation > landThreshold && iceCap < 0.3) {
+          const land = (elevation - landThreshold) / (1 - landThreshold);
+          const latFactor = Math.sin(y / size * Math.PI);
+          const tempZone = Math.max(0, 1 - Math.abs(latFactor - 0.5) * 1.8);
+          const cityNoise = this.fractalNoise(u * 35, v * 35, seed + 100, 5);
+          const cityDetail = this.fractalNoise(u * 70, v * 70, seed + 110, 3) * 0.4;
+          const cityVal = (cityNoise + cityDetail) * tempZone * (1 - land * 0.6);
+          if (cityVal > 0.62 && land < 0.72) {
+            const intensity = Math.min(1, (cityVal - 0.62) * 3.5);
+            imgData.data[idx] = 255;
+            imgData.data[idx + 1] = 190 + intensity * 60;
+            imgData.data[idx + 2] = 80 + intensity * 60;
+            imgData.data[idx + 3] = Math.floor(intensity * 220);
+          } else {
+            imgData.data[idx + 3] = 0;
+          }
+        } else {
+          imgData.data[idx + 3] = 0;
+        }
+        if (imgData.data[idx + 3] === 0) {
+          imgData.data[idx] = 0;
+          imgData.data[idx + 1] = 0;
+          imgData.data[idx + 2] = 0;
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    const texture = new CanvasTexture(canvas);
+    texture.colorSpace = SRGBColorSpace;
+    texture.wrapS = RepeatWrapping;
+    return texture;
+  }
+  // New: Generate cloud texture (transparent, white clouds) for ocean planets
+  static generateCloudTexture(data) {
+    const size = Math.floor(this.getTextureSize() / 2);
+    const canvas = this.getCanvas(size);
+    const ctx = canvas.getContext("2d");
+    const imgData = ctx.createImageData(size, size);
+    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const u = x / size * 8;
+        const v = y / size * 4;
+        const warp = this.warpedNoise(u * 3, v * 2, seed + 200, 4) * 1.5;
+        const cloud = this.fractalNoise(u * 7 + warp, v * 4 + warp, seed + 20, 7);
+        const cloudDetail = this.fractalNoise(u * 22, v * 16, seed + 30, 4) * 0.2;
+        const cloudVal = cloud + cloudDetail;
+        const latFactor = Math.sin(y / size * Math.PI);
+        const cloudBand = 0.6 + latFactor * 0.3 + Math.sin(y / size * Math.PI * 6) * 0.1;
+        if (cloudVal > 0.52) {
+          const opacity = Math.min(1, (cloudVal - 0.52) * 2.8) * cloudBand;
+          imgData.data[idx] = 255;
+          imgData.data[idx + 1] = 255;
+          imgData.data[idx + 2] = 255;
+          imgData.data[idx + 3] = Math.floor(opacity * 210);
+        } else {
+          imgData.data[idx] = 0;
+          imgData.data[idx + 1] = 0;
+          imgData.data[idx + 2] = 0;
+          imgData.data[idx + 3] = 0;
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    const texture = new CanvasTexture(canvas);
+    texture.colorSpace = SRGBColorSpace;
+    texture.wrapS = RepeatWrapping;
+    texture.anisotropy = 8;
+    return texture;
+  }
 };
 function createCelestialMesh(data, quality = "high") {
   const [segsW, segsH] = QUALITY_CONFIG[quality].sphereSegments;
@@ -23235,16 +23646,36 @@ function createCelestialMesh(data, quality = "high") {
     const bumpMap = quality === "high" ? TextureFactory.generateBumpMap(data) : null;
     const normalMap = quality === "high" ? TextureFactory.generateNormalMap(data) : null;
     const isOcean = data.textureType === "ocean";
-    material = new MeshStandardMaterial({
-      map: texture,
-      bumpMap: bumpMap || void 0,
-      bumpScale: 0.03,
-      normalMap: normalMap || void 0,
-      normalScale: new Vector2(0.8, 0.8),
-      roughness: isOcean ? 0.25 : 0.85,
-      metalness: isOcean ? 0.5 : 0.05,
-      emissive: new Color(data.color).multiplyScalar(0.015)
-    });
+    if (isOcean) {
+      const roughnessMap = quality === "high" ? TextureFactory.generateRoughnessMap(data) : null;
+      const cityLights = quality === "high" ? TextureFactory.generateCityLightsTexture(data) : null;
+      material = new MeshStandardMaterial({
+        map: texture,
+        bumpMap: bumpMap || void 0,
+        bumpScale: 0.02,
+        normalMap: normalMap || void 0,
+        normalScale: new Vector2(0.8, 0.8),
+        roughnessMap: roughnessMap || void 0,
+        roughness: 1,
+        // Controlled by roughnessMap
+        metalness: 0.3,
+        emissiveMap: cityLights || void 0,
+        emissive: new Color(16755268),
+        emissiveIntensity: 2.5
+        // Bright city lights on dark side
+      });
+    } else {
+      material = new MeshStandardMaterial({
+        map: texture,
+        bumpMap: bumpMap || void 0,
+        bumpScale: 0.03,
+        normalMap: normalMap || void 0,
+        normalScale: new Vector2(0.8, 0.8),
+        roughness: isOcean ? 0.25 : 0.85,
+        metalness: isOcean ? 0.5 : 0.05,
+        emissive: new Color(data.color).multiplyScalar(0.012)
+      });
+    }
   }
   const mesh = new Mesh(geometry, material);
   mesh.name = data.name;
@@ -23277,38 +23708,71 @@ function createCelestialMesh(data, quality = "high") {
     ring.rotation.x = Math.PI / 2 - 0.2;
     mesh.add(ring);
   }
+  if (data.textureType === "ocean" && quality === "high") {
+    const cloudTex = TextureFactory.generateCloudTexture(data);
+    const cloudGeo = new SphereGeometry(renderRadius * 1.015, segsW, segsH);
+    const cloudMat = new MeshLambertMaterial({
+      map: cloudTex,
+      transparent: true,
+      depthWrite: false
+    });
+    const cloudLayer = new Mesh(cloudGeo, cloudMat);
+    cloudLayer.name = `${data.name}_clouds`;
+    mesh.add(cloudLayer);
+    mesh.userData.cloudLayer = cloudLayer;
+  }
   if (data.hasAtmosphere) {
     const atmColor = new Color(data.color);
-    const atmGeo1 = new SphereGeometry(renderRadius * 1.02, segsW, segsH);
-    const atmMat1 = new MeshBasicMaterial({
-      color: atmColor,
+    const atmMaterials = [];
+    const atmGeo1 = new SphereGeometry(renderRadius * 1.025, segsW, segsH);
+    const atmMat1 = new ShaderMaterial({
+      vertexShader: ATMOSPHERE_VERT,
+      fragmentShader: ATMOSPHERE_FRAG,
+      uniforms: {
+        uSunPosition: { value: new Vector3(0, 0, 0) },
+        uAtmColor: { value: atmColor.clone() },
+        uIntensity: { value: 0.5 }
+      },
       transparent: true,
-      opacity: 0.15,
       side: BackSide,
       blending: AdditiveBlending,
       depthWrite: false
     });
+    atmMaterials.push(atmMat1);
     mesh.add(new Mesh(atmGeo1, atmMat1));
     const atmGeo2 = new SphereGeometry(renderRadius * 1.08, segsW, segsH);
-    const atmMat2 = new MeshBasicMaterial({
-      color: atmColor,
+    const atmMat2 = new ShaderMaterial({
+      vertexShader: ATMOSPHERE_VERT,
+      fragmentShader: ATMOSPHERE_FRAG,
+      uniforms: {
+        uSunPosition: { value: new Vector3(0, 0, 0) },
+        uAtmColor: { value: atmColor.clone() },
+        uIntensity: { value: 0.2 }
+      },
       transparent: true,
-      opacity: 0.08,
       side: BackSide,
       blending: AdditiveBlending,
       depthWrite: false
     });
+    atmMaterials.push(atmMat2);
     mesh.add(new Mesh(atmGeo2, atmMat2));
-    const atmGeo3 = new SphereGeometry(renderRadius * 1.15, segsW, segsH);
-    const atmMat3 = new MeshBasicMaterial({
-      color: atmColor,
+    const atmGeo3 = new SphereGeometry(renderRadius * 1.14, segsW, segsH);
+    const atmMat3 = new ShaderMaterial({
+      vertexShader: ATMOSPHERE_VERT,
+      fragmentShader: ATMOSPHERE_FRAG,
+      uniforms: {
+        uSunPosition: { value: new Vector3(0, 0, 0) },
+        uAtmColor: { value: atmColor.clone() },
+        uIntensity: { value: 0.08 }
+      },
       transparent: true,
-      opacity: 0.03,
       side: BackSide,
       blending: AdditiveBlending,
       depthWrite: false
     });
+    atmMaterials.push(atmMat3);
     mesh.add(new Mesh(atmGeo3, atmMat3));
+    mesh.userData.atmosphereMaterials = atmMaterials;
   }
   return mesh;
 }
@@ -23326,51 +23790,53 @@ function createStarField(starCount = 5e4) {
     positions[i * 3 + 2] = r * Math.cos(phi);
     const ct = Math.random();
     if (ct < 0.5) {
-      colors[i * 3] = 1;
-      colors[i * 3 + 1] = 1;
-      colors[i * 3 + 2] = 1;
+      const dim = 0.5 + Math.random() * 0.25;
+      colors[i * 3] = dim;
+      colors[i * 3 + 1] = dim;
+      colors[i * 3 + 2] = dim * 0.95;
     } else if (ct < 0.7) {
-      colors[i * 3] = 0.7;
-      colors[i * 3 + 1] = 0.8;
-      colors[i * 3 + 2] = 1;
+      colors[i * 3] = 0.35 + Math.random() * 0.15;
+      colors[i * 3 + 1] = 0.4 + Math.random() * 0.15;
+      colors[i * 3 + 2] = 0.5 + Math.random() * 0.2;
     } else if (ct < 0.88) {
-      colors[i * 3] = 1;
-      colors[i * 3 + 1] = 0.9;
-      colors[i * 3 + 2] = 0.6;
+      colors[i * 3] = 0.45 + Math.random() * 0.15;
+      colors[i * 3 + 1] = 0.38 + Math.random() * 0.12;
+      colors[i * 3 + 2] = 0.25 + Math.random() * 0.1;
     } else {
-      colors[i * 3] = 1;
-      colors[i * 3 + 1] = 0.5;
-      colors[i * 3 + 2] = 0.3;
+      colors[i * 3] = 0.4 + Math.random() * 0.15;
+      colors[i * 3 + 1] = 0.2 + Math.random() * 0.1;
+      colors[i * 3 + 2] = 0.12 + Math.random() * 0.08;
     }
-    sizes[i] = Math.random() * 2.5 + 0.3;
+    sizes[i] = Math.random() * 1.2 + 0.15;
   }
   geometry.setAttribute("position", new BufferAttribute(positions, 3));
   geometry.setAttribute("color", new BufferAttribute(colors, 3));
   geometry.setAttribute("size", new BufferAttribute(sizes, 1));
   const material = new PointsMaterial({
-    size: 1.5,
+    size: 1.2,
     vertexColors: true,
     sizeAttenuation: false,
     transparent: true,
-    opacity: 0.9
+    opacity: 0.4
   });
   return new Points(geometry, material);
 }
 function createStarGlow(color, size) {
+  const reducedSize = size * 0.6;
   const canvas = document.createElement("canvas");
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext("2d");
   const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
   const c = new Color(color);
-  grad.addColorStop(0, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},1)`);
-  grad.addColorStop(0.15, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.6)`);
-  grad.addColorStop(0.4, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.15)`);
-  grad.addColorStop(0.8, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.03)`);
+  grad.addColorStop(0, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.8)`);
+  grad.addColorStop(0.15, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.45)`);
+  grad.addColorStop(0.4, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.1)`);
+  grad.addColorStop(0.8, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.02)`);
   grad.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.15)`;
+  ctx.strokeStyle = `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.08)`;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(0, 128);
@@ -23381,7 +23847,7 @@ function createStarGlow(color, size) {
   const texture = new CanvasTexture(canvas);
   const material = new SpriteMaterial({ map: texture, blending: AdditiveBlending, transparent: true, depthWrite: false });
   const sprite = new Sprite(material);
-  sprite.scale.set(size, size, 1);
+  sprite.scale.set(reducedSize, reducedSize, 1);
   return sprite;
 }
 function createRocketModel() {
@@ -23707,7 +24173,7 @@ function createResearchBaseModel() {
 }
 
 // src/game/entities.ts
-var Rocket = class {
+var Rocket = class _Rocket {
   constructor(name, startMass, fuel, thrust, isp) {
     this.throttle = 0;
     this.orientation = new Quaternion();
@@ -23716,9 +24182,12 @@ var Rocket = class {
     this.isLanded = true;
     this.stages = [];
     this.currentStage = 0;
-    // SAS (Stability Assist System)
+    // SAS (Stability Augmentation System)
     this.sasEnabled = true;
-    this.sasTarget = null;
+    // KSP-style indicator flags (no physics effect yet)
+    this.rcsEnabled = false;
+    this.gearDown = true;
+    this.lightsOn = false;
     // Engine flame reference
     this.flameGroup = null;
     this.dryMass = startMass;
@@ -23737,6 +24206,28 @@ var Rocket = class {
       acceleration: new Vector3(),
       isStatic: false
     };
+  }
+  static {
+    // ── Rotation tuning (KSP-style) ──────────────────────────────────
+    /** Max angular velocity from input (rad/s). Responsive but not twitchy. */
+    this.MAX_ROT_SPEED = 2;
+  }
+  static {
+    /** Angular acceleration from input when SAS is OFF (rad/s²). Snappy / raw. */
+    this.INPUT_ACCEL = 6;
+  }
+  static {
+    /** Angular acceleration from input when SAS is ON (rad/s²). Damped / controlled. */
+    this.SAS_ASSIST_RATE = 4;
+  }
+  static {
+    /** SAS rotation-kill strength when no input (rad/s²). Strong enough to hold orientation. */
+    this.SAS_KILL_RATE = 10;
+  }
+  static {
+    // ── Throttle tuning ──────────────────────────────────────────────
+    /** Throttle change rate for Shift / Ctrl (per second). Full range = 2 s, like KSP. */
+    this.THROTTLE_RATE = 0.5;
   }
   /** Total mass including fuel */
   get totalMass() {
@@ -23789,43 +24280,108 @@ var Rocket = class {
     const massRatio = this.totalMass / this.dryMass;
     return this.isp * 9.81 * Math.log(massRatio);
   }
-  /** Set throttle 0-1 */
+  // ── Throttle control (KSP-style) ─────────────────────────────────
+  /**
+   * Smoothly adjust throttle (Shift to increase, Ctrl to decrease).
+   * Rate-limited at 0.5/s so the full 0→1 range takes ~2 seconds, matching KSP.
+   *
+   * @param delta +1 to increase, -1 to decrease.
+   * @param dt    Frame delta-time in seconds.
+   */
+  adjustThrottle(delta, dt) {
+    this.throttle = Math.max(0, Math.min(1, this.throttle + delta * _Rocket.THROTTLE_RATE * dt));
+  }
+  /**
+   * Set throttle directly (Z for full, X for cut).
+   * Instant set — matches KSP shortcut behaviour.
+   */
   setThrottle(t) {
     this.throttle = Math.max(0, Math.min(1, t));
   }
-  /** Rotate the rocket with improved responsiveness */
-  rotate(pitch, yaw, roll, dt) {
-    const rotSpeed = 2.5;
-    const q = new Quaternion();
-    const euler = new Euler(pitch * rotSpeed * dt, yaw * rotSpeed * dt, roll * rotSpeed * dt, "XYZ");
-    q.setFromEuler(euler);
-    this.orientation.multiply(q).normalize();
-    this.angularVel.set(pitch * rotSpeed, yaw * rotSpeed, roll * rotSpeed);
-  }
-  /** SAS: kill rotation when no rotation input is given */
-  applySAS(dt) {
-    if (!this.sasEnabled) return;
-    if (this.angularVel.lengthSq() > 0.01) return;
-    const dampFactor = 1 - Math.min(1, dt * 3);
-    this.angularVel.multiplyScalar(dampFactor);
-    if (this.angularVel.lengthSq() < 1e-3) {
-      this.angularVel.set(0, 0, 0);
+  // ── Attitude control (KSP-style) ─────────────────────────────────
+  /**
+   * KSP-style rotation control. Called every frame in the update loop.
+   *
+   * Inputs (each -1 .. +1):
+   *   pitchInput : -1 (W / nose down) .. +1 (S / nose up)
+   *   yawInput   : -1 (A / left)      .. +1 (D / right)
+   *   rollInput  : -1 (Q / left roll) .. +1 (E / right roll)
+   *
+   * Behaviour:
+   *   SAS ON  + input → rotation allowed with damping assistance (smooth feel).
+   *   SAS ON  + no input → kills ALL angular velocity (holds orientation steady).
+   *   SAS OFF + input → raw acceleration, no damping.
+   *   SAS OFF + no input → angular velocity persists (Newton's first law).
+   *
+   * The angular velocity ramps smoothly toward the target rate, then the
+   * orientation quaternion is integrated from the body-frame angular velocity.
+   */
+  rotate(pitchInput, yawInput, rollInput, dt) {
+    const max = _Rocket.MAX_ROT_SPEED;
+    const target = new Vector3(
+      pitchInput * max,
+      // pitch around local X
+      rollInput * max,
+      // roll  around local Y (nose axis)
+      yawInput * max
+      // yaw   around local Z
+    );
+    const hasInput = target.lengthSq() > 1e-6;
+    if (hasInput) {
+      const rate = this.sasEnabled ? _Rocket.SAS_ASSIST_RATE : _Rocket.INPUT_ACCEL;
+      this._approach(this.angularVel, target, rate * dt);
     } else {
-      const q = new Quaternion();
-      const euler = new Euler(
-        this.angularVel.x * dt,
-        this.angularVel.y * dt,
-        this.angularVel.z * dt,
-        "XYZ"
-      );
-      q.setFromEuler(euler);
-      this.orientation.multiply(q).normalize();
+      if (this.sasEnabled) {
+        this._approach(this.angularVel, target, _Rocket.SAS_KILL_RATE * dt);
+      }
+    }
+    const av = this.angularVel;
+    const angle = av.length() * dt;
+    if (angle > 1e-9) {
+      const axis = av.clone().multiplyScalar(1 / av.length());
+      const dq = new Quaternion().setFromAxisAngle(axis, angle);
+      this.orientation.multiply(dq).normalize();
     }
   }
-  /** Toggle SAS */
+  /**
+   * SAS damping pass for frames with no rotation input.
+   * Delegates to `rotate(0, 0, 0, dt)` so behaviour stays consistent.
+   * Only one of `rotate()` or `applySAS()` should be called per frame.
+   */
+  applySAS(dt) {
+    this.rotate(0, 0, 0, dt);
+  }
+  /**
+   * Move `current` toward `target` by at most `maxStep` (in-place).
+   * Provides linear acceleration / deceleration with no overshoot.
+   */
+  _approach(current, target, maxStep) {
+    const diff = target.clone().sub(current);
+    const d = diff.length();
+    if (d <= maxStep || d < 1e-12) {
+      current.copy(target);
+    } else {
+      current.add(diff.multiplyScalar(maxStep / d));
+    }
+  }
+  // ── Toggle helpers ───────────────────────────────────────────────
+  /** Toggle SAS on / off */
   toggleSAS() {
     this.sasEnabled = !this.sasEnabled;
   }
+  /** Toggle RCS indicator */
+  toggleRCS() {
+    this.rcsEnabled = !this.rcsEnabled;
+  }
+  /** Toggle landing gear indicator */
+  toggleGear() {
+    this.gearDown = !this.gearDown;
+  }
+  /** Toggle lights indicator */
+  toggleLights() {
+    this.lightsOn = !this.lightsOn;
+  }
+  // ── Navigation helpers ───────────────────────────────────────────
   /** Get the prograde direction (velocity direction) in world space */
   getProgradeDir() {
     const vel = this.body.velocity.clone();
@@ -23842,6 +24398,7 @@ var Rocket = class {
     if (up.lengthSq() < 1e-3) return new Vector3(0, 1, 0);
     return up.normalize();
   }
+  // ── Rendering & staging ──────────────────────────────────────────
   /** Update the 3D model position and rotation */
   syncMesh() {
     this.group.position.copy(this.body.position);
@@ -23967,58 +24524,128 @@ var Astronaut = class {
 };
 
 // src/game/ui.ts
-var HUD = class {
-  constructor() {
+var GameUI = class {
+  constructor(game) {
+    this.game = game || null;
     this.container = document.createElement("div");
     this.container.id = "hud";
     this.container.style.display = "none";
     this.container.innerHTML = `
+      <!-- \u9876\u90E8\u4E2D\u592E - \u4EFB\u52A1\u65F6\u95F4 (MET) + \u4E16\u754C\u65F6 -->
+      <div id="hud-top-center">
+        <div class="timer-panel">
+          <div class="timer-label">\u4EFB\u52A1\u65F6\u95F4</div>
+          <div id="hud-met" class="timer-value">T+00:00:00</div>
+        </div>
+        <div class="timer-panel">
+          <div class="timer-label">\u4E16\u754C\u65F6</div>
+          <div id="hud-ut" class="timer-value">Y0 D0 00:00</div>
+        </div>
+      </div>
+
+      <!-- \u5DE6\u4E0A - \u8D44\u6E90\u9762\u677F -->
       <div id="hud-top-left">
-        <div class="hud-panel"><div class="hud-label">SPEED</div><div id="hud-speed" class="hud-value">0 m/s</div></div>
-        <div class="hud-panel"><div class="hud-label">ALTITUDE</div><div id="hud-alt" class="hud-value">0 km</div></div>
-        <div class="hud-panel"><div class="hud-label">MASS</div><div id="hud-mass" class="hud-value">0 t</div></div>
-        <div class="hud-panel"><div class="hud-label">THRUST</div><div id="hud-thrust" class="hud-value">0 kN</div></div>
-        <div class="hud-panel"><div class="hud-label">TWR</div><div id="hud-twr" class="hud-value">0.0</div></div>
-        <div class="hud-panel"><div class="hud-label">DELTA-V</div><div id="hud-dv" class="hud-value">0 m/s</div></div>
+        <div class="hud-panel"><div class="hud-label">\u9AD8\u5EA6</div><div id="hud-alt" class="hud-value">0 km</div></div>
+        <div class="hud-panel"><div class="hud-label">\u901F\u5EA6</div><div id="hud-speed" class="hud-value">0 m/s</div></div>
+        <div class="hud-panel"><div class="hud-label">\u8F68\u9053\u901F\u5EA6</div><div id="hud-orb-speed" class="hud-value">0 m/s</div></div>
+        <div class="hud-panel"><div class="hud-label">\u71C3\u6599</div><div id="hud-fuel-pct" class="hud-value">100%</div></div>
+        <div class="hud-panel"><div class="hud-label">\u79D1\u5B66\u70B9\u6570</div><div id="hud-science" class="hud-value">0</div></div>
+        <div class="hud-panel"><div class="hud-label">\u63A8\u91CD\u6BD4</div><div id="hud-twr" class="hud-value">0.0</div></div>
+        <div class="hud-panel"><div class="hud-label">\u901F\u5EA6\u589E\u91CF</div><div id="hud-dv" class="hud-value">0 m/s</div></div>
       </div>
+
+      <!-- \u53F3\u4E0A - \u65F6\u95F4\u52A0\u901F + \u5206\u7EA7\u4FE1\u606F -->
       <div id="hud-top-right">
-        <div class="hud-panel"><div class="hud-label">SCIENCE</div><div id="hud-science" class="hud-value">0 pts</div></div>
-        <div class="hud-panel"><div class="hud-label">WARP DRIVE</div><div id="hud-warp" class="hud-value">LOCKED</div></div>
-        <div class="hud-panel"><div class="hud-label">SAS</div><div id="hud-sas" class="hud-value">ON</div></div>
-        <div class="hud-panel"><div class="hud-label">GAME TIME</div><div id="hud-time" class="hud-value">T+0d 0h</div></div>
-        <div class="hud-panel"><div class="hud-label">STARS</div><div id="hud-stars" class="hud-value">0</div></div>
+        <div id="time-warp-display">
+          <span id="warp-level">1x</span>
+          <div class="warp-hint">[,]/[.] \u65F6\u95F4\u52A0\u901F</div>
+        </div>
+        <div class="hud-panel"><div class="hud-label">\u5206\u7EA7</div><div id="hud-stage" class="hud-value">1 / 1</div></div>
+        <div class="hud-panel"><div class="hud-label">\u5929\u4F53</div><div id="hud-body" class="hud-value">--</div></div>
+        <div class="hud-panel"><div class="hud-label">\u66F2\u901F\u5F15\u64CE</div><div id="hud-warp" class="hud-value">\u672A\u89E3\u9501</div></div>
       </div>
+
+      <!-- \u5DE6\u4FA7 - \u5206\u7EA7\u5217\u8868 -->
+      <div id="staging-list"></div>
+
+      <!-- \u5DE6\u4E0B - \u6CB9\u95E8\u6761 + \u71C3\u6599\u6761 -->
       <div id="hud-bottom-left">
-        <div class="hud-panel"><div class="hud-label">ORBIT - <span id="hud-parent">Earth</span></div><div id="hud-orbit" class="hud-orbit-info">No orbit data</div></div>
+        <div class="bar-container">
+          <div class="bar-label">\u6CB9\u95E8</div>
+          <div class="bar-bg"><div id="throttle-bar-fill"></div></div>
+          <div id="throttle-text" class="bar-value">0%</div>
+        </div>
+        <div class="bar-container">
+          <div class="bar-label">\u71C3\u6599</div>
+          <div class="bar-bg"><div id="fuel-bar-fill"></div></div>
+          <div id="fuel-text" class="bar-value">100%</div>
+        </div>
       </div>
+
+      <!-- \u5E95\u90E8\u4E2D\u592E - \u5BFC\u822A\u7403 -->
       <div id="hud-bottom-center">
-        <div id="throttle-bar-container"><div class="hud-label">THROTTLE</div><div class="throttle-bar-bg"><div id="throttle-bar-fill"></div></div><div id="throttle-text">0%</div></div>
-        <div id="fuel-bar-container"><div class="hud-label">FUEL</div><div class="fuel-bar-bg"><div id="fuel-bar-fill"></div></div><div id="fuel-text">0%</div></div>
+        <canvas id="navball" width="180" height="180"></canvas>
+        <div class="navball-labels">
+          <span style="color:#00ff44;">\u987A\u5411</span>
+          <span style="color:#ff4444;">\u9006\u5411</span>
+          <span id="navball-sas-label" style="color:#888;">SAS</span>
+        </div>
       </div>
-      <div id="hud-bottom-right"><canvas id="navball" width="180" height="180"></canvas></div>
-      <div id="time-warp-display"><span id="warp-level">1x</span><div class="warp-hint">[ , ] / [ . ] Time Warp</div></div>
+
+      <!-- \u53F3\u4E0B - \u76F8\u673A\u6A21\u5F0F + G\u529B -->
+      <div id="hud-bottom-right">
+        <div class="hud-panel"><div class="hud-label">\u76F8\u673A</div><div id="hud-camera" class="hud-value">\u8DDF\u968F</div></div>
+        <div class="hud-panel"><div class="hud-label">G\u529B</div><div id="hud-gforce" class="hud-value">1.0G</div></div>
+        <div class="hud-panel"><div class="hud-label">\u8D28\u91CF</div><div id="hud-mass" class="hud-value">0 t</div></div>
+        <div class="hud-panel"><div class="hud-label">\u63A8\u529B</div><div id="hud-thrust" class="hud-value">0 kN</div></div>
+      </div>
+
+      <!-- \u53F3\u4FA7 - \u5FEB\u6377\u6309\u94AE -->
+      <div id="quick-buttons">
+        <div class="quick-btn" id="btn-sas" title="SAS \u7A33\u5B9A\u8F85\u52A9 (T)">SAS</div>
+        <div class="quick-btn" id="btn-rcs" title="RCS \u59FF\u6001\u63A7\u5236 (R)">RCS</div>
+        <div class="quick-btn" id="btn-gear" title="\u8D77\u843D\u67B6 (G)">\u8D77\u843D\u67B6</div>
+        <div class="quick-btn" id="btn-lights" title="\u706F\u5149">\u706F\u5149</div>
+        <div class="quick-btn" id="btn-brakes" title="\u5239\u8F66">\u5239\u8F66</div>
+        <div class="quick-btn" id="btn-map" title="\u5730\u56FE (M)">\u5730\u56FE</div>
+      </div>
+
+      <!-- \u8F68\u9053\u4FE1\u606F\u6D6E\u7A97 -->
+      <div id="hud-orbit-panel" style="position:absolute;bottom:200px;left:8px;display:none;">
+        <div class="hud-panel" style="min-width:130px;">
+          <div class="hud-label">\u8F68\u9053 - <span id="hud-parent">--</span></div>
+          <div id="hud-orbit" class="hud-orbit-info">\u65E0\u8F68\u9053\u6570\u636E</div>
+        </div>
+      </div>
+
+      <!-- \u5E2E\u52A9\u8986\u76D6\u5C42 -->
       <div id="help-overlay" style="display:none">
         <div class="help-content">
-          <h2>Controls</h2>
+          <h2>\u64CD\u4F5C\u6307\u5357</h2>
           <div class="help-grid">
-            <div><kbd>W</kbd>/<kbd>S</kbd></div><div>Throttle Up/Down</div>
-            <div><kbd>Z</kbd>/<kbd>X</kbd></div><div>Full Throttle / Cut</div>
-            <div><kbd>A</kbd>/<kbd>D</kbd></div><div>Yaw Left/Right</div>
-            <div><kbd>Q</kbd>/<kbd>E</kbd></div><div>Roll Left/Right</div>
-            <div><kbd>\u2191</kbd>/<kbd>\u2193</kbd></div><div>Pitch Up/Down</div>
-            <div><kbd>CapsLock</kbd></div><div>Toggle SAS</div>
-            <div><kbd>Space</kbd></div><div>Stage Separation</div>
-            <div><kbd>T</kbd></div><div>Toggle Full Throttle</div>
-            <div><kbd>,</kbd>/<kbd>.</kbd></div><div>Time Warp -/+</div>
-            <div><kbd>M</kbd></div><div>Map View</div>
-            <div><kbd>F</kbd></div><div>Focus Rocket</div>
-            <div><kbd>B</kbd></div><div>Deploy Research Base</div>
-            <div><kbd>J</kbd></div><div>Warp Drive</div>
-            <div><kbd>H</kbd></div><div>Toggle Help</div>
-            <div><kbd>Click</kbd></div><div>Focus Body</div>
+            <div><kbd>W</kbd>/<kbd>S</kbd></div><div>\u4FEF\u4EF0\uFF08\u673A\u5934\u4E0B/\u4E0A\uFF09</div>
+            <div><kbd>A</kbd>/<kbd>D</kbd></div><div>\u504F\u822A\uFF08\u5DE6/\u53F3\uFF09</div>
+            <div><kbd>Q</kbd>/<kbd>E</kbd></div><div>\u6EDA\u8F6C\uFF08\u5DE6/\u53F3\uFF09</div>
+            <div><kbd>Shift</kbd></div><div>\u6CB9\u95E8\u52A0\u5927</div>
+            <div><kbd>Ctrl</kbd></div><div>\u6CB9\u95E8\u51CF\u5C0F</div>
+            <div><kbd>Z</kbd></div><div>\u6EE1\u6CB9\u95E8</div>
+            <div><kbd>X</kbd></div><div>\u5207\u65AD\u6CB9\u95E8</div>
+            <div><kbd>T</kbd></div><div>\u5207\u6362SAS\u7A33\u5B9A\u8F85\u52A9</div>
+            <div><kbd>R</kbd></div><div>\u5207\u6362RCS\u59FF\u6001\u63A7\u5236</div>
+            <div><kbd>G</kbd></div><div>\u8D77\u843D\u67B6</div>
+            <div><kbd>\u7A7A\u683C</kbd></div><div>\u5206\u7EA7\u5206\u79BB</div>
+            <div><kbd>M</kbd></div><div>\u5730\u56FE\u89C6\u56FE</div>
+            <div><kbd>.</kbd></div><div>\u65F6\u95F4\u52A0\u901F+</div>
+            <div><kbd>,</kbd></div><div>\u65F6\u95F4\u52A0\u901F-</div>
+            <div><kbd>F</kbd></div><div>\u8DDF\u968F/\u805A\u7126</div>
+            <div><kbd>C</kbd></div><div>\u5207\u6362\u76F8\u673A</div>
+            <div><kbd>B</kbd></div><div>\u90E8\u7F72\u79D1\u7814\u57FA\u5730</div>
+            <div><kbd>J</kbd></div><div>\u66F2\u901F\u5F15\u64CE</div>
+            <div><kbd>H</kbd></div><div>\u5E2E\u52A9</div>
+            <div><kbd>F2</kbd></div><div>\u9690\u85CF/\u663E\u793A\u754C\u9762</div>
           </div>
-          <p style="margin-top:15px;font-size:0.8rem;color:#88aacc;text-align:center;">Green ring = Prograde | Red ring = Retrograde</p>
-          <button id="close-help">Close</button>
+          <p style="margin-top:15px;font-size:0.8rem;color:#88aacc;text-align:center;">\u7EFF\u8272\u6807\u8BB0 = \u987A\u5411 | \u7EA2\u8272\u6807\u8BB0 = \u9006\u5411</p>
+          <button id="close-help">\u5173\u95ED</button>
         </div>
       </div>
     `;
@@ -24028,6 +24655,43 @@ var HUD = class {
     document.getElementById("close-help").addEventListener("click", () => {
       document.getElementById("help-overlay").style.display = "none";
     });
+    this.setupQuickButtons();
+  }
+  /** 设置快捷按钮交互 */
+  setupQuickButtons() {
+    const btnSas = document.getElementById("btn-sas");
+    const btnRcs = document.getElementById("btn-rcs");
+    const btnGear = document.getElementById("btn-gear");
+    const btnLights = document.getElementById("btn-lights");
+    const btnBrakes = document.getElementById("btn-brakes");
+    const btnMap = document.getElementById("btn-map");
+    btnSas?.addEventListener("click", () => this.toggleQuickButton("btn-sas", "SAS"));
+    btnRcs?.addEventListener("click", () => this.toggleQuickButton("btn-rcs", "RCS"));
+    btnGear?.addEventListener("click", () => this.toggleQuickButton("btn-gear", "\u8D77\u843D\u67B6"));
+    btnLights?.addEventListener("click", () => this.toggleQuickButton("btn-lights", "\u706F\u5149"));
+    btnBrakes?.addEventListener("click", () => this.toggleQuickButton("btn-brakes", "\u5239\u8F66"));
+    btnMap?.addEventListener("click", () => {
+      if (this.game) {
+        this.game.isMapMode = !this.game.isMapMode;
+        this.showNotification(this.game.isMapMode ? "\u5730\u56FE\u89C6\u56FE" : "\u98DE\u884C\u89C6\u56FE");
+      }
+    });
+  }
+  /** 切换快捷按钮激活状态 */
+  toggleQuickButton(btnId, label) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.classList.toggle("active");
+    const active = btn.classList.contains("active");
+    this.showNotification(`${label} ${active ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+    if (this.game) {
+      try {
+        if (btnId === "btn-sas" && this.game.rocket?.toggleSAS) {
+          this.game.rocket.toggleSAS();
+        }
+      } catch (_e) {
+      }
+    }
   }
   show() {
     this.container.style.display = "block";
@@ -24035,53 +24699,145 @@ var HUD = class {
   hide() {
     this.container.style.display = "none";
   }
+  /** 主更新方法 — 每帧调用 */
   update(data) {
+    document.getElementById("hud-alt").textContent = data.altitude >= 1e3 ? `${(data.altitude / 1e3).toFixed(2)} km` : `${data.altitude.toFixed(0)} m`;
     document.getElementById("hud-speed").textContent = `${data.speed.toFixed(1)} m/s`;
-    document.getElementById("hud-alt").textContent = `${(data.altitude / 1e3).toFixed(2)} km`;
-    document.getElementById("hud-mass").textContent = `${(data.totalMass / 1e3).toFixed(1)} t`;
-    document.getElementById("hud-thrust").textContent = `${(data.thrust * data.throttle / 1e3).toFixed(0)} kN`;
-    document.getElementById("hud-twr").textContent = data.twr.toFixed(2);
-    document.getElementById("hud-dv").textContent = `${data.deltaV.toFixed(0)} m/s`;
+    const orbSpeedEl = document.getElementById("hud-orb-speed");
+    if (data.orbit) {
+      orbSpeedEl.textContent = `${data.speed.toFixed(1)} m/s`;
+    } else {
+      orbSpeedEl.textContent = `${data.speed.toFixed(1)} m/s`;
+    }
     const fuelPct = data.maxFuel > 0 ? data.fuel / data.maxFuel * 100 : 0;
+    document.getElementById("hud-fuel-pct").textContent = `${fuelPct.toFixed(0)}%`;
     const fuelFill = document.getElementById("fuel-bar-fill");
     fuelFill.style.height = `${fuelPct}%`;
     document.getElementById("fuel-text").textContent = `${fuelPct.toFixed(0)}%`;
     const throttleFill = document.getElementById("throttle-bar-fill");
     throttleFill.style.height = `${data.throttle * 100}%`;
     document.getElementById("throttle-text").textContent = `${(data.throttle * 100).toFixed(0)}%`;
-    document.getElementById("hud-science").textContent = `${Math.floor(data.sciencePoints)} pts`;
+    document.getElementById("hud-science").textContent = `${Math.floor(data.sciencePoints)}`;
+    document.getElementById("hud-twr").textContent = data.twr.toFixed(2);
+    document.getElementById("hud-dv").textContent = `${data.deltaV.toFixed(0)} m/s`;
+    document.getElementById("hud-mass").textContent = `${(data.totalMass / 1e3).toFixed(1)} t`;
+    document.getElementById("hud-thrust").textContent = `${(data.thrust * data.throttle / 1e3).toFixed(0)} kN`;
+    const gforce = data.twr > 0 && data.throttle > 0 ? data.twr : 1;
+    const gforceEl = document.getElementById("hud-gforce");
+    gforceEl.textContent = `${gforce.toFixed(1)}G`;
+    gforceEl.style.color = gforce > 3 ? "#ff6644" : gforce > 2 ? "#ffaa44" : "#ddf";
     const warpEl = document.getElementById("hud-warp");
     if (data.warpUnlocked) {
-      warpEl.textContent = `FUEL: ${data.warpFuel.toFixed(0)}%`;
+      warpEl.textContent = `\u71C3\u6599: ${data.warpFuel.toFixed(0)}%`;
       warpEl.style.color = "#00ff88";
     } else {
-      warpEl.textContent = "LOCKED";
+      warpEl.textContent = "\u672A\u89E3\u9501";
       warpEl.style.color = "#ff4444";
     }
-    const sasEl = document.getElementById("hud-sas");
-    sasEl.textContent = data.sasEnabled ? "ON" : "OFF";
-    sasEl.style.color = data.sasEnabled ? "#00ff88" : "#ff4444";
-    const days = Math.floor(data.gameTime / 86400);
-    const hours = Math.floor(data.gameTime % 86400 / 3600);
-    document.getElementById("hud-time").textContent = `T+${days}d ${hours}h`;
+    const btnSas = document.getElementById("btn-sas");
+    const sasLabel = document.getElementById("navball-sas-label");
+    if (data.sasEnabled) {
+      btnSas?.classList.add("active");
+      if (sasLabel) {
+        sasLabel.textContent = "SAS \u25CF";
+        sasLabel.style.color = "#00ff88";
+      }
+    } else {
+      btnSas?.classList.remove("active");
+      if (sasLabel) {
+        sasLabel.textContent = "SAS";
+        sasLabel.style.color = "#888";
+      }
+    }
+    document.getElementById("warp-level").textContent = `${data.timeWarp}x`;
+    document.getElementById("hud-body").textContent = data.bodyName || "--";
+    this.updateStageInfo(data);
+    const metEl = document.getElementById("hud-met");
+    metEl.textContent = this.formatMET(data.gameTime);
+    const utEl = document.getElementById("hud-ut");
+    utEl.textContent = this.formatUT(data.gameTime);
     document.getElementById("hud-parent").textContent = data.parentName;
+    const orbitPanel = document.getElementById("hud-orbit-panel");
     const orbitEl = document.getElementById("hud-orbit");
     if (data.orbit) {
+      orbitPanel.style.display = "block";
       const ap = (data.orbit.apoapsis / 1e3).toFixed(0);
       const pe = (data.orbit.periapsis / 1e3).toFixed(0);
       const e = data.orbit.eccentricity.toFixed(3);
       const inc = (data.orbit.inclination * 180 / Math.PI).toFixed(1);
       const T = (data.orbit.orbitalPeriod / 3600).toFixed(1);
-      orbitEl.innerHTML = `Ap: ${ap} km<br>Pe: ${pe} km<br>Ecc: ${e}<br>Inc: ${inc}\xB0<br>Period: ${T}h`;
+      orbitEl.innerHTML = `\u8FDC\u5730\u70B9: ${ap} km<br>\u8FD1\u5730\u70B9: ${pe} km<br>\u504F\u5FC3\u7387: ${e}<br>\u503E\u89D2: ${inc}\xB0<br>\u5468\u671F: ${T}h`;
     } else {
-      orbitEl.textContent = data.isLanded ? "Landed" : "Suborbital";
+      orbitPanel.style.display = "block";
+      orbitEl.textContent = data.isLanded ? "\u5DF2\u7740\u9646" : "\u4E9A\u8F68\u9053";
     }
-    document.getElementById("warp-level").textContent = `${data.timeWarp}x`;
+    const cameraEl = document.getElementById("hud-camera");
+    if (this.game) {
+      cameraEl.textContent = this.game.isMapMode ? "\u5730\u56FE" : "\u8DDF\u968F";
+    } else {
+      cameraEl.textContent = "\u8DDF\u968F";
+    }
   }
+  /** 格式化任务时间 (MET) */
+  formatMET(seconds) {
+    const totalSec = Math.floor(Math.max(0, seconds));
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor(totalSec % 3600 / 60);
+    const s = totalSec % 60;
+    return `T+${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  /** 格式化世界时 (UT) */
+  formatUT(seconds) {
+    const totalSec = Math.floor(Math.max(0, seconds));
+    const daysPerYear = 426;
+    const day = Math.floor(totalSec / 21600);
+    const year = Math.floor(day / daysPerYear);
+    const dayOfYear = day % daysPerYear;
+    const h = Math.floor(totalSec % 21600 / 3600);
+    const m = Math.floor(totalSec % 3600 / 60);
+    return `Y${year} D${dayOfYear} ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+  /** 更新分级信息与分级列表 */
+  updateStageInfo(data) {
+    const stageEl = document.getElementById("hud-stage");
+    const stagingList = document.getElementById("staging-list");
+    let stages = [];
+    let currentStage = 0;
+    if (this.game && this.game.rocket && this.game.rocket.stages) {
+      stages = this.game.rocket.stages;
+      currentStage = this.game.rocket.currentStage || 0;
+    }
+    if (stages.length > 0) {
+      stageEl.textContent = `${currentStage + 1} / ${stages.length}`;
+      if (stagingList) {
+        stagingList.innerHTML = "";
+        for (let i = stages.length - 1; i >= 0; i--) {
+          const item = document.createElement("div");
+          item.className = "stage-item" + (i === currentStage ? " current" : "");
+          const s = stages[i];
+          const fuelPct = s.fuel > 0 ? Math.round(s.fuel / (s.fuel || 1) * 100) : 0;
+          item.textContent = `\u5206\u7EA7 ${i + 1}`;
+          if (i === currentStage) {
+            item.style.borderColor = "rgba(200,120,50,0.8)";
+          }
+          stagingList.appendChild(item);
+        }
+      }
+    } else {
+      stageEl.textContent = `1 / 1`;
+      if (stagingList) {
+        stagingList.innerHTML = `<div class="stage-item current">\u5206\u7EA7 1</div>`;
+      }
+    }
+  }
+  /** 更新已加载星体数量显示（兼容旧接口） */
   updateStarCount(count) {
-    const el = document.getElementById("hud-stars");
-    if (el) el.textContent = count.toLocaleString();
+    const bodyEl = document.getElementById("hud-body");
+    if (bodyEl && count > 0) {
+      bodyEl.title = `\u5DF2\u52A0\u8F7D\u661F\u4F53: ${count.toLocaleString()}`;
+    }
   }
+  /** 更新导航球 — 绘制姿态仪表、顺向/逆向标记 */
   updateNavball(orientation, velocity) {
     const ctx = this.navballCtx;
     const w = this.navballCanvas.width, h = this.navballCanvas.height;
@@ -24094,9 +24850,15 @@ var HUD = class {
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
     const pitchOffset = pitch * r * 1.5;
-    ctx.fillStyle = "#3366cc";
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#775533";
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, cy + pitchOffset);
+    skyGrad.addColorStop(0, "#1a3a6a");
+    skyGrad.addColorStop(1, "#3366cc");
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, w, cy + pitchOffset);
+    const groundGrad = ctx.createLinearGradient(0, cy + pitchOffset, 0, h);
+    groundGrad.addColorStop(0, "#775533");
+    groundGrad.addColorStop(1, "#553311");
+    ctx.fillStyle = groundGrad;
     ctx.fillRect(0, cy + pitchOffset, w, h);
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2;
@@ -24105,7 +24867,7 @@ var HUD = class {
     ctx.lineTo(w, cy + pitchOffset);
     ctx.stroke();
     ctx.font = "9px monospace";
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.textAlign = "center";
     for (let p = -90; p <= 90; p += 15) {
       if (p === 0) continue;
@@ -24137,6 +24899,25 @@ var HUD = class {
       ctx.moveTo(progX, progY - 3);
       ctx.lineTo(progX, progY + 3);
       ctx.stroke();
+      ctx.fillStyle = "#00ff44";
+      ctx.font = "8px sans-serif";
+      ctx.fillText("\u987A\u5411", progX, progY - 12);
+      const retroX = cx - velDir.x * 30;
+      const retroY = cy + velDir.y * 30 - pitchOffset * 0.3;
+      ctx.strokeStyle = "#ff4444";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(retroX, retroY, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(retroX - 5, retroY - 5);
+      ctx.lineTo(retroX + 5, retroY + 5);
+      ctx.moveTo(retroX + 5, retroY - 5);
+      ctx.lineTo(retroX - 5, retroY + 5);
+      ctx.stroke();
+      ctx.fillStyle = "#ff4444";
+      ctx.font = "8px sans-serif";
+      ctx.fillText("\u9006\u5411", retroX, retroY - 12);
     }
     ctx.restore();
     ctx.strokeStyle = "#ffff00";
@@ -24158,12 +24939,19 @@ var HUD = class {
     ctx.fillStyle = "#ffff00";
     ctx.font = "10px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(`HDG ${yawDeg.toFixed(0)}\xB0`, cx, 12);
+    ctx.fillText(`\u822A\u5411 ${yawDeg.toFixed(0)}\xB0`, cx, 12);
+    if (this.game && this.game.rocket && this.game.rocket.sasEnabled) {
+      ctx.fillStyle = "#00ff88";
+      ctx.font = "bold 9px sans-serif";
+      ctx.fillText("SAS", cx, h - 4);
+    }
   }
+  /** 显示/隐藏帮助覆盖层 */
   showHelp() {
     const el = document.getElementById("help-overlay");
     el.style.display = el.style.display === "none" ? "flex" : "none";
   }
+  /** 显示星图覆盖层 — 选择曲速目标 */
   showStarMap(systems, onSelect) {
     const existing = document.getElementById("star-map-overlay");
     if (existing) existing.remove();
@@ -24172,19 +24960,24 @@ var HUD = class {
     overlay.className = "star-map-overlay";
     overlay.innerHTML = `
       <div class="star-map-content">
-        <h2>Warp Drive - Select Destination</h2>
+        <h2>\u661F\u56FE</h2>
         <div class="star-list">
+          <div class="star-item" style="cursor:default;font-weight:700;color:#5a9abf;border-bottom:1px solid rgba(60,100,140,0.3);">
+            <span class="star-name">\u540D\u79F0</span>
+            <span class="star-type">\u7C7B\u578B</span>
+            <span class="star-dist">\u8DDD\u79BB</span>
+          </div>
           ${systems.map((s) => `
             <div class="star-item" data-name="${s.name}">
               <span class="star-name">${s.name}</span>
               <span class="star-type">${s.starType}</span>
-              <span class="star-dist">${s.distance.toFixed(2)} ly</span>
+              <span class="star-dist">${s.distance.toFixed(2)} \u5149\u5E74</span>
             </div>`).join("")}
         </div>
-        <button id="close-starmap">Cancel</button>
+        <button id="close-starmap">\u8FD4\u56DE</button>
       </div>`;
     document.body.appendChild(overlay);
-    overlay.querySelectorAll(".star-item").forEach((item) => {
+    overlay.querySelectorAll(".star-item[data-name]").forEach((item) => {
       item.addEventListener("click", () => {
         const name = item.getAttribute("data-name");
         onSelect(name);
@@ -24193,6 +24986,7 @@ var HUD = class {
     });
     document.getElementById("close-starmap").addEventListener("click", () => overlay.remove());
   }
+  /** 显示通知消息 */
   showNotification(message, duration = 3e3) {
     const notif = document.createElement("div");
     notif.className = "notification";
@@ -24399,6 +25193,7 @@ var StarChunkManager = class {
 // src/game/game.ts
 var Game = class {
   constructor(container2, quality = "high") {
+    this.clock = new Clock();
     this.physics = new NBodySystem();
     this.researchBases = [];
     this.warpDrive = new WarpDrive();
@@ -24408,47 +25203,53 @@ var Game = class {
     this.trajectoryLine = null;
     this.timeWarp = new TimeWarpController();
     this.quality = "high";
-    this.focusName = "Earth";
+    // 游戏状态
+    this.gameState = "flight";
+    // 相机
     this.cameraMode = "orbit";
-    this.gameTime = 0;
-    this.sciencePoints = 0;
-    this.isMapMode = false;
-    this.isRunning = true;
-    this.lastTime = 0;
+    this.focusName = "Rocket";
     this.cameraTheta = Math.PI / 4;
     this.cameraPhi = Math.PI / 3;
     this.cameraDistance = 50;
     this.cameraTargetPos = new Vector3();
     this.cameraSmoothDistance = 50;
-    this.keys = /* @__PURE__ */ new Set();
+    this.MIN_ZOOM = 2;
+    this.MAX_ZOOM = 5e4;
+    // 计时
+    this.gameTime = 0;
+    this.sciencePoints = 0;
+    this.isRunning = true;
+    this.animationId = 0;
+    // 输入
+    this.heldKeys = /* @__PURE__ */ new Set();
     this.mouseDown = false;
     this.lastMouseX = 0;
     this.lastMouseY = 0;
-    // Prograde/retrograde marker
+    // HUD可见性
+    this.hudVisible = true;
+    // 指示器
+    this.rcsEnabled = false;
+    this.gearDeployed = true;
+    // 顺向/逆向标记
     this.progradeMarker = null;
     this.retrogradeMarker = null;
     this.TRAJECTORY_STEPS = 200;
     this.TRAJECTORY_DT = 5;
+    // === 主游戏循环 ===
     this.gameLoop = () => {
-      requestAnimationFrame(this.gameLoop);
-      const now = performance.now();
-      const dt = Math.min((now - this.lastTime) / 1e3, 0.1);
-      this.lastTime = now;
-      this.updateGame(dt);
-      this.updateMeshes();
-      this.updateTrajectory();
-      this.updateCamera();
-      this.starChunkManager.update(this.rocket.body.position);
-      this.updateHUD();
+      if (!this.isRunning) return;
+      this.animationId = requestAnimationFrame(this.gameLoop);
+      const dt = Math.min(this.clock.getDelta(), 0.1);
+      this.update(dt);
       this.renderer.render(this.scene, this.camera);
     };
     this.container = container2;
     this.quality = quality;
-    this.hud = new HUD();
+    this.hud = new GameUI(this);
     TextureFactory.setQuality(quality);
     const qcfg = QUALITY_CONFIG[quality];
     this.scene = new Scene();
-    this.scene.background = new Color(5);
+    this.scene.background = new Color(0);
     this.camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1e-3, 5e5);
     this.camera.position.set(0, 30, 50);
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -24457,12 +25258,10 @@ var Game = class {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.renderer.toneMapping = ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.2;
+    this.renderer.toneMappingExposure = 1;
     container2.appendChild(this.renderer.domElement);
-    const ambient = new AmbientLight(2236996, 0.4);
+    const ambient = new AmbientLight(657940, 0.02);
     this.scene.add(ambient);
-    const hemiLight = new HemisphereLight(4491519, 3346722, 0.15);
-    this.scene.add(hemiLight);
     this.sunLight = new PointLight(16777215, 5, 0, 0.3);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = qcfg.shadowMapSize;
@@ -24480,13 +25279,68 @@ var Game = class {
     this.setupInput();
     this.timeWarp.onWarpChange = (_warp) => {
     };
-    window.addEventListener("resize", () => this.onResize());
-    this.lastTime = performance.now();
+    this.boundResize = () => this.onResize();
+    window.addEventListener("resize", this.boundResize);
+    this.clock.start();
     this.gameLoop();
   }
+  // === 公开API ===
   showHUD() {
+    this.gameState = "flight";
     this.hud.show();
+    this.hudVisible = true;
   }
+  showSpaceCenter() {
+    this.gameState = "spacecenter";
+    this.hud.hide();
+  }
+  update(dt) {
+    this.updateGame(dt);
+    this.updateMeshes();
+    this.updateTrajectory();
+    this.updateCamera();
+    if (this.rocket) {
+      this.starChunkManager.update(this.rocket.body.position);
+    }
+    this.updateHUD();
+  }
+  animate() {
+    this.gameLoop();
+  }
+  onKeyDown(e) {
+    const target = e.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+    const key = e.key.toLowerCase();
+    this.heldKeys.add(key);
+    if (!e.repeat) {
+      this.handleOneShotKey(key, e);
+    }
+  }
+  onKeyUp(e) {
+    const target = e.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+    this.heldKeys.delete(e.key.toLowerCase());
+  }
+  dispose() {
+    this.isRunning = false;
+    if (this.animationId) cancelAnimationFrame(this.animationId);
+    window.removeEventListener("keydown", this.boundKeyDown);
+    window.removeEventListener("keyup", this.boundKeyUp);
+    window.removeEventListener("resize", this.boundResize);
+    this.scene.traverse((obj) => {
+      if (obj instanceof Mesh) {
+        obj.geometry?.dispose();
+        const mat = obj.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else if (mat) mat.dispose();
+      }
+    });
+    this.renderer.dispose();
+    if (this.renderer.domElement.parentNode) {
+      this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+    }
+  }
+  // === 太阳系�化 ===
   orbitalElementsToState(data, parentPos, parentVel, parentMass) {
     if (!data.parent || data.semiMajorAxis === 0) {
       return { pos: new Vector3(), vel: new Vector3() };
@@ -24517,16 +25371,8 @@ var Game = class {
     const r22 = -sinO * sinW + cosO * cosW * cosI;
     const r31 = sinW * sinI;
     const r32 = cosW * sinI;
-    const pos = new Vector3(
-      r11 * xOrb + r12 * yOrb,
-      r21 * xOrb + r22 * yOrb,
-      r31 * xOrb + r32 * yOrb
-    );
-    const vel = new Vector3(
-      r11 * vxOrb + r12 * vyOrb,
-      r21 * vxOrb + r22 * vyOrb,
-      r31 * vxOrb + r32 * vyOrb
-    );
+    const pos = new Vector3(r11 * xOrb + r12 * yOrb, r21 * xOrb + r22 * yOrb, r31 * xOrb + r32 * yOrb);
+    const vel = new Vector3(r11 * vxOrb + r12 * vyOrb, r21 * vxOrb + r22 * vyOrb, r31 * vxOrb + r32 * vyOrb);
     return { pos: pos.add(parentPos), vel: vel.add(parentVel) };
   }
   initSolarSystem() {
@@ -24554,6 +25400,7 @@ var Game = class {
       };
       this.physics.addBody(body);
       const mesh = createCelestialMesh(data, this.quality);
+      mesh.name = data.name;
       this.bodyMeshes.set(data.name, mesh);
       this.scene.add(mesh);
       if (data.type === "star") {
@@ -24572,20 +25419,22 @@ var Game = class {
     const rotSpeed = 2 * Math.PI / earthData.rotationPeriod;
     const rotVel = new Vector3(rotSpeed * earthData.radius, 0, 0);
     const startVel = earth.velocity.clone().add(rotVel);
-    this.rocket = new Rocket("Rocket", 2e3, 15e3, 5e5, 350);
+    this.rocket = new Rocket("\u706B\u7BAD", 2e3, 15e3, 5e5, 350);
     this.rocket.body.position.copy(startPos);
     this.rocket.body.velocity.copy(startVel);
     this.rocket.parentBody = "Earth";
     this.rocket.isLanded = true;
     this.rocket.orientation.set(0, 0, 0, 1);
+    this.rocket.setThrottle(0);
     this.physics.addBody(this.rocket.body);
     this.scene.add(this.rocket.group);
   }
+  // === 轨迹与标记 ===
   setupTrajectoryLine() {
     const geometry = new BufferGeometry();
     const positions = new Float32Array(this.TRAJECTORY_STEPS * 3);
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
-    const material = new LineBasicMaterial({ color: 65416, transparent: true, opacity: 0.6 });
+    const material = new LineBasicMaterial({ color: 65416, transparent: true, opacity: 0.5 });
     this.trajectoryLine = new Line(geometry, material);
     this.scene.add(this.trajectoryLine);
   }
@@ -24620,18 +25469,12 @@ var Game = class {
     this.trajectoryLine.geometry.attributes.position.needsUpdate = true;
     this.trajectoryLine.geometry.setDrawRange(0, points.length);
   }
+  // === 输入处理 ===
   setupInput() {
-    window.addEventListener("keydown", (e) => {
-      const target = e.target;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      this.keys.add(e.key.toLowerCase());
-      this.handleKeyPress(e.key.toLowerCase());
-    });
-    window.addEventListener("keyup", (e) => {
-      const target = e.target;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
-      this.keys.delete(e.key.toLowerCase());
-    });
+    this.boundKeyDown = (e) => this.onKeyDown(e);
+    this.boundKeyUp = (e) => this.onKeyUp(e);
+    window.addEventListener("keydown", this.boundKeyDown);
+    window.addEventListener("keyup", this.boundKeyUp);
     const canvas = this.renderer.domElement;
     canvas.addEventListener("mousedown", (e) => {
       this.mouseDown = true;
@@ -24653,72 +25496,58 @@ var Game = class {
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       this.cameraDistance *= e.deltaY > 0 ? 1.1 : 0.9;
-      this.cameraDistance = Math.max(0.5, Math.min(5e4, this.cameraDistance));
-    });
-    canvas.addEventListener("click", (e) => {
-      if (this.mouseDown) return;
-      const raycaster = new Raycaster();
-      const mouse = new Vector2(
-        e.clientX / window.innerWidth * 2 - 1,
-        -(e.clientY / window.innerHeight) * 2 + 1
-      );
-      raycaster.setFromCamera(mouse, this.camera);
-      const meshes = Array.from(this.bodyMeshes.values());
-      const intersects2 = raycaster.intersectObjects(meshes);
-      if (intersects2.length > 0) {
-        const mesh = intersects2[0].object;
-        if (mesh.name) {
-          this.focusName = mesh.name;
-          this.hud.showNotification(`Focus: ${mesh.name}`);
-        }
-      }
+      this.cameraDistance = Math.max(this.MIN_ZOOM, Math.min(this.MAX_ZOOM, this.cameraDistance));
     });
   }
-  handleKeyPress(key) {
+  /** 一次性按键处理 */
+  handleOneShotKey(key, e) {
+    if (key === " " || key === "tab") e.preventDefault();
     switch (key) {
-      case "m":
-        this.isMapMode = !this.isMapMode;
-        this.hud.showNotification(this.isMapMode ? "Map View" : "Flight View");
-        break;
-      case "f":
-        this.focusName = "Rocket";
-        this.cameraMode = "follow";
-        this.hud.showNotification("Following Rocket");
-        break;
       case " ":
         if (this.rocket) {
           this.rocket.stage();
-          this.hud.showNotification("Staged!");
+          this.hud.showNotification("\u5206\u7EA7\u5206\u79BB\uFF01");
         }
         break;
       case "t":
         if (this.rocket) {
-          this.rocket.setThrottle(this.rocket.throttle > 0 ? 0 : 1);
+          this.rocket.toggleSAS();
+          this.hud.showNotification(`SAS ${this.rocket.sasEnabled ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+        }
+        break;
+      case "r":
+        if (this.rocket) {
+          this.rocket.toggleRCS();
+          this.hud.showNotification(`RCS ${this.rocket.rcsEnabled ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+        }
+        break;
+      case "g":
+        if (this.rocket) {
+          this.rocket.toggleGear();
+          this.hud.showNotification(`\u8D77\u843D\u67B6 ${this.rocket.gearDown ? "\u653E\u4E0B" : "\u6536\u8D77"}`);
         }
         break;
       case "x":
         if (this.rocket) {
           this.rocket.setThrottle(0);
-          this.hud.showNotification("Throttle Cut");
+          this.hud.showNotification("\u6CB9\u95E8\u5207\u65AD");
         }
         break;
       case "z":
         if (this.rocket) {
           this.rocket.setThrottle(1);
-          this.hud.showNotification("Full Throttle");
+          this.hud.showNotification("\u6EE1\u6CB9\u95E8");
         }
         break;
-      case "capslock":
-        if (this.rocket) {
-          this.rocket.toggleSAS();
-          this.hud.showNotification(`SAS ${this.rocket.sasEnabled ? "ON" : "OFF"}`);
-        }
+      case "m":
+        this.toggleMapView();
         break;
-      case ",":
-        this.decreaseTimeWarp();
+      case "f":
+        this.focusName = "Rocket";
+        this.hud.showNotification("\u8DDF\u968F\u706B\u7BAD");
         break;
-      case ".":
-        this.increaseTimeWarp();
+      case "c":
+        this.cycleCameraMode();
         break;
       case "b":
         this.deployResearchBase();
@@ -24729,50 +25558,103 @@ var Game = class {
       case "h":
         this.hud.showHelp();
         break;
+      case "f2":
+        this.toggleHUD();
+        break;
+      case "tab":
+        this.hud.showNotification("\u5F53\u524D\u53EA\u6709\u4E00\u4E2A\u98DE\u884C\u5668");
+        break;
+      case ",":
+        this.decreaseTimeWarp();
+        break;
+      case ".":
+        this.increaseTimeWarp();
+        break;
     }
   }
-  /** Safe time warp decrease */
+  cycleCameraMode() {
+    const modes = ["orbit", "chase", "free"];
+    const idx = modes.indexOf(this.cameraMode);
+    this.cameraMode = modes[(idx + 1) % modes.length];
+    const names = { orbit: "\u8F68\u9053", chase: "\u8DDF\u968F", free: "\u81EA\u7531" };
+    this.hud.showNotification(`\u76F8\u673A\u6A21\u5F0F: ${names[this.cameraMode]}`);
+  }
+  toggleMapView() {
+    if (this.gameState === "map") {
+      this.gameState = "flight";
+      this.hud.showNotification("\u98DE\u884C\u89C6\u56FE");
+    } else {
+      this.gameState = "map";
+      this.hud.showNotification("\u5730\u56FE\u89C6\u56FE");
+    }
+  }
+  toggleHUD() {
+    this.hudVisible = !this.hudVisible;
+    const hudEl = document.getElementById("hud");
+    if (hudEl) hudEl.style.display = this.hudVisible ? "block" : "none";
+  }
+  // === 时间加速 ===
+  getTimeWarpLimit() {
+    if (!this.rocket) return TIME_WARP_LEVELS.length - 1;
+    let nearestBody = null;
+    let nearestDist = Infinity;
+    for (const body of this.physics.bodies) {
+      if (body.name === "\u706B\u7BAD" || body.name === "Rocket" || body.name === "Sun") continue;
+      const dist = body.position.distanceTo(this.rocket.body.position);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestBody = body;
+      }
+    }
+    if (!nearestBody) return TIME_WARP_LEVELS.length - 1;
+    const altitude = nearestDist - nearestBody.radius;
+    const bodyData = SOLAR_SYSTEM.find((d) => d.name === nearestBody.name);
+    const hasAtmosphere = bodyData?.hasAtmosphere ?? false;
+    const atmosphereHeight = hasAtmosphere ? nearestBody.radius * 0.1 : 0;
+    const inAtmosphere = altitude < atmosphereHeight;
+    const engineFiring = this.rocket.throttle > 0 && this.rocket.fuelMass > 0;
+    const relVel = this.rocket.body.velocity.clone().sub(nearestBody.velocity);
+    const surfaceSpeed = relVel.length();
+    const landedAndMoving = this.rocket.isLanded && surfaceSpeed > 50;
+    if (engineFiring || inAtmosphere || landedAndMoving) {
+      let maxIdx = 0;
+      for (let i = 0; i < TIME_WARP_LEVELS.length; i++) {
+        if (TIME_WARP_LEVELS[i] <= 4) maxIdx = i;
+        else break;
+      }
+      return maxIdx;
+    }
+    return TIME_WARP_LEVELS.length - 1;
+  }
   decreaseTimeWarp() {
     this.timeWarp.decrease();
   }
-  /** Safe time warp increase - limit when near bodies */
   increaseTimeWarp() {
-    if (this.rocket) {
-      let nearestDist = Infinity;
-      for (const body of this.physics.bodies) {
-        if (body.name === "Rocket" || body.name === "Sun") continue;
-        const dist = body.position.distanceTo(this.rocket.body.position);
-        if (dist < nearestDist) nearestDist = dist;
-      }
-      let nearestRadius = Infinity;
-      let nearestBody = null;
-      for (const body of this.physics.bodies) {
-        if (body.name === "Rocket") continue;
-        const dist = body.position.distanceTo(this.rocket.body.position);
-        if (dist < nearestDist) {
-          nearestDist = dist;
-          nearestBody = body;
-        }
-      }
-      if (nearestBody) {
-        const altitude = nearestDist - nearestBody.radius;
-        if (altitude < nearestBody.radius * 0.1) {
-          const maxIndex = 3;
-          if (this.timeWarp.currentWarp >= TIME_WARP_LEVELS[maxIndex]) {
-            this.hud.showNotification("Cannot time warp above 10x near surface!");
-            return;
-          }
-        }
-      }
+    const limit = this.getTimeWarpLimit();
+    const currentIdx = TIME_WARP_LEVELS.indexOf(this.timeWarp.currentWarp);
+    if (currentIdx >= limit) {
+      this.hud.showNotification("\u5F53\u524D\u6761\u4EF6\u4E0B\u65E0\u6CD5\u7EE7\u7EED\u52A0\u901F\uFF01", 2e3);
+      return;
     }
     this.timeWarp.increase();
   }
+  enforceTimeWarpLimit() {
+    const limit = this.getTimeWarpLimit();
+    const currentIdx = TIME_WARP_LEVELS.indexOf(this.timeWarp.currentWarp);
+    if (currentIdx > limit) {
+      while (TIME_WARP_LEVELS.indexOf(this.timeWarp.currentWarp) > limit) {
+        this.timeWarp.decrease();
+      }
+      this.hud.showNotification("\u65F6\u95F4\u52A0\u901F\u53D7\u5F53\u524D\u6761\u4EF6\u9650\u5236", 2e3);
+    }
+  }
+  // === 科研基地与曲速 ===
   deployResearchBase() {
     if (!this.rocket) return;
     let nearestBody = null;
     let nearestDist = Infinity;
     for (const body of this.physics.bodies) {
-      if (body.name === "Rocket" || body.name === "Sun") continue;
+      if (body.name === "\u706B\u7BAD" || body.name === "Rocket" || body.name === "Sun") continue;
       const dist = body.position.distanceTo(this.rocket.body.position);
       if (dist < nearestDist) {
         nearestDist = dist;
@@ -24782,36 +25664,38 @@ var Game = class {
     if (!nearestBody) return;
     const altitude = nearestDist - nearestBody.radius;
     if (altitude > nearestBody.radius * 0.5) {
-      this.hud.showNotification("Too high! Get closer to surface to deploy base.");
+      this.hud.showNotification("\u9AD8\u5EA6\u592A\u9AD8\uFF01\u9700\u8981\u9760\u8FD1\u5730\u8868\u624D\u80FD\u90E8\u7F72\u57FA\u5730\u3002");
       return;
     }
     const localOffset = this.rocket.body.position.clone().sub(nearestBody.position);
-    const baseName = `Base-${this.researchBases.length + 1}`;
+    const baseName = `\u57FA\u5730-${this.researchBases.length + 1}`;
     const base = new ResearchBase(baseName, nearestBody.name, localOffset);
     this.researchBases.push(base);
     base.group.scale.setScalar(0.01);
     this.scene.add(base.group);
-    this.hud.showNotification(`Research base "${baseName}" deployed on ${nearestBody.name}!`);
+    const bodyData = SOLAR_SYSTEM.find((d) => d.name === nearestBody.name);
+    const bodyCN = bodyData?.nameCN || nearestBody.name;
+    this.hud.showNotification(`\u79D1\u7814\u57FA\u5730"${baseName}"\u5DF2\u5728${bodyCN}\u90E8\u7F72\uFF01`);
   }
   activateWarpDrive() {
     if (!this.warpDrive.isUnlocked) {
       if (this.sciencePoints >= WARP_UNLOCK_COST) {
         this.warpDrive.unlock();
         this.sciencePoints -= WARP_UNLOCK_COST;
-        this.hud.showNotification("Warp Drive unlocked!");
+        this.hud.showNotification("\u66F2\u901F\u5F15\u64CE\u5DF2\u89E3\u9501\uFF01");
       } else {
-        this.hud.showNotification(`Need ${WARP_UNLOCK_COST} science points. Have ${Math.floor(this.sciencePoints)}.`);
+        this.hud.showNotification(`\u9700\u8981${WARP_UNLOCK_COST}\u79D1\u5B66\u70B9\u6570\uFF0C\u5F53\u524D${Math.floor(this.sciencePoints)}`);
       }
       return;
     }
     if (this.warpDrive.isActive) return;
     this.hud.showStarMap(
-      STAR_SYSTEMS.map((s) => ({ name: s.name, distance: s.distance, starType: s.starType })),
+      STAR_SYSTEMS.map((s) => ({ name: s.nameCN || s.name, distance: s.distance, starType: s.starType })),
       (targetName) => this.executeWarpJump(targetName)
     );
   }
   executeWarpJump(targetName) {
-    const target = STAR_SYSTEMS.find((s) => s.name === targetName);
+    const target = STAR_SYSTEMS.find((s) => s.nameCN === targetName || s.name === targetName);
     if (!target) return;
     const distMeters = target.distance * LY;
     const targetPos = new Vector3(
@@ -24821,35 +25705,41 @@ var Game = class {
     );
     targetPos.multiplyScalar(0.95);
     const startPos = this.rocket.body.position.clone();
-    if (this.warpDrive.activate(targetName, startPos, targetPos)) {
-      this.hud.showNotification(`Warping to ${targetName}...`);
+    if (this.warpDrive.activate(target.name, startPos, targetPos)) {
+      this.hud.showNotification(`\u6B63\u5728\u66F2\u901F\u8DC3\u8FC1\u81F3${target.nameCN || target.name}...`);
       this.timeWarp.setToMinimum();
     }
   }
-  // Handle continuous input with improved controls
+  // === 连续输入处理（每帧调用）===
   handleContinuousInput(dt, simDt) {
     if (!this.rocket) return;
-    if (this.keys.has("w")) this.rocket.setThrottle(this.rocket.throttle + 0.8 * dt);
-    if (this.keys.has("s")) this.rocket.setThrottle(this.rocket.throttle - 0.8 * dt);
+    const throttleRate = 0.5;
+    if (this.heldKeys.has("shift")) {
+      this.rocket.adjustThrottle(throttleRate * dt, dt);
+    }
+    if (this.heldKeys.has("control")) {
+      this.rocket.adjustThrottle(-throttleRate * dt, dt);
+    }
     let pitch = 0, yaw = 0, roll = 0;
-    if (this.keys.has("arrowup")) pitch = -1;
-    if (this.keys.has("arrowdown")) pitch = 1;
-    if (this.keys.has("a")) yaw = 1;
-    if (this.keys.has("d")) yaw = -1;
-    if (this.keys.has("q")) roll = 1;
-    if (this.keys.has("e")) roll = -1;
+    if (this.heldKeys.has("w")) pitch = 1;
+    if (this.heldKeys.has("s")) pitch = -1;
+    if (this.heldKeys.has("a")) yaw = 1;
+    if (this.heldKeys.has("d")) yaw = -1;
+    if (this.heldKeys.has("q")) roll = 1;
+    if (this.heldKeys.has("e")) roll = -1;
     if (pitch !== 0 || yaw !== 0 || roll !== 0) {
       this.rocket.rotate(pitch, yaw, roll, simDt);
     } else {
       this.rocket.applySAS(simDt);
     }
-    if (this.rocket.throttle > 0 && this.rocket.fuelMass > 0) {
-    } else {
+    if (this.rocket.throttle <= 0 || this.rocket.fuelMass <= 0) {
       this.rocket.hideFlame();
     }
   }
+  // === 网格更新 ===
   updateMeshes() {
     for (const body of this.physics.bodies) {
+      if (body.name === "\u706B\u7BAD" || body.name === "Rocket") continue;
       const mesh = this.bodyMeshes.get(body.name);
       if (mesh) {
         mesh.position.set(body.position.x * DIST_SCALE, body.position.y * DIST_SCALE, body.position.z * DIST_SCALE);
@@ -24874,36 +25764,31 @@ var Game = class {
     }
     const sun = this.physics.getBody("Sun");
     if (sun) {
-      this.sunLight.position.set(
-        sun.position.x * DIST_SCALE,
-        sun.position.y * DIST_SCALE,
-        sun.position.z * DIST_SCALE
-      );
+      this.sunLight.position.set(sun.position.x * DIST_SCALE, sun.position.y * DIST_SCALE, sun.position.z * DIST_SCALE);
     }
     for (const base of this.researchBases) {
       const parent = this.physics.getBody(base.bodyName);
       if (parent) {
         const worldPos = parent.position.clone().add(base.localPosition);
-        base.group.position.set(
-          worldPos.x * DIST_SCALE,
-          worldPos.y * DIST_SCALE,
-          worldPos.z * DIST_SCALE
-        );
+        base.group.position.set(worldPos.x * DIST_SCALE, worldPos.y * DIST_SCALE, worldPos.z * DIST_SCALE);
       }
     }
   }
+  // === 相机 ===
   updateCamera() {
-    let targetPos;
-    if (this.isMapMode) {
+    if (this.gameState === "map") {
       const sun = this.physics.getBody("Sun");
-      targetPos = sun ? new Vector3(sun.position.x * DIST_SCALE, sun.position.y * DIST_SCALE, sun.position.z * DIST_SCALE) : new Vector3();
-      this.camera.position.lerp(new Vector3(targetPos.x, targetPos.y + 5e3, targetPos.z + 1e3), 0.1);
-      this.camera.lookAt(targetPos);
+      const targetPos2 = sun ? new Vector3(sun.position.x * DIST_SCALE, sun.position.y * DIST_SCALE, sun.position.z * DIST_SCALE) : new Vector3();
+      this.camera.position.lerp(new Vector3(targetPos2.x, targetPos2.y + 5e3, targetPos2.z + 1e3), 0.1);
+      this.camera.up.set(0, 1, 0);
+      this.camera.lookAt(targetPos2);
       this.camera.far = 5e5;
       this.camera.updateProjectionMatrix();
+      this.updateMarkers();
       return;
     }
-    if (this.focusName === "Rocket" && this.rocket) {
+    let targetPos;
+    if ((this.focusName === "Rocket" || this.focusName === "\u706B\u7BAD") && this.rocket) {
       targetPos = new Vector3(
         this.rocket.body.position.x * DIST_SCALE,
         this.rocket.body.position.y * DIST_SCALE,
@@ -24912,23 +25797,62 @@ var Game = class {
     } else {
       const body = this.physics.getBody(this.focusName);
       if (!body) return;
-      targetPos = new Vector3(
-        body.position.x * DIST_SCALE,
-        body.position.y * DIST_SCALE,
-        body.position.z * DIST_SCALE
-      );
+      targetPos = new Vector3(body.position.x * DIST_SCALE, body.position.y * DIST_SCALE, body.position.z * DIST_SCALE);
     }
+    switch (this.cameraMode) {
+      case "orbit":
+        this.updateOrbitCamera(targetPos);
+        break;
+      case "chase":
+        this.updateChaseCamera(targetPos);
+        break;
+      case "free":
+        this.updateFreeCamera(targetPos);
+        break;
+    }
+    this.updateMarkers();
+  }
+  updateOrbitCamera(targetPos) {
     this.cameraTargetPos.lerp(targetPos, 0.15);
     this.cameraSmoothDistance += (this.cameraDistance - this.cameraSmoothDistance) * 0.15;
     const x = this.cameraTargetPos.x + this.cameraSmoothDistance * Math.sin(this.cameraPhi) * Math.cos(this.cameraTheta);
     const y = this.cameraTargetPos.y + this.cameraSmoothDistance * Math.cos(this.cameraPhi);
     const z = this.cameraTargetPos.z + this.cameraSmoothDistance * Math.sin(this.cameraPhi) * Math.sin(this.cameraTheta);
     this.camera.position.set(x, y, z);
+    this.camera.up.set(0, 1, 0);
     this.camera.lookAt(this.cameraTargetPos);
     this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
     this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e5);
     this.camera.updateProjectionMatrix();
-    this.updateMarkers();
+  }
+  updateChaseCamera(targetPos) {
+    if (!this.rocket) {
+      this.updateOrbitCamera(targetPos);
+      return;
+    }
+    this.cameraTargetPos.lerp(targetPos, 0.15);
+    this.cameraSmoothDistance += (this.cameraDistance - this.cameraSmoothDistance) * 0.15;
+    const localOffset = new Vector3(0, 0.3, 1).normalize().multiplyScalar(this.cameraSmoothDistance);
+    const worldOffset = localOffset.applyQuaternion(this.rocket.orientation);
+    const camPos = this.cameraTargetPos.clone().add(worldOffset);
+    this.camera.position.lerp(camPos, 0.15);
+    this.camera.up.copy(new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation));
+    this.camera.lookAt(this.cameraTargetPos);
+    this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
+    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e5);
+    this.camera.updateProjectionMatrix();
+  }
+  updateFreeCamera(_targetPos) {
+    this.cameraSmoothDistance += (this.cameraDistance - this.cameraSmoothDistance) * 0.15;
+    const x = this.cameraTargetPos.x + this.cameraSmoothDistance * Math.sin(this.cameraPhi) * Math.cos(this.cameraTheta);
+    const y = this.cameraTargetPos.y + this.cameraSmoothDistance * Math.cos(this.cameraPhi);
+    const z = this.cameraTargetPos.z + this.cameraSmoothDistance * Math.sin(this.cameraPhi) * Math.sin(this.cameraTheta);
+    this.camera.position.set(x, y, z);
+    this.camera.up.set(0, 1, 0);
+    this.camera.lookAt(this.cameraTargetPos);
+    this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
+    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e5);
+    this.camera.updateProjectionMatrix();
   }
   updateMarkers() {
     if (!this.rocket || !this.progradeMarker || !this.retrogradeMarker) return;
@@ -24941,26 +25865,25 @@ var Game = class {
     const speed = vel.length();
     if (speed > 1) {
       const progDir = vel.clone().normalize().multiplyScalar(this.cameraSmoothDistance * 0.15);
-      const progPos = rocketPos.clone().add(progDir);
-      this.progradeMarker.position.copy(progPos);
+      this.progradeMarker.position.copy(rocketPos.clone().add(progDir));
       this.progradeMarker.lookAt(this.camera.position);
-      this.progradeMarker.visible = !this.isMapMode;
+      this.progradeMarker.visible = this.gameState !== "map";
       const retroDir = vel.clone().normalize().multiplyScalar(-this.cameraSmoothDistance * 0.15);
-      const retroPos = rocketPos.clone().add(retroDir);
-      this.retrogradeMarker.position.copy(retroPos);
+      this.retrogradeMarker.position.copy(rocketPos.clone().add(retroDir));
       this.retrogradeMarker.lookAt(this.camera.position);
-      this.retrogradeMarker.visible = !this.isMapMode;
+      this.retrogradeMarker.visible = this.gameState !== "map";
     } else {
       this.progradeMarker.visible = false;
       this.retrogradeMarker.visible = false;
     }
   }
+  // === 着陆检测 ===
   checkLanding() {
     if (!this.rocket) return;
     let nearestBody = null;
     let nearestDist = Infinity;
     for (const body of this.physics.bodies) {
-      if (body.name === "Rocket" || body.name === "Sun") continue;
+      if (body.name === "\u706B\u7BAD" || body.name === "Rocket" || body.name === "Sun") continue;
       const dist = body.position.distanceTo(this.rocket.body.position);
       if (dist < nearestDist) {
         nearestDist = dist;
@@ -24974,8 +25897,8 @@ var Game = class {
       const impactSpeed = relVel.length();
       const dir = this.rocket.body.position.clone().sub(nearestBody.position).normalize();
       if (impactSpeed > 50 && !this.rocket.isLanded) {
-        this.hud.showNotification(`CRASH! Impact speed: ${impactSpeed.toFixed(0)} m/s`, 5e3);
-        const surfacePos = nearestBody.position.clone().add(dir.multiplyScalar(nearestBody.radius + 2));
+        this.hud.showNotification(`\u5760\u6BC1\uFF01\u649E\u51FB\u901F\u5EA6: ${impactSpeed.toFixed(0)} m/s`, 5e3);
+        const surfacePos = nearestBody.position.clone().add(dir.clone().multiplyScalar(nearestBody.radius + 2));
         this.rocket.body.position.copy(surfacePos);
         this.rocket.body.velocity.copy(nearestBody.velocity);
         const q = new Quaternion();
@@ -24998,13 +25921,12 @@ var Game = class {
     } else if (altitude < nearestBody.radius * 0.05) {
       this.rocket.isLanded = false;
       const relVel = this.rocket.body.velocity.clone().sub(nearestBody.velocity);
-      if (relVel.length() < 3) {
-        this.rocket.isLanded = true;
-      }
+      if (relVel.length() < 3) this.rocket.isLanded = true;
     } else {
       this.rocket.isLanded = false;
     }
   }
+  // === 游戏更新 ===
   updateGame(dt) {
     if (!this.isRunning) return;
     const simDt = dt * this.timeWarp.currentWarp;
@@ -25015,6 +25937,7 @@ var Game = class {
     }
     this.physics.stepWithWarp(this.timeWarp.currentWarp);
     this.checkLanding();
+    this.enforceTimeWarpLimit();
     if (this.warpDrive.isActive) {
       const arrived = this.warpDrive.update(simDt);
       if (this.warpDrive.isActive) {
@@ -25022,13 +25945,16 @@ var Game = class {
         this.rocket.body.position.copy(pos);
         this.rocket.body.velocity.set(0, 0, 0);
       }
-      if (arrived) this.hud.showNotification(`Arrived at ${this.warpDrive.targetSystem}!`);
+      if (arrived) {
+        const target = STAR_SYSTEMS.find((s) => s.name === this.warpDrive.targetSystem);
+        this.hud.showNotification(`\u5DF2\u62B5\u8FBE${target?.nameCN || this.warpDrive.targetSystem}\uFF01`);
+      }
     }
     for (const base of this.researchBases) {
       this.sciencePoints += base.update(simDt);
     }
     if (!this.warpDrive.isUnlocked && this.sciencePoints >= WARP_UNLOCK_COST) {
-      this.hud.showNotification(`Warp Drive available! Press J to unlock (Cost: ${WARP_UNLOCK_COST} science)`);
+      this.hud.showNotification(`\u66F2\u901F\u5F15\u64CE\u53EF\u7528\uFF01\u6309J\u89E3\u9501\uFF08\u9700\u8981${WARP_UNLOCK_COST}\u79D1\u5B66\u70B9\u6570\uFF09`);
     }
     if (this.warpDrive.isUnlocked && !this.warpDrive.isActive) {
       const sun = this.physics.getBody("Sun");
@@ -25038,12 +25964,13 @@ var Game = class {
       }
     }
   }
+  // === HUD更新 ===
   updateHUD() {
-    if (!this.rocket) return;
+    if (!this.rocket || !this.hudVisible) return;
     let parentBody = null;
     let parentDist = Infinity;
     for (const body of this.physics.bodies) {
-      if (body.name === "Rocket" || body.name === "Sun") continue;
+      if (body.name === "\u706B\u7BAD" || body.name === "Rocket" || body.name === "Sun") continue;
       const dist = body.position.distanceTo(this.rocket.body.position);
       if (dist < parentDist) {
         parentDist = dist;
@@ -25051,8 +25978,7 @@ var Game = class {
       }
     }
     let orbit = null;
-    let twr = 0, altitude = 0;
-    let relativeSpeed = 0;
+    let twr = 0, altitude = 0, relativeSpeed = 0;
     if (parentBody) {
       const relPos = this.rocket.body.position.clone().sub(parentBody.position);
       const relVel = this.rocket.body.velocity.clone().sub(parentBody.velocity);
@@ -25064,6 +25990,7 @@ var Game = class {
       twr = this.rocket.getTWR(parentBody.mass, relPos.length());
       this.rocket.parentBody = parentBody.name;
     }
+    const parentData = SOLAR_SYSTEM.find((d) => d.name === parentBody?.name);
     const data = {
       speed: relativeSpeed,
       altitude,
@@ -25077,7 +26004,7 @@ var Game = class {
       timeWarp: this.timeWarp.currentWarp,
       gameTime: this.gameTime,
       orbit,
-      parentName: parentBody?.name || "None",
+      parentName: parentData?.nameCN || parentBody?.name || "\u65E0",
       bodyName: this.focusName,
       sciencePoints: this.sciencePoints,
       warpUnlocked: this.warpDrive.isUnlocked,
@@ -25097,6 +26024,100 @@ var Game = class {
 };
 
 // src/game/menu.ts
+var PART_TYPE_CN = {
+  command: "\u6307\u4EE4\u8231",
+  fuel: "\u71C3\u6599\u7BB1",
+  engine: "\u5F15\u64CE",
+  decoupler: "\u5206\u79BB\u5668",
+  science: "\u79D1\u7814\u8BBE\u5907",
+  parachute: "\u964D\u843D\u4F1E",
+  aero: "\u7A7A\u6C14\u52A8\u529B",
+  rcs: "\u59FF\u6001\u63A7\u5236",
+  solar: "\u592A\u9633\u80FD\u677F",
+  antenna: "\u901A\u8BAF\u5929\u7EBF",
+  landing: "\u7740\u9646\u88C5\u7F6E",
+  adapter: "\u9002\u914D\u5668"
+};
+function partNameCN(part) {
+  const map = {
+    "capsule_mk1": "Mk1 \u6307\u4EE4\u8231",
+    "capsule_mk2": "Mk2 \u6307\u4EE4\u8231",
+    "capsule_mk3": "Mk3 \u4E58\u5458\u8231",
+    "probe_core": "\u63A2\u6D4B\u5668\u6838\u5FC3",
+    "fuel_small": "\u5C0F\u578B\u71C3\u6599\u7BB1",
+    "fuel_medium": "\u4E2D\u578B\u71C3\u6599\u7BB1",
+    "fuel_large": "\u5927\u578B\u71C3\u6599\u7BB1",
+    "fuel_xl": "\u8D85\u5927\u578B\u71C3\u6599\u7BB1",
+    "fuel_nuclear": "\u6838\u71C3\u6599\u7535\u6C60",
+    "engine_chem": "\u5316\u5B66\u5F15\u64CE",
+    "engine_heavy": "\u91CD\u578B\u5347\u7A7A\u5F15\u64CE",
+    "engine_ion": "\u79BB\u5B50\u5F15\u64CE",
+    "engine_nuclear": "\u6838\u70ED\u5F15\u64CE",
+    "engine_aerospike": "\u6C14\u52A8\u585E\u5F15\u64CE",
+    "engine_vector": "\u77E2\u91CF\u63A8\u529B\u5F15\u64CE",
+    "decoupler": "\u5206\u79BB\u5668",
+    "decoupler_heavy": "\u91CD\u578B\u5206\u79BB\u5668",
+    "science_lab": "\u79FB\u52A8\u79D1\u7814\u5B9E\u9A8C\u5BA4",
+    "science_sensor": "\u4F20\u611F\u5668\u9635\u5217",
+    "science_comm": "\u901A\u8BAF\u7EC4\u4EF6",
+    "parachute": "\u964D\u843D\u4F1E",
+    "parachute_drogue": "\u51CF\u901F\u4F1E",
+    "aero_fins": "\u6C14\u52A8\u5C3E\u7FFC",
+    "aero_nosecone": "\u9F3B\u9525",
+    "aero_heatshield": "\u9694\u70ED\u76FE",
+    "rcs_block": "RCS \u63A8\u8FDB\u5668\u7EC4",
+    "rcs_tank": "RCS \u5355\u7EC4\u5143\u50A8\u7BB1",
+    "solar_panel": "\u592A\u9633\u80FD\u677F",
+    "solar_array": "\u592A\u9633\u80FD\u9635\u5217",
+    "antenna_dish": "\u901A\u8BAF\u789F\u5F62\u5929\u7EBF",
+    "antenna_whip": "\u97AD\u72B6\u5929\u7EBF",
+    "landing_legs": "\u7740\u9646\u652F\u67B6",
+    "landing_pads": "\u7740\u9646\u811A\u57AB",
+    "adapter_2_1": "2:1 \u9002\u914D\u5668",
+    "adapter_3_1": "3:1 \u9002\u914D\u5668"
+  };
+  return map[part.id] || part.name;
+}
+function partDescCN(part) {
+  const map = {
+    "capsule_mk1": "\u5355\u4EBA\u91CD\u8FD4\u5927\u6C14\u5C42\u8231",
+    "capsule_mk2": "\u53CC\u4EBA\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u62A4\u76FE",
+    "capsule_mk3": "\u56DB\u4EBA\u4E58\u5458\u8231\uFF0C\u9002\u5408\u957F\u671F\u4EFB\u52A1",
+    "probe_core": "\u65E0\u4EBA\u63A7\u5236\u5355\u5143",
+    "fuel_small": "\u7D27\u51D1\u578B\u71C3\u6599\u7BB1",
+    "fuel_medium": "\u6807\u51C6\u71C3\u6599\u7BB1",
+    "fuel_large": "\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1",
+    "fuel_xl": "\u5DE8\u578B\u71C3\u6599\u50A8\u7BB1",
+    "fuel_nuclear": "\u79BB\u5B50\u5F15\u64CE\u7528\u6838\u71C3\u6599",
+    "engine_chem": "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE",
+    "engine_heavy": "\u91CD\u578B\u8F7D\u8377\u5927\u63A8\u529B\u5F15\u64CE",
+    "engine_ion": "\u8D85\u9AD8\u6548\u7535\u63A8\u8FDB\u5F15\u64CE",
+    "engine_nuclear": "\u6838\u70ED\u63A8\u8FDB\u5F15\u64CE",
+    "engine_aerospike": "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1\u5F15\u64CE",
+    "engine_vector": "\u63A8\u529B\u77E2\u91CF\u63A7\u5236\u5F15\u64CE",
+    "decoupler": "\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E",
+    "decoupler_heavy": "\u5927\u578B\u706B\u7BAD\u7EA7\u95F4\u5206\u79BB",
+    "science_lab": "\u6301\u7EED\u751F\u6210\u79D1\u7814\u70B9\u6570",
+    "science_sensor": "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668",
+    "science_comm": "\u589E\u5F3A\u79D1\u7814\u6570\u636E\u4F20\u8F93",
+    "parachute": "\u4E00\u6B21\u6027\u51CF\u901F\u964D\u843D\u4F1E",
+    "parachute_drogue": "\u9AD8\u901F\u51CF\u901F\u4F1E",
+    "aero_fins": "\u5927\u6C14\u5C42\u5185\u7A33\u5B9A\u98DE\u884C",
+    "aero_nosecone": "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B",
+    "aero_heatshield": "\u70E7\u8680\u5F0F\u91CD\u8FD4\u9694\u70ED",
+    "rcs_block": "\u56DB\u5411\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u5668",
+    "rcs_tank": "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58",
+    "solar_panel": "\u5C55\u5F00\u5F0F\u592A\u9633\u80FD\u53D1\u7535",
+    "solar_array": "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217",
+    "antenna_dish": "\u8FDC\u7A0B\u901A\u8BAF\u789F\u5F62\u5929\u7EBF",
+    "antenna_whip": "\u77ED\u7A0B\u901A\u8BAF\u97AD\u72B6\u5929\u7EBF",
+    "landing_legs": "\u53EF\u5C55\u5F00\u7740\u9646\u652F\u67B6",
+    "landing_pads": "\u5BBD\u5E95\u7740\u9646\u811A\u57AB",
+    "adapter_2_1": "\u7F29\u5C0F\u76F4\u5F84\u9002\u914D\u5668",
+    "adapter_3_1": "\u591A\u5F15\u64CE\u5B89\u88C5\u9002\u914D\u5668"
+  };
+  return map[part.id] || (part.description || "");
+}
 var StartMenu = class {
   constructor(onStart) {
     this.selectedQuality = "high";
@@ -25106,42 +26127,42 @@ var StartMenu = class {
     this.overlay.innerHTML = `
       <div class="menu-stars" id="menu-stars"></div>
       <div class="menu-content">
-        <h1 class="game-title">SPACE<br>PROGRAM</h1>
-        <p class="game-subtitle">Interstellar Exploration Simulator</p>
+        <h1 class="game-title">\u592A\u7A7A<br>\u8BA1\u5212</h1>
+        <p class="game-subtitle">\u661F\u9645\u63A2\u7D22\u6A21\u62DF\u5668</p>
         <div class="menu-buttons">
-          <button class="menu-btn primary" id="btn-start">START MISSION</button>
-          <button class="menu-btn" id="btn-settings">SETTINGS</button>
-          <button class="menu-btn" id="btn-credits">CREDITS</button>
+          <button class="menu-btn primary" id="btn-start">\u5F00\u59CB\u4EFB\u52A1</button>
+          <button class="menu-btn" id="btn-settings">\u8BBE\u7F6E</button>
+          <button class="menu-btn" id="btn-credits">\u5173\u4E8E</button>
         </div>
         <div class="quality-selector" id="quality-selector" style="display:none">
-          <h3>Graphics Quality</h3>
+          <h3>\u753B\u9762\u8D28\u91CF</h3>
           <div class="quality-options">
-            <label><input type="radio" name="quality" value="low"> Low (Fastest)</label>
-            <label><input type="radio" name="quality" value="medium" checked> Medium</label>
-            <label><input type="radio" name="quality" value="high"> High (Best)</label>
+            <label><input type="radio" name="quality" value="low"> \u4F4E\uFF08\u6700\u5FEB\uFF09</label>
+            <label><input type="radio" name="quality" value="medium"> \u4E2D</label>
+            <label><input type="radio" name="quality" value="high" checked> \u9AD8\uFF08\u6700\u4F73\uFF09</label>
           </div>
-          <p class="quality-hint">Higher quality = larger textures, shadows, more stars</p>
-          <button class="menu-btn" id="btn-back">BACK</button>
+          <p class="quality-hint">\u8D28\u91CF\u8D8A\u9AD8 = \u7EB9\u7406\u66F4\u5927\u3001\u9634\u5F71\u66F4\u591A\u3001\u661F\u661F\u66F4\u591A</p>
+          <button class="menu-btn" id="btn-back">\u8FD4\u56DE</button>
         </div>
         <div class="credits-panel" id="credits-panel" style="display:none">
-          <h3>Credits</h3>
-          <p>Space Program - An interstellar exploration game</p>
-          <p>Powered by Three.js, GAIA DR2 star catalog</p>
-          <p>N-body physics engine with Velocity Verlet integration</p>
-          <p>Procedural planet textures, chunk-based star loading</p>
-          <button class="menu-btn" id="btn-back-credits">BACK</button>
+          <h3>\u5173\u4E8E</h3>
+          <p>\u592A\u7A7A\u8BA1\u5212 \u2014 \u4E00\u6B3E\u661F\u9645\u63A2\u7D22\u6E38\u620F</p>
+          <p>\u57FA\u4E8E Three.js \u4E0E GAIA DR2 \u661F\u8868</p>
+          <p>N\u4F53\u7269\u7406\u5F15\u64CE\uFF0CVelocity Verlet \u79EF\u5206</p>
+          <p>\u7A0B\u5E8F\u5316\u884C\u661F\u7EB9\u7406\uFF0C\u5206\u5757\u661F\u8868\u52A0\u8F7D</p>
+          <button class="menu-btn" id="btn-back-credits">\u8FD4\u56DE</button>
         </div>
         <div class="menu-footer">
-          <span>v2.0 | GAIA DR2 Edition</span>
+          <span>v2.0 | GAIA DR2 \u7248</span>
         </div>
       </div>
       <div id="loading-screen" style="display:none">
         <div class="loading-content">
-          <h2>INITIALIZING</h2>
+          <h2>\u6B63\u5728\u521D\u59CB\u5316</h2>
           <div class="loading-bar-container">
             <div class="loading-bar" id="loading-bar-fill"></div>
           </div>
-          <p id="loading-text">Loading solar system data...</p>
+          <p id="loading-text">\u52A0\u8F7D\u592A\u9633\u7CFB\u6570\u636E...</p>
         </div>
       </div>
     `;
@@ -25196,12 +26217,11 @@ var StartMenu = class {
     const bar = document.getElementById("loading-bar-fill");
     const text = document.getElementById("loading-text");
     const steps = [
-      { progress: 20, text: "Loading solar system data..." },
-      { progress: 40, text: "Generating planet textures..." },
-      { progress: 60, text: "Initializing N-body physics..." },
-      { progress: 75, text: "Loading GAIA DR2 star catalog..." },
-      { progress: 90, text: "Building star chunks..." },
-      { progress: 100, text: "Ready for launch!" }
+      { progress: 20, text: "\u52A0\u8F7D\u592A\u9633\u7CFB\u6570\u636E..." },
+      { progress: 40, text: "\u751F\u6210\u884C\u661F\u7EB9\u7406..." },
+      { progress: 60, text: "\u521D\u59CB\u5316N\u4F53\u7269\u7406\u5F15\u64CE..." },
+      { progress: 80, text: "\u52A0\u8F7D\u661F\u8868..." },
+      { progress: 100, text: "\u51C6\u5907\u53D1\u5C04\uFF01" }
     ];
     let i = 0;
     const nextStep = () => {
@@ -25224,15 +26244,345 @@ var StartMenu = class {
     this.overlay.remove();
   }
 };
+var SpaceCenter = class {
+  constructor(callbacks) {
+    this.vabPanel = null;
+    this.selectedParts = [];
+    this.callbacks = callbacks;
+    this.overlay = document.createElement("div");
+    this.overlay.id = "space-center";
+    this.applyOverlayStyle();
+    this.renderSpaceCenter();
+    document.body.appendChild(this.overlay);
+  }
+  // 主样式：深蓝到黑色渐变背景 + 星空
+  applyOverlayStyle() {
+    const s = this.overlay.style;
+    s.position = "fixed";
+    s.top = "0";
+    s.left = "0";
+    s.width = "100vw";
+    s.height = "100vh";
+    s.background = "radial-gradient(ellipse at center, #0a0a2e 0%, #000005 100%)";
+    s.zIndex = "1000";
+    s.display = "flex";
+    s.flexDirection = "column";
+    s.alignItems = "center";
+    s.justifyContent = "flex-start";
+    s.overflow = "hidden";
+    s.fontFamily = "'Segoe UI', system-ui, sans-serif";
+    s.color = "#fff";
+  }
+  renderSpaceCenter() {
+    const starsBg = document.createElement("div");
+    starsBg.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
+    let starHtml = "";
+    for (let i = 0; i < 120; i++) {
+      const x = Math.random() * 100;
+      const y = Math.random() * 100;
+      const size = Math.random() * 2 + 0.5;
+      const delay = Math.random() * 5;
+      const duration = 2 + Math.random() * 3;
+      starHtml += `<div style="position:absolute;left:${x}%;top:${y}%;width:${size}px;height:${size}px;background:#fff;border-radius:50%;animation:twinkle ${duration}s ease-in-out infinite alternate;animation-delay:${delay}s;"></div>`;
+    }
+    starsBg.innerHTML = starHtml;
+    this.overlay.appendChild(starsBg);
+    const header = document.createElement("div");
+    header.style.cssText = "text-align:center;z-index:1;position:relative;padding-top:40px;margin-bottom:30px;";
+    header.innerHTML = `
+      <h1 style="font-size:2.5rem;font-weight:900;letter-spacing:0.15em;background:linear-gradient(135deg,#4af 0%,#4fa 50%,#af4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:0 0 60px rgba(64,170,255,0.3);margin-bottom:0.3rem;">\u822A\u5929\u4E2D\u5FC3</h1>
+      <p style="font-size:0.95rem;color:#88aacc;letter-spacing:0.2em;">SPACE CENTER \u2014 \u9009\u62E9\u8BBE\u65BD\u5F00\u59CB\u4F60\u7684\u592A\u7A7A\u4EFB\u52A1</p>
+    `;
+    this.overlay.appendChild(header);
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;max-width:760px;width:90%;z-index:1;position:relative;padding:0 10px;";
+    const buildings = this.getBuildings();
+    buildings.forEach((b) => {
+      grid.appendChild(this.createBuildingCard(b));
+    });
+    this.overlay.appendChild(grid);
+    const footer = document.createElement("div");
+    footer.style.cssText = "margin-top:30px;margin-bottom:30px;z-index:1;position:relative;";
+    const backBtn = document.createElement("button");
+    backBtn.textContent = "\u{1F3E0} \u8FD4\u56DE\u4E3B\u83DC\u5355";
+    backBtn.style.cssText = this.baseBtnStyle(false);
+    backBtn.addEventListener("click", () => this.callbacks.onBack());
+    footer.appendChild(backBtn);
+    this.overlay.appendChild(footer);
+  }
+  getBuildings() {
+    return [
+      {
+        icon: "\u{1F680}",
+        name: "\u822A\u5929\u5668\u7EC4\u88C5\u5927\u697C",
+        desc: "VAB \u2014 \u8BBE\u8BA1\u548C\u7EC4\u88C5\u4F60\u7684\u706B\u7BAD",
+        primary: true,
+        action: () => this.openVAB()
+      },
+      {
+        icon: "\u{1F6F0}\uFE0F",
+        name: "\u53D1\u5C04\u53F0",
+        desc: "\u524D\u5F80\u53D1\u5C04\u53F0\uFF0C\u53D1\u5C04\u706B\u7BAD\u5347\u7A7A",
+        action: () => this.callbacks.onLaunch()
+      },
+      {
+        icon: "\u{1F4E1}",
+        name: "\u8FFD\u8E2A\u7AD9",
+        desc: "\u8FFD\u8E2A\u5728\u8F68\u98DE\u884C\u5668\u4E0E\u6DF1\u7A7A\u63A2\u6D4B",
+        action: () => this.callbacks.onTracking ? this.callbacks.onTracking() : this.showComingSoon("\u8FFD\u8E2A\u7AD9")
+      },
+      {
+        icon: "\u{1F468}\u200D\u{1F680}",
+        name: "\u5B87\u822A\u5458\u4E2D\u5FC3",
+        desc: "\u62DB\u52DF\u548C\u8BAD\u7EC3\u4F60\u7684\u5B87\u822A\u5458\u961F\u4F0D",
+        action: () => this.callbacks.onAstronauts ? this.callbacks.onAstronauts() : this.showComingSoon("\u5B87\u822A\u5458\u4E2D\u5FC3")
+      },
+      {
+        icon: "\u{1F52C}",
+        name: "\u7814\u53D1\u4E2D\u5FC3",
+        desc: "R&D \u2014 \u7814\u53D1\u65B0\u79D1\u6280\u4E0E\u706B\u7BAD\u96F6\u4EF6",
+        action: () => this.callbacks.onResearch ? this.callbacks.onResearch() : this.showComingSoon("\u7814\u53D1\u4E2D\u5FC3")
+      }
+    ];
+  }
+  createBuildingCard(b) {
+    const card = document.createElement("div");
+    const isPrimary = !!b.primary;
+    card.style.cssText = `
+      background: ${isPrimary ? "linear-gradient(135deg, rgba(64,128,255,0.25), rgba(64,255,170,0.15))" : "rgba(10,20,40,0.7)"};
+      border: 1px solid ${isPrimary ? "rgba(100,200,255,0.7)" : "rgba(80,160,255,0.3)"};
+      border-radius: 10px; padding: 22px 18px; cursor: pointer;
+      transition: all 0.2s; backdrop-filter: blur(8px);
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      ${isPrimary ? "box-shadow: 0 0 20px rgba(64,170,255,0.2);" : ""}
+    `;
+    card.innerHTML = `
+      <div style="font-size:2.6rem;margin-bottom:10px;">${b.icon}</div>
+      <div style="font-size:1.05rem;font-weight:700;color:${isPrimary ? "#8cf" : "#ddf"};margin-bottom:6px;">${b.name}</div>
+      <div style="font-size:0.78rem;color:#88aacc;line-height:1.4;">${b.desc}</div>
+      ${isPrimary ? '<div style="margin-top:10px;font-size:0.7rem;color:#4fa;letter-spacing:0.1em;">\u2605 \u4E3B\u8981\u8BBE\u65BD</div>' : ""}
+    `;
+    card.addEventListener("mouseenter", () => {
+      card.style.transform = "translateY(-3px)";
+      card.style.borderColor = isPrimary ? "rgba(120,220,255,0.9)" : "rgba(100,200,255,0.6)";
+      card.style.background = isPrimary ? "linear-gradient(135deg, rgba(80,150,255,0.35), rgba(80,255,180,0.25))" : "rgba(30,60,100,0.8)";
+    });
+    card.addEventListener("mouseleave", () => {
+      card.style.transform = "translateY(0)";
+      card.style.borderColor = isPrimary ? "rgba(100,200,255,0.7)" : "rgba(80,160,255,0.3)";
+      card.style.background = isPrimary ? "linear-gradient(135deg, rgba(64,128,255,0.25), rgba(64,255,170,0.15))" : "rgba(10,20,40,0.7)";
+    });
+    card.addEventListener("click", () => b.action());
+    return card;
+  }
+  // 通用按钮样式
+  baseBtnStyle(primary) {
+    return `
+      padding: 12px 40px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.1em;
+      background: ${primary ? "linear-gradient(135deg, rgba(64,128,255,0.7), rgba(64,255,170,0.5))" : "rgba(30,60,100,0.5)"};
+      border: 1px solid ${primary ? "rgba(100,200,255,0.7)" : "rgba(80,160,255,0.4)"};
+      color: #fff; cursor: pointer; border-radius: 6px; transition: all 0.2s;
+      backdrop-filter: blur(8px);
+    `;
+  }
+  // ============================================
+  // VAB 面板（航天器组装大楼）
+  // ============================================
+  openVAB() {
+    if (this.callbacks.onEnterVAB) {
+      this.callbacks.onEnterVAB();
+    }
+    if (this.vabPanel) {
+      this.vabPanel.remove();
+      this.vabPanel = null;
+    }
+    this.selectedParts = [
+      ROCKET_PARTS.find((p) => p.id === "capsule_mk1"),
+      ROCKET_PARTS.find((p) => p.id === "fuel_medium"),
+      ROCKET_PARTS.find((p) => p.id === "engine_chem"),
+      ROCKET_PARTS.find((p) => p.id === "parachute")
+    ].filter(Boolean);
+    const panel = document.createElement("div");
+    panel.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,5,0.92); z-index: 1100;
+      display: flex; flex-direction: column; align-items: center;
+      overflow-y: auto; padding: 30px 15px; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff;
+    `;
+    const header = document.createElement("div");
+    header.style.cssText = "text-align:center;margin-bottom:20px;";
+    header.innerHTML = `
+      <h2 style="font-size:1.8rem;font-weight:800;color:#4af;letter-spacing:0.1em;">\u{1F680} \u822A\u5929\u5668\u7EC4\u88C5\u5927\u697C (VAB)</h2>
+      <p style="font-size:0.85rem;color:#88aacc;margin-top:5px;">\u9009\u62E9\u96F6\u4EF6\u7EC4\u88C5\u4F60\u7684\u706B\u7BAD\uFF0C\u7136\u540E\u53D1\u5C04\u5347\u7A7A</p>
+    `;
+    panel.appendChild(header);
+    const content = document.createElement("div");
+    content.style.cssText = "display:flex;gap:20px;max-width:900px;width:100%;flex-wrap:wrap;justify-content:center;";
+    const partsLib = document.createElement("div");
+    partsLib.style.cssText = "flex:1;min-width:300px;max-width:420px;";
+    partsLib.innerHTML = '<h3 style="color:#4af;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,160,255,0.3);padding-bottom:8px;">\u{1F4E6} \u96F6\u4EF6\u5E93</h3>';
+    const partsList = document.createElement("div");
+    partsList.id = "vab-parts-list";
+    partsList.style.cssText = "display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto;padding-right:4px;";
+    ROCKET_PARTS.forEach((part) => {
+      partsList.appendChild(this.createPartItem(part, false));
+    });
+    partsLib.appendChild(partsList);
+    content.appendChild(partsLib);
+    const selectedBox = document.createElement("div");
+    selectedBox.style.cssText = "flex:1;min-width:280px;max-width:380px;";
+    selectedBox.id = "vab-selected-box";
+    selectedBox.innerHTML = '<h3 style="color:#4fa;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,255,170,0.3);padding-bottom:8px;">\u2705 \u5DF2\u9009\u96F6\u4EF6</h3>';
+    this.refreshSelectedList(selectedBox);
+    content.appendChild(selectedBox);
+    panel.appendChild(content);
+    const btnBar = document.createElement("div");
+    btnBar.style.cssText = "display:flex;gap:15px;margin-top:25px;flex-wrap:wrap;justify-content:center;";
+    const launchBtn = document.createElement("button");
+    launchBtn.textContent = "\u{1F680} \u53D1\u5C04\u706B\u7BAD";
+    launchBtn.style.cssText = this.baseBtnStyle(true) + "font-size:1.1rem;padding:14px 50px;";
+    launchBtn.addEventListener("click", () => {
+      panel.remove();
+      this.vabPanel = null;
+      this.callbacks.onLaunch();
+    });
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "\u2190 \u8FD4\u56DE\u822A\u5929\u4E2D\u5FC3";
+    closeBtn.style.cssText = this.baseBtnStyle(false);
+    closeBtn.addEventListener("click", () => {
+      panel.remove();
+      this.vabPanel = null;
+    });
+    btnBar.appendChild(closeBtn);
+    btnBar.appendChild(launchBtn);
+    panel.appendChild(btnBar);
+    document.body.appendChild(panel);
+    this.vabPanel = panel;
+  }
+  // 创建单个零件条目
+  createPartItem(part, isSelectedView) {
+    const item = document.createElement("div");
+    item.style.cssText = `
+      background: rgba(30,50,80,0.4); border: 1px solid rgba(80,160,255,0.2);
+      border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 0.15s;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    `;
+    const isSelected = this.selectedParts.some((p) => p.id === part.id);
+    item.innerHTML = `
+      <div style="flex:1;">
+        <div style="font-size:0.88rem;font-weight:600;color:#ddf;">${partNameCN(part)} <span style="font-size:0.7rem;color:#68a;float:right;">[${PART_TYPE_CN[part.type]}]</span></div>
+        <div style="font-size:0.72rem;color:#88aacc;margin-top:2px;">${partDescCN(part)}</div>
+        <div style="font-size:0.68rem;color:#668;margin-top:3px;">\u8D28\u91CF: ${part.mass}kg ${part.fuelMass ? `| \u71C3\u6599: ${part.fuelMass}kg` : ""} ${part.thrust ? `| \u63A8\u529B: ${part.thrust}N` : ""} | \u8D39\u7528: ${part.cost}</div>
+      </div>
+      <div style="font-size:0.8rem;font-weight:700;color:${isSelected ? "#4fa" : "#4af"};min-width:24px;text-align:center;">${isSelected ? "\u2713" : "+"}</div>
+    `;
+    item.addEventListener("mouseenter", () => {
+      item.style.background = "rgba(50,100,180,0.5)";
+      item.style.borderColor = "rgba(100,200,255,0.5)";
+    });
+    item.addEventListener("mouseleave", () => {
+      item.style.background = "rgba(30,50,80,0.4)";
+      item.style.borderColor = "rgba(80,160,255,0.2)";
+    });
+    item.addEventListener("click", () => {
+      if (isSelected) {
+        this.selectedParts = this.selectedParts.filter((p) => p.id !== part.id);
+      } else {
+        this.selectedParts.push(part);
+      }
+      this.refreshVAB();
+    });
+    return item;
+  }
+  // 刷新VAB面板内容
+  refreshVAB() {
+    if (!this.vabPanel) return;
+    const partsList = this.vabPanel.querySelector("#vab-parts-list");
+    if (partsList) {
+      partsList.innerHTML = "";
+      ROCKET_PARTS.forEach((part) => {
+        partsList.appendChild(this.createPartItem(part, false));
+      });
+    }
+    const selectedBox = this.vabPanel.querySelector("#vab-selected-box");
+    if (selectedBox) {
+      this.refreshSelectedList(selectedBox);
+    }
+  }
+  // 刷新已选零件列表
+  refreshSelectedList(container2) {
+    const title = container2.querySelector("h3");
+    container2.innerHTML = "";
+    if (title) container2.appendChild(title);
+    if (this.selectedParts.length === 0) {
+      const empty = document.createElement("p");
+      empty.style.cssText = "color:#668;font-size:0.82rem;text-align:center;padding:20px 0;";
+      empty.textContent = "\u5C1A\u672A\u9009\u62E9\u4EFB\u4F55\u96F6\u4EF6";
+      container2.appendChild(empty);
+    } else {
+      const list = document.createElement("div");
+      list.id = "vab-parts-list-selected";
+      list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
+      this.selectedParts.forEach((part) => {
+        list.appendChild(this.createPartItem(part, true));
+      });
+      container2.appendChild(list);
+      const totalMass = this.selectedParts.reduce((s, p) => s + p.mass, 0);
+      const totalFuel = this.selectedParts.reduce((s, p) => s + p.fuelMass, 0);
+      const totalThrust = this.selectedParts.reduce((s, p) => s + p.thrust, 0);
+      const totalCost = this.selectedParts.reduce((s, p) => s + p.cost, 0);
+      const stats = document.createElement("div");
+      stats.style.cssText = "margin-top:12px;padding:10px;background:rgba(10,30,50,0.5);border-radius:6px;font-size:0.75rem;color:#aac;line-height:1.7;";
+      stats.innerHTML = `
+        <div style="color:#4fa;font-weight:700;margin-bottom:4px;">\u{1F4CA} \u706B\u7BAD\u7EDF\u8BA1</div>
+        <div>\u603B\u8D28\u91CF: <span style="color:#ddf;">${totalMass} kg</span></div>
+        <div>\u71C3\u6599\u8D28\u91CF: <span style="color:#ddf;">${totalFuel} kg</span></div>
+        <div>\u603B\u63A8\u529B: <span style="color:#ddf;">${totalThrust} N</span></div>
+        <div>\u603B\u8D39\u7528: <span style="color:#ddf;">${totalCost} \u79D1\u7814\u70B9</span></div>
+        ${totalThrust > 0 && totalMass > 0 ? `<div>\u63A8\u91CD\u6BD4: <span style="color:${totalThrust / totalMass > 1 ? "#4fa" : "#fa4"};">${(totalThrust / (totalMass * 9.81)).toFixed(2)}</span> ${totalThrust / (totalMass * 9.81) > 1 ? "\u2713 \u53EF\u8D77\u98DE" : "\u2717 \u63A8\u529B\u4E0D\u8DB3"}</div>` : ""}
+      `;
+      container2.appendChild(stats);
+    }
+  }
+  // "敬请期待" 提示
+  showComingSoon(name) {
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+      position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+      background: rgba(10,30,60,0.9); border: 1px solid rgba(100,200,255,0.5);
+      color: #ddf; padding: 12px 30px; border-radius: 6px; font-size: 0.95rem;
+      z-index: 1200; animation: fadeInOut 3s ease forwards; pointer-events: none;
+    `;
+    toast.textContent = `${name} \u2014 \u656C\u8BF7\u671F\u5F85\uFF01`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3e3);
+  }
+  destroy() {
+    if (this.vabPanel) {
+      this.vabPanel.remove();
+      this.vabPanel = null;
+    }
+    this.overlay.remove();
+  }
+};
 
 // src/index.ts
 var container = document.getElementById("app");
 if (!container) {
-  throw new Error("App container not found");
+  throw new Error("\u672A\u627E\u5230\u5E94\u7528\u5BB9\u5668");
 }
 var menu = new StartMenu((quality) => {
-  const game = new Game(container, quality);
-  game.showHUD();
+  const sc = new SpaceCenter({
+    onLaunch: () => {
+      sc.destroy();
+      const game = new Game(container, quality);
+      game.showHUD();
+    },
+    onBack: () => {
+      sc.destroy();
+      location.reload();
+    }
+  });
 });
 /**
  * @license
