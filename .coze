@@ -1,0 +1,15 @@
+[project]
+project_id="7708681163170414611"
+app_id="7708722336245022761"
+project_name="ksp-game"
+project_type="web"
+version="0.1.9"
+
+[dev]
+build="bash ./scripts/build.sh"
+run="bash ./scripts/dev.sh"
+validate="bash ./scripts/validate.sh"
+
+[deploy]
+build="bash ./scripts/build.sh"
+run="bash ./scripts/start.sh"
