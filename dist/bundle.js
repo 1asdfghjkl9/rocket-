@@ -18782,6 +18782,32 @@ function checkIntersection(object, raycaster, ray, thresholdSq, a, b) {
     object
   };
 }
+var _start = /* @__PURE__ */ new Vector3();
+var _end = /* @__PURE__ */ new Vector3();
+var LineSegments = class extends Line {
+  constructor(geometry, material) {
+    super(geometry, material);
+    this.isLineSegments = true;
+    this.type = "LineSegments";
+  }
+  computeLineDistances() {
+    const geometry = this.geometry;
+    if (geometry.index === null) {
+      const positionAttribute = geometry.attributes.position;
+      const lineDistances = [];
+      for (let i = 0, l = positionAttribute.count; i < l; i += 2) {
+        _start.fromBufferAttribute(positionAttribute, i);
+        _end.fromBufferAttribute(positionAttribute, i + 1);
+        lineDistances[i] = i === 0 ? 0 : lineDistances[i - 1];
+        lineDistances[i + 1] = lineDistances[i] + _start.distanceTo(_end);
+      }
+      geometry.setAttribute("lineDistance", new Float32BufferAttribute(lineDistances, 1));
+    } else {
+      console.warn("THREE.LineSegments.computeLineDistances(): Computation only possible with non-indexed BufferGeometry.");
+    }
+    return this;
+  }
+};
 var PointsMaterial = class extends Material {
   static get type() {
     return "PointsMaterial";
@@ -22265,6 +22291,32 @@ var PointLight = class extends Light {
     return this;
   }
 };
+var DirectionalLightShadow = class extends LightShadow {
+  constructor() {
+    super(new OrthographicCamera(-5, 5, 5, -5, 0.5, 500));
+    this.isDirectionalLightShadow = true;
+  }
+};
+var DirectionalLight = class extends Light {
+  constructor(color, intensity) {
+    super(color, intensity);
+    this.isDirectionalLight = true;
+    this.type = "DirectionalLight";
+    this.position.copy(Object3D.DEFAULT_UP);
+    this.updateMatrix();
+    this.target = new Object3D();
+    this.shadow = new DirectionalLightShadow();
+  }
+  dispose() {
+    this.shadow.dispose();
+  }
+  copy(source) {
+    super.copy(source);
+    this.target = source.target.clone();
+    this.shadow = source.shadow.clone();
+    return this;
+  }
+};
 var AmbientLight = class extends Light {
   constructor(color, intensity) {
     super(color, intensity);
@@ -22691,6 +22743,82 @@ PropertyBinding.prototype.SetterByBindingTypeAndVersioning = [
   ]
 ];
 var _controlInterpolantsResultBuffer = new Float32Array(1);
+var Spherical = class {
+  constructor(radius = 1, phi = 0, theta = 0) {
+    this.radius = radius;
+    this.phi = phi;
+    this.theta = theta;
+    return this;
+  }
+  set(radius, phi, theta) {
+    this.radius = radius;
+    this.phi = phi;
+    this.theta = theta;
+    return this;
+  }
+  copy(other) {
+    this.radius = other.radius;
+    this.phi = other.phi;
+    this.theta = other.theta;
+    return this;
+  }
+  // restrict phi to be between EPS and PI-EPS
+  makeSafe() {
+    const EPS = 1e-6;
+    this.phi = Math.max(EPS, Math.min(Math.PI - EPS, this.phi));
+    return this;
+  }
+  setFromVector3(v) {
+    return this.setFromCartesianCoords(v.x, v.y, v.z);
+  }
+  setFromCartesianCoords(x, y, z) {
+    this.radius = Math.sqrt(x * x + y * y + z * z);
+    if (this.radius === 0) {
+      this.theta = 0;
+      this.phi = 0;
+    } else {
+      this.theta = Math.atan2(x, z);
+      this.phi = Math.acos(clamp(y / this.radius, -1, 1));
+    }
+    return this;
+  }
+  clone() {
+    return new this.constructor().copy(this);
+  }
+};
+var GridHelper = class extends LineSegments {
+  constructor(size = 10, divisions = 10, color1 = 4473924, color2 = 8947848) {
+    color1 = new Color(color1);
+    color2 = new Color(color2);
+    const center = divisions / 2;
+    const step = size / divisions;
+    const halfSize = size / 2;
+    const vertices = [], colors = [];
+    for (let i = 0, j = 0, k = -halfSize; i <= divisions; i++, k += step) {
+      vertices.push(-halfSize, 0, k, halfSize, 0, k);
+      vertices.push(k, 0, -halfSize, k, 0, halfSize);
+      const color = i === center ? color1 : color2;
+      color.toArray(colors, j);
+      j += 3;
+      color.toArray(colors, j);
+      j += 3;
+      color.toArray(colors, j);
+      j += 3;
+      color.toArray(colors, j);
+      j += 3;
+    }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+    const material = new LineBasicMaterial({ vertexColors: true, toneMapped: false });
+    super(geometry, material);
+    this.type = "GridHelper";
+  }
+  dispose() {
+    this.geometry.dispose();
+    this.material.dispose();
+  }
+};
 if (typeof __THREE_DEVTOOLS__ !== "undefined") {
   __THREE_DEVTOOLS__.dispatchEvent(new CustomEvent("register", { detail: {
     revision: REVISION
@@ -22708,10 +22836,10 @@ if (typeof window !== "undefined") {
 var G = 66743e-15;
 var SPEED_OF_LIGHT = 299792458;
 var LY = 94607e11;
-var DIST_SCALE = 1e-9;
+var DIST_SCALE = 1e-7;
 var BODY_SIZE_SCALE = 1e-6;
 var MIN_RENDER_SIZE = 0.5;
-var SIZE_BOOST = 30;
+var SIZE_BOOST = 5;
 var QUALITY_CONFIG = {
   low: { textureSize: 256, sphereSegments: [32, 24], shadowMapSize: 512, starCount: 5e3, pixelRatio: 1 },
   medium: { textureSize: 512, sphereSegments: [64, 48], shadowMapSize: 1024, starCount: 15e3, pixelRatio: 1.5 },
@@ -22789,53 +22917,147 @@ var STAR_SYSTEMS = [
   { name: "Epsilon Indi", nameCN: "\u5370\u7B2C\u5B89\u5EA7\u03B5\u661F", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 }
 ];
 var ROCKET_PARTS = [
-  // Command pods
+  // ===== 指挥舱 (Command Pods) =====
   { id: "capsule_mk1", name: "Mk1 \u6307\u6325\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5355\u5EA7\u518D\u5165\u8FD4\u56DE\u8231" },
   { id: "capsule_mk2", name: "Mk2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "\u53CC\u5EA7\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u5C4F\u853D" },
   { id: "capsule_mk3", name: "Mk3 \u4E58\u5458\u8231", type: "command", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u56DB\u5EA7\u4E58\u5458\u8231\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1" },
   { id: "probe_core", name: "\u63A2\u6D4B\u5668\u6838\u5FC3", type: "command", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u65E0\u4EBA\u63A7\u5236\u5355\u5143" },
-  // Fuel tanks
+  { id: "cmd_pod_mk2", name: "Mk2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 4320, description: "\u53CC\u4EBA\u5EA7\u6307\u6325\u8231\uFF0C\u914D\u5907\u5148\u8FDB\u9632\u70ED\u7CFB\u7EDF\u4E0E RCS \u63A8\u8FDB\u5668\uFF0C\u9002\u7528\u4E8E\u6708\u7403\u8FD4\u56DE\u4EFB\u52A1" },
+  { id: "cmd_pod_mk3", name: "Mk3 \u6307\u6325\u8231", type: "command", mass: 3500, fuelMass: 0, thrust: 0, isp: 0, cost: 6300, description: "\u4E09\u4EBA\u5EA7\u5927\u578B\u6307\u6325\u8231\uFF0C\u5177\u5907\u957F\u5BFF\u547D\u751F\u547D\u7EF4\u6301\u7CFB\u7EDF\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u8F7D\u4EBA\u4EFB\u52A1" },
+  { id: "cmd_cabin_mk1", name: "Mk1 \u4E58\u5458\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 2200, description: "\u5355\u4EBA\u4E58\u5458\u8231\uFF0C\u65E0\u518D\u5165\u80FD\u529B\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u9A7B\u7559\u6216\u4E2D\u8F6C\u8FD0\u8F93" },
+  { id: "cmd_cabin_mk2", name: "Mk2 \u4E58\u5458\u8231", type: "command", mass: 1500, fuelMass: 0, thrust: 0, isp: 0, cost: 4200, description: "\u53CC\u4EBA\u4E58\u5458\u8231\uFF0C\u6269\u5C55\u751F\u547D\u7EF4\u6301\u80FD\u529B\uFF0C\u53EF\u7528\u4E8E\u957F\u671F\u8F68\u9053\u4EFB\u52A1" },
+  { id: "probe_core_mk2", name: "\u63A2\u6D4B\u5668\u6838\u5FC3 Mk2", type: "command", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 800, description: "\u5347\u7EA7\u7248\u65E0\u4EBA\u63A7\u5236\u6838\u5FC3\uFF0C\u652F\u6301 SAS \u4E09\u8F74\u7A33\u5B9A\u4E0E\u8FDC\u7A0B\u6307\u4EE4\u7F16\u7A0B" },
+  { id: "cmd_cockpit", name: "\u98DE\u884C\u5EA7\u8231", type: "command", mass: 180, fuelMass: 0, thrust: 0, isp: 0, cost: 1200, description: "\u5355\u4EBA\u5927\u6C14\u5C42\u5185\u98DE\u884C\u5EA7\u8231\uFF0C\u914D\u5907\u5F39\u5C04\u5EA7\u6905\uFF0C\u9002\u7528\u4E8E\u822A\u7A7A\u5668\u4E0E\u4E9A\u8F68\u9053\u98DE\u884C" },
+  // ===== 燃料箱 (Fuel Tanks) =====
   { id: "fuel_small", name: "\u5C0F\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 200, fuelMass: 4e3, thrust: 0, isp: 0, cost: 30, description: "\u7D27\u51D1\u578B\u71C3\u6599\u7BB1" },
   { id: "fuel_medium", name: "\u4E2D\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 1e4, thrust: 0, isp: 0, cost: 60, description: "\u6807\u51C6\u71C3\u6599\u7BB1" },
   { id: "fuel_large", name: "\u5927\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 800, fuelMass: 25e3, thrust: 0, isp: 0, cost: 120, description: "\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1" },
   { id: "fuel_xl", name: "\u8D85\u5927\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 1500, fuelMass: 5e4, thrust: 0, isp: 0, cost: 250, description: "\u5DE8\u578B\u71C3\u6599\u50A8\u7F50" },
   { id: "fuel_nuclear", name: "\u6838\u71C3\u6599\u7535\u6C60", type: "fuel", mass: 300, fuelMass: 2e3, thrust: 0, isp: 0, cost: 400, description: "\u79BB\u5B50\u5F15\u64CE\u7528\u6838\u71C3\u6599" },
-  // Engines
+  { id: "fuel_mini", name: "\u8FF7\u4F60\u71C3\u6599\u7BB1", type: "fuel", mass: 100, fuelMass: 900, thrust: 0, isp: 0, cost: 180, description: "\u8D85\u5C0F\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u7CFB\u7EDF" },
+  { id: "fuel_toroidal", name: "Toroidal \u73AF\u5F62\u71C3\u6599\u7BB1", type: "fuel", mass: 80, fuelMass: 820, thrust: 0, isp: 0, cost: 200, description: "\u73AF\u5F62\u71C3\u6599\u7BB1\uFF0C\u53EF\u73AF\u7ED5\u5176\u4ED6\u90E8\u4EF6\u5B89\u88C5\uFF0C\u8282\u7701\u8F74\u5411\u7A7A\u95F4" },
+  { id: "fuel_mk2_medium", name: "\u4E2D\u578B\u71C3\u6599\u7BB1 Mk2", type: "fuel", mass: 500, fuelMass: 4e3, thrust: 0, isp: 0, cost: 800, description: "Mk2 \u7CFB\u5217\u4E2D\u578B\u71C3\u6599\u7BB1\uFF0C\u91C7\u7528\u822A\u7A7A\u7EA7\u94DD\u5408\u91D1\u58F3\u4F53\uFF0C\u517C\u987E\u7ED3\u6784\u4E0E\u50A8\u6CB9" },
+  { id: "fuel_r7", name: "R-7 \u71C3\u6599\u7BB1", type: "fuel", mass: 300, fuelMass: 2700, thrust: 0, isp: 0, cost: 400, description: "\u7ECF\u5178 R-7 \u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
+  { id: "fuel_short", name: "\u77EE\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 150, fuelMass: 1350, thrust: 0, isp: 0, cost: 300, description: "\u4F4E\u77EE\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u7D27\u51D1\u5E03\u5C40\u6216\u7EA7\u95F4\u8FC7\u6E21\u6BB5" },
+  { id: "fuel_lox_preburner", name: "\u6DB2\u6C27\u9884\u71C3\u7BB1", type: "fuel", mass: 200, fuelMass: 1800, thrust: 0, isp: 0, cost: 350, description: "\u5BCC\u6C27\u9884\u71C3\u5BA4\u4E13\u7528\u71C3\u6599\u7BB1\uFF0C\u7528\u4E8E\u5206\u7EA7\u71C3\u70E7\u5FAA\u73AF\u5F15\u64CE\u4F9B\u6CB9" },
+  { id: "fuel_c7", name: "C7 \u71C3\u6599\u7BB1", type: "fuel", mass: 250, fuelMass: 2250, thrust: 0, isp: 0, cost: 500, description: "C7 \u822A\u7A7A\u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u6D41\u7EBF\u578B\u5916\u58F3\u9002\u5408\u5927\u6C14\u5C42\u5185\u98DE\u884C\u5668" },
+  { id: "fuel_mk3_small", name: "Mk3 \u71C3\u6599\u7BB1(\u5C0F)", type: "fuel", mass: 1500, fuelMass: 13500, thrust: 0, isp: 0, cost: 2e3, description: "Mk3 \u5927\u76F4\u5F84\u7CFB\u5217\u5C0F\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD" },
+  { id: "fuel_mk3_large", name: "Mk3 \u71C3\u6599\u7BB1(\u5927)", type: "fuel", mass: 3e3, fuelMass: 27e3, thrust: 0, isp: 0, cost: 3500, description: "Mk3 \u5927\u76F4\u5F84\u7CFB\u5217\u5927\u578B\u71C3\u6599\u7BB1\uFF0C\u8D85\u91CD\u578B\u82AF\u7EA7\u4E3B\u50A8\u7BB1" },
+  { id: "fuel_rectangular", name: "\u77E9\u5F62\u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 3600, thrust: 0, isp: 0, cost: 600, description: "\u77E9\u5F62\u622A\u9762\u71C3\u6599\u7BB1\uFF0C\u53EF\u8D34\u9644\u673A\u8EAB\u5B89\u88C5\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u7C7B\u8BBE\u8BA1" },
+  { id: "fuel_x200_xl", name: "X200 \u71C3\u6599\u7BB1(\u8D85\u5927)", type: "fuel", mass: 2e3, fuelMass: 18e3, thrust: 0, isp: 0, cost: 2500, description: "X200 \u7CFB\u5217\u8D85\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1\uFF0C\u6DF1\u7A7A\u4EFB\u52A1\u4E3B\u529B\u50A8\u7BB1" },
+  { id: "fuel_kerbodyne_sx", name: "Kerbodyne S-X \u71C3\u6599\u7BB1", type: "fuel", mass: 4e3, fuelMass: 36e3, thrust: 0, isp: 0, cost: 5e3, description: "Kerbodyne \u8D85\u5927\u578B S-X \u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\u50A8\u7BB1" },
+  // ===== 引擎 (Engines) =====
   { id: "engine_chem", name: "\u5316\u5B66\u5F15\u64CE", type: "engine", mass: 500, fuelMass: 0, thrust: 2e5, isp: 350, cost: 50, description: "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE" },
   { id: "engine_heavy", name: "\u91CD\u578B\u5347\u529B\u5F15\u64CE", type: "engine", mass: 1e3, fuelMass: 0, thrust: 5e5, isp: 320, cost: 100, description: "\u5927\u63A8\u529B\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8F7D\u8377" },
   { id: "engine_ion", name: "\u79BB\u5B50\u5F15\u64CE", type: "engine", mass: 200, fuelMass: 0, thrust: 5e3, isp: 4200, cost: 300, description: "\u8D85\u9AD8\u6548\u7535\u63A8\u8FDB\u7CFB\u7EDF" },
   { id: "engine_nuclear", name: "\u6838\u5F15\u64CE", type: "engine", mass: 1500, fuelMass: 0, thrust: 15e4, isp: 1800, cost: 500, description: "\u6838\u70ED\u63A8\u8FDB\u7CFB\u7EDF" },
   { id: "engine_aerospike", name: "\u6C14\u52A8\u585E\u5F0F\u5F15\u64CE", type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 450, cost: 600, description: "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1" },
   { id: "engine_vector", name: "\u77E2\u91CF\u63A8\u529B\u5F15\u64CE", type: "engine", mass: 800, fuelMass: 0, thrust: 35e4, isp: 380, cost: 250, description: "\u63A8\u529B\u77E2\u91CF\u63A7\u5236" },
-  // Decouplers
-  { id: "decoupler", name: "\u5206\u79BB\u5668", type: "decoupler", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E" },
-  { id: "decoupler_heavy", name: "\u91CD\u578B\u5206\u79BB\u5668", type: "decoupler", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u52A0\u56FA\u578B\uFF0C\u9002\u7528\u4E8E\u5927\u7EA7\u5206\u79BB" },
-  // Science
-  { id: "science_lab", name: "\u79FB\u52A8\u79D1\u5B66\u5B9E\u9A8C\u5BA4", type: "science", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u968F\u65F6\u95F4\u4EA7\u751F\u79D1\u5B66\u70B9\u6570" },
-  { id: "science_sensor", name: "\u4F20\u611F\u5668\u9635\u5217", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668" },
-  { id: "science_comm", name: "\u901A\u4FE1\u7EC4\u4EF6", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u589E\u5F3A\u79D1\u5B66\u6570\u636E\u4F20\u8F93" },
-  // Parachutes
+  { id: "engine_thrust", name: '"Thrust" \u91CD\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 500, fuelMass: 0, thrust: 25e4, isp: 280, cost: 3500, description: "\u4E2D\u7B49\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u91C7\u7528\u71C3\u6C14\u53D1\u751F\u5668\u5FAA\u73AF\uFF0C\u9002\u7528\u4E8E\u4E0A\u9762\u7EA7\u6216\u52A9\u63A8\u5668" },
+  { id: "engine_thumper", name: '"Thumper" \u5927\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 1800, fuelMass: 0, thrust: 12e5, isp: 270, cost: 5800, description: "\u9AD8\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\uFF0C\u6D77\u5E73\u9762\u6027\u80FD\u4F18\u5F02" },
+  { id: "engine_mammoth", name: '"Mammoth" \u5DE8\u517D\u5F15\u64CE', type: "engine", mass: 4e3, fuelMass: 0, thrust: 3e6, isp: 280, cost: 12e3, description: "\u8D85\u91CD\u578B\u63A8\u529B\u5F15\u64CE\uFF0C\u63A8\u529B\u582A\u6BD4\u56FA\u4F53\u52A9\u63A8\u5668\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
+  { id: "engine_rhino", name: '"Rhino" \u7280\u725B\u5F15\u64CE', type: "engine", mass: 3e3, fuelMass: 0, thrust: 2e6, isp: 340, cost: 9e3, description: "\u9AD8\u63A8\u529B\u9AD8\u6BD4\u51B2\u4E0A\u9762\u7EA7\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u5927\u578B\u8F7D\u8377\u6CE8\u5165" },
+  { id: "engine_poodle", name: '"Poodle" \u8D35\u5BBE\u72AC\u5F15\u64CE', type: "engine", mass: 1750, fuelMass: 0, thrust: 22e4, isp: 350, cost: 2e3, description: "\u4E2D\u7B49\u63A8\u529B\u771F\u7A7A\u4F18\u5316\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u7740\u9646\u5668\u6216\u4E0A\u9762\u7EA7\uFF0C\u6BD4\u51B2\u51FA\u8272" },
+  { id: "engine_spark", name: '"Spark" \u706B\u82B1\u5F15\u64CE', type: "engine", mass: 150, fuelMass: 0, thrust: 18e4, isp: 320, cost: 850, description: "\u5C0F\u578B\u9AD8\u6548\u7387\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u8F7B\u578B\u8FD0\u8F7D\u706B\u7BAD\u4E0A\u9762\u7EA7\u6216\u7740\u9646\u5668" },
+  { id: "engine_twin_boar", name: '"Twin Boar" \u53CC\u91CE\u732A\u5F15\u64CE', type: "engine", mass: 2500, fuelMass: 0, thrust: 2e6, isp: 295, cost: 7e3, description: "\u53CC\u55B7\u7BA1\u91CD\u578B\u5F15\u64CE\uFF0C\u96C6\u6210\u71C3\u6599\u7BB1\u8BBE\u8BA1\uFF0C\u63A8\u529B\u77E2\u91CF\u63A7\u5236\uFF0C\u9002\u7528\u4E8E\u52A9\u63A8\u7EA7" },
+  { id: "engine_aerospike_ksp", name: '"Aerospike" \u6C14\u585E\u5F15\u64CE', type: "engine", mass: 1e3, fuelMass: 0, thrust: 175e3, isp: 340, cost: 3e3, description: "\u7EBF\u6027\u6C14\u585E\u5F15\u64CE\uFF0C\u5168\u9AD8\u5EA6\u81EA\u9002\u5E94\u55B7\u7BA1\uFF0C\u65E0\u9700\u4F20\u7EDF\u949F\u5F62\u55B7\u7BA1" },
+  { id: "engine_dawn", name: '"Dawn" \u9ECE\u660E\u79BB\u5B50\u5F15\u64CE', type: "engine", mass: 250, fuelMass: 0, thrust: 2e3, isp: 4200, cost: 8e3, description: "\u6C19\u79BB\u5B50\u7535\u63A8\u8FDB\u5F15\u64CE\uFF0C\u8D85\u9AD8\u6BD4\u51B2\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u957F\u65F6\u95F4\u5C0F\u63A8\u529B\u4EFB\u52A1" },
+  { id: "engine_vector_ksp", name: '"Vector" \u77E2\u91CF\u5F15\u64CE', type: "engine", mass: 1500, fuelMass: 0, thrust: 1e6, isp: 315, cost: 6e3, description: "\u5927\u63A8\u529B\u77E2\u91CF\u5F15\u64CE\uFF0C\xB15\xB0 \u63A8\u529B\u77E2\u91CF\u504F\u8F6C\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u4E3B\u5F15\u64CE" },
+  { id: "engine_twinbee", name: '"Twinbee" \u53CC\u8702\u5F15\u64CE', type: "engine", mass: 200, fuelMass: 0, thrust: 12e4, isp: 300, cost: 600, description: "\u53CC\u55B7\u7BA1\u5C0F\u578B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u8F7B\u578B\u706B\u7BAD\u6216\u4E0A\u9762\u7EA7" },
+  { id: "engine_cheetah", name: '"Cheetah" \u730E\u8C79\u5F15\u64CE', type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 345, cost: 3e3, description: "\u9AD8\u6BD4\u51B2\u771F\u7A7A\u4F18\u5316\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u4E0A\u9762\u7EA7\u8F68\u9053\u6CE8\u5165\u4E0E\u884C\u661F\u9645\u8F6C\u79FB" },
+  // ===== 助推器 (Boosters) =====
+  { id: "booster_hammer", name: 'RT-10 "Hammer" \u56FA\u4F53\u52A9\u63A8\u5668', type: "booster", mass: 750, fuelMass: 3e3, thrust: 35e4, isp: 170, cost: 600, description: "\u5C0F\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u70B9\u706B\u5373\u5168\u63A8\u529B\uFF0C\u9002\u7528\u4E8E\u8D77\u98DE\u589E\u63A8" },
+  { id: "booster_thumper", name: 'BACC "Thumper" \u56FA\u4F53\u52A9\u63A8\u5668', type: "booster", mass: 1500, fuelMass: 7e3, thrust: 3e5, isp: 175, cost: 850, description: "\u4E2D\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u71C3\u70E7\u65F6\u95F4\u8F83\u957F\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u589E\u63A8" },
+  { id: "booster_srb_kd25k", name: 'S1 "SRB-KD25k" \u5927\u578B\u52A9\u63A8\u5668', type: "booster", mass: 4500, fuelMass: 22e3, thrust: 25e5, isp: 220, cost: 3500, description: "\u8D85\u5927\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u63A8\u529B\u5DE8\u5927\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u8D77\u98DE\u7EA7" },
+  // ===== 降落伞 (Parachutes) =====
   { id: "parachute", name: "\u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u4E00\u6B21\u6027\u964D\u843D\u4F1E canopy" },
   { id: "parachute_drogue", name: "\u51CF\u901F\u4F1E", type: "parachute", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u9AD8\u901F\u4E0B\u964D\u5236\u52A8\u4F1E" },
-  // Aero
+  { id: "parachute_mk2r", name: "Mk2-R \u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 850, description: "\u5F84\u5411\u5B89\u88C5\u964D\u843D\u4F1E\uFF0C\u53EF\u5728\u4FA7\u9762\u5B89\u88C5\uFF0C\u9002\u7528\u4E8E\u5BBD\u4F53\u8FD4\u56DE\u8231" },
+  { id: "parachute_mk25", name: "Mk25 \u964D\u843D\u4F1E", type: "parachute", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 1400, description: "\u5927\u578B\u4E3B\u964D\u843D\u4F1E\uFF0C\u5C55\u5F00\u9762\u79EF\u5927\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8F7D\u8377\u4F4E\u901F\u7740\u9646" },
+  // ===== 气动部件 (Aerodynamics) =====
   { id: "aero_fins", name: "\u6C14\u52A8\u5C3E\u7FFC", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u5927\u6C14\u4E2D\u4FDD\u6301\u7A33\u5B9A" },
   { id: "aero_nosecone", name: "\u6574\u6D41\u5934\u9525", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B" },
   { id: "aero_heatshield", name: "\u9694\u70ED\u76FE", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u70E7\u8680\u5F0F\u518D\u5165\u9632\u62A4" },
-  // RCS
+  { id: "aero_basic_fin", name: "\u57FA\u672C\u5C3E\u7FFC", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u57FA\u7840\u56FA\u5B9A\u5C3E\u7FFC\uFF0C\u63D0\u4F9B\u5927\u6C14\u5C42\u5185\u98DE\u884C\u7A33\u5B9A\u6027" },
+  { id: "aero_adv_fin", name: "\u9AD8\u7EA7\u5C3E\u7FFC", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 150, description: "\u589E\u5F3A\u578B\u5C3E\u7FFC\uFF0C\u9762\u79EF\u66F4\u5927\uFF0C\u9002\u7528\u4E8E\u9AD8\u901F\u5927\u6C14\u98DE\u884C" },
+  { id: "aero_av_r8", name: "AV-R8 \u7FFC\u9762", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 220, description: "\u5168\u52A8\u7FFC\u9762\uFF0C\u53EF\u504F\u8F6C\u63A7\u5236\u98DE\u884C\u59FF\u6001\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u5C42\u5185\u5236\u5BFC" },
+  { id: "aero_av_t1", name: "AV-T1 \u7FFC\u9762", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 320, description: "\u5927\u578B\u5168\u52A8\u7FFC\u9762\uFF0C\u63A7\u5236\u529B\u77E9\u66F4\u5F3A\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u5927\u6C14\u98DE\u884C\u5668" },
+  { id: "aero_delta", name: "Delta \u7FFC", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 600, description: "\u4E09\u89D2\u7FFC\uFF0C\u5927\u9762\u79EF\u5347\u529B\u9762\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u7C7B\u5347\u529B\u4F53\u8BBE\u8BA1" },
+  { id: "aero_intake_small", name: "\u5C0F\u578B\u8FDB\u6C14\u53E3", type: "aero", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 680, description: "\u5C0F\u578B\u7A7A\u6C14\u8FDB\u6C14\u53E3\uFF0C\u4E3A\u55B7\u6C14\u5F15\u64CE\u4F9B\u6C14\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u5C42\u5185\u98DE\u884C" },
+  { id: "aero_intake_ram", name: "\u51B2\u538B\u8FDB\u6C14\u53E3", type: "aero", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 2400, description: "\u5927\u578B\u51B2\u538B\u8FDB\u6C14\u53E3\uFF0C\u9AD8\u7A7A\u6C14\u6D41\u6355\u83B7\u6548\u7387\u9AD8\uFF0C\u9002\u7528\u4E8E\u9AD8\u901F\u55B7\u6C14\u98DE\u884C" },
+  { id: "aero_nose_mk16", name: "\u9F3B\u9525 Mk16", type: "aero", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5C0F\u578B\u7A7A\u6C14\u52A8\u529B\u5B66\u9F3B\u9525\uFF0C\u964D\u4F4E\u5C0F\u578B\u706B\u7BAD\u9876\u90E8\u963B\u529B" },
+  { id: "aero_nose_sharp", name: "\u5C16\u9510\u9F3B\u9525", type: "aero", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5C16\u9510\u578B\u9F3B\u9525\uFF0C\u8D85\u97F3\u901F\u51CF\u963B\u6548\u679C\u4F18\u5F02" },
+  { id: "aero_heatshield_mk1", name: "\u70ED\u76FE Mk1", type: "aero", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "Mk1 \u5C3A\u5BF8\u70E7\u8680\u5F0F\u70ED\u76FE\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u8FD4\u56DE\u8231\u518D\u5165\u9632\u62A4" },
+  { id: "aero_heatshield_mk2", name: "\u70ED\u76FE Mk2", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "Mk2 \u5C3A\u5BF8\u70E7\u8680\u5F0F\u70ED\u76FE\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD4\u56DE\u8231\u518D\u5165\u9632\u62A4" },
+  // ===== 结构部件 (Structural) =====
+  { id: "structural_tt70", name: "\u7ED3\u6784\u63A5\u5934 TT-70", type: "structural", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 150, description: "\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u53EF\u5411\u5916\u5EF6\u4F38\u5B89\u88C5\u90E8\u4EF6\uFF0C\u9002\u7528\u4E8E\u5916\u6302\u52A9\u63A8\u5668\u8FDE\u63A5" },
+  { id: "structural_tt38k", name: "\u7ED3\u6784\u63A5\u5934 TT-38K", type: "structural", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u8F7B\u578B\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u7D27\u51D1\u8BBE\u8BA1\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u5916\u6302\u90E8\u4EF6" },
+  { id: "structural_tt14", name: "\u7ED3\u6784\u63A5\u5934 TT-14", type: "structural", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 180, description: "\u91CD\u578B\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u627F\u8F7D\u80FD\u529B\u5F3A\uFF0C\u9002\u7528\u4E8E\u5927\u578B\u5916\u6302\u8F7D\u8377" },
+  { id: "structural_adapter_2_1", name: "\u9002\u914D\u5668 2:1", type: "structural", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "\u76F4\u5F84\u7F29\u51CF\u9002\u914D\u5668\uFF0C\u4ECE 2.5m \u8FC7\u6E21\u5230 1.25m\uFF0C\u7ED3\u6784\u5F3A\u5EA6\u9AD8" },
+  { id: "structural_adapter_3_1", name: "\u9002\u914D\u5668 3:1", type: "structural", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u591A\u5F15\u64CE\u5B89\u88C5\u9002\u914D\u5668\uFF0C\u4ECE 3.75m \u8FC7\u6E21\u5230\u591A\u4E2A 1.25m \u63A5\u53E3" },
+  { id: "structural_tube_short", name: "\u7ED3\u6784\u7BA1(\u77ED)", type: "structural", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u77ED\u7ED3\u6784\u7BA1\uFF0C\u7528\u4E8E\u8F74\u5411\u5EF6\u957F\u8FDE\u63A5\uFF0C\u8F7B\u91CF\u5316\u8BBE\u8BA1" },
+  { id: "structural_tube_long", name: "\u7ED3\u6784\u7BA1(\u957F)", type: "structural", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u957F\u7ED3\u6784\u7BA1\uFF0C\u7528\u4E8E\u8F83\u957F\u8F74\u5411\u5EF6\u4F38\uFF0C\u4FDD\u6301\u7ED3\u6784\u8FDE\u7EED\u6027" },
+  { id: "structural_octagon", name: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6", type: "structural", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6\uFF0C\u53EF\u5728\u516B\u4E2A\u65B9\u5411\u5B89\u88C5\u5C0F\u578B\u90E8\u4EF6\uFF0C\u9002\u7528\u4E8E\u4F20\u611F\u5668\u6216 RCS \u5E03\u5C40" },
+  { id: "structural_c7_adapter", name: "C7 \u9002\u914D\u5668", type: "structural", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "C7 \u822A\u7A7A\u7CFB\u5217\u9002\u914D\u5668\uFF0C\u6D41\u7EBF\u578B\u8FC7\u6E21\u6BB5\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u98DE\u884C\u5668" },
+  // ===== RCS 和推进 (RCS & Propulsion) =====
   { id: "rcs_block", name: "RCS \u63A8\u8FDB\u5668\u7EC4", type: "rcs", mass: 30, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u56DB\u5411\u59FF\u6001\u63A7\u5236" },
   { id: "rcs_tank", name: "RCS \u5355\u7EC4\u5143\u50A8\u7BB1", type: "rcs", mass: 50, fuelMass: 200, thrust: 0, isp: 0, cost: 20, description: "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58" },
-  // Solar
+  { id: "rcs_rv105", name: "RCS \u5757 RV-105", type: "rcs", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 45, description: "\u6807\u51C6 RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u56DB\u5411\u55B7\u53E3\uFF0C\u63D0\u4F9B\u59FF\u6001\u63A7\u5236\u4E0E\u5E73\u79FB\u673A\u52A8" },
+  { id: "rcs_rv1x", name: "RCS \u5757 RV-1X", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u5C0F\u578B RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u7CBE\u5BC6\u59FF\u6001\u63A7\u5236" },
+  { id: "rcs_linear", name: "\u7EBF\u6027 RCS \u7AEF\u53E3", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5355\u5411\u7EBF\u6027 RCS \u7AEF\u53E3\uFF0C\u6CBF\u5355\u4E00\u65B9\u5411\u55B7\u5C04\uFF0C\u53EF\u5B9A\u5411\u5B89\u88C5" },
+  { id: "rcs_tank_small", name: "RCS \u71C3\u6599\u7F50(\u5C0F)", type: "rcs", mass: 40, fuelMass: 200, thrust: 0, isp: 0, cost: 120, description: "\u5C0F\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u77ED\u9014\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
+  { id: "rcs_tank_large", name: "RCS \u71C3\u6599\u7F50(\u5927)", type: "rcs", mass: 80, fuelMass: 400, thrust: 0, isp: 0, cost: 250, description: "\u5927\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
+  // ===== 电力 (Electrical) =====
   { id: "solar_panel", name: "\u592A\u9633\u80FD\u677F", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5C55\u5F00\u5F0F\u53D1\u7535\u9762\u677F" },
   { id: "solar_array", name: "\u592A\u9633\u80FD\u9635\u5217", type: "solar", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217" },
-  // Antenna
+  { id: "battery_z100", name: "\u7535\u6C60 Z-100", type: "solar", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5C0F\u578B\u5145\u7535\u7535\u6C60\uFF0C100 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F" },
+  { id: "battery_z200", name: "\u7535\u6C60 Z-200", type: "solar", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 180, description: "\u4E2D\u578B\u5145\u7535\u7535\u6C60\uFF0C200 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668" },
+  { id: "battery_z400", name: "\u7535\u6C60 Z-400", type: "solar", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 450, description: "\u5927\u578B\u5145\u7535\u7535\u6C60\uFF0C400 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u822A\u5929\u5668" },
+  { id: "battery_z1k", name: "\u7535\u6C60 Z-1k", type: "solar", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 880, description: "\u8D85\u5927\u5BB9\u91CF\u5145\u7535\u7535\u6C60\uFF0C1000 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u6216\u6DF1\u7A7A\u4EFB\u52A1" },
+  { id: "solar_ox4l", name: "\u592A\u9633\u80FD\u677F OX-4L", type: "solar", mass: 17.5, fuelMass: 0, thrust: 0, isp: 0, cost: 450, description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u677F\uFF0C\u53D1\u7535\u6548\u7387\u9AD8\uFF0C\u9002\u7528\u4E8E\u4E2D\u957F\u671F\u8F68\u9053\u4EFB\u52A1" },
+  { id: "solar_gigantor", name: "\u592A\u9633\u80FD\u677F Gigantor XL", type: "solar", mass: 300, fuelMass: 0, thrust: 0, isp: 0, cost: 3e3, description: "\u8D85\u5927\u578B\u592A\u9633\u80FD\u9635\u5217\uFF0C\u53D1\u7535\u529F\u7387\u6781\u5927\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u6216\u5927\u578B\u8F68\u9053\u8BBE\u65BD" },
+  { id: "fuel_cell", name: "\u71C3\u6599\u7535\u6C60", type: "solar", mass: 70, fuelMass: 0, thrust: 0, isp: 0, cost: 1450, description: "\u6DB2\u6C22\u6DB2\u6C27\u71C3\u6599\u7535\u6C60\uFF0C\u6301\u7EED\u53D1\u7535\u540C\u65F6\u4EA7\u751F\u6C34\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u822A\u5929\u5668" },
+  { id: "rtg", name: "\u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 6750, description: "\u949A-238 \u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A\uFF0C\u65E0\u9700\u5149\u7167\u6301\u7EED\u4F9B\u7535\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u4EFB\u52A1" },
+  // ===== 通信 (Communication) =====
   { id: "antenna_dish", name: "\u901A\u4FE1\u629B\u7269\u9762\u5929\u7EBF", type: "antenna", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u8FDC\u8DDD\u79BB\u901A\u4FE1" },
   { id: "antenna_whip", name: "\u97AD\u72B6\u5929\u7EBF", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u8FD1\u8DDD\u79BB\u901A\u4FE1" },
-  // Landing
+  { id: "antenna_hg5", name: "\u901A\u4FE1\u5929\u7EBF HG-5", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u4E2D\u578B\u7EC4\u5408\u5929\u7EBF\uFF0C\u652F\u6301\u8FD1\u5730\u8F68\u9053\u4E0E\u6708\u7403\u8DDD\u79BB\u901A\u4FE1\uFF0C\u53EF\u6298\u53E0\u6536\u7EB3" },
+  { id: "antenna_ra2", name: "\u901A\u4FE1\u5929\u7EBF RA-2", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 600, description: "\u4E2D\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8FBE\u884C\u661F\u9645\u8FD1\u8DDD\u8303\u56F4" },
+  { id: "antenna_ra15", name: "\u901A\u4FE1\u5929\u7EBF RA-15", type: "antenna", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u5927\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5185\u884C\u661F\u7CFB\u8303\u56F4" },
+  { id: "antenna_ra100", name: "\u901A\u4FE1\u5929\u7EBF RA-100", type: "antenna", mass: 400, fuelMass: 0, thrust: 0, isp: 0, cost: 6e3, description: "\u8D85\u5927\u578B\u6DF1\u7A7A\u901A\u4FE1\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5916\u884C\u661F\u7CFB\u53CA\u6DF1\u7A7A\u8303\u56F4" },
+  { id: "antenna_88_88", name: "\u901A\u4FE1\u789F\u5F62\u5929\u7EBF 88-88", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u6298\u53E0\u5F0F\u789F\u5F62\u5929\u7EBF\uFF0C\u5B9A\u5411\u9AD8\u589E\u76CA\u901A\u4FE1\uFF0C\u9002\u7528\u4E8E\u884C\u661F\u9645\u6570\u636E\u4F20\u8F93" },
+  // ===== 科学仪器 (Science) =====
+  { id: "science_lab", name: "\u79FB\u52A8\u79D1\u5B66\u5B9E\u9A8C\u5BA4", type: "science", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u968F\u65F6\u95F4\u4EA7\u751F\u79D1\u5B66\u70B9\u6570" },
+  { id: "science_sensor", name: "\u4F20\u611F\u5668\u9635\u5217", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668" },
+  { id: "science_comm", name: "\u901A\u4FE1\u7EC4\u4EF6", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u589E\u5F3A\u79D1\u5B66\u6570\u636E\u4F20\u8F93" },
+  { id: "science_goop", name: "\u795E\u79D8\u9ECF\u6DB2", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 1800, description: "\u795E\u79D8\u7EFF\u8272\u9ECF\u6DB2\u89C2\u5BDF\u5B9E\u9A8C\uFF0C\u5728\u4E0D\u540C\u73AF\u5883\u4E0B\u4EA7\u751F\u4E0D\u540C\u79D1\u5B66\u6570\u636E" },
+  { id: "science_matlab", name: "\u6750\u6599\u5B9E\u9A8C\u5BA4", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 3300, description: "\u6750\u6599\u79D1\u5B66\u5B9E\u9A8C\u5BA4\uFF0C\u7814\u7A76\u4E0D\u540C\u73AF\u5883\u4E0B\u6750\u6599\u6027\u80FD\u53D8\u5316\uFF0C\u4EA7\u51FA\u5927\u91CF\u79D1\u5B66\u6570\u636E" },
+  { id: "science_barometer", name: "\u6C14\u538B\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, description: "\u5927\u6C14\u538B\u529B\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u9AD8\u5EA6\u4E0E\u5929\u4F53\u7684\u5927\u6C14\u538B\u6570\u636E" },
+  { id: "science_accel", name: "\u52A0\u901F\u5EA6\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, description: "\u52A0\u901F\u5EA6\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u98DE\u884C\u8FC7\u7A0B\u4E2D\u7684\u52A0\u901F\u5EA6\u53D8\u5316\uFF0C\u7528\u4E8E\u73AF\u5883\u7814\u7A76" },
+  { id: "science_gravity", name: "\u91CD\u529B\u63A2\u6D4B\u5668", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, description: "\u91CD\u529B\u573A\u6D4B\u91CF\u4EEA\uFF0C\u63A2\u6D4B\u5929\u4F53\u8868\u9762\u91CD\u529B\u52A0\u901F\u5EA6\uFF0C\u7528\u4E8E\u5730\u8D28\u7814\u7A76" },
+  { id: "science_atmo", name: "\u5927\u6C14\u5206\u6790\u4EEA", type: "science", mass: 8, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u5927\u6C14\u6210\u5206\u5206\u6790\u4EEA\uFF0C\u53EF\u5206\u6790\u5927\u6C14\u4E2D\u5404\u6C14\u4F53\u6210\u5206\u542B\u91CF\u4E0E\u6BD4\u4F8B" },
+  { id: "science_thermo", name: "\u6E29\u5EA6\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u6E29\u5EA6\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u73AF\u5883\u4E0E\u5929\u4F53\u8868\u9762\u7684\u6E29\u5EA6\u6570\u636E" },
+  // ===== 着陆部件 (Landing) =====
   { id: "landing_legs", name: "\u7740\u9646\u652F\u67B6", type: "landing", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u53EF\u5C55\u5F00\u7740\u9646\u8D77\u843D\u67B6" },
   { id: "landing_pads", name: "\u7740\u9646\u811A\u57AB", type: "landing", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5BBD\u5E95\u7740\u9646\u811A\u57AB" },
-  // Adapter
+  { id: "landing_lt1", name: "\u7740\u9646\u817F LT-1", type: "landing", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u6807\u51C6\u7740\u9646\u817F\uFF0C\u53EF\u5C55\u5F00\u5F0F\u51CF\u9707\u652F\u6491\uFF0C\u9002\u7528\u4E8E\u4E2D\u5C0F\u578B\u7740\u9646\u5668" },
+  { id: "landing_lt2", name: "\u7740\u9646\u817F LT-2", type: "landing", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u91CD\u578B\u7740\u9646\u817F\uFF0C\u52A0\u5F3A\u7ED3\u6784\u4E0E\u5927\u5C3A\u5BF8\u51CF\u9707\u5668\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u7740\u9646\u5668" },
+  { id: "landing_lt5", name: "\u7740\u9646\u817F LT-5", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5FAE\u578B\u7740\u9646\u817F\uFF0C\u8F7B\u91CF\u5316\u8BBE\u8BA1\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668\u6216\u65E0\u4EBA\u7740\u9646\u5668" },
+  { id: "landing_pad_small", name: "\u7740\u9646\u57AB(\u5C0F)", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u5C0F\u578B\u7740\u9646\u63A5\u89E6\u57AB\uFF0C\u5F84\u5411\u5B89\u88C5\uFF0C\u63D0\u4F9B\u989D\u5916\u7740\u9646\u7F13\u51B2" },
+  // ===== 分离器 (Decouplers) =====
+  { id: "decoupler", name: "\u5206\u79BB\u5668", type: "decoupler", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E" },
+  { id: "decoupler_heavy", name: "\u91CD\u578B\u5206\u79BB\u5668", type: "decoupler", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u52A0\u56FA\u578B\uFF0C\u9002\u7528\u4E8E\u5927\u7EA7\u5206\u79BB" },
+  // ===== 适配器 (Adapters) =====
   { id: "adapter_2_1", name: "2:1 \u9002\u914D\u5668", type: "adapter", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u7F29\u51CF\u76F4\u5F84" },
-  { id: "adapter_3_1", name: "3:1 \u9002\u914D\u5668", type: "adapter", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u591A\u5F15\u64CE\u5B89\u88C5\u5EA7" }
+  { id: "adapter_3_1", name: "3:1 \u9002\u914D\u5668", type: "adapter", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u591A\u5F15\u64CE\u5B89\u88C5\u5EA7" },
+  // ===== 实用工具 (Utility) =====
+  { id: "utility_dock_mk12", name: "\u5BF9\u63A5\u7AEF\u53E3 Mk1-2", type: "utility", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 280, description: "\u6807\u51C6\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u652F\u6301\u98DE\u8239\u95F4\u5BF9\u63A5\u4E0E\u71C3\u6599\u4F20\u8F93\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u4EFB\u52A1" },
+  { id: "utility_dock_jr", name: "\u5BF9\u63A5\u7AEF\u53E3 Jr.", type: "utility", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5C0F\u578B\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u9002\u7528\u4E8E\u65E0\u4EBA\u63A2\u6D4B\u5668\u6216\u5C0F\u578B\u822A\u5929\u5668\u5BF9\u63A5" },
+  { id: "utility_dock_sr", name: "\u5BF9\u63A5\u7AEF\u53E3 Sr.", type: "utility", mass: 400, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u91CD\u578B\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u76F4\u5F84\u5927\uFF0C\u7ED3\u6784\u5F3A\u5EA6\u9AD8\uFF0C\u9002\u7528\u4E8E\u5927\u578B\u7A7A\u95F4\u7AD9\u6A21\u5757\u5BF9\u63A5" },
+  { id: "utility_ladder_p1", name: "\u68AF\u5B50 P1", type: "utility", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u77ED\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u79FB\u52A8\u4F7F\u7528\uFF0C\u9002\u7528\u4E8E\u7740\u9646\u5668\u81F3\u5730\u9762" },
+  { id: "utility_ladder_p2", name: "\u68AF\u5B50 P2", type: "utility", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 100, description: "\u957F\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u957F\u8DDD\u79BB\u79FB\u52A8\u4F7F\u7528" },
+  { id: "utility_escape_tower", name: "\u9003\u751F\u5854", type: "utility", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u53D1\u5C04\u9003\u9038\u7CFB\u7EDF\u5854\u67B6\uFF0C\u7D27\u6025\u60C5\u51B5\u4E0B\u7275\u5F15\u6307\u6325\u8231\u8131\u79BB\u6545\u969C\u8FD0\u8F7D\u706B\u7BAD" },
+  { id: "utility_light", name: "\u7167\u660E\u706F", type: "utility", mass: 15, fuelMass: 0, thrust: 0, isp: 0, cost: 100, description: "LED \u7167\u660E\u706F\uFF0C\u53EF\u5B9A\u5411\u7167\u5C04\uFF0C\u9002\u7528\u4E8E\u591C\u95F4\u7740\u9646\u6216\u8231\u5916\u4F5C\u4E1A\u7167\u660E" }
 ];
 
 // src/game/physics.ts
@@ -23040,6 +23262,28 @@ var ATMOSPHERE_FRAG = `
     gl_FragColor = vec4(color, alpha);
   }
 `;
+function createTextSprite(text, color = "#ffffff", fontSize = 36) {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = 512;
+  canvas.height = 128;
+  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+  ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+  ctx.font = `bold ${fontSize}px "Microsoft YaHei", "PingFang SC", "Heiti SC", sans-serif`;
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  const material = new SpriteMaterial({ map: texture, depthTest: true, depthWrite: false, transparent: true });
+  const sprite = new Sprite(material);
+  sprite.scale.set(8, 2, 1);
+  return sprite;
+}
 var TextureFactory = class {
   static {
     this.canvas = null;
@@ -24171,6 +24415,211 @@ function createResearchBaseModel() {
   }
   return group;
 }
+function createSpaceCenterScene() {
+  const group = new Group();
+  group.name = "SpaceCenter";
+  const groundMat = new MeshStandardMaterial({ color: 4881466, roughness: 0.9, metalness: 0 });
+  const concreteMat = new MeshStandardMaterial({ color: 10066329, roughness: 0.85, metalness: 0.05 });
+  const buildingMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.5, metalness: 0.3 });
+  const darkBuildingMat = new MeshStandardMaterial({ color: 5596791, roughness: 0.4, metalness: 0.4 });
+  const roofMat = new MeshStandardMaterial({ color: 13386786, roughness: 0.5, metalness: 0.2 });
+  const domeMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.3, metalness: 0.4 });
+  const roadMat = new MeshStandardMaterial({ color: 3815994, roughness: 0.9, metalness: 0 });
+  const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.2, metalness: 0.8 });
+  const windowMat = new MeshStandardMaterial({ color: 8956620, emissive: 2241348, roughness: 0.1, metalness: 0.8 });
+  const redMat = new MeshStandardMaterial({ color: 13382451, roughness: 0.4, metalness: 0.3 });
+  const ground = new Mesh(new PlaneGeometry(140, 140), groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  group.add(ground);
+  const roadPositions = [
+    // [x, z, width, length] - centered at origin
+    [17, 0, 3, 24],
+    // East road: VAB to Launch Pad
+    [-17, 0, 3, 24],
+    // West road: VAB to R&D
+    [0, -17, 24, 3],
+    // North road: VAB to Tracking Station
+    [0, 13, 18, 3]
+    // South road: VAB to Astronaut Complex
+  ];
+  for (const [rx, rz, rw, rl] of roadPositions) {
+    const road = new Mesh(new PlaneGeometry(rw, rl), roadMat);
+    road.rotation.x = -Math.PI / 2;
+    road.position.set(rx, 0.02, rz);
+    road.receiveShadow = true;
+    group.add(road);
+  }
+  const vabGroup = new Group();
+  vabGroup.name = "VAB";
+  const vabBody = new Mesh(new CylinderGeometry(5, 5.5, 14, 24), buildingMat);
+  vabBody.position.y = 7;
+  vabBody.castShadow = true;
+  vabBody.receiveShadow = true;
+  vabGroup.add(vabBody);
+  const vabDome = new Mesh(new SphereGeometry(5.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
+  vabDome.position.y = 14;
+  vabGroup.add(vabDome);
+  const vabDoor = new Mesh(new BoxGeometry(3, 7, 0.3), darkBuildingMat);
+  vabDoor.position.set(0, 3.5, 5.3);
+  vabGroup.add(vabDoor);
+  for (let i = 0; i < 6; i++) {
+    const angle = i / 6 * Math.PI * 2;
+    if (Math.abs(angle) < 0.5 || Math.abs(angle - Math.PI * 2) < 0.5) continue;
+    const win = new Mesh(new BoxGeometry(1.2, 1.5, 0.1), windowMat);
+    win.position.set(Math.cos(angle) * 5.1, 9, Math.sin(angle) * 5.1);
+    win.lookAt(0, 9, 0);
+    vabGroup.add(win);
+  }
+  const vabLabel = createTextSprite("\u822A\u5929\u5668\u88C5\u914D\u5927\u697C", "#ffdd44");
+  vabLabel.position.set(0, 22, 0);
+  vabGroup.add(vabLabel);
+  vabGroup.position.set(0, 0, 0);
+  group.add(vabGroup);
+  const padGroup = new Group();
+  padGroup.name = "LaunchPad";
+  const padBase = new Mesh(new CylinderGeometry(7, 7.5, 0.8, 32), concreteMat);
+  padBase.position.y = 0.4;
+  padBase.castShadow = true;
+  padBase.receiveShadow = true;
+  padGroup.add(padBase);
+  const padMark = new Mesh(new RingGeometry(4, 4.5, 32), new MeshBasicMaterial({ color: 11184810, side: DoubleSide }));
+  padMark.rotation.x = -Math.PI / 2;
+  padMark.position.y = 0.82;
+  padGroup.add(padMark);
+  for (let i = 0; i < 4; i++) {
+    const angle = i * Math.PI / 2;
+    const legX = Math.cos(angle) * 1.5;
+    const legZ = Math.sin(angle) * 1.5;
+    for (let h = 0; h < 5; h++) {
+      const segment = new Mesh(new BoxGeometry(0.2, 3, 0.2), metalMat);
+      segment.position.set(legX, 2 + h * 3, legZ);
+      segment.castShadow = true;
+      padGroup.add(segment);
+    }
+  }
+  for (let h = 0; h < 5; h++) {
+    const y = 2 + h * 3;
+    for (let i = 0; i < 2; i++) {
+      const brace = new Mesh(new BoxGeometry(3.2, 0.1, 0.1), metalMat);
+      brace.position.set(0, y, 0);
+      brace.rotation.y = i * Math.PI / 2;
+      padGroup.add(brace);
+    }
+  }
+  const towerTop = new Mesh(new BoxGeometry(2, 0.3, 2), metalMat);
+  towerTop.position.set(0, 17, 0);
+  padGroup.add(towerTop);
+  const lightningRod = new Mesh(new CylinderGeometry(0.05, 0.05, 4, 6), metalMat);
+  lightningRod.position.set(0, 19, 0);
+  padGroup.add(lightningRod);
+  const padLabel = createTextSprite("\u53D1\u5C04\u53F0", "#ffaa44");
+  padLabel.position.set(0, 24, 0);
+  padGroup.add(padLabel);
+  padGroup.position.set(30, 0, 0);
+  group.add(padGroup);
+  const trackGroup = new Group();
+  trackGroup.name = "TrackingStation";
+  const trackDome = new Mesh(new SphereGeometry(4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
+  trackDome.position.y = 2;
+  trackDome.castShadow = true;
+  trackGroup.add(trackDome);
+  const trackBase = new Mesh(new CylinderGeometry(4, 4, 2, 24), buildingMat);
+  trackBase.position.y = 1;
+  trackGroup.add(trackBase);
+  const trackPole = new Mesh(new CylinderGeometry(0.15, 0.15, 4, 8), metalMat);
+  trackPole.position.y = 6;
+  trackGroup.add(trackPole);
+  const trackDish = new Mesh(new SphereGeometry(1.5, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
+  trackDish.position.set(0, 8, 0);
+  trackDish.rotation.x = -Math.PI / 3;
+  trackGroup.add(trackDish);
+  const trackReceiver = new Mesh(new SphereGeometry(0.15, 8, 6), redMat);
+  trackReceiver.position.set(0, 7.5, 0.5);
+  trackGroup.add(trackReceiver);
+  const trackLabel = createTextSprite("\u8DDF\u8E2A\u7AD9", "#44ddff");
+  trackLabel.position.set(0, 12, 0);
+  trackGroup.add(trackLabel);
+  trackGroup.position.set(0, 0, -30);
+  group.add(trackGroup);
+  const astroGroup = new Group();
+  astroGroup.name = "AstronautComplex";
+  const astroDome = new Mesh(new SphereGeometry(3.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
+  astroDome.position.y = 2;
+  astroDome.castShadow = true;
+  astroGroup.add(astroDome);
+  const astroBase = new Mesh(new CylinderGeometry(3.5, 3.5, 2, 24), buildingMat);
+  astroBase.position.y = 1;
+  astroGroup.add(astroBase);
+  const astroDoor = new Mesh(new BoxGeometry(1.5, 2, 0.3), darkBuildingMat);
+  astroDoor.position.set(0, 1, 3.4);
+  astroGroup.add(astroDoor);
+  for (let i = 0; i < 5; i++) {
+    const angle = i / 5 * Math.PI * 1.5 + 0.3;
+    const win = new Mesh(new BoxGeometry(0.8, 1, 0.1), windowMat);
+    win.position.set(Math.cos(angle) * 3.4, 2, Math.sin(angle) * 3.4);
+    win.lookAt(0, 2, 0);
+    astroGroup.add(win);
+  }
+  const astroLabel = createTextSprite("\u822A\u5929\u5458\u4E2D\u5FC3", "#44ff88");
+  astroLabel.position.set(0, 8, 0);
+  astroGroup.add(astroLabel);
+  astroGroup.position.set(0, 0, 22);
+  group.add(astroGroup);
+  const rdGroup = new Group();
+  rdGroup.name = "RnD";
+  const rdMain = new Mesh(new BoxGeometry(14, 5, 7), buildingMat);
+  rdMain.position.y = 2.5;
+  rdMain.castShadow = true;
+  rdMain.receiveShadow = true;
+  rdGroup.add(rdMain);
+  const rdRoof = new Mesh(new BoxGeometry(14.5, 1.5, 7.5), darkBuildingMat);
+  rdRoof.position.y = 5.5;
+  rdGroup.add(rdRoof);
+  const rdUpper = new Mesh(new BoxGeometry(8, 3, 5), darkBuildingMat);
+  rdUpper.position.y = 7.5;
+  rdUpper.castShadow = true;
+  rdGroup.add(rdUpper);
+  const rdAnt = new Mesh(new CylinderGeometry(0.1, 0.1, 3, 6), metalMat);
+  rdAnt.position.set(5, 11, 0);
+  rdGroup.add(rdAnt);
+  const rdAntBall = new Mesh(new SphereGeometry(0.3, 8, 6), redMat);
+  rdAntBall.position.set(5, 12.5, 0);
+  rdGroup.add(rdAntBall);
+  for (let i = -2; i <= 2; i++) {
+    const win = new Mesh(new BoxGeometry(1.5, 1.5, 0.1), windowMat);
+    win.position.set(i * 2.5, 2.5, 3.55);
+    rdGroup.add(win);
+  }
+  const rdDoor = new Mesh(new BoxGeometry(2, 2.5, 0.3), darkBuildingMat);
+  rdDoor.position.set(0, 1.25, 3.55);
+  rdGroup.add(rdDoor);
+  const rdLabel = createTextSprite("\u7814\u53D1\u4E2D\u5FC3", "#aa88ff");
+  rdLabel.position.set(0, 13, 0);
+  rdGroup.add(rdLabel);
+  rdGroup.position.set(-30, 0, 0);
+  group.add(rdGroup);
+  const flagGroup = new Group();
+  flagGroup.name = "FlagPole";
+  const pole = new Mesh(new CylinderGeometry(0.08, 0.1, 8, 8), metalMat);
+  pole.position.y = 4;
+  pole.castShadow = true;
+  flagGroup.add(pole);
+  const flag = new Mesh(new PlaneGeometry(2, 1.2), redMat);
+  flag.position.set(1, 7, 0);
+  flag.castShadow = true;
+  flagGroup.add(flag);
+  const poleTop = new Mesh(new SphereGeometry(0.2, 12, 8), metalMat);
+  poleTop.position.y = 8;
+  flagGroup.add(poleTop);
+  const flagLabel = createTextSprite("\u65D7\u6746", "#ffffff", 28);
+  flagLabel.scale.set(5, 1.25, 1);
+  flagLabel.position.set(0, 10, 0);
+  flagGroup.add(flagLabel);
+  flagGroup.position.set(0, 0, 12);
+  group.add(flagGroup);
+  return group;
+}
 
 // src/game/entities.ts
 var Rocket = class _Rocket {
@@ -25214,7 +25663,7 @@ var Game = class {
     this.cameraTargetPos = new Vector3();
     this.cameraSmoothDistance = 50;
     this.MIN_ZOOM = 2;
-    this.MAX_ZOOM = 5e4;
+    this.MAX_ZOOM = 2e6;
     // 计时
     this.gameTime = 0;
     this.sciencePoints = 0;
@@ -25250,7 +25699,7 @@ var Game = class {
     const qcfg = QUALITY_CONFIG[quality];
     this.scene = new Scene();
     this.scene.background = new Color(0);
-    this.camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1e-3, 5e5);
+    this.camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1e-3, 5e6);
     this.camera.position.set(0, 30, 50);
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -25737,6 +26186,42 @@ var Game = class {
     }
   }
   // === 网格更新 ===
+  /**
+   * 计算火箭/基地在天体附近的正确渲染位置。
+   * 因为 BODY_SIZE_SCALE * SIZE_BOOST ≠ DIST_SCALE（行星视觉被放大），
+   * 所以近地物体需要用视觉半径来定位，否则会沉入行星内部。
+   */
+  getSurfaceRenderPosition(realPos) {
+    let nearestBody = null;
+    let nearestDist = Infinity;
+    for (const body of this.physics.bodies) {
+      if (body.name === "\u706B\u7BAD" || body.name === "Rocket") continue;
+      const dist = body.position.distanceTo(realPos);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestBody = body;
+      }
+    }
+    if (nearestBody) {
+      const bodyData = SOLAR_SYSTEM.find((d) => d.name === nearestBody.name);
+      if (bodyData) {
+        const realRadius = bodyData.radius;
+        if (nearestDist < realRadius * 3) {
+          const visualRadius = Math.max(realRadius * BODY_SIZE_SCALE * SIZE_BOOST, MIN_RENDER_SIZE);
+          const direction = realPos.clone().sub(nearestBody.position).normalize();
+          const altitude = nearestDist - realRadius;
+          const visualAltitude = altitude * BODY_SIZE_SCALE * SIZE_BOOST;
+          const bodyRenderPos = new Vector3(
+            nearestBody.position.x * DIST_SCALE,
+            nearestBody.position.y * DIST_SCALE,
+            nearestBody.position.z * DIST_SCALE
+          );
+          return bodyRenderPos.add(direction.multiplyScalar(visualRadius + visualAltitude));
+        }
+      }
+    }
+    return new Vector3(realPos.x * DIST_SCALE, realPos.y * DIST_SCALE, realPos.z * DIST_SCALE);
+  }
   updateMeshes() {
     for (const body of this.physics.bodies) {
       if (body.name === "\u706B\u7BAD" || body.name === "Rocket") continue;
@@ -25755,11 +26240,8 @@ var Game = class {
       }
     }
     if (this.rocket) {
-      this.rocket.group.position.set(
-        this.rocket.body.position.x * DIST_SCALE,
-        this.rocket.body.position.y * DIST_SCALE,
-        this.rocket.body.position.z * DIST_SCALE
-      );
+      const rPos = this.getSurfaceRenderPosition(this.rocket.body.position);
+      this.rocket.group.position.copy(rPos);
       this.rocket.group.quaternion.copy(this.rocket.orientation);
     }
     const sun = this.physics.getBody("Sun");
@@ -25770,7 +26252,8 @@ var Game = class {
       const parent = this.physics.getBody(base.bodyName);
       if (parent) {
         const worldPos = parent.position.clone().add(base.localPosition);
-        base.group.position.set(worldPos.x * DIST_SCALE, worldPos.y * DIST_SCALE, worldPos.z * DIST_SCALE);
+        const bPos = this.getSurfaceRenderPosition(worldPos);
+        base.group.position.copy(bPos);
       }
     }
   }
@@ -25782,18 +26265,14 @@ var Game = class {
       this.camera.position.lerp(new Vector3(targetPos2.x, targetPos2.y + 5e3, targetPos2.z + 1e3), 0.1);
       this.camera.up.set(0, 1, 0);
       this.camera.lookAt(targetPos2);
-      this.camera.far = 5e5;
+      this.camera.far = 5e6;
       this.camera.updateProjectionMatrix();
       this.updateMarkers();
       return;
     }
     let targetPos;
     if ((this.focusName === "Rocket" || this.focusName === "\u706B\u7BAD") && this.rocket) {
-      targetPos = new Vector3(
-        this.rocket.body.position.x * DIST_SCALE,
-        this.rocket.body.position.y * DIST_SCALE,
-        this.rocket.body.position.z * DIST_SCALE
-      );
+      targetPos = this.getSurfaceRenderPosition(this.rocket.body.position);
     } else {
       const body = this.physics.getBody(this.focusName);
       if (!body) return;
@@ -25822,7 +26301,7 @@ var Game = class {
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(this.cameraTargetPos);
     this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
-    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e5);
+    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e6);
     this.camera.updateProjectionMatrix();
   }
   updateChaseCamera(targetPos) {
@@ -25839,7 +26318,7 @@ var Game = class {
     this.camera.up.copy(new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation));
     this.camera.lookAt(this.cameraTargetPos);
     this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
-    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e5);
+    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e6);
     this.camera.updateProjectionMatrix();
   }
   updateFreeCamera(_targetPos) {
@@ -25851,16 +26330,12 @@ var Game = class {
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(this.cameraTargetPos);
     this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
-    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e5);
+    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e6);
     this.camera.updateProjectionMatrix();
   }
   updateMarkers() {
     if (!this.rocket || !this.progradeMarker || !this.retrogradeMarker) return;
-    const rocketPos = new Vector3(
-      this.rocket.body.position.x * DIST_SCALE,
-      this.rocket.body.position.y * DIST_SCALE,
-      this.rocket.body.position.z * DIST_SCALE
-    );
+    const rocketPos = this.getSurfaceRenderPosition(this.rocket.body.position);
     const vel = this.rocket.body.velocity;
     const speed = vel.length();
     if (speed > 1) {
@@ -26118,6 +26593,476 @@ function partDescCN(part) {
   };
   return map[part.id] || (part.description || "");
 }
+var SimpleOrbitControls = class {
+  constructor(camera, dom, target = new Vector3(0, 0, 0)) {
+    this.isDragging = false;
+    this.prevX = 0;
+    this.prevY = 0;
+    this.enabled = true;
+    this.camera = camera;
+    this.dom = dom;
+    this.target = target;
+    this.autoRotateSpeed = 0.3;
+    this.minDistance = 5;
+    this.maxDistance = 200;
+    this.minPolar = 0.1;
+    this.maxPolar = Math.PI - 0.1;
+    const offset = new Vector3().subVectors(camera.position, target);
+    this.spherical = new Spherical().setFromVector3(offset);
+    this.onPointerDown = (e) => {
+      if (!this.enabled) return;
+      this.isDragging = true;
+      this.prevX = e.clientX;
+      this.prevY = e.clientY;
+      this.dom.style.cursor = "grabbing";
+    };
+    this.onPointerMove = (e) => {
+      if (!this.enabled || !this.isDragging) return;
+      const dx = e.clientX - this.prevX;
+      const dy = e.clientY - this.prevY;
+      this.prevX = e.clientX;
+      this.prevY = e.clientY;
+      this.spherical.theta -= dx * 5e-3;
+      this.spherical.phi -= dy * 5e-3;
+      this.spherical.phi = Math.max(this.minPolar, Math.min(this.maxPolar, this.spherical.phi));
+    };
+    this.onPointerUp = () => {
+      this.isDragging = false;
+      this.dom.style.cursor = "grab";
+    };
+    this.onWheel = (e) => {
+      if (!this.enabled) return;
+      e.preventDefault();
+      this.spherical.radius *= 1 + e.deltaY * 1e-3;
+      this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
+    };
+    dom.addEventListener("pointerdown", this.onPointerDown);
+    dom.addEventListener("pointermove", this.onPointerMove);
+    window.addEventListener("pointerup", this.onPointerUp);
+    dom.addEventListener("wheel", this.onWheel, { passive: false });
+    dom.style.cursor = "grab";
+  }
+  setAutoRotateSpeed(speed) {
+    this.autoRotateSpeed = speed;
+  }
+  setEnabled(enabled) {
+    this.enabled = enabled;
+  }
+  setLimits(minDist, maxDist, minPolar, maxPolar) {
+    this.minDistance = minDist;
+    this.maxDistance = maxDist;
+    this.minPolar = minPolar;
+    this.maxPolar = maxPolar;
+    this.spherical.radius = Math.max(minDist, Math.min(maxDist, this.spherical.radius));
+  }
+  update() {
+    if (this.autoRotateSpeed !== 0 && !this.isDragging) {
+      this.spherical.theta += this.autoRotateSpeed * 0.01;
+    }
+    const offset = new Vector3().setFromSpherical(this.spherical);
+    this.camera.position.copy(this.target).add(offset);
+    this.camera.lookAt(this.target);
+  }
+  dispose() {
+    this.dom.removeEventListener("pointerdown", this.onPointerDown);
+    this.dom.removeEventListener("pointermove", this.onPointerMove);
+    window.removeEventListener("pointerup", this.onPointerUp);
+    this.dom.removeEventListener("wheel", this.onWheel);
+  }
+};
+var VAB3DPreview = class {
+  constructor(canvas) {
+    this.animationId = 0;
+    this.disposed = false;
+    this.animate = () => {
+      if (this.disposed) return;
+      this.animationId = requestAnimationFrame(this.animate);
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
+    };
+    this.canvas = canvas;
+    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+    this.renderer.setSize(400, 400);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.scene = new Scene();
+    const bgCanvas = document.createElement("canvas");
+    bgCanvas.width = 2;
+    bgCanvas.height = 256;
+    const bgCtx = bgCanvas.getContext("2d");
+    const grad = bgCtx.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, "#0a0a3e");
+    grad.addColorStop(0.5, "#050518");
+    grad.addColorStop(1, "#000005");
+    bgCtx.fillStyle = grad;
+    bgCtx.fillRect(0, 0, 2, 256);
+    const bgTexture = new CanvasTexture(bgCanvas);
+    bgTexture.colorSpace = SRGBColorSpace;
+    this.scene.background = bgTexture;
+    this.camera = new PerspectiveCamera(45, 1, 0.1, 1e3);
+    this.camera.position.set(0, 2, 12);
+    const ambient = new AmbientLight(4482730, 0.6);
+    this.scene.add(ambient);
+    const dirLight = new DirectionalLight(16777215, 1.2);
+    dirLight.position.set(5, 10, 7);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 50;
+    dirLight.shadow.camera.left = -10;
+    dirLight.shadow.camera.right = 10;
+    dirLight.shadow.camera.top = 10;
+    dirLight.shadow.camera.bottom = -10;
+    this.scene.add(dirLight);
+    const fillLight = new DirectionalLight(4491519, 0.4);
+    fillLight.position.set(-5, 3, -5);
+    this.scene.add(fillLight);
+    const grid = new GridHelper(20, 20, 2245734, 1122867);
+    grid.material.transparent = true;
+    grid.material.opacity = 0.3;
+    grid.position.y = -5;
+    this.scene.add(grid);
+    this.rocketGroup = new Group();
+    this.scene.add(this.rocketGroup);
+    this.controls = new SimpleOrbitControls(this.camera, canvas, new Vector3(0, 0, 0));
+    this.controls.setAutoRotateSpeed(0.5);
+    this.controls.setLimits(4, 30, 0.1, Math.PI - 0.1);
+    this.animate();
+  }
+  // Build 3D rocket model from selected parts
+  buildRocket(parts) {
+    this.disposeGroup(this.rocketGroup);
+    if (parts.length === 0) {
+      return;
+    }
+    const parachutes = parts.filter((p) => p.type === "parachute");
+    const commands = parts.filter((p) => p.type === "command");
+    const fuels = parts.filter((p) => p.type === "fuel");
+    const engines = parts.filter((p) => p.type === "engine");
+    const decouplers = parts.filter((p) => p.type === "decoupler");
+    const others = parts.filter(
+      (p) => !["parachute", "command", "fuel", "engine", "decoupler"].includes(p.type)
+    );
+    const commandMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.4, metalness: 0.5 });
+    const fuelMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.3, metalness: 0.6 });
+    const engineMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
+    const nozzleMat = new MeshStandardMaterial({ color: 2236962, roughness: 0.7, metalness: 0.3 });
+    const parachuteMat = new MeshStandardMaterial({ color: 16729122, roughness: 0.5, metalness: 0.1 });
+    const decouplerMat = new MeshStandardMaterial({ color: 8939076, roughness: 0.5, metalness: 0.3 });
+    const accentMat = new MeshStandardMaterial({ color: 4491519, roughness: 0.4, metalness: 0.5 });
+    const sideMat = new MeshStandardMaterial({ color: 6715272, roughness: 0.5, metalness: 0.4 });
+    let currentY = 0;
+    const stackParts = [];
+    for (const engine of engines) {
+      const engineGroup = new Group();
+      const bodyHeight = 1.2;
+      const body = new Mesh(
+        new CylinderGeometry(0.5, 0.8, bodyHeight, 16),
+        engineMat
+      );
+      body.castShadow = true;
+      engineGroup.add(body);
+      const nozzle = new Mesh(
+        new ConeGeometry(0.7, 1, 16, 1, true),
+        nozzleMat
+      );
+      nozzle.rotation.x = Math.PI;
+      nozzle.position.y = -1;
+      nozzle.castShadow = true;
+      engineGroup.add(nozzle);
+      const ring = new Mesh(
+        new CylinderGeometry(0.55, 0.5, 0.15, 16),
+        accentMat
+      );
+      ring.position.y = 0.65;
+      engineGroup.add(ring);
+      stackParts.push({ mesh: engineGroup, height: 2.2 });
+    }
+    for (const dec of decouplers) {
+      const decMesh = new Mesh(
+        new CylinderGeometry(0.55, 0.55, 0.3, 16),
+        decouplerMat
+      );
+      decMesh.castShadow = true;
+      stackParts.push({ mesh: decMesh, height: 0.3 });
+    }
+    for (const fuel of fuels) {
+      const fuelGroup = new Group();
+      let tankHeight = 1.5;
+      let tankRadius = 0.55;
+      if (fuel.fuelMass > 3e4) {
+        tankHeight = 2.5;
+        tankRadius = 0.7;
+      } else if (fuel.fuelMass > 15e3) {
+        tankHeight = 2;
+        tankRadius = 0.6;
+      } else if (fuel.fuelMass > 5e3) {
+        tankHeight = 1.5;
+        tankRadius = 0.55;
+      } else {
+        tankHeight = 1;
+        tankRadius = 0.5;
+      }
+      const tank = new Mesh(
+        new CylinderGeometry(tankRadius, tankRadius, tankHeight, 24),
+        fuelMat
+      );
+      tank.castShadow = true;
+      tank.receiveShadow = true;
+      fuelGroup.add(tank);
+      const topRing = new Mesh(
+        new CylinderGeometry(tankRadius * 1.02, tankRadius * 1.02, 0.1, 24),
+        accentMat
+      );
+      topRing.position.y = tankHeight / 2 - 0.05;
+      fuelGroup.add(topRing);
+      const botRing = new Mesh(
+        new CylinderGeometry(tankRadius * 1.02, tankRadius * 1.02, 0.1, 24),
+        accentMat
+      );
+      botRing.position.y = -tankHeight / 2 + 0.05;
+      fuelGroup.add(botRing);
+      stackParts.push({ mesh: fuelGroup, height: tankHeight });
+    }
+    for (const cmd of commands) {
+      const cmdGroup = new Group();
+      const cmdHeight = 1.3;
+      const cone = new Mesh(
+        new ConeGeometry(0.55, cmdHeight, 24),
+        commandMat
+      );
+      cone.castShadow = true;
+      cmdGroup.add(cone);
+      const window2 = new Mesh(
+        new SphereGeometry(0.15, 12, 8),
+        new MeshStandardMaterial({ color: 8956620, emissive: 2241348, roughness: 0.1, metalness: 0.8 })
+      );
+      window2.position.set(0, 0.15, 0.45);
+      cmdGroup.add(window2);
+      const baseRing = new Mesh(
+        new CylinderGeometry(0.57, 0.55, 0.15, 24),
+        accentMat
+      );
+      baseRing.position.y = -cmdHeight / 2 + 0.05;
+      cmdGroup.add(baseRing);
+      stackParts.push({ mesh: cmdGroup, height: cmdHeight });
+    }
+    for (const para of parachutes) {
+      const paraGroup = new Group();
+      const paraCone = new Mesh(
+        new ConeGeometry(0.25, 0.5, 12),
+        parachuteMat
+      );
+      paraCone.castShadow = true;
+      paraGroup.add(paraCone);
+      const paraBase = new Mesh(
+        new CylinderGeometry(0.1, 0.1, 0.15, 8),
+        nozzleMat
+      );
+      paraBase.position.y = -0.3;
+      paraGroup.add(paraBase);
+      stackParts.push({ mesh: paraGroup, height: 0.5 });
+    }
+    let yCursor = 0;
+    for (const part of stackParts) {
+      part.mesh.position.y = yCursor + part.height / 2;
+      yCursor += part.height;
+      this.rocketGroup.add(part.mesh);
+    }
+    const totalHeight = yCursor;
+    this.rocketGroup.position.y = -totalHeight / 2 + 1;
+    let sideIndex = 0;
+    for (const other of others) {
+      const box = new Mesh(
+        new BoxGeometry(0.3, 0.4, 0.3),
+        sideMat
+      );
+      const angle = sideIndex / Math.max(others.length, 1) * Math.PI * 2;
+      const radius = 0.8;
+      box.position.set(
+        Math.cos(angle) * radius,
+        0,
+        Math.sin(angle) * radius
+      );
+      box.castShadow = true;
+      this.rocketGroup.add(box);
+      sideIndex++;
+    }
+  }
+  disposeGroup(group) {
+    group.traverse((child) => {
+      if (child instanceof Mesh) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const mat = child.material;
+          if (Array.isArray(mat)) {
+            mat.forEach((m) => m.dispose());
+          } else {
+            mat.dispose();
+          }
+        }
+      }
+    });
+    while (group.children.length > 0) {
+      group.remove(group.children[0]);
+    }
+  }
+  dispose() {
+    this.disposed = true;
+    if (this.animationId) cancelAnimationFrame(this.animationId);
+    this.controls.dispose();
+    this.disposeGroup(this.rocketGroup);
+    if (this.scene.background) {
+      if (this.scene.background instanceof Texture) {
+        this.scene.background.dispose();
+      }
+    }
+    this.scene.traverse((child) => {
+      if (child instanceof Mesh) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const mat = child.material;
+          if (Array.isArray(mat)) {
+            mat.forEach((m) => m.dispose());
+          } else {
+            mat.dispose();
+          }
+        }
+      }
+    });
+    this.renderer.dispose();
+  }
+};
+var SpaceCenter3DScene = class {
+  constructor(container2) {
+    this.animationId = 0;
+    this.disposed = false;
+    this.animate = () => {
+      if (this.disposed) return;
+      this.animationId = requestAnimationFrame(this.animate);
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
+    };
+    this.canvas = document.createElement("canvas");
+    this.canvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;";
+    container2.appendChild(this.canvas);
+    this.renderer = new WebGLRenderer({ canvas: this.canvas, antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.scene = new Scene();
+    const bgCanvas = document.createElement("canvas");
+    bgCanvas.width = 2;
+    bgCanvas.height = 512;
+    const bgCtx = bgCanvas.getContext("2d");
+    const grad = bgCtx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, "#0a0a3e");
+    grad.addColorStop(0.3, "#050518");
+    grad.addColorStop(1, "#000005");
+    bgCtx.fillStyle = grad;
+    bgCtx.fillRect(0, 0, 2, 512);
+    const bgTexture = new CanvasTexture(bgCanvas);
+    bgTexture.colorSpace = SRGBColorSpace;
+    this.scene.background = bgTexture;
+    const starGeo = new BufferGeometry();
+    const starCount = 800;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 200 + Math.random() * 100;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = Math.abs(r * Math.cos(phi)) * 0.5 + 20;
+      positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    }
+    starGeo.setAttribute("position", new BufferAttribute(positions, 3));
+    const starMat = new PointsMaterial({ color: 16777215, size: 0.8, sizeAttenuation: true, transparent: true, opacity: 0.8 });
+    const stars = new Points(starGeo, starMat);
+    this.scene.add(stars);
+    this.camera = new PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+    this.camera.position.set(40, 35, 40);
+    const ambient = new AmbientLight(4478344, 0.5);
+    this.scene.add(ambient);
+    const sunLight = new DirectionalLight(16772812, 1);
+    sunLight.position.set(30, 50, 20);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 1;
+    sunLight.shadow.camera.far = 200;
+    sunLight.shadow.camera.left = -60;
+    sunLight.shadow.camera.right = 60;
+    sunLight.shadow.camera.top = 60;
+    sunLight.shadow.camera.bottom = -60;
+    sunLight.shadow.bias = -5e-4;
+    this.scene.add(sunLight);
+    const fillLight = new DirectionalLight(4491519, 0.3);
+    fillLight.position.set(-20, 10, -20);
+    this.scene.add(fillLight);
+    this.centerGroup = createSpaceCenterScene();
+    this.scene.add(this.centerGroup);
+    this.centerGroup.traverse((child) => {
+      if (child instanceof Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    this.controls = new SimpleOrbitControls(this.camera, this.canvas, new Vector3(0, 5, 0));
+    this.controls.setAutoRotateSpeed(0.15);
+    this.controls.setLimits(20, 120, 0.15, Math.PI / 2 - 0.05);
+    this.clock = new Clock();
+    this.onResize = () => {
+      if (this.disposed) return;
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", this.onResize);
+    this.animate();
+  }
+  dispose() {
+    this.disposed = true;
+    if (this.animationId) cancelAnimationFrame(this.animationId);
+    window.removeEventListener("resize", this.onResize);
+    this.controls.dispose();
+    this.scene.traverse((child) => {
+      if (child instanceof Mesh) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const mat = child.material;
+          if (Array.isArray(mat)) {
+            mat.forEach((m) => m.dispose());
+          } else {
+            mat.dispose();
+          }
+        }
+      }
+    });
+    this.scene.traverse((child) => {
+      if (child instanceof Points) {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const mat = child.material;
+          if (Array.isArray(mat)) {
+            mat.forEach((m) => m.dispose());
+          } else {
+            mat.dispose();
+          }
+        }
+      }
+    });
+    if (this.scene.background instanceof Texture) {
+      this.scene.background.dispose();
+    }
+    this.renderer.dispose();
+    if (this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
+    }
+  }
+};
 var StartMenu = class {
   constructor(onStart) {
     this.selectedQuality = "high";
@@ -26248,12 +27193,15 @@ var SpaceCenter = class {
   constructor(callbacks) {
     this.vabPanel = null;
     this.selectedParts = [];
+    this.scene3D = null;
+    this.vabPreview = null;
     this.callbacks = callbacks;
     this.overlay = document.createElement("div");
     this.overlay.id = "space-center";
     this.applyOverlayStyle();
     this.renderSpaceCenter();
     document.body.appendChild(this.overlay);
+    this.scene3D = new SpaceCenter3DScene(this.overlay);
   }
   // 主样式：深蓝到黑色渐变背景 + 星空
   applyOverlayStyle() {
@@ -26275,7 +27223,7 @@ var SpaceCenter = class {
   }
   renderSpaceCenter() {
     const starsBg = document.createElement("div");
-    starsBg.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
+    starsBg.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;";
     let starHtml = "";
     for (let i = 0; i < 120; i++) {
       const x = Math.random() * 100;
@@ -26283,26 +27231,26 @@ var SpaceCenter = class {
       const size = Math.random() * 2 + 0.5;
       const delay = Math.random() * 5;
       const duration = 2 + Math.random() * 3;
-      starHtml += `<div style="position:absolute;left:${x}%;top:${y}%;width:${size}px;height:${size}px;background:#fff;border-radius:50%;animation:twinkle ${duration}s ease-in-out infinite alternate;animation-delay:${delay}s;"></div>`;
+      starHtml += `<div style="position:absolute;left:${x}%;top:${y}%;width:${size}px;height:${size}px;background:#fff;border-radius:50%;animation:twinkle ${duration}s ease-in-out infinite alternate;animation-delay:${delay}s;opacity:0.5;"></div>`;
     }
     starsBg.innerHTML = starHtml;
     this.overlay.appendChild(starsBg);
     const header = document.createElement("div");
-    header.style.cssText = "text-align:center;z-index:1;position:relative;padding-top:40px;margin-bottom:30px;";
+    header.style.cssText = "text-align:center;z-index:2;position:relative;padding-top:40px;margin-bottom:30px;";
     header.innerHTML = `
       <h1 style="font-size:2.5rem;font-weight:900;letter-spacing:0.15em;background:linear-gradient(135deg,#4af 0%,#4fa 50%,#af4 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:0 0 60px rgba(64,170,255,0.3);margin-bottom:0.3rem;">\u822A\u5929\u4E2D\u5FC3</h1>
       <p style="font-size:0.95rem;color:#88aacc;letter-spacing:0.2em;">SPACE CENTER \u2014 \u9009\u62E9\u8BBE\u65BD\u5F00\u59CB\u4F60\u7684\u592A\u7A7A\u4EFB\u52A1</p>
     `;
     this.overlay.appendChild(header);
     const grid = document.createElement("div");
-    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;max-width:760px;width:90%;z-index:1;position:relative;padding:0 10px;";
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;max-width:760px;width:90%;z-index:2;position:relative;padding:0 10px;";
     const buildings = this.getBuildings();
     buildings.forEach((b) => {
       grid.appendChild(this.createBuildingCard(b));
     });
     this.overlay.appendChild(grid);
     const footer = document.createElement("div");
-    footer.style.cssText = "margin-top:30px;margin-bottom:30px;z-index:1;position:relative;";
+    footer.style.cssText = "margin-top:30px;margin-bottom:30px;z-index:2;position:relative;";
     const backBtn = document.createElement("button");
     backBtn.textContent = "\u{1F3E0} \u8FD4\u56DE\u4E3B\u83DC\u5355";
     backBtn.style.cssText = this.baseBtnStyle(false);
@@ -26349,7 +27297,7 @@ var SpaceCenter = class {
     const card = document.createElement("div");
     const isPrimary = !!b.primary;
     card.style.cssText = `
-      background: ${isPrimary ? "linear-gradient(135deg, rgba(64,128,255,0.25), rgba(64,255,170,0.15))" : "rgba(10,20,40,0.7)"};
+      background: ${isPrimary ? "linear-gradient(135deg, rgba(64,128,255,0.20), rgba(64,255,170,0.10))" : "rgba(10,20,40,0.55)"};
       border: 1px solid ${isPrimary ? "rgba(100,200,255,0.7)" : "rgba(80,160,255,0.3)"};
       border-radius: 10px; padding: 22px 18px; cursor: pointer;
       transition: all 0.2s; backdrop-filter: blur(8px);
@@ -26365,12 +27313,12 @@ var SpaceCenter = class {
     card.addEventListener("mouseenter", () => {
       card.style.transform = "translateY(-3px)";
       card.style.borderColor = isPrimary ? "rgba(120,220,255,0.9)" : "rgba(100,200,255,0.6)";
-      card.style.background = isPrimary ? "linear-gradient(135deg, rgba(80,150,255,0.35), rgba(80,255,180,0.25))" : "rgba(30,60,100,0.8)";
+      card.style.background = isPrimary ? "linear-gradient(135deg, rgba(80,150,255,0.30), rgba(80,255,180,0.20))" : "rgba(30,60,100,0.65)";
     });
     card.addEventListener("mouseleave", () => {
       card.style.transform = "translateY(0)";
       card.style.borderColor = isPrimary ? "rgba(100,200,255,0.7)" : "rgba(80,160,255,0.3)";
-      card.style.background = isPrimary ? "linear-gradient(135deg, rgba(64,128,255,0.25), rgba(64,255,170,0.15))" : "rgba(10,20,40,0.7)";
+      card.style.background = isPrimary ? "linear-gradient(135deg, rgba(64,128,255,0.20), rgba(64,255,170,0.10))" : "rgba(10,20,40,0.55)";
     });
     card.addEventListener("click", () => b.action());
     return card;
@@ -26396,6 +27344,10 @@ var SpaceCenter = class {
       this.vabPanel.remove();
       this.vabPanel = null;
     }
+    if (this.vabPreview) {
+      this.vabPreview.dispose();
+      this.vabPreview = null;
+    }
     this.selectedParts = [
       ROCKET_PARTS.find((p) => p.id === "capsule_mk1"),
       ROCKET_PARTS.find((p) => p.id === "fuel_medium"),
@@ -26417,9 +27369,9 @@ var SpaceCenter = class {
     `;
     panel.appendChild(header);
     const content = document.createElement("div");
-    content.style.cssText = "display:flex;gap:20px;max-width:900px;width:100%;flex-wrap:wrap;justify-content:center;";
+    content.style.cssText = "display:flex;gap:20px;max-width:1100px;width:100%;flex-wrap:wrap;justify-content:center;";
     const partsLib = document.createElement("div");
-    partsLib.style.cssText = "flex:1;min-width:300px;max-width:420px;";
+    partsLib.style.cssText = "flex:1;min-width:300px;max-width:380px;";
     partsLib.innerHTML = '<h3 style="color:#4af;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,160,255,0.3);padding-bottom:8px;">\u{1F4E6} \u96F6\u4EF6\u5E93</h3>';
     const partsList = document.createElement("div");
     partsList.id = "vab-parts-list";
@@ -26430,11 +27382,25 @@ var SpaceCenter = class {
     partsLib.appendChild(partsList);
     content.appendChild(partsLib);
     const selectedBox = document.createElement("div");
-    selectedBox.style.cssText = "flex:1;min-width:280px;max-width:380px;";
+    selectedBox.style.cssText = "flex:1;min-width:260px;max-width:320px;";
     selectedBox.id = "vab-selected-box";
     selectedBox.innerHTML = '<h3 style="color:#4fa;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,255,170,0.3);padding-bottom:8px;">\u2705 \u5DF2\u9009\u96F6\u4EF6</h3>';
     this.refreshSelectedList(selectedBox);
     content.appendChild(selectedBox);
+    const previewBox = document.createElement("div");
+    previewBox.style.cssText = "flex:0 0 auto;min-width:420px;max-width:420px;display:flex;flex-direction:column;align-items:center;";
+    previewBox.innerHTML = '<h3 style="color:#4fa;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,255,170,0.3);padding-bottom:8px;width:100%;text-align:center;">\u{1F3AF} 3D \u706B\u7BAD\u9884\u89C8</h3>';
+    const previewCanvas = document.createElement("canvas");
+    previewCanvas.id = "vab-3d-canvas";
+    previewCanvas.width = 400;
+    previewCanvas.height = 400;
+    previewCanvas.style.cssText = "width:400px;height:400px;border-radius:8px;border:1px solid rgba(80,160,255,0.3);background:#050518;touch-action:none;";
+    previewBox.appendChild(previewCanvas);
+    const previewHint = document.createElement("p");
+    previewHint.style.cssText = "font-size:0.72rem;color:#68a;margin-top:8px;text-align:center;";
+    previewHint.textContent = "\u{1F5B1}\uFE0F \u62D6\u62FD\u65CB\u8F6C | \u6EDA\u8F6E\u7F29\u653E | \u81EA\u52A8\u65CB\u8F6C\u4E2D";
+    previewBox.appendChild(previewHint);
+    content.appendChild(previewBox);
     panel.appendChild(content);
     const btnBar = document.createElement("div");
     btnBar.style.cssText = "display:flex;gap:15px;margin-top:25px;flex-wrap:wrap;justify-content:center;";
@@ -26442,22 +27408,33 @@ var SpaceCenter = class {
     launchBtn.textContent = "\u{1F680} \u53D1\u5C04\u706B\u7BAD";
     launchBtn.style.cssText = this.baseBtnStyle(true) + "font-size:1.1rem;padding:14px 50px;";
     launchBtn.addEventListener("click", () => {
-      panel.remove();
-      this.vabPanel = null;
+      this.closeVAB();
       this.callbacks.onLaunch();
     });
     const closeBtn = document.createElement("button");
     closeBtn.textContent = "\u2190 \u8FD4\u56DE\u822A\u5929\u4E2D\u5FC3";
     closeBtn.style.cssText = this.baseBtnStyle(false);
     closeBtn.addEventListener("click", () => {
-      panel.remove();
-      this.vabPanel = null;
+      this.closeVAB();
     });
     btnBar.appendChild(closeBtn);
     btnBar.appendChild(launchBtn);
     panel.appendChild(btnBar);
     document.body.appendChild(panel);
     this.vabPanel = panel;
+    this.vabPreview = new VAB3DPreview(previewCanvas);
+    this.vabPreview.buildRocket(this.selectedParts);
+  }
+  // Close VAB and clean up 3D preview
+  closeVAB() {
+    if (this.vabPreview) {
+      this.vabPreview.dispose();
+      this.vabPreview = null;
+    }
+    if (this.vabPanel) {
+      this.vabPanel.remove();
+      this.vabPanel = null;
+    }
   }
   // 创建单个零件条目
   createPartItem(part, isSelectedView) {
@@ -26507,6 +27484,9 @@ var SpaceCenter = class {
     const selectedBox = this.vabPanel.querySelector("#vab-selected-box");
     if (selectedBox) {
       this.refreshSelectedList(selectedBox);
+    }
+    if (this.vabPreview) {
+      this.vabPreview.buildRocket(this.selectedParts);
     }
   }
   // 刷新已选零件列表
@@ -26558,9 +27538,17 @@ var SpaceCenter = class {
     setTimeout(() => toast.remove(), 3e3);
   }
   destroy() {
+    if (this.vabPreview) {
+      this.vabPreview.dispose();
+      this.vabPreview = null;
+    }
     if (this.vabPanel) {
       this.vabPanel.remove();
       this.vabPanel = null;
+    }
+    if (this.scene3D) {
+      this.scene3D.dispose();
+      this.scene3D = null;
     }
     this.overlay.remove();
   }
