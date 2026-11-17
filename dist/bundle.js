@@ -18175,6 +18175,27 @@ var WebGLRenderer = class {
     gl.unpackColorSpace = ColorManagement._getUnpackColorSpace();
   }
 };
+var Fog = class _Fog {
+  constructor(color, near = 1, far = 1e3) {
+    this.isFog = true;
+    this.name = "";
+    this.color = new Color(color);
+    this.near = near;
+    this.far = far;
+  }
+  clone() {
+    return new _Fog(this.color, this.near, this.far);
+  }
+  toJSON() {
+    return {
+      type: "Fog",
+      name: this.name,
+      color: this.color.getHex(),
+      near: this.near,
+      far: this.far
+    };
+  }
+};
 var Scene = class extends Object3D {
   constructor() {
     super();
@@ -18782,32 +18803,6 @@ function checkIntersection(object, raycaster, ray, thresholdSq, a, b) {
     object
   };
 }
-var _start = /* @__PURE__ */ new Vector3();
-var _end = /* @__PURE__ */ new Vector3();
-var LineSegments = class extends Line {
-  constructor(geometry, material) {
-    super(geometry, material);
-    this.isLineSegments = true;
-    this.type = "LineSegments";
-  }
-  computeLineDistances() {
-    const geometry = this.geometry;
-    if (geometry.index === null) {
-      const positionAttribute = geometry.attributes.position;
-      const lineDistances = [];
-      for (let i = 0, l = positionAttribute.count; i < l; i += 2) {
-        _start.fromBufferAttribute(positionAttribute, i);
-        _end.fromBufferAttribute(positionAttribute, i + 1);
-        lineDistances[i] = i === 0 ? 0 : lineDistances[i - 1];
-        lineDistances[i + 1] = lineDistances[i] + _start.distanceTo(_end);
-      }
-      geometry.setAttribute("lineDistance", new Float32BufferAttribute(lineDistances, 1));
-    } else {
-      console.warn("THREE.LineSegments.computeLineDistances(): Computation only possible with non-indexed BufferGeometry.");
-    }
-    return this;
-  }
-};
 var PointsMaterial = class extends Material {
   static get type() {
     return "PointsMaterial";
@@ -22786,39 +22781,6 @@ var Spherical = class {
     return new this.constructor().copy(this);
   }
 };
-var GridHelper = class extends LineSegments {
-  constructor(size = 10, divisions = 10, color1 = 4473924, color2 = 8947848) {
-    color1 = new Color(color1);
-    color2 = new Color(color2);
-    const center = divisions / 2;
-    const step = size / divisions;
-    const halfSize = size / 2;
-    const vertices = [], colors = [];
-    for (let i = 0, j = 0, k = -halfSize; i <= divisions; i++, k += step) {
-      vertices.push(-halfSize, 0, k, halfSize, 0, k);
-      vertices.push(k, 0, -halfSize, k, 0, halfSize);
-      const color = i === center ? color1 : color2;
-      color.toArray(colors, j);
-      j += 3;
-      color.toArray(colors, j);
-      j += 3;
-      color.toArray(colors, j);
-      j += 3;
-      color.toArray(colors, j);
-      j += 3;
-    }
-    const geometry = new BufferGeometry();
-    geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
-    geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
-    const material = new LineBasicMaterial({ vertexColors: true, toneMapped: false });
-    super(geometry, material);
-    this.type = "GridHelper";
-  }
-  dispose() {
-    this.geometry.dispose();
-    this.material.dispose();
-  }
-};
 if (typeof __THREE_DEVTOOLS__ !== "undefined") {
   __THREE_DEVTOOLS__.dispatchEvent(new CustomEvent("register", { detail: {
     revision: REVISION
@@ -26511,88 +26473,46 @@ var PART_TYPE_CN = {
   solar: "\u592A\u9633\u80FD\u677F",
   antenna: "\u901A\u8BAF\u5929\u7EBF",
   landing: "\u7740\u9646\u88C5\u7F6E",
-  adapter: "\u9002\u914D\u5668"
+  adapter: "\u9002\u914D\u5668",
+  booster: "\u52A9\u63A8\u5668",
+  structural: "\u7ED3\u6784\u90E8\u4EF6",
+  utility: "\u5B9E\u7528\u5DE5\u5177"
 };
-function partNameCN(part) {
-  const map = {
-    "capsule_mk1": "Mk1 \u6307\u4EE4\u8231",
-    "capsule_mk2": "Mk2 \u6307\u4EE4\u8231",
-    "capsule_mk3": "Mk3 \u4E58\u5458\u8231",
-    "probe_core": "\u63A2\u6D4B\u5668\u6838\u5FC3",
-    "fuel_small": "\u5C0F\u578B\u71C3\u6599\u7BB1",
-    "fuel_medium": "\u4E2D\u578B\u71C3\u6599\u7BB1",
-    "fuel_large": "\u5927\u578B\u71C3\u6599\u7BB1",
-    "fuel_xl": "\u8D85\u5927\u578B\u71C3\u6599\u7BB1",
-    "fuel_nuclear": "\u6838\u71C3\u6599\u7535\u6C60",
-    "engine_chem": "\u5316\u5B66\u5F15\u64CE",
-    "engine_heavy": "\u91CD\u578B\u5347\u7A7A\u5F15\u64CE",
-    "engine_ion": "\u79BB\u5B50\u5F15\u64CE",
-    "engine_nuclear": "\u6838\u70ED\u5F15\u64CE",
-    "engine_aerospike": "\u6C14\u52A8\u585E\u5F15\u64CE",
-    "engine_vector": "\u77E2\u91CF\u63A8\u529B\u5F15\u64CE",
-    "decoupler": "\u5206\u79BB\u5668",
-    "decoupler_heavy": "\u91CD\u578B\u5206\u79BB\u5668",
-    "science_lab": "\u79FB\u52A8\u79D1\u7814\u5B9E\u9A8C\u5BA4",
-    "science_sensor": "\u4F20\u611F\u5668\u9635\u5217",
-    "science_comm": "\u901A\u8BAF\u7EC4\u4EF6",
-    "parachute": "\u964D\u843D\u4F1E",
-    "parachute_drogue": "\u51CF\u901F\u4F1E",
-    "aero_fins": "\u6C14\u52A8\u5C3E\u7FFC",
-    "aero_nosecone": "\u9F3B\u9525",
-    "aero_heatshield": "\u9694\u70ED\u76FE",
-    "rcs_block": "RCS \u63A8\u8FDB\u5668\u7EC4",
-    "rcs_tank": "RCS \u5355\u7EC4\u5143\u50A8\u7BB1",
-    "solar_panel": "\u592A\u9633\u80FD\u677F",
-    "solar_array": "\u592A\u9633\u80FD\u9635\u5217",
-    "antenna_dish": "\u901A\u8BAF\u789F\u5F62\u5929\u7EBF",
-    "antenna_whip": "\u97AD\u72B6\u5929\u7EBF",
-    "landing_legs": "\u7740\u9646\u652F\u67B6",
-    "landing_pads": "\u7740\u9646\u811A\u57AB",
-    "adapter_2_1": "2:1 \u9002\u914D\u5668",
-    "adapter_3_1": "3:1 \u9002\u914D\u5668"
-  };
-  return map[part.id] || part.name;
-}
-function partDescCN(part) {
-  const map = {
-    "capsule_mk1": "\u5355\u4EBA\u91CD\u8FD4\u5927\u6C14\u5C42\u8231",
-    "capsule_mk2": "\u53CC\u4EBA\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u62A4\u76FE",
-    "capsule_mk3": "\u56DB\u4EBA\u4E58\u5458\u8231\uFF0C\u9002\u5408\u957F\u671F\u4EFB\u52A1",
-    "probe_core": "\u65E0\u4EBA\u63A7\u5236\u5355\u5143",
-    "fuel_small": "\u7D27\u51D1\u578B\u71C3\u6599\u7BB1",
-    "fuel_medium": "\u6807\u51C6\u71C3\u6599\u7BB1",
-    "fuel_large": "\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1",
-    "fuel_xl": "\u5DE8\u578B\u71C3\u6599\u50A8\u7BB1",
-    "fuel_nuclear": "\u79BB\u5B50\u5F15\u64CE\u7528\u6838\u71C3\u6599",
-    "engine_chem": "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE",
-    "engine_heavy": "\u91CD\u578B\u8F7D\u8377\u5927\u63A8\u529B\u5F15\u64CE",
-    "engine_ion": "\u8D85\u9AD8\u6548\u7535\u63A8\u8FDB\u5F15\u64CE",
-    "engine_nuclear": "\u6838\u70ED\u63A8\u8FDB\u5F15\u64CE",
-    "engine_aerospike": "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1\u5F15\u64CE",
-    "engine_vector": "\u63A8\u529B\u77E2\u91CF\u63A7\u5236\u5F15\u64CE",
-    "decoupler": "\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E",
-    "decoupler_heavy": "\u5927\u578B\u706B\u7BAD\u7EA7\u95F4\u5206\u79BB",
-    "science_lab": "\u6301\u7EED\u751F\u6210\u79D1\u7814\u70B9\u6570",
-    "science_sensor": "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668",
-    "science_comm": "\u589E\u5F3A\u79D1\u7814\u6570\u636E\u4F20\u8F93",
-    "parachute": "\u4E00\u6B21\u6027\u51CF\u901F\u964D\u843D\u4F1E",
-    "parachute_drogue": "\u9AD8\u901F\u51CF\u901F\u4F1E",
-    "aero_fins": "\u5927\u6C14\u5C42\u5185\u7A33\u5B9A\u98DE\u884C",
-    "aero_nosecone": "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B",
-    "aero_heatshield": "\u70E7\u8680\u5F0F\u91CD\u8FD4\u9694\u70ED",
-    "rcs_block": "\u56DB\u5411\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u5668",
-    "rcs_tank": "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58",
-    "solar_panel": "\u5C55\u5F00\u5F0F\u592A\u9633\u80FD\u53D1\u7535",
-    "solar_array": "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217",
-    "antenna_dish": "\u8FDC\u7A0B\u901A\u8BAF\u789F\u5F62\u5929\u7EBF",
-    "antenna_whip": "\u77ED\u7A0B\u901A\u8BAF\u97AD\u72B6\u5929\u7EBF",
-    "landing_legs": "\u53EF\u5C55\u5F00\u7740\u9646\u652F\u67B6",
-    "landing_pads": "\u5BBD\u5E95\u7740\u9646\u811A\u57AB",
-    "adapter_2_1": "\u7F29\u5C0F\u76F4\u5F84\u9002\u914D\u5668",
-    "adapter_3_1": "\u591A\u5F15\u64CE\u5B89\u88C5\u9002\u914D\u5668"
-  };
-  return map[part.id] || (part.description || "");
-}
+var PART_TYPE_ICON = {
+  command: "\u{1F4E6}",
+  fuel: "\u26FD",
+  engine: "\u{1F525}",
+  decoupler: "\u{1F517}",
+  science: "\u{1F52C}",
+  parachute: "\u{1FA82}",
+  aero: "\u2708\uFE0F",
+  rcs: "\u{1F3AF}",
+  solar: "\u2600\uFE0F",
+  antenna: "\u{1F4E1}",
+  landing: "\u{1F9B5}",
+  adapter: "\u{1F4D0}",
+  booster: "\u{1F680}",
+  structural: "\u{1F527}",
+  utility: "\u{1F50C}"
+};
+var VAB_CATEGORIES = [
+  { id: "all", name: "\u5168\u90E8", icon: "\u{1F4DA}" },
+  { id: "command", name: "\u6307\u4EE4\u8231", icon: "\u{1F4E6}" },
+  { id: "fuel", name: "\u71C3\u6599\u7BB1", icon: "\u26FD" },
+  { id: "engine", name: "\u5F15\u64CE", icon: "\u{1F525}" },
+  { id: "booster", name: "\u52A9\u63A8\u5668", icon: "\u{1F680}" },
+  { id: "parachute", name: "\u964D\u843D\u4F1E", icon: "\u{1FA82}" },
+  { id: "aero", name: "\u6C14\u52A8", icon: "\u2708\uFE0F" },
+  { id: "structural", name: "\u7ED3\u6784", icon: "\u{1F527}" },
+  { id: "rcs", name: "\u59FF\u6001\u63A7\u5236", icon: "\u{1F3AF}" },
+  { id: "solar", name: "\u7535\u529B", icon: "\u2600\uFE0F" },
+  { id: "antenna", name: "\u901A\u4FE1", icon: "\u{1F4E1}" },
+  { id: "science", name: "\u79D1\u7814", icon: "\u{1F52C}" },
+  { id: "landing", name: "\u7740\u9646", icon: "\u{1F9B5}" },
+  { id: "decoupler", name: "\u5206\u79BB\u5668", icon: "\u{1F517}" },
+  { id: "adapter", name: "\u9002\u914D\u5668", icon: "\u{1F4D0}" },
+  { id: "utility", name: "\u5DE5\u5177", icon: "\u{1F50C}" }
+];
 var SimpleOrbitControls = class {
   constructor(camera, dom, target = new Vector3(0, 0, 0)) {
     this.isDragging = false;
@@ -26674,6 +26594,8 @@ var VAB3DPreview = class {
   constructor(canvas) {
     this.animationId = 0;
     this.disposed = false;
+    this.onResize = null;
+    this.hintDiv = null;
     this.animate = () => {
       if (this.disposed) return;
       this.animationId = requestAnimationFrame(this.animate);
@@ -26681,189 +26603,387 @@ var VAB3DPreview = class {
       this.renderer.render(this.scene, this.camera);
     };
     this.canvas = canvas;
-    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setSize(400, 400);
+    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.scene = new Scene();
-    const bgCanvas = document.createElement("canvas");
-    bgCanvas.width = 2;
-    bgCanvas.height = 256;
-    const bgCtx = bgCanvas.getContext("2d");
-    const grad = bgCtx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, "#0a0a3e");
-    grad.addColorStop(0.5, "#050518");
-    grad.addColorStop(1, "#000005");
-    bgCtx.fillStyle = grad;
-    bgCtx.fillRect(0, 0, 2, 256);
-    const bgTexture = new CanvasTexture(bgCanvas);
-    bgTexture.colorSpace = SRGBColorSpace;
-    this.scene.background = bgTexture;
+    this.scene.background = new Color(657930);
+    this.scene.fog = new Fog(657930, 30, 80);
     this.camera = new PerspectiveCamera(45, 1, 0.1, 1e3);
-    this.camera.position.set(0, 2, 12);
-    const ambient = new AmbientLight(4482730, 0.6);
+    this.camera.position.set(8, 6, 12);
+    const ambient = new AmbientLight(4210760, 0.5);
     this.scene.add(ambient);
-    const dirLight = new DirectionalLight(16777215, 1.2);
-    dirLight.position.set(5, 10, 7);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 1024;
-    dirLight.shadow.mapSize.height = 1024;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 50;
-    dirLight.shadow.camera.left = -10;
-    dirLight.shadow.camera.right = 10;
-    dirLight.shadow.camera.top = 10;
-    dirLight.shadow.camera.bottom = -10;
-    this.scene.add(dirLight);
-    const fillLight = new DirectionalLight(4491519, 0.4);
-    fillLight.position.set(-5, 3, -5);
+    const keyLight = new DirectionalLight(16777215, 1.5);
+    keyLight.position.set(10, 20, 8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 80;
+    keyLight.shadow.camera.left = -15;
+    keyLight.shadow.camera.right = 15;
+    keyLight.shadow.camera.top = 20;
+    keyLight.shadow.camera.bottom = -5;
+    keyLight.shadow.bias = -5e-4;
+    this.scene.add(keyLight);
+    const fillLight = new DirectionalLight(6719658, 0.5);
+    fillLight.position.set(-8, 8, -5);
     this.scene.add(fillLight);
-    const grid = new GridHelper(20, 20, 2245734, 1122867);
-    grid.material.transparent = true;
-    grid.material.opacity = 0.3;
-    grid.position.y = -5;
-    this.scene.add(grid);
+    const rimLight = new DirectionalLight(11189196, 0.3);
+    rimLight.position.set(0, 5, -15);
+    this.scene.add(rimLight);
+    this.createVABFloor();
     this.rocketGroup = new Group();
     this.scene.add(this.rocketGroup);
-    this.controls = new SimpleOrbitControls(this.camera, canvas, new Vector3(0, 0, 0));
-    this.controls.setAutoRotateSpeed(0.5);
-    this.controls.setLimits(4, 30, 0.1, Math.PI - 0.1);
+    this.controls = new SimpleOrbitControls(this.camera, canvas, new Vector3(0, 2, 0));
+    this.controls.setAutoRotateSpeed(0.3);
+    this.controls.setLimits(5, 40, 0.15, Math.PI / 2 - 0.05);
+    this.onResize = () => this.resize();
+    window.addEventListener("resize", this.onResize);
+    this.resize();
     this.animate();
+  }
+  // 创建 VAB 地面 (圆形 + 网格纹理)
+  createVABFloor() {
+    const floorRadius = 15;
+    const floorGeo = new CircleGeometry(floorRadius, 64);
+    floorGeo.rotateX(-Math.PI / 2);
+    const texSize = 512;
+    const gridCanvas = document.createElement("canvas");
+    gridCanvas.width = texSize;
+    gridCanvas.height = texSize;
+    const gctx = gridCanvas.getContext("2d");
+    gctx.fillStyle = "#1a1a1a";
+    gctx.fillRect(0, 0, texSize, texSize);
+    const gridDiv = 16;
+    const cellSize = texSize / gridDiv;
+    for (let i = 0; i < gridDiv; i++) {
+      for (let j = 0; j < gridDiv; j++) {
+        if ((i + j) % 2 === 0) {
+          gctx.fillStyle = "#222222";
+        } else {
+          gctx.fillStyle = "#1a1a1a";
+        }
+        gctx.fillRect(i * cellSize, j * cellSize, cellSize, cellSize);
+      }
+    }
+    gctx.strokeStyle = "#333333";
+    gctx.lineWidth = 1;
+    for (let i = 0; i <= gridDiv; i++) {
+      gctx.beginPath();
+      gctx.moveTo(i * cellSize, 0);
+      gctx.lineTo(i * cellSize, texSize);
+      gctx.stroke();
+      gctx.beginPath();
+      gctx.moveTo(0, i * cellSize);
+      gctx.lineTo(texSize, i * cellSize);
+      gctx.stroke();
+    }
+    const floorTex = new CanvasTexture(gridCanvas);
+    floorTex.colorSpace = SRGBColorSpace;
+    floorTex.wrapS = RepeatWrapping;
+    floorTex.wrapT = RepeatWrapping;
+    floorTex.repeat.set(4, 4);
+    const floorMat = new MeshStandardMaterial({
+      map: floorTex,
+      roughness: 0.8,
+      metalness: 0.2
+    });
+    const floor = new Mesh(floorGeo, floorMat);
+    floor.position.y = -5;
+    floor.receiveShadow = true;
+    this.scene.add(floor);
+    const ringGeo = new RingGeometry(floorRadius - 0.1, floorRadius, 64);
+    ringGeo.rotateX(-Math.PI / 2);
+    const ringMat = new MeshBasicMaterial({ color: 4473924 });
+    const ring = new Mesh(ringGeo, ringMat);
+    ring.position.y = -4.99;
+    this.scene.add(ring);
+  }
+  resize() {
+    const parent = this.canvas.parentElement;
+    if (!parent) return;
+    const w = parent.clientWidth;
+    const h = parent.clientHeight;
+    if (w <= 0 || h <= 0) return;
+    this.canvas.width = w;
+    this.canvas.height = h;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+  setHint(div) {
+    this.hintDiv = div;
   }
   // Build 3D rocket model from selected parts
   buildRocket(parts) {
     this.disposeGroup(this.rocketGroup);
     if (parts.length === 0) {
+      if (this.hintDiv) this.hintDiv.style.display = "flex";
       return;
     }
+    if (this.hintDiv) this.hintDiv.style.display = "none";
     const parachutes = parts.filter((p) => p.type === "parachute");
     const commands = parts.filter((p) => p.type === "command");
     const fuels = parts.filter((p) => p.type === "fuel");
     const engines = parts.filter((p) => p.type === "engine");
-    const decouplers = parts.filter((p) => p.type === "decoupler");
-    const others = parts.filter(
-      (p) => !["parachute", "command", "fuel", "engine", "decoupler"].includes(p.type)
-    );
-    const commandMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.4, metalness: 0.5 });
-    const fuelMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.3, metalness: 0.6 });
-    const engineMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
-    const nozzleMat = new MeshStandardMaterial({ color: 2236962, roughness: 0.7, metalness: 0.3 });
+    const boosters = parts.filter((p) => p.type === "booster");
+    const decouplers = parts.filter((p) => p.type === "decoupler" || p.type === "adapter");
+    const structurals = parts.filter((p) => p.type === "structural");
+    const aeroParts = parts.filter((p) => p.type === "aero");
+    const rcsParts = parts.filter((p) => p.type === "rcs");
+    const solarParts = parts.filter((p) => p.type === "solar");
+    const antennaParts = parts.filter((p) => p.type === "antenna");
+    const scienceParts = parts.filter((p) => p.type === "science");
+    const landingParts = parts.filter((p) => p.type === "landing");
+    const utilityParts = parts.filter((p) => p.type === "utility");
+    const commandMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.35, metalness: 0.5 });
+    const probeMat = new MeshStandardMaterial({ color: 5596791, roughness: 0.4, metalness: 0.6 });
+    const fuelMat = new MeshStandardMaterial({ color: 14737632, roughness: 0.25, metalness: 0.65 });
+    const engineBodyMat = new MeshStandardMaterial({ color: 6710886, roughness: 0.5, metalness: 0.5 });
+    const nozzleMat = new MeshStandardMaterial({ color: 1710618, roughness: 0.7, metalness: 0.3 });
     const parachuteMat = new MeshStandardMaterial({ color: 16729122, roughness: 0.5, metalness: 0.1 });
     const decouplerMat = new MeshStandardMaterial({ color: 8939076, roughness: 0.5, metalness: 0.3 });
-    const accentMat = new MeshStandardMaterial({ color: 4491519, roughness: 0.4, metalness: 0.5 });
-    const sideMat = new MeshStandardMaterial({ color: 6715272, roughness: 0.5, metalness: 0.4 });
-    let currentY = 0;
+    const accentMat = new MeshStandardMaterial({ color: 3368652, roughness: 0.4, metalness: 0.5 });
+    const boosterMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.3, metalness: 0.5 });
+    const aeroMat = new MeshStandardMaterial({ color: 11184810, roughness: 0.3, metalness: 0.4 });
+    const rcsMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.5 });
+    const solarMat = new MeshStandardMaterial({ color: 2241450, roughness: 0.3, metalness: 0.7, emissive: 51 });
+    const solarFrameMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.6 });
+    const antennaMat = new MeshStandardMaterial({ color: 10066329, roughness: 0.4, metalness: 0.6 });
+    const scienceMat = new MeshStandardMaterial({ color: 14527044, roughness: 0.4, metalness: 0.4 });
+    const landingMat = new MeshStandardMaterial({ color: 7829367, roughness: 0.5, metalness: 0.4 });
+    const structuralMat = new MeshStandardMaterial({ color: 6710886, roughness: 0.5, metalness: 0.4 });
+    const utilityMat = new MeshStandardMaterial({ color: 10066329, roughness: 0.4, metalness: 0.5 });
     const stackParts = [];
     for (const engine of engines) {
       const engineGroup = new Group();
-      const bodyHeight = 1.2;
-      const body = new Mesh(
-        new CylinderGeometry(0.5, 0.8, bodyHeight, 16),
-        engineMat
-      );
-      body.castShadow = true;
-      engineGroup.add(body);
-      const nozzle = new Mesh(
-        new ConeGeometry(0.7, 1, 16, 1, true),
-        nozzleMat
-      );
-      nozzle.rotation.x = Math.PI;
-      nozzle.position.y = -1;
-      nozzle.castShadow = true;
-      engineGroup.add(nozzle);
-      const ring = new Mesh(
-        new CylinderGeometry(0.55, 0.5, 0.15, 16),
-        accentMat
-      );
-      ring.position.y = 0.65;
-      engineGroup.add(ring);
-      stackParts.push({ mesh: engineGroup, height: 2.2 });
+      let bodyR = 0.45, bodyH = 1, nozzleR = 0.6, nozzleH = 0.9;
+      let nozzleCount = 1;
+      if (engine.thrust > 2e6) {
+        bodyR = 0.7;
+        bodyH = 1.5;
+        nozzleR = 1;
+        nozzleH = 1.3;
+        nozzleCount = engine.id.includes("mammoth") ? 4 : engine.id.includes("twin") ? 2 : 1;
+      } else if (engine.thrust > 1e6) {
+        bodyR = 0.6;
+        bodyH = 1.3;
+        nozzleR = 0.85;
+        nozzleH = 1.1;
+      } else if (engine.thrust > 5e5) {
+        bodyR = 0.55;
+        bodyH = 1.1;
+        nozzleR = 0.75;
+        nozzleH = 1;
+      } else if (engine.thrust > 2e5) {
+        bodyR = 0.5;
+        bodyH = 0.95;
+        nozzleR = 0.65;
+        nozzleH = 0.85;
+      }
+      if (nozzleCount === 1) {
+        const body = new Mesh(
+          new CylinderGeometry(bodyR * 0.9, bodyR, bodyH, 24),
+          engineBodyMat
+        );
+        body.position.y = bodyH / 2;
+        body.castShadow = true;
+        engineGroup.add(body);
+        const nozzle = new Mesh(
+          new ConeGeometry(nozzleR, nozzleH, 24, 1, true),
+          nozzleMat
+        );
+        nozzle.rotation.x = Math.PI;
+        nozzle.position.y = -nozzleH / 2;
+        nozzle.castShadow = true;
+        engineGroup.add(nozzle);
+        const ring = new Mesh(
+          new CylinderGeometry(bodyR * 1.02, bodyR * 0.9, 0.15, 24),
+          accentMat
+        );
+        ring.position.y = bodyH + 0.05;
+        engineGroup.add(ring);
+      } else {
+        const mainBody = new Mesh(
+          new CylinderGeometry(bodyR, bodyR, bodyH, 24),
+          engineBodyMat
+        );
+        mainBody.position.y = bodyH / 2;
+        mainBody.castShadow = true;
+        engineGroup.add(mainBody);
+        const nozzleOffset = bodyR * 0.55;
+        const positions = nozzleCount === 2 ? [[-nozzleOffset, 0], [nozzleOffset, 0]] : [[-nozzleOffset, -nozzleOffset], [nozzleOffset, -nozzleOffset], [-nozzleOffset, nozzleOffset], [nozzleOffset, nozzleOffset]];
+        for (const [px2, pz2] of positions) {
+          const nR = nozzleR * 0.6;
+          const nozzle = new Mesh(
+            new ConeGeometry(nR, nozzleH * 0.7, 16, 1, true),
+            nozzleMat
+          );
+          nozzle.rotation.x = Math.PI;
+          nozzle.position.set(px2, -nozzleH * 0.35, pz2);
+          nozzle.castShadow = true;
+          engineGroup.add(nozzle);
+          const nBody = new Mesh(
+            new CylinderGeometry(nR * 0.9, nR * 0.8, bodyH * 0.7, 16),
+            engineBodyMat
+          );
+          nBody.position.set(px2, bodyH * 0.35, pz2);
+          nBody.castShadow = true;
+          engineGroup.add(nBody);
+        }
+      }
+      const totalH = bodyH + nozzleH;
+      engineGroup.position.y = 0;
+      stackParts.push({ mesh: engineGroup, height: totalH });
     }
     for (const dec of decouplers) {
       const decMesh = new Mesh(
-        new CylinderGeometry(0.55, 0.55, 0.3, 16),
+        new CylinderGeometry(0.55, 0.55, 0.35, 24),
         decouplerMat
       );
       decMesh.castShadow = true;
-      stackParts.push({ mesh: decMesh, height: 0.3 });
+      decMesh.receiveShadow = true;
+      stackParts.push({ mesh: decMesh, height: 0.35 });
+    }
+    for (const st of structurals) {
+      const stMesh = new Mesh(
+        new CylinderGeometry(0.5, 0.5, 0.5, 20),
+        structuralMat
+      );
+      stMesh.castShadow = true;
+      stackParts.push({ mesh: stMesh, height: 0.5 });
     }
     for (const fuel of fuels) {
       const fuelGroup = new Group();
-      let tankHeight = 1.5;
-      let tankRadius = 0.55;
+      let tankHeight = 1.2, tankRadius = 0.5;
       if (fuel.fuelMass > 3e4) {
+        tankHeight = 3;
+        tankRadius = 0.8;
+      } else if (fuel.fuelMass > 15e3) {
         tankHeight = 2.5;
         tankRadius = 0.7;
-      } else if (fuel.fuelMass > 15e3) {
-        tankHeight = 2;
-        tankRadius = 0.6;
       } else if (fuel.fuelMass > 5e3) {
-        tankHeight = 1.5;
-        tankRadius = 0.55;
-      } else {
-        tankHeight = 1;
+        tankHeight = 1.8;
+        tankRadius = 0.6;
+      } else if (fuel.fuelMass > 1e3) {
+        tankHeight = 1.2;
         tankRadius = 0.5;
+      } else {
+        tankHeight = 0.8;
+        tankRadius = 0.4;
       }
       const tank = new Mesh(
-        new CylinderGeometry(tankRadius, tankRadius, tankHeight, 24),
+        new CylinderGeometry(tankRadius, tankRadius, tankHeight, 32),
         fuelMat
       );
       tank.castShadow = true;
       tank.receiveShadow = true;
       fuelGroup.add(tank);
-      const topRing = new Mesh(
-        new CylinderGeometry(tankRadius * 1.02, tankRadius * 1.02, 0.1, 24),
-        accentMat
+      const bandColor = fuel.fuelMass > 2e4 ? 3359846 : fuel.fuelMass > 5e3 ? 3368652 : 6719692;
+      const bandMat = new MeshStandardMaterial({ color: bandColor, roughness: 0.3, metalness: 0.6 });
+      const topBand = new Mesh(
+        new CylinderGeometry(tankRadius * 1.03, tankRadius * 1.03, 0.12, 32),
+        bandMat
       );
-      topRing.position.y = tankHeight / 2 - 0.05;
-      fuelGroup.add(topRing);
-      const botRing = new Mesh(
-        new CylinderGeometry(tankRadius * 1.02, tankRadius * 1.02, 0.1, 24),
-        accentMat
+      topBand.position.y = tankHeight / 2 - 0.06;
+      fuelGroup.add(topBand);
+      const botBand = new Mesh(
+        new CylinderGeometry(tankRadius * 1.03, tankRadius * 1.03, 0.12, 32),
+        bandMat
       );
-      botRing.position.y = -tankHeight / 2 + 0.05;
-      fuelGroup.add(botRing);
+      botBand.position.y = -tankHeight / 2 + 0.06;
+      fuelGroup.add(botBand);
+      for (let s = 0; s < 4; s++) {
+        const angle = s / 4 * Math.PI * 2;
+        const stripe = new Mesh(
+          new BoxGeometry(0.04, tankHeight * 0.85, 0.04),
+          new MeshStandardMaterial({ color: 12303291, roughness: 0.3, metalness: 0.7 })
+        );
+        stripe.position.set(Math.cos(angle) * (tankRadius + 0.01), 0, Math.sin(angle) * (tankRadius + 0.01));
+        fuelGroup.add(stripe);
+      }
       stackParts.push({ mesh: fuelGroup, height: tankHeight });
     }
     for (const cmd of commands) {
       const cmdGroup = new Group();
-      const cmdHeight = 1.3;
-      const cone = new Mesh(
-        new ConeGeometry(0.55, cmdHeight, 24),
-        commandMat
-      );
-      cone.castShadow = true;
-      cmdGroup.add(cone);
-      const window2 = new Mesh(
-        new SphereGeometry(0.15, 12, 8),
-        new MeshStandardMaterial({ color: 8956620, emissive: 2241348, roughness: 0.1, metalness: 0.8 })
-      );
-      window2.position.set(0, 0.15, 0.45);
-      cmdGroup.add(window2);
-      const baseRing = new Mesh(
-        new CylinderGeometry(0.57, 0.55, 0.15, 24),
-        accentMat
-      );
-      baseRing.position.y = -cmdHeight / 2 + 0.05;
-      cmdGroup.add(baseRing);
+      let isProbe = cmd.id.includes("probe");
+      let cmdHeight = 1.2, cmdRadius = 0.55;
+      if (cmd.id.includes("mk3") || cmd.mass > 3e3) {
+        cmdRadius = 0.8;
+        cmdHeight = 1.5;
+      } else if (cmd.id.includes("mk2") || cmd.mass > 1500) {
+        cmdRadius = 0.6;
+        cmdHeight = 1.2;
+      } else if (isProbe) {
+        cmdRadius = 0.3;
+        cmdHeight = 0.4;
+      }
+      if (isProbe) {
+        const probeBody = new Mesh(
+          new CylinderGeometry(cmdRadius, cmdRadius * 0.9, cmdHeight, 16),
+          probeMat
+        );
+        probeBody.castShadow = true;
+        cmdGroup.add(probeBody);
+        const cap = new Mesh(
+          new CylinderGeometry(cmdRadius * 0.5, cmdRadius, 0.1, 16),
+          new MeshStandardMaterial({ color: 3359829, roughness: 0.3, metalness: 0.7 })
+        );
+        cap.position.y = cmdHeight / 2 + 0.05;
+        cmdGroup.add(cap);
+      } else {
+        const cone = new Mesh(
+          new ConeGeometry(cmdRadius, cmdHeight, 24),
+          commandMat
+        );
+        cone.castShadow = true;
+        cmdGroup.add(cone);
+        const window2 = new Mesh(
+          new SphereGeometry(cmdRadius * 0.18, 12, 8),
+          new MeshStandardMaterial({ color: 3368618, emissive: 1122884, roughness: 0.1, metalness: 0.9 })
+        );
+        window2.position.set(0, cmdHeight * 0.1, cmdRadius * 0.7);
+        cmdGroup.add(window2);
+        const accentBand = new Mesh(
+          new CylinderGeometry(cmdRadius * 0.98, cmdRadius, 0.15, 24),
+          new MeshStandardMaterial({ color: 2236962, roughness: 0.4, metalness: 0.3 })
+        );
+        accentBand.position.y = -cmdHeight / 2 + 0.08;
+        cmdGroup.add(accentBand);
+        const baseRing = new Mesh(
+          new CylinderGeometry(cmdRadius * 1.02, cmdRadius * 0.98, 0.1, 24),
+          accentMat
+        );
+        baseRing.position.y = -cmdHeight / 2 - 0.02;
+        cmdGroup.add(baseRing);
+      }
       stackParts.push({ mesh: cmdGroup, height: cmdHeight });
     }
     for (const para of parachutes) {
       const paraGroup = new Group();
-      const paraCone = new Mesh(
-        new ConeGeometry(0.25, 0.5, 12),
+      const paraCylinder = new Mesh(
+        new CylinderGeometry(0.18, 0.15, 0.4, 12),
         parachuteMat
       );
+      paraCylinder.position.y = 0.1;
+      paraCylinder.castShadow = true;
+      paraGroup.add(paraCylinder);
+      const paraCone = new Mesh(
+        new ConeGeometry(0.18, 0.25, 12),
+        parachuteMat
+      );
+      paraCone.position.y = 0.42;
       paraCone.castShadow = true;
       paraGroup.add(paraCone);
       const paraBase = new Mesh(
-        new CylinderGeometry(0.1, 0.1, 0.15, 8),
+        new CylinderGeometry(0.1, 0.1, 0.1, 8),
         nozzleMat
       );
-      paraBase.position.y = -0.3;
+      paraBase.position.y = -0.1;
       paraGroup.add(paraBase);
-      stackParts.push({ mesh: paraGroup, height: 0.5 });
+      stackParts.push({ mesh: paraGroup, height: 0.6 });
     }
     let yCursor = 0;
     for (const part of stackParts) {
@@ -26873,23 +26993,196 @@ var VAB3DPreview = class {
     }
     const totalHeight = yCursor;
     this.rocketGroup.position.y = -totalHeight / 2 + 1;
-    let sideIndex = 0;
-    for (const other of others) {
-      const box = new Mesh(
-        new BoxGeometry(0.3, 0.4, 0.3),
-        sideMat
-      );
-      const angle = sideIndex / Math.max(others.length, 1) * Math.PI * 2;
-      const radius = 0.8;
-      box.position.set(
-        Math.cos(angle) * radius,
-        0,
-        Math.sin(angle) * radius
-      );
-      box.castShadow = true;
-      this.rocketGroup.add(box);
-      sideIndex++;
+    const boosterCount = boosters.length;
+    if (boosterCount > 0) {
+      const maxRadius = this.getMaxStackRadius(fuels, commands);
+      const boosterRadius = 0.25;
+      const boosterHeight = 3;
+      const sideDist = maxRadius + boosterRadius + 0.15;
+      boosters.forEach((booster, i) => {
+        const angle = i / boosterCount * Math.PI * 2;
+        const bg = new Group();
+        const bBody = new Mesh(
+          new CylinderGeometry(boosterRadius, boosterRadius, boosterHeight, 16),
+          boosterMat
+        );
+        bBody.castShadow = true;
+        bg.add(bBody);
+        const bNose = new Mesh(
+          new ConeGeometry(boosterRadius, 0.5, 16),
+          boosterMat
+        );
+        bNose.position.y = boosterHeight / 2 + 0.25;
+        bNose.castShadow = true;
+        bg.add(bNose);
+        const bNozzle = new Mesh(
+          new ConeGeometry(boosterRadius * 0.8, 0.4, 12, 1, true),
+          nozzleMat
+        );
+        bNozzle.rotation.x = Math.PI;
+        bNozzle.position.y = -boosterHeight / 2 - 0.2;
+        bg.add(bNozzle);
+        bg.position.set(Math.cos(angle) * sideDist, 0, Math.sin(angle) * sideDist);
+        this.rocketGroup.add(bg);
+      });
     }
+    const finCount = aeroParts.filter((p) => p.id.includes("fin") || p.id.includes("wing")).length;
+    if (finCount > 0) {
+      const finsToShow = Math.min(finCount, 4);
+      const finY = -totalHeight / 2 + 1.5;
+      const maxRadius = this.getMaxStackRadius(fuels, commands);
+      for (let i = 0; i < finsToShow; i++) {
+        const angle = i / finsToShow * Math.PI * 2;
+        const fin = new Mesh(
+          new BoxGeometry(0.15, 0.6, 0.5),
+          aeroMat
+        );
+        fin.position.set(
+          Math.cos(angle) * (maxRadius + 0.2),
+          finY,
+          Math.sin(angle) * (maxRadius + 0.2)
+        );
+        fin.rotation.y = -angle;
+        fin.castShadow = true;
+        this.rocketGroup.add(fin);
+      }
+    }
+    if (rcsParts.length > 0) {
+      const maxRadius = this.getMaxStackRadius(fuels, commands);
+      const rcsCount = Math.min(rcsParts.length * 2, 4);
+      for (let i = 0; i < rcsCount; i++) {
+        const angle = i / rcsCount * Math.PI * 2;
+        const rcsBox = new Mesh(
+          new BoxGeometry(0.15, 0.15, 0.15),
+          rcsMat
+        );
+        rcsBox.position.set(
+          Math.cos(angle) * (maxRadius + 0.08),
+          totalHeight * 0.2,
+          Math.sin(angle) * (maxRadius + 0.08)
+        );
+        rcsBox.castShadow = true;
+        this.rocketGroup.add(rcsBox);
+      }
+    }
+    solarParts.forEach((solar, i) => {
+      const maxRadius = this.getMaxStackRadius(fuels, commands);
+      const angle = i / Math.max(solarParts.length, 1) * Math.PI * 2;
+      const sg = new Group();
+      const arm = new Mesh(
+        new CylinderGeometry(0.03, 0.03, 0.4, 8),
+        solarFrameMat
+      );
+      arm.rotation.z = Math.PI / 2;
+      sg.add(arm);
+      const panel = new Mesh(
+        new BoxGeometry(0.8, 0.02, 0.5),
+        solarMat
+      );
+      panel.position.x = 0.6;
+      panel.castShadow = true;
+      sg.add(panel);
+      sg.position.set(
+        Math.cos(angle) * (maxRadius + 0.05),
+        totalHeight * 0.3,
+        Math.sin(angle) * (maxRadius + 0.05)
+      );
+      sg.rotation.y = -angle;
+      this.rocketGroup.add(sg);
+    });
+    antennaParts.forEach((ant, i) => {
+      const ag = new Group();
+      const aBody = new Mesh(
+        new CylinderGeometry(0.02, 0.02, 0.8, 8),
+        antennaMat
+      );
+      aBody.position.y = 0.4;
+      ag.add(aBody);
+      const tip = new Mesh(
+        new SphereGeometry(0.08, 8, 6),
+        antennaMat
+      );
+      tip.position.y = 0.8;
+      ag.add(tip);
+      ag.position.set(
+        (i - antennaParts.length / 2) * 0.3,
+        totalHeight / 2 - 0.2,
+        0
+      );
+      this.rocketGroup.add(ag);
+    });
+    scienceParts.forEach((sci, i) => {
+      const maxRadius = this.getMaxStackRadius(fuels, commands);
+      const angle = i / Math.max(scienceParts.length, 1) * Math.PI * 2 + 0.3;
+      const sBox = new Mesh(
+        new BoxGeometry(0.2, 0.2, 0.2),
+        scienceMat
+      );
+      sBox.position.set(
+        Math.cos(angle) * (maxRadius + 0.1),
+        totalHeight * 0.1,
+        Math.sin(angle) * (maxRadius + 0.1)
+      );
+      sBox.castShadow = true;
+      this.rocketGroup.add(sBox);
+    });
+    landingParts.forEach((land, i) => {
+      const legCount = Math.min(landingParts.length, 4);
+      for (let j = 0; j < legCount; j++) {
+        const angle = j / legCount * Math.PI * 2;
+        const lg = new Group();
+        const leg = new Mesh(
+          new CylinderGeometry(0.04, 0.04, 1.2, 8),
+          landingMat
+        );
+        leg.rotation.z = Math.PI / 6;
+        leg.position.set(0.3, -0.3, 0);
+        lg.add(leg);
+        const foot = new Mesh(
+          new CylinderGeometry(0.1, 0.1, 0.06, 8),
+          landingMat
+        );
+        foot.position.set(0.6, -0.85, 0);
+        lg.add(foot);
+        lg.position.set(
+          Math.cos(angle) * 0.3,
+          -totalHeight / 2 + 0.5,
+          Math.sin(angle) * 0.3
+        );
+        lg.rotation.y = -angle;
+        this.rocketGroup.add(lg);
+      }
+    });
+    utilityParts.forEach((util, i) => {
+      const maxRadius = this.getMaxStackRadius(fuels, commands);
+      const angle = i / Math.max(utilityParts.length, 1) * Math.PI * 2 + 0.8;
+      const uBox = new Mesh(
+        new BoxGeometry(0.25, 0.25, 0.25),
+        utilityMat
+      );
+      uBox.position.set(
+        Math.cos(angle) * (maxRadius + 0.12),
+        totalHeight * 0,
+        Math.sin(angle) * (maxRadius + 0.12)
+      );
+      uBox.castShadow = true;
+      this.rocketGroup.add(uBox);
+    });
+    const camDist = Math.max(8, totalHeight * 1.2);
+    this.controls.setLimits(5, camDist * 3, 0.15, Math.PI / 2 - 0.05);
+  }
+  getMaxStackRadius(fuels, commands) {
+    let maxR = 0.5;
+    for (const f of fuels) {
+      if (f.fuelMass > 3e4) maxR = Math.max(maxR, 0.8);
+      else if (f.fuelMass > 15e3) maxR = Math.max(maxR, 0.7);
+      else if (f.fuelMass > 5e3) maxR = Math.max(maxR, 0.6);
+    }
+    for (const c of commands) {
+      if (c.id.includes("mk3") || c.mass > 3e3) maxR = Math.max(maxR, 0.8);
+      else if (c.id.includes("mk2") || c.mass > 1500) maxR = Math.max(maxR, 0.6);
+    }
+    return maxR;
   }
   disposeGroup(group) {
     group.traverse((child) => {
@@ -26912,21 +27205,21 @@ var VAB3DPreview = class {
   dispose() {
     this.disposed = true;
     if (this.animationId) cancelAnimationFrame(this.animationId);
+    if (this.onResize) window.removeEventListener("resize", this.onResize);
     this.controls.dispose();
     this.disposeGroup(this.rocketGroup);
-    if (this.scene.background) {
-      if (this.scene.background instanceof Texture) {
-        this.scene.background.dispose();
-      }
-    }
     this.scene.traverse((child) => {
       if (child instanceof Mesh) {
         if (child.geometry) child.geometry.dispose();
         if (child.material) {
           const mat = child.material;
           if (Array.isArray(mat)) {
-            mat.forEach((m) => m.dispose());
+            mat.forEach((m) => {
+              if (m instanceof MeshStandardMaterial && m.map) m.map.dispose();
+              m.dispose();
+            });
           } else {
+            if (mat instanceof MeshStandardMaterial && mat.map) mat.map.dispose();
             mat.dispose();
           }
         }
@@ -27013,7 +27306,6 @@ var SpaceCenter3DScene = class {
     this.controls = new SimpleOrbitControls(this.camera, this.canvas, new Vector3(0, 5, 0));
     this.controls.setAutoRotateSpeed(0.15);
     this.controls.setLimits(20, 120, 0.15, Math.PI / 2 - 0.05);
-    this.clock = new Clock();
     this.onResize = () => {
       if (this.disposed) return;
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -27195,6 +27487,10 @@ var SpaceCenter = class {
     this.selectedParts = [];
     this.scene3D = null;
     this.vabPreview = null;
+    this.vabCurrentCategory = "all";
+    this.vabSearchText = "";
+    this.vabCraftName = "\u672A\u547D\u540D\u98DE\u884C\u5668";
+    this.vabResizeHandler = null;
     this.callbacks = callbacks;
     this.overlay = document.createElement("div");
     this.overlay.id = "space-center";
@@ -27203,7 +27499,7 @@ var SpaceCenter = class {
     document.body.appendChild(this.overlay);
     this.scene3D = new SpaceCenter3DScene(this.overlay);
   }
-  // 主样式：深蓝到黑色渐变背景 + 星空
+  // 主样式
   applyOverlayStyle() {
     const s = this.overlay.style;
     s.position = "fixed";
@@ -27334,20 +27630,13 @@ var SpaceCenter = class {
     `;
   }
   // ============================================
-  // VAB 面板（航天器组装大楼）
+  // VAB 面板（航天器组装大楼）- KSP 风格全屏布局
   // ============================================
   openVAB() {
     if (this.callbacks.onEnterVAB) {
       this.callbacks.onEnterVAB();
     }
-    if (this.vabPanel) {
-      this.vabPanel.remove();
-      this.vabPanel = null;
-    }
-    if (this.vabPreview) {
-      this.vabPreview.dispose();
-      this.vabPreview = null;
-    }
+    this.closeVAB();
     this.selectedParts = [
       ROCKET_PARTS.find((p) => p.id === "capsule_mk1"),
       ROCKET_PARTS.find((p) => p.id === "fuel_medium"),
@@ -27357,109 +27646,309 @@ var SpaceCenter = class {
     const panel = document.createElement("div");
     panel.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,5,0.92); z-index: 1100;
-      display: flex; flex-direction: column; align-items: center;
-      overflow-y: auto; padding: 30px 15px; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff;
+      background: #0a0a0a; z-index: 1100; display: flex; flex-direction: column;
+      overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: #ddd;
     `;
-    const header = document.createElement("div");
-    header.style.cssText = "text-align:center;margin-bottom:20px;";
-    header.innerHTML = `
-      <h2 style="font-size:1.8rem;font-weight:800;color:#4af;letter-spacing:0.1em;">\u{1F680} \u822A\u5929\u5668\u7EC4\u88C5\u5927\u697C (VAB)</h2>
-      <p style="font-size:0.85rem;color:#88aacc;margin-top:5px;">\u9009\u62E9\u96F6\u4EF6\u7EC4\u88C5\u4F60\u7684\u706B\u7BAD\uFF0C\u7136\u540E\u53D1\u5C04\u5347\u7A7A</p>
+    this.vabPanel = panel;
+    const topBar = document.createElement("div");
+    topBar.style.cssText = `
+      height: 48px; min-height: 48px; background: #1a1a1a; border-bottom: 1px solid #333;
+      display: flex; align-items: center; padding: 0 12px; gap: 8px;
     `;
-    panel.appendChild(header);
-    const content = document.createElement("div");
-    content.style.cssText = "display:flex;gap:20px;max-width:1100px;width:100%;flex-wrap:wrap;justify-content:center;";
-    const partsLib = document.createElement("div");
-    partsLib.style.cssText = "flex:1;min-width:300px;max-width:380px;";
-    partsLib.innerHTML = '<h3 style="color:#4af;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,160,255,0.3);padding-bottom:8px;">\u{1F4E6} \u96F6\u4EF6\u5E93</h3>';
-    const partsList = document.createElement("div");
-    partsList.id = "vab-parts-list";
-    partsList.style.cssText = "display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow-y:auto;padding-right:4px;";
-    ROCKET_PARTS.forEach((part) => {
-      partsList.appendChild(this.createPartItem(part, false));
-    });
-    partsLib.appendChild(partsList);
-    content.appendChild(partsLib);
-    const selectedBox = document.createElement("div");
-    selectedBox.style.cssText = "flex:1;min-width:260px;max-width:320px;";
-    selectedBox.id = "vab-selected-box";
-    selectedBox.innerHTML = '<h3 style="color:#4fa;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,255,170,0.3);padding-bottom:8px;">\u2705 \u5DF2\u9009\u96F6\u4EF6</h3>';
-    this.refreshSelectedList(selectedBox);
-    content.appendChild(selectedBox);
-    const previewBox = document.createElement("div");
-    previewBox.style.cssText = "flex:0 0 auto;min-width:420px;max-width:420px;display:flex;flex-direction:column;align-items:center;";
-    previewBox.innerHTML = '<h3 style="color:#4fa;font-size:1rem;margin-bottom:12px;border-bottom:1px solid rgba(80,255,170,0.3);padding-bottom:8px;width:100%;text-align:center;">\u{1F3AF} 3D \u706B\u7BAD\u9884\u89C8</h3>';
-    const previewCanvas = document.createElement("canvas");
-    previewCanvas.id = "vab-3d-canvas";
-    previewCanvas.width = 400;
-    previewCanvas.height = 400;
-    previewCanvas.style.cssText = "width:400px;height:400px;border-radius:8px;border:1px solid rgba(80,160,255,0.3);background:#050518;touch-action:none;";
-    previewBox.appendChild(previewCanvas);
-    const previewHint = document.createElement("p");
-    previewHint.style.cssText = "font-size:0.72rem;color:#68a;margin-top:8px;text-align:center;";
-    previewHint.textContent = "\u{1F5B1}\uFE0F \u62D6\u62FD\u65CB\u8F6C | \u6EDA\u8F6E\u7F29\u653E | \u81EA\u52A8\u65CB\u8F6C\u4E2D";
-    previewBox.appendChild(previewHint);
-    content.appendChild(previewBox);
-    panel.appendChild(content);
-    const btnBar = document.createElement("div");
-    btnBar.style.cssText = "display:flex;gap:15px;margin-top:25px;flex-wrap:wrap;justify-content:center;";
-    const launchBtn = document.createElement("button");
-    launchBtn.textContent = "\u{1F680} \u53D1\u5C04\u706B\u7BAD";
-    launchBtn.style.cssText = this.baseBtnStyle(true) + "font-size:1.1rem;padding:14px 50px;";
-    launchBtn.addEventListener("click", () => {
+    topBar.innerHTML = `
+      <div style="font-size: 1.1rem; font-weight: 800; color: #fff; margin-right: 8px; white-space: nowrap;">\u{1F680} VAB</div>
+      <input type="text" id="vab-craft-name" value="${this.vabCraftName}"
+        style="background: #2a2a2a; border: 1px solid #444; color: #fff; padding: 4px 10px;
+        border-radius: 3px; font-size: 0.85rem; width: 200px; outline: none;" />
+      <div style="flex: 1;"></div>
+    `;
+    panel.appendChild(topBar);
+    const topBtns = document.createElement("div");
+    topBtns.style.cssText = "display: flex; gap: 6px;";
+    const makeTopBtn = (text, bg, hoverBg, onClick) => {
+      const btn = document.createElement("button");
+      btn.textContent = text;
+      btn.style.cssText = `
+        background: ${bg}; border: 1px solid #444; color: #ddd; padding: 5px 14px;
+        border-radius: 3px; cursor: pointer; font-size: 0.82rem; transition: all 0.15s; white-space: nowrap;
+      `;
+      btn.addEventListener("mouseenter", () => {
+        btn.style.background = hoverBg;
+        btn.style.color = "#fff";
+      });
+      btn.addEventListener("mouseleave", () => {
+        btn.style.background = bg;
+        btn.style.color = "#ddd";
+      });
+      btn.addEventListener("click", onClick);
+      return btn;
+    };
+    topBtns.appendChild(makeTopBtn("\u65B0\u5EFA", "#333", "#444", () => {
+      this.selectedParts = [];
+      this.vabCraftName = "\u672A\u547D\u540D\u98DE\u884C\u5668";
+      document.getElementById("vab-craft-name").value = this.vabCraftName;
+      this.refreshVAB();
+    }));
+    topBtns.appendChild(makeTopBtn("\u4FDD\u5B58", "#333", "#444", () => {
+      this.showVABToast("\u8BBE\u8BA1\u5DF2\u4FDD\u5B58");
+    }));
+    topBtns.appendChild(makeTopBtn("\u8BFB\u53D6", "#333", "#444", () => {
+      this.showVABToast("\u8BFB\u53D6\u529F\u80FD\u5F00\u53D1\u4E2D");
+    }));
+    const launchBtn = makeTopBtn("\u{1F680} \u53D1\u5C04", "#1a6b1a", "#2a8b2a", () => {
       this.closeVAB();
       this.callbacks.onLaunch();
     });
-    const closeBtn = document.createElement("button");
-    closeBtn.textContent = "\u2190 \u8FD4\u56DE\u822A\u5929\u4E2D\u5FC3";
-    closeBtn.style.cssText = this.baseBtnStyle(false);
-    closeBtn.addEventListener("click", () => {
+    launchBtn.style.color = "#afa";
+    launchBtn.style.fontWeight = "700";
+    topBtns.appendChild(launchBtn);
+    topBtns.appendChild(makeTopBtn("\u9000\u51FA", "#443333", "#664444", () => {
       this.closeVAB();
-    });
-    btnBar.appendChild(closeBtn);
-    btnBar.appendChild(launchBtn);
-    panel.appendChild(btnBar);
-    document.body.appendChild(panel);
-    this.vabPanel = panel;
-    this.vabPreview = new VAB3DPreview(previewCanvas);
-    this.vabPreview.buildRocket(this.selectedParts);
-  }
-  // Close VAB and clean up 3D preview
-  closeVAB() {
-    if (this.vabPreview) {
-      this.vabPreview.dispose();
-      this.vabPreview = null;
+    }));
+    topBar.appendChild(topBtns);
+    const nameInput = topBar.querySelector("#vab-craft-name");
+    if (nameInput) {
+      nameInput.addEventListener("input", (e) => {
+        this.vabCraftName = e.target.value;
+      });
     }
-    if (this.vabPanel) {
-      this.vabPanel.remove();
-      this.vabPanel = null;
-    }
-  }
-  // 创建单个零件条目
-  createPartItem(part, isSelectedView) {
-    const item = document.createElement("div");
-    item.style.cssText = `
-      background: rgba(30,50,80,0.4); border: 1px solid rgba(80,160,255,0.2);
-      border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 0.15s;
-      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    const midArea = document.createElement("div");
+    midArea.style.cssText = "flex: 1; display: flex; overflow: hidden; min-height: 0;";
+    const leftPanel = document.createElement("div");
+    leftPanel.id = "vab-left-panel";
+    leftPanel.style.cssText = `
+      width: 260px; min-width: 260px; background: #2a2a2a; border-right: 1px solid #333;
+      display: flex; flex-direction: column; overflow: hidden;
     `;
+    const catRow = document.createElement("div");
+    catRow.style.cssText = `
+      display: flex; gap: 2px; padding: 6px; overflow-x: auto; overflow-y: hidden;
+      background: #222; border-bottom: 1px solid #333; scrollbar-width: thin;
+    `;
+    VAB_CATEGORIES.forEach((cat) => {
+      const catBtn = document.createElement("button");
+      const isActive = cat.id === this.vabCurrentCategory;
+      catBtn.style.cssText = `
+        background: ${isActive ? "#4a6a9a" : "#333"}; border: 1px solid ${isActive ? "#5a8aca" : "#444"};
+        color: ${isActive ? "#fff" : "#aaa"}; padding: 5px 8px; border-radius: 3px;
+        cursor: pointer; font-size: 0.72rem; white-space: nowrap; transition: all 0.15s;
+        display: flex; flex-direction: column; align-items: center; min-width: 52px;
+      `;
+      catBtn.innerHTML = `<div style="font-size: 1.1rem;">${cat.icon}</div><div>${cat.name}</div>`;
+      catBtn.addEventListener("click", () => {
+        this.vabCurrentCategory = cat.id;
+        catRow.querySelectorAll("button").forEach((b) => {
+          b.style.background = "#333";
+          b.style.borderColor = "#444";
+          b.style.color = "#aaa";
+        });
+        catBtn.style.background = "#4a6a9a";
+        catBtn.style.borderColor = "#5a8aca";
+        catBtn.style.color = "#fff";
+        this.refreshPartsList();
+      });
+      catRow.appendChild(catBtn);
+    });
+    leftPanel.appendChild(catRow);
+    const searchBox = document.createElement("div");
+    searchBox.style.cssText = "padding: 8px; border-bottom: 1px solid #333;";
+    searchBox.innerHTML = `
+      <input type="text" id="vab-search" placeholder="\u{1F50D} \u641C\u7D22\u96F6\u4EF6..."
+        style="width: 100%; background: #1a1a1a; border: 1px solid #444; color: #ddd;
+        padding: 6px 10px; border-radius: 3px; font-size: 0.82rem; outline: none; box-sizing: border-box;" />
+    `;
+    leftPanel.appendChild(searchBox);
+    const searchInput = searchBox.querySelector("#vab-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        this.vabSearchText = e.target.value.toLowerCase();
+        this.refreshPartsList();
+      });
+    }
+    const partsListContainer = document.createElement("div");
+    partsListContainer.id = "vab-parts-list";
+    partsListContainer.style.cssText = `
+      flex: 1; overflow-y: auto; padding: 6px; scrollbar-width: thin;
+      scrollbar-color: #555 #2a2a2a;
+    `;
+    leftPanel.appendChild(partsListContainer);
+    midArea.appendChild(leftPanel);
+    const viewportContainer = document.createElement("div");
+    viewportContainer.id = "vab-viewport-container";
+    viewportContainer.style.cssText = `
+      flex: 1; position: relative; background: #0a0a0a; overflow: hidden; min-width: 0;
+    `;
+    const previewCanvas = document.createElement("canvas");
+    previewCanvas.id = "vab-3d-canvas";
+    previewCanvas.style.cssText = `
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block;
+      touch-action: none;
+    `;
+    viewportContainer.appendChild(previewCanvas);
+    const hintDiv = document.createElement("div");
+    hintDiv.style.cssText = `
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      color: #555; font-size: 1.2rem; text-align: center; pointer-events: none;
+      display: none; flex-direction: column; align-items: center; gap: 8px;
+    `;
+    hintDiv.innerHTML = `
+      <div style="font-size: 3rem;">\u{1F680}</div>
+      <div>\u70B9\u51FB\u5DE6\u4FA7\u96F6\u4EF6\u5F00\u59CB\u7EC4\u88C5</div>
+    `;
+    viewportContainer.appendChild(hintDiv);
+    const viewportBottom = document.createElement("div");
+    viewportBottom.style.cssText = `
+      position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px; z-index: 10;
+    `;
+    const symBtn = document.createElement("div");
+    symBtn.style.cssText = `
+      background: rgba(30,30,30,0.85); border: 1px solid #444; color: #aaa;
+      padding: 4px 12px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+    `;
+    symBtn.textContent = "\u5BF9\u79F0: \u5355\u4EF6";
+    symBtn.addEventListener("click", () => {
+      const modes = ["\u5355\u4EF6", "\u955C\u50CF", "\u5F84\u5411\xD73", "\u5F84\u5411\xD74", "\u5F84\u5411\xD76"];
+      const cur = modes.find((m) => symBtn.textContent?.includes(m)) || "\u5355\u4EF6";
+      const idx = modes.indexOf(cur);
+      const next = modes[(idx + 1) % modes.length];
+      symBtn.textContent = `\u5BF9\u79F0: ${next}`;
+    });
+    viewportBottom.appendChild(symBtn);
+    const modeBtn = document.createElement("div");
+    modeBtn.style.cssText = `
+      background: rgba(30,30,30,0.85); border: 1px solid #444; color: #aaa;
+      padding: 4px 12px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+    `;
+    modeBtn.textContent = "\u6A21\u5F0F: \u653E\u7F6E";
+    modeBtn.addEventListener("click", () => {
+      const cur = modeBtn.textContent?.includes("\u653E\u7F6E") ? "\u653E\u7F6E" : "\u5220\u9664";
+      modeBtn.textContent = cur === "\u653E\u7F6E" ? "\u6A21\u5F0F: \u5220\u9664" : "\u6A21\u5F0F: \u653E\u7F6E";
+    });
+    viewportBottom.appendChild(modeBtn);
+    viewportContainer.appendChild(viewportBottom);
+    midArea.appendChild(viewportContainer);
+    const rightPanel = document.createElement("div");
+    rightPanel.id = "vab-right-panel";
+    rightPanel.style.cssText = `
+      width: 280px; min-width: 280px; background: #2a2a2a; border-left: 1px solid #333;
+      display: flex; flex-direction: column; overflow: hidden;
+    `;
+    const statsSection = document.createElement("div");
+    statsSection.id = "vab-stats-section";
+    statsSection.style.cssText = `
+      padding: 10px; border-bottom: 1px solid #333;
+    `;
+    statsSection.innerHTML = `
+      <div style="font-size: 0.85rem; font-weight: 700; color: #8cf; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #333;">\u{1F4CA} \u98DE\u884C\u5668\u6570\u636E</div>
+      <div id="vab-stats-content" style="font-size: 0.78rem; line-height: 1.8; color: #aac;"></div>
+    `;
+    rightPanel.appendChild(statsSection);
+    const stagingSection = document.createElement("div");
+    stagingSection.id = "vab-staging-section";
+    stagingSection.style.cssText = `
+      flex: 1; padding: 10px; border-bottom: 1px solid #333; overflow-y: auto; min-height: 0;
+      scrollbar-width: thin; scrollbar-color: #555 #2a2a2a;
+    `;
+    stagingSection.innerHTML = `
+      <div style="font-size: 0.85rem; font-weight: 700; color: #8cf; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #333;">\u5206\u7EA7</div>
+      <div id="vab-staging-list"></div>
+    `;
+    rightPanel.appendChild(stagingSection);
+    const crewSection = document.createElement("div");
+    crewSection.id = "vab-crew-section";
+    crewSection.style.cssText = "padding: 10px;";
+    crewSection.innerHTML = `
+      <div style="font-size: 0.85rem; font-weight: 700; color: #8cf; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #333;">\u4E58\u5458</div>
+      <div id="vab-crew-content" style="font-size: 0.78rem; color: #aac;"></div>
+    `;
+    rightPanel.appendChild(crewSection);
+    midArea.appendChild(rightPanel);
+    panel.appendChild(midArea);
+    const bottomBar = document.createElement("div");
+    bottomBar.id = "vab-bottom-bar";
+    bottomBar.style.cssText = `
+      height: 32px; min-height: 32px; background: #1a1a1a; border-top: 1px solid #333;
+      display: flex; align-items: center; padding: 0 12px; gap: 16px; font-size: 0.75rem; color: #888;
+    `;
+    bottomBar.innerHTML = `
+      <div>\u5BF9\u79F0: <span style="color:#aaa;">\u5355\u4EF6</span></div>
+      <div>\u90E8\u4EF6: <span id="vab-bottom-parts" style="color:#aaa;">0</span></div>
+      <div>\u8D28\u91CF: <span id="vab-bottom-mass" style="color:#aaa;">0 kg</span></div>
+      <div style="flex:1;"></div>
+      <div id="vab-bottom-status" style="color:#fa4;">\u672A\u5C31\u7EEA</div>
+    `;
+    panel.appendChild(bottomBar);
+    document.body.appendChild(panel);
+    this.vabPreview = new VAB3DPreview(previewCanvas);
+    this.vabPreview.setHint(hintDiv);
+    this.vabPreview.buildRocket(this.selectedParts);
+    this.refreshPartsList();
+    this.refreshVABStats();
+    this.vabResizeHandler = () => {
+      if (this.vabPreview) this.vabPreview.resize();
+    };
+    window.addEventListener("resize", this.vabResizeHandler);
+  }
+  // Refresh the parts list based on category and search
+  refreshPartsList() {
+    const container2 = document.getElementById("vab-parts-list");
+    if (!container2) return;
+    container2.innerHTML = "";
+    let parts = ROCKET_PARTS;
+    if (this.vabCurrentCategory !== "all") {
+      parts = parts.filter((p) => p.type === this.vabCurrentCategory);
+    }
+    if (this.vabSearchText) {
+      parts = parts.filter(
+        (p) => p.name.toLowerCase().includes(this.vabSearchText) || (p.description || "").toLowerCase().includes(this.vabSearchText) || p.id.toLowerCase().includes(this.vabSearchText)
+      );
+    }
+    if (parts.length === 0) {
+      container2.innerHTML = '<div style="text-align:center;color:#555;padding:20px;font-size:0.82rem;">\u65E0\u5339\u914D\u96F6\u4EF6</div>';
+      return;
+    }
+    parts.forEach((part) => {
+      container2.appendChild(this.createPartCard(part));
+    });
+  }
+  // 创建单个零件卡片
+  createPartCard(part) {
+    const item = document.createElement("div");
     const isSelected = this.selectedParts.some((p) => p.id === part.id);
+    item.style.cssText = `
+      background: ${isSelected ? "rgba(60,100,160,0.35)" : "rgba(40,40,40,0.6)"};
+      border: 1px solid ${isSelected ? "rgba(100,180,255,0.5)" : "#3a3a3a"};
+      border-radius: 5px; padding: 8px 10px; margin-bottom: 4px; cursor: pointer;
+      transition: all 0.12s; display: flex; align-items: flex-start; gap: 8px;
+    `;
+    const statsLines = [];
+    statsLines.push(`<span style="color:#88a;">\u8D28\u91CF</span> ${part.mass}kg`);
+    if (part.fuelMass > 0) statsLines.push(`<span style="color:#8a8;">\u71C3\u6599</span> ${part.fuelMass}kg`);
+    if (part.thrust > 0) statsLines.push(`<span style="color:#a88;">\u63A8\u529B</span> ${(part.thrust / 1e3).toFixed(0)}kN`);
+    statsLines.push(`<span style="color:#aaa;">\u8D39\u7528</span> ${part.cost}`);
     item.innerHTML = `
-      <div style="flex:1;">
-        <div style="font-size:0.88rem;font-weight:600;color:#ddf;">${partNameCN(part)} <span style="font-size:0.7rem;color:#68a;float:right;">[${PART_TYPE_CN[part.type]}]</span></div>
-        <div style="font-size:0.72rem;color:#88aacc;margin-top:2px;">${partDescCN(part)}</div>
-        <div style="font-size:0.68rem;color:#668;margin-top:3px;">\u8D28\u91CF: ${part.mass}kg ${part.fuelMass ? `| \u71C3\u6599: ${part.fuelMass}kg` : ""} ${part.thrust ? `| \u63A8\u529B: ${part.thrust}N` : ""} | \u8D39\u7528: ${part.cost}</div>
+      <div style="font-size: 1.3rem; line-height: 1; flex-shrink: 0; margin-top: 2px;">${PART_TYPE_ICON[part.type]}</div>
+      <div style="flex: 1; min-width: 0;">
+        <div style="font-size: 0.8rem; font-weight: 600; color: ${isSelected ? "#9cf" : "#ccc"}; display: flex; justify-content: space-between; align-items: center;">
+          <span>${part.name}</span>
+          ${isSelected ? '<span style="color:#4f4;">\u2713</span>' : '<span style="color:#68a;">+</span>'}
+        </div>
+        <div style="font-size: 0.66rem; color: #777; margin-top: 2px;">${PART_TYPE_CN[part.type]}</div>
+        <div style="font-size: 0.66rem; color: #888; margin-top: 3px; line-height: 1.5;">${statsLines.join(" | ")}</div>
       </div>
-      <div style="font-size:0.8rem;font-weight:700;color:${isSelected ? "#4fa" : "#4af"};min-width:24px;text-align:center;">${isSelected ? "\u2713" : "+"}</div>
     `;
     item.addEventListener("mouseenter", () => {
-      item.style.background = "rgba(50,100,180,0.5)";
-      item.style.borderColor = "rgba(100,200,255,0.5)";
+      if (!isSelected) {
+        item.style.background = "rgba(55,55,65,0.8)";
+        item.style.borderColor = "#555";
+      }
     });
     item.addEventListener("mouseleave", () => {
-      item.style.background = "rgba(30,50,80,0.4)";
-      item.style.borderColor = "rgba(80,160,255,0.2)";
+      if (!isSelected) {
+        item.style.background = "rgba(40,40,40,0.6)";
+        item.style.borderColor = "#3a3a3a";
+      }
     });
     item.addEventListener("click", () => {
       if (isSelected) {
@@ -27467,61 +27956,167 @@ var SpaceCenter = class {
       } else {
         this.selectedParts.push(part);
       }
-      this.refreshVAB();
+      this.refreshPartsList();
+      this.refreshVABStats();
+      if (this.vabPreview) {
+        this.vabPreview.buildRocket(this.selectedParts);
+      }
     });
     return item;
   }
-  // 刷新VAB面板内容
+  // 刷新VAB统计、分级和底部栏
+  refreshVABStats() {
+    const parts = this.selectedParts;
+    const totalMass = parts.reduce((s, p) => s + p.mass, 0);
+    const totalFuel = parts.reduce((s, p) => s + p.fuelMass, 0);
+    const totalThrust = parts.reduce((s, p) => s + p.thrust, 0);
+    const totalCost = parts.reduce((s, p) => s + p.cost, 0);
+    const totalIsp = parts.filter((p) => p.thrust > 0).reduce((s, p) => s + p.isp * p.thrust, 0);
+    const avgIsp = totalThrust > 0 ? totalIsp / totalThrust : 0;
+    const g = 9.81;
+    const twr = totalMass > 0 ? totalThrust / (totalMass * g) : 0;
+    const m0 = totalMass + totalFuel;
+    const m1 = totalMass;
+    const deltaV = m0 > 0 && m1 > 0 && m0 > m1 ? avgIsp * g * Math.log(m0 / m1) : 0;
+    const statsContent = document.getElementById("vab-stats-content");
+    if (statsContent) {
+      statsContent.innerHTML = `
+        <div>\u90E8\u4EF6\u6570\u91CF: <span style="color:#fff;font-weight:600;">${parts.length}</span></div>
+        <div>\u603B\u8D28\u91CF: <span style="color:#fff;">${totalMass.toLocaleString()} kg</span></div>
+        <div>\u71C3\u6599\u8D28\u91CF: <span style="color:#fff;">${totalFuel.toLocaleString()} kg</span></div>
+        <div>\u603B\u63A8\u529B: <span style="color:#fff;">${(totalThrust / 1e3).toFixed(1)} kN</span></div>
+        <div>\u8D39\u7528: <span style="color:#fff;">${totalCost.toLocaleString()}</span></div>
+        <div>\u63A8\u91CD\u6BD4: <span style="color:${twr >= 1 ? "#4f4" : "#f44"};font-weight:600;">${twr.toFixed(2)}</span> ${twr >= 1 ? "\u2713" : "\u2717"}</div>
+        <div>\u901F\u5EA6\u589E\u91CF: <span style="color:#fff;">${deltaV.toFixed(0)} m/s</span></div>
+        ${parts.length > 0 && totalThrust > 0 && avgIsp > 0 ? `<div style="color:#666;font-size:0.68rem;margin-top:2px;">\u5E73\u5747\u6BD4\u51B2: ${avgIsp.toFixed(0)}s</div>` : ""}
+      `;
+    }
+    const stagingList = document.getElementById("vab-staging-list");
+    if (stagingList) {
+      stagingList.innerHTML = "";
+      const decouplers = parts.filter((p) => p.type === "decoupler");
+      const stages = this.generateStages(parts);
+      if (stages.length === 0) {
+        stagingList.innerHTML = '<div style="color:#555;font-size:0.72rem;text-align:center;padding:10px;">\u65E0\u5206\u7EA7\u4FE1\u606F</div>';
+      } else {
+        stages.forEach((stage, i) => {
+          const stageDiv = document.createElement("div");
+          stageDiv.style.cssText = `
+            background: rgba(40,40,40,0.6); border: 1px solid #3a3a3a; border-radius: 4px;
+            padding: 6px 8px; margin-bottom: 4px;
+          `;
+          const stageThrust = stage.parts.reduce((s, p) => s + p.thrust, 0);
+          const stageMass = stage.parts.reduce((s, p) => s + p.mass, 0);
+          stageDiv.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#8cf;font-weight:600;font-size:0.78rem;">\u5206\u7EA7 ${stage.num}</span>
+              <span style="color:#888;font-size:0.68rem;">${stage.parts.length} \u90E8\u4EF6</span>
+            </div>
+            <div style="font-size:0.66rem;color:#999;margin-top:3px;">
+              ${stage.parts.map((p) => PART_TYPE_ICON[p.type] + " " + p.name).join(", ")}
+            </div>
+            ${stageThrust > 0 ? `<div style="font-size:0.66rem;color:#a88;margin-top:2px;">\u63A8\u529B: ${(stageThrust / 1e3).toFixed(0)} kN | \u8D28\u91CF: ${stageMass}kg</div>` : ""}
+          `;
+          stagingList.appendChild(stageDiv);
+        });
+      }
+    }
+    const crewContent = document.getElementById("vab-crew-content");
+    if (crewContent) {
+      const commandParts = parts.filter((p) => p.type === "command");
+      const crewCapacity = commandParts.length;
+      const hasProbe = commandParts.some((p) => p.id.includes("probe"));
+      if (commandParts.length === 0) {
+        crewContent.innerHTML = '<span style="color:#f44;">\u65E0\u63A7\u5236\u90E8\u4EF6</span>';
+      } else if (hasProbe && crewCapacity === commandParts.filter((p) => p.id.includes("probe")).length) {
+        crewContent.innerHTML = '\u4E58\u5458: <span style="color:#fff;">0 (\u65E0\u4EBA)</span>';
+      } else {
+        crewContent.innerHTML = `\u4E58\u5458: <span style="color:#fff;">${crewCapacity}/${crewCapacity}</span>`;
+      }
+    }
+    const bottomParts = document.getElementById("vab-bottom-parts");
+    if (bottomParts) bottomParts.textContent = parts.length.toString();
+    const bottomMass = document.getElementById("vab-bottom-mass");
+    if (bottomMass) bottomMass.textContent = totalMass.toLocaleString() + " kg";
+    const bottomStatus = document.getElementById("vab-bottom-status");
+    if (bottomStatus) {
+      const ready = parts.length > 0 && parts.some((p) => p.type === "command") && parts.some((p) => p.type === "engine");
+      bottomStatus.textContent = ready ? "\u5DF2\u5C31\u7EEA" : "\u672A\u5C31\u7EEA";
+      bottomStatus.style.color = ready ? "#4f4" : "#fa4";
+    }
+  }
+  // 生成火箭分级
+  generateStages(parts) {
+    const decouplers = parts.filter((p) => p.type === "decoupler");
+    if (decouplers.length === 0) {
+      const thrustParts = parts.filter((p) => p.type === "engine" || p.type === "booster");
+      if (thrustParts.length === 0 && parts.length > 0) {
+        return [{ num: 1, parts }];
+      }
+      if (thrustParts.length > 0) {
+        return [{ num: 1, parts: thrustParts }];
+      }
+      return [];
+    }
+    const stages = [];
+    const engines = parts.filter((p) => p.type === "engine" || p.type === "booster");
+    const otherParts = parts.filter((p) => p.type !== "engine" && p.type !== "booster" && p.type !== "decoupler");
+    if (engines.length > 0) {
+      stages.push({ num: 1, parts: [...engines, ...otherParts.slice(0, Math.ceil(otherParts.length / 2))] });
+    }
+    for (let i = 1; i <= decouplers.length; i++) {
+      const upperEngines = parts.filter((p) => p.type === "engine" && p.id.includes("ion") || p.id.includes("nuclear"));
+      if (upperEngines.length > 0 && i === 1) {
+        stages.push({ num: i + 1, parts: upperEngines });
+      } else if (i <= 2) {
+        stages.push({ num: i + 1, parts: otherParts.slice(Math.ceil(otherParts.length / 2)) });
+      }
+    }
+    if (stages.length === 0 && parts.length > 0) {
+      stages.push({ num: 1, parts });
+    }
+    return stages;
+  }
+  // 刷新整个VAB
   refreshVAB() {
-    if (!this.vabPanel) return;
-    const partsList = this.vabPanel.querySelector("#vab-parts-list");
-    if (partsList) {
-      partsList.innerHTML = "";
-      ROCKET_PARTS.forEach((part) => {
-        partsList.appendChild(this.createPartItem(part, false));
-      });
-    }
-    const selectedBox = this.vabPanel.querySelector("#vab-selected-box");
-    if (selectedBox) {
-      this.refreshSelectedList(selectedBox);
-    }
+    this.refreshPartsList();
+    this.refreshVABStats();
     if (this.vabPreview) {
       this.vabPreview.buildRocket(this.selectedParts);
     }
   }
-  // 刷新已选零件列表
-  refreshSelectedList(container2) {
-    const title = container2.querySelector("h3");
-    container2.innerHTML = "";
-    if (title) container2.appendChild(title);
-    if (this.selectedParts.length === 0) {
-      const empty = document.createElement("p");
-      empty.style.cssText = "color:#668;font-size:0.82rem;text-align:center;padding:20px 0;";
-      empty.textContent = "\u5C1A\u672A\u9009\u62E9\u4EFB\u4F55\u96F6\u4EF6";
-      container2.appendChild(empty);
-    } else {
-      const list = document.createElement("div");
-      list.id = "vab-parts-list-selected";
-      list.style.cssText = "display:flex;flex-direction:column;gap:6px;";
-      this.selectedParts.forEach((part) => {
-        list.appendChild(this.createPartItem(part, true));
-      });
-      container2.appendChild(list);
-      const totalMass = this.selectedParts.reduce((s, p) => s + p.mass, 0);
-      const totalFuel = this.selectedParts.reduce((s, p) => s + p.fuelMass, 0);
-      const totalThrust = this.selectedParts.reduce((s, p) => s + p.thrust, 0);
-      const totalCost = this.selectedParts.reduce((s, p) => s + p.cost, 0);
-      const stats = document.createElement("div");
-      stats.style.cssText = "margin-top:12px;padding:10px;background:rgba(10,30,50,0.5);border-radius:6px;font-size:0.75rem;color:#aac;line-height:1.7;";
-      stats.innerHTML = `
-        <div style="color:#4fa;font-weight:700;margin-bottom:4px;">\u{1F4CA} \u706B\u7BAD\u7EDF\u8BA1</div>
-        <div>\u603B\u8D28\u91CF: <span style="color:#ddf;">${totalMass} kg</span></div>
-        <div>\u71C3\u6599\u8D28\u91CF: <span style="color:#ddf;">${totalFuel} kg</span></div>
-        <div>\u603B\u63A8\u529B: <span style="color:#ddf;">${totalThrust} N</span></div>
-        <div>\u603B\u8D39\u7528: <span style="color:#ddf;">${totalCost} \u79D1\u7814\u70B9</span></div>
-        ${totalThrust > 0 && totalMass > 0 ? `<div>\u63A8\u91CD\u6BD4: <span style="color:${totalThrust / totalMass > 1 ? "#4fa" : "#fa4"};">${(totalThrust / (totalMass * 9.81)).toFixed(2)}</span> ${totalThrust / (totalMass * 9.81) > 1 ? "\u2713 \u53EF\u8D77\u98DE" : "\u2717 \u63A8\u529B\u4E0D\u8DB3"}</div>` : ""}
-      `;
-      container2.appendChild(stats);
+  // VAB 内部 Toast 提示
+  showVABToast(msg) {
+    if (!this.vabPanel) return;
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+      position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+      background: rgba(30,60,100,0.9); border: 1px solid rgba(100,200,255,0.5);
+      color: #ddf; padding: 8px 24px; border-radius: 4px; font-size: 0.85rem;
+      z-index: 1200; pointer-events: none; transition: opacity 0.3s;
+    `;
+    toast.textContent = msg;
+    this.vabPanel.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = "0";
+    }, 2e3);
+    setTimeout(() => {
+      toast.remove();
+    }, 2500);
+  }
+  // Close VAB and clean up
+  closeVAB() {
+    if (this.vabResizeHandler) {
+      window.removeEventListener("resize", this.vabResizeHandler);
+      this.vabResizeHandler = null;
+    }
+    if (this.vabPreview) {
+      this.vabPreview.dispose();
+      this.vabPreview = null;
+    }
+    if (this.vabPanel) {
+      this.vabPanel.remove();
+      this.vabPanel = null;
     }
   }
   // "敬请期待" 提示
@@ -27538,14 +28133,7 @@ var SpaceCenter = class {
     setTimeout(() => toast.remove(), 3e3);
   }
   destroy() {
-    if (this.vabPreview) {
-      this.vabPreview.dispose();
-      this.vabPreview = null;
-    }
-    if (this.vabPanel) {
-      this.vabPanel.remove();
-      this.vabPanel = null;
-    }
+    this.closeVAB();
     if (this.scene3D) {
       this.scene3D.dispose();
       this.scene3D = null;
