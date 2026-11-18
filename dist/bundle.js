@@ -10939,83 +10939,56 @@ function getSingularSetter(type) {
   switch (type) {
     case 5126:
       return setValueV1f;
-    // FLOAT
     case 35664:
       return setValueV2f;
-    // _VEC2
     case 35665:
       return setValueV3f;
-    // _VEC3
     case 35666:
       return setValueV4f;
-    // _VEC4
     case 35674:
       return setValueM2;
-    // _MAT2
     case 35675:
       return setValueM3;
-    // _MAT3
     case 35676:
       return setValueM4;
-    // _MAT4
     case 5124:
     case 35670:
       return setValueV1i;
-    // INT, BOOL
     case 35667:
     case 35671:
       return setValueV2i;
-    // _VEC2
     case 35668:
     case 35672:
       return setValueV3i;
-    // _VEC3
     case 35669:
     case 35673:
       return setValueV4i;
-    // _VEC4
     case 5125:
       return setValueV1ui;
-    // UINT
     case 36294:
       return setValueV2ui;
-    // _VEC2
     case 36295:
       return setValueV3ui;
-    // _VEC3
     case 36296:
       return setValueV4ui;
-    // _VEC4
     case 35678:
-    // SAMPLER_2D
     case 36198:
-    // SAMPLER_EXTERNAL_OES
     case 36298:
-    // INT_SAMPLER_2D
     case 36306:
-    // UNSIGNED_INT_SAMPLER_2D
     case 35682:
       return setValueT1;
     case 35679:
-    // SAMPLER_3D
     case 36299:
-    // INT_SAMPLER_3D
     case 36307:
       return setValueT3D1;
     case 35680:
-    // SAMPLER_CUBE
     case 36300:
-    // INT_SAMPLER_CUBE
     case 36308:
-    // UNSIGNED_INT_SAMPLER_CUBE
     case 36293:
       return setValueT6;
     case 36289:
-    // SAMPLER_2D_ARRAY
     case 36303:
-    // INT_SAMPLER_2D_ARRAY
     case 36311:
-    // UNSIGNED_INT_SAMPLER_2D_ARRAY
     case 36292:
       return setValueT2DArray1;
   }
@@ -11123,83 +11096,56 @@ function getPureArraySetter(type) {
   switch (type) {
     case 5126:
       return setValueV1fArray;
-    // FLOAT
     case 35664:
       return setValueV2fArray;
-    // _VEC2
     case 35665:
       return setValueV3fArray;
-    // _VEC3
     case 35666:
       return setValueV4fArray;
-    // _VEC4
     case 35674:
       return setValueM2Array;
-    // _MAT2
     case 35675:
       return setValueM3Array;
-    // _MAT3
     case 35676:
       return setValueM4Array;
-    // _MAT4
     case 5124:
     case 35670:
       return setValueV1iArray;
-    // INT, BOOL
     case 35667:
     case 35671:
       return setValueV2iArray;
-    // _VEC2
     case 35668:
     case 35672:
       return setValueV3iArray;
-    // _VEC3
     case 35669:
     case 35673:
       return setValueV4iArray;
-    // _VEC4
     case 5125:
       return setValueV1uiArray;
-    // UINT
     case 36294:
       return setValueV2uiArray;
-    // _VEC2
     case 36295:
       return setValueV3uiArray;
-    // _VEC3
     case 36296:
       return setValueV4uiArray;
-    // _VEC4
     case 35678:
-    // SAMPLER_2D
     case 36198:
-    // SAMPLER_EXTERNAL_OES
     case 36298:
-    // INT_SAMPLER_2D
     case 36306:
-    // UNSIGNED_INT_SAMPLER_2D
     case 35682:
       return setValueT1Array;
     case 35679:
-    // SAMPLER_3D
     case 36299:
-    // INT_SAMPLER_3D
     case 36307:
       return setValueT3DArray;
     case 35680:
-    // SAMPLER_CUBE
     case 36300:
-    // INT_SAMPLER_CUBE
     case 36308:
-    // UNSIGNED_INT_SAMPLER_CUBE
     case 36293:
       return setValueT6Array;
     case 36289:
-    // SAMPLER_2D_ARRAY
     case 36303:
-    // INT_SAMPLER_2D_ARRAY
     case 36311:
-    // UNSIGNED_INT_SAMPLER_2D_ARRAY
     case 36292:
       return setValueT2DArrayArray;
   }
@@ -14093,7 +14039,6 @@ function WebGLState(gl, extensions) {
 function getByteLength(width, height, format, type) {
   const typeByteLength = getTextureTypeByteLength(type);
   switch (format) {
-    // https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glTexImage2D.xhtml
     case AlphaFormat:
       return width * height;
     case LuminanceFormat:
@@ -14114,27 +14059,23 @@ function getByteLength(width, height, format, type) {
       return width * height * 4 / typeByteLength.components * typeByteLength.byteLength;
     case RGBAIntegerFormat:
       return width * height * 4 / typeByteLength.components * typeByteLength.byteLength;
-    // https://registry.khronos.org/webgl/extensions/WEBGL_compressed_texture_s3tc_srgb/
     case RGB_S3TC_DXT1_Format:
     case RGBA_S3TC_DXT1_Format:
       return Math.floor((width + 3) / 4) * Math.floor((height + 3) / 4) * 8;
     case RGBA_S3TC_DXT3_Format:
     case RGBA_S3TC_DXT5_Format:
       return Math.floor((width + 3) / 4) * Math.floor((height + 3) / 4) * 16;
-    // https://registry.khronos.org/webgl/extensions/WEBGL_compressed_texture_pvrtc/
     case RGB_PVRTC_2BPPV1_Format:
     case RGBA_PVRTC_2BPPV1_Format:
       return Math.max(width, 16) * Math.max(height, 8) / 4;
     case RGB_PVRTC_4BPPV1_Format:
     case RGBA_PVRTC_4BPPV1_Format:
       return Math.max(width, 8) * Math.max(height, 8) / 2;
-    // https://registry.khronos.org/webgl/extensions/WEBGL_compressed_texture_etc/
     case RGB_ETC1_Format:
     case RGB_ETC2_Format:
       return Math.floor((width + 3) / 4) * Math.floor((height + 3) / 4) * 8;
     case RGBA_ETC2_EAC_Format:
       return Math.floor((width + 3) / 4) * Math.floor((height + 3) / 4) * 16;
-    // https://registry.khronos.org/webgl/extensions/WEBGL_compressed_texture_astc/
     case RGBA_ASTC_4x4_Format:
       return Math.floor((width + 3) / 4) * Math.floor((height + 3) / 4) * 16;
     case RGBA_ASTC_5x4_Format:
@@ -14163,12 +14104,10 @@ function getByteLength(width, height, format, type) {
       return Math.floor((width + 11) / 12) * Math.floor((height + 9) / 10) * 16;
     case RGBA_ASTC_12x12_Format:
       return Math.floor((width + 11) / 12) * Math.floor((height + 11) / 12) * 16;
-    // https://registry.khronos.org/webgl/extensions/EXT_texture_compression_bptc/
     case RGBA_BPTC_Format:
     case RGB_BPTC_SIGNED_Format:
     case RGB_BPTC_UNSIGNED_Format:
       return Math.ceil(width / 4) * Math.ceil(height / 4) * 16;
-    // https://registry.khronos.org/webgl/extensions/EXT_texture_compression_rgtc/
     case RED_RGTC1_Format:
     case SIGNED_RED_RGTC1_Format:
       return Math.ceil(width / 4) * Math.ceil(height / 4) * 8;
@@ -24419,6 +24358,356 @@ function createRocketModel() {
   group.add(flameGroup);
   return group;
 }
+function createRocketModelFromParts(parts) {
+  const group = new Group();
+  const hullMat = new MeshStandardMaterial({ color: 15658734, metalness: 0.7, roughness: 0.25 });
+  const whiteMat = new MeshStandardMaterial({ color: 16119285, metalness: 0.3, roughness: 0.4 });
+  const darkMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.9, roughness: 0.15 });
+  const redMat = new MeshStandardMaterial({ color: 13382451, metalness: 0.4, roughness: 0.4 });
+  const accentMat = new MeshStandardMaterial({ color: 3368652, emissive: 1122884, metalness: 0.6, roughness: 0.2 });
+  const windowMat = new MeshStandardMaterial({ color: 6728447, emissive: 3359846, metalness: 0.8, roughness: 0.05 });
+  const goldMat = new MeshStandardMaterial({ color: 16763972, metalness: 0.9, roughness: 0.1 });
+  const byType = (type) => parts.filter((p) => p.type === type);
+  const commands = byType("command");
+  const fuels = byType("fuel");
+  const engines = byType("engine");
+  const boosters = byType("booster");
+  const decouplers = byType("decoupler");
+  const parachutes = byType("parachute");
+  const aeroParts = byType("aero");
+  const rcsParts = byType("rcs");
+  const solarParts = byType("solar");
+  const landingParts = byType("landing");
+  const scienceParts = byType("science");
+  const antennaParts = byType("antenna");
+  const structuralParts = byType("structural");
+  const utilityParts = byType("utility");
+  const adapterParts = byType("adapter");
+  const maxRadius = Math.max(
+    0.5,
+    ...fuels.map((f) => 0.4 + Math.min(0.6, f.fuelMass / 2e4)),
+    ...commands.map((c) => 0.6 + Math.min(0.4, c.mass / 2e3)),
+    0.7
+  );
+  let currentY = 0;
+  for (const eng of engines) {
+    const eRadius = 0.3 + Math.min(0.3, Math.sqrt(eng.thrust) / 800);
+    const housing = new Mesh(
+      new CylinderGeometry(maxRadius * 0.85, eRadius * 0.8, 0.5, 20),
+      darkMat
+    );
+    housing.position.y = currentY - 0.3;
+    housing.castShadow = true;
+    group.add(housing);
+    const nozzleHeight = 0.4 + Math.min(0.3, eng.thrust / 4e5);
+    const nozzlePoints = [];
+    for (let t = 0; t <= 1; t += 0.1) {
+      const r = eRadius * (0.5 + t * 0.9 * (1 - t * 0.3));
+      nozzlePoints.push(new Vector2(r, -t * nozzleHeight));
+    }
+    const nozzleGeo = new LatheGeometry(nozzlePoints, 24);
+    const nozzle = new Mesh(nozzleGeo, new MeshStandardMaterial({
+      color: 4473924,
+      metalness: 0.95,
+      roughness: 0.1,
+      side: DoubleSide
+    }));
+    nozzle.position.y = currentY - 0.55;
+    nozzle.castShadow = true;
+    group.add(nozzle);
+    const innerGlow = new Mesh(
+      new CircleGeometry(eRadius * 0.45, 20),
+      new MeshBasicMaterial({ color: 3346688, side: DoubleSide })
+    );
+    innerGlow.position.y = currentY - 0.55;
+    innerGlow.rotation.x = -Math.PI / 2;
+    group.add(innerGlow);
+    currentY -= 0.55 + nozzleHeight;
+  }
+  if (boosters.length > 0) {
+    for (let i = 0; i < boosters.length; i++) {
+      const b = boosters[i];
+      const bRadius = 0.25 + Math.min(0.2, b.mass / 3e3);
+      const bHeight = 2.5 + Math.min(1.5, b.fuelMass / 3e3);
+      const angle = i / boosters.length * Math.PI * 2;
+      const dist = maxRadius + bRadius + 0.1;
+      const boosterBody = new Mesh(
+        new CylinderGeometry(bRadius, bRadius, bHeight, 16),
+        whiteMat
+      );
+      boosterBody.position.set(Math.cos(angle) * dist, currentY - bHeight / 2, Math.sin(angle) * dist);
+      boosterBody.castShadow = true;
+      group.add(boosterBody);
+      const nose = new Mesh(new ConeGeometry(bRadius, 0.4, 16), darkMat);
+      nose.position.set(Math.cos(angle) * dist, currentY + 0.2, Math.sin(angle) * dist);
+      group.add(nose);
+      const bNoz = new Mesh(
+        new CylinderGeometry(bRadius * 0.5, bRadius * 0.7, 0.3, 12),
+        darkMat
+      );
+      bNoz.position.set(Math.cos(angle) * dist, currentY - bHeight - 0.15, Math.sin(angle) * dist);
+      group.add(bNoz);
+    }
+  }
+  for (const dec of decouplers) {
+    const decoupler = new Mesh(
+      new CylinderGeometry(maxRadius, maxRadius * 0.95, 0.15, 20),
+      darkMat
+    );
+    decoupler.position.y = currentY - 0.075;
+    group.add(decoupler);
+    const stripe = new Mesh(
+      new TorusGeometry(maxRadius, 0.04, 8, 24),
+      redMat
+    );
+    stripe.position.y = currentY - 0.075;
+    stripe.rotation.x = Math.PI / 2;
+    group.add(stripe);
+    currentY -= 0.2;
+  }
+  for (let i = fuels.length - 1; i >= 0; i--) {
+    const f = fuels[i];
+    const tankRadius = 0.4 + Math.min(0.6, f.fuelMass / 2e4);
+    const tankHeight = 1 + Math.min(3, f.fuelMass / 8e3);
+    const tank = new Mesh(
+      new CylinderGeometry(tankRadius, tankRadius, tankHeight, 24),
+      whiteMat
+    );
+    tank.position.y = currentY - tankHeight / 2;
+    tank.castShadow = true;
+    group.add(tank);
+    const bandCount = Math.max(2, Math.floor(tankHeight / 0.8));
+    for (let j = 0; j < bandCount; j++) {
+      const band = new Mesh(
+        new TorusGeometry(tankRadius + 0.02, 0.04, 8, 24),
+        darkMat
+      );
+      band.position.y = currentY - (j + 0.5) * (tankHeight / bandCount);
+      band.rotation.x = Math.PI / 2;
+      group.add(band);
+    }
+    if (i === 0) {
+      const stripe = new Mesh(
+        new CylinderGeometry(tankRadius - 0.01, tankRadius - 0.01, 0.15, 24, 1, false, 0, Math.PI * 0.3),
+        redMat
+      );
+      stripe.position.y = currentY - tankHeight * 0.7;
+      group.add(stripe);
+    }
+    currentY -= tankHeight;
+  }
+  for (const apt of adapterParts) {
+    const aptHeight = 0.3;
+    const adapter = new Mesh(
+      new CylinderGeometry(maxRadius, maxRadius * 0.8, aptHeight, 20),
+      darkMat
+    );
+    adapter.position.y = currentY - aptHeight / 2;
+    group.add(adapter);
+    currentY -= aptHeight;
+  }
+  for (const st of structuralParts) {
+    const stHeight = 0.4;
+    const tube = new Mesh(
+      new CylinderGeometry(maxRadius * 0.9, maxRadius * 0.9, stHeight, 16),
+      new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 })
+    );
+    tube.position.y = currentY - stHeight / 2;
+    group.add(tube);
+    currentY -= stHeight;
+  }
+  for (const cmd of commands) {
+    const podRadius = 0.5 + Math.min(0.4, cmd.mass / 2e3);
+    const podHeight = 1 + Math.min(0.8, cmd.mass / 1500);
+    const pod = new Mesh(
+      new ConeGeometry(podRadius, podHeight, 20),
+      hullMat
+    );
+    pod.position.y = currentY - podHeight / 2;
+    pod.castShadow = true;
+    group.add(pod);
+    const podBase = new Mesh(
+      new CylinderGeometry(podRadius * 1.02, maxRadius * 0.95, 0.2, 20),
+      darkMat
+    );
+    podBase.position.y = currentY - 0.1;
+    group.add(podBase);
+    for (let w = 0; w < 3; w++) {
+      const angle = w * 2.094;
+      const wy = currentY - podHeight * 0.35;
+      const winFrame = new Mesh(new RingGeometry(0.08, 0.16, 12), darkMat);
+      winFrame.position.set(Math.cos(angle) * podRadius * 0.5, wy, Math.sin(angle) * podRadius * 0.5);
+      winFrame.lookAt(Math.cos(angle) * 2, wy, Math.sin(angle) * 2);
+      group.add(winFrame);
+      const win = new Mesh(new CircleGeometry(0.1, 12), windowMat);
+      win.position.set(Math.cos(angle) * podRadius * 0.51, wy, Math.sin(angle) * podRadius * 0.51);
+      win.lookAt(Math.cos(angle) * 2, wy, Math.sin(angle) * 2);
+      group.add(win);
+    }
+    const antenna = new Mesh(new CylinderGeometry(0.02, 0.02, 0.5, 6), darkMat);
+    antenna.position.set(0.3, currentY - podHeight - 0.25, 0);
+    group.add(antenna);
+    const antennaTip = new Mesh(new SphereGeometry(0.04, 8, 6), redMat);
+    antennaTip.position.set(0.3, currentY - podHeight - 0.5, 0);
+    group.add(antennaTip);
+    currentY -= podHeight + 0.2;
+  }
+  for (const pc of parachutes) {
+    const chuteCan = new Mesh(
+      new CylinderGeometry(0.12, 0.1, 0.25, 12),
+      redMat
+    );
+    chuteCan.position.y = currentY - 0.12;
+    group.add(chuteCan);
+    const chuteCap = new Mesh(
+      new SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+      redMat
+    );
+    chuteCap.position.y = currentY - 0.25;
+    group.add(chuteCap);
+    currentY -= 0.3;
+  }
+  const aeroCount = Math.min(aeroParts.length, 6);
+  for (let i = 0; i < aeroCount; i++) {
+    const angle = i / aeroCount * Math.PI * 2;
+    const finShape = new Shape();
+    finShape.moveTo(0, 0);
+    finShape.lineTo(0, -0.8);
+    finShape.lineTo(0.5, -0.2);
+    finShape.lineTo(0.5, 0.1);
+    finShape.lineTo(0, 0);
+    const finGeo = new ExtrudeGeometry(finShape, { depth: 0.05, bevelEnabled: false });
+    const fin = new Mesh(finGeo, darkMat);
+    fin.position.set(Math.cos(angle) * maxRadius, -1, Math.sin(angle) * maxRadius);
+    fin.rotation.y = angle + Math.PI / 2;
+    fin.castShadow = true;
+    group.add(fin);
+  }
+  const rcsCount = Math.min(rcsParts.length, 4);
+  for (let i = 0; i < Math.max(rcsCount, 1); i++) {
+    const angle = i * Math.PI / 2 + Math.PI / 4;
+    const rcsBlock = new Mesh(
+      new BoxGeometry(0.12, 0.18, 0.12),
+      new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.2 })
+    );
+    rcsBlock.position.set(Math.cos(angle) * (maxRadius + 0.05), -0.3, Math.sin(angle) * (maxRadius + 0.05));
+    group.add(rcsBlock);
+    const rcsNoz = new Mesh(new CylinderGeometry(0.03, 0.04, 0.06, 6), darkMat);
+    rcsNoz.position.set(Math.cos(angle) * (maxRadius + 0.12), -0.3, Math.sin(angle) * (maxRadius + 0.12));
+    rcsNoz.rotation.z = Math.PI / 2;
+    rcsNoz.rotation.y = angle;
+    group.add(rcsNoz);
+  }
+  for (let i = 0; i < Math.min(solarParts.length, 4); i++) {
+    const side = i < 2 ? -1 : 1;
+    const idx = i % 2;
+    const arm = new Mesh(
+      new CylinderGeometry(0.04, 0.04, 0.6, 6),
+      new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 })
+    );
+    arm.position.set(side * 0.8, -0.5 - idx * 1.5, 0);
+    arm.rotation.z = Math.PI / 2;
+    group.add(arm);
+    const panel = new Mesh(
+      new BoxGeometry(1, 0.03, 0.6),
+      new MeshStandardMaterial({ color: 1127338, emissive: 528708, metalness: 0.7, roughness: 0.2 })
+    );
+    panel.position.set(side * 1.4, -0.5 - idx * 1.5, 0);
+    panel.castShadow = true;
+    group.add(panel);
+    for (let j = 0; j < 3; j++) {
+      const line = new Mesh(
+        new BoxGeometry(1, 0.035, 0.02),
+        new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 })
+      );
+      line.position.set(side * 1.4, -0.49 - idx * 1.5, (j - 1) * 0.15);
+      group.add(line);
+    }
+  }
+  const legCount = Math.min(landingParts.length, 3) || 3;
+  const legMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < legCount; i++) {
+    const angle = i * 2.094 + 0.5;
+    const strutU = new Mesh(new CylinderGeometry(0.03, 0.03, 0.5, 6), legMat);
+    strutU.position.set(Math.cos(angle) * 0.55, -1.5, Math.sin(angle) * 0.55);
+    strutU.rotation.z = Math.cos(angle) * 0.5;
+    strutU.rotation.x = -Math.sin(angle) * 0.5;
+    group.add(strutU);
+    const strutL = new Mesh(new CylinderGeometry(0.025, 0.03, 0.7, 6), legMat);
+    strutL.position.set(Math.cos(angle) * 0.85, -1.9, Math.sin(angle) * 0.85);
+    strutL.rotation.z = Math.cos(angle) * 0.9;
+    strutL.rotation.x = -Math.sin(angle) * 0.9;
+    group.add(strutL);
+    const pad = new Mesh(new CylinderGeometry(0.1, 0.08, 0.06, 10), darkMat);
+    pad.position.set(Math.cos(angle) * 1.1, -2.2, Math.sin(angle) * 1.1);
+    group.add(pad);
+  }
+  for (let i = 0; i < Math.min(scienceParts.length, 3); i++) {
+    const angle = i * 2.094 + 0.3;
+    const sciBay = new Mesh(new BoxGeometry(0.2, 0.25, 0.18), accentMat);
+    sciBay.position.set(Math.cos(angle) * (maxRadius + 0.05), 0.5, Math.sin(angle) * (maxRadius + 0.05));
+    group.add(sciBay);
+    const sciLens = new Mesh(
+      new CircleGeometry(0.05, 10),
+      new MeshBasicMaterial({ color: 65382 })
+    );
+    sciLens.position.set(Math.cos(angle) * (maxRadius + 0.16), 0.55, Math.sin(angle) * (maxRadius + 0.16));
+    sciLens.lookAt(Math.cos(angle) * 3, 0.55, Math.sin(angle) * 3);
+    group.add(sciLens);
+  }
+  for (let i = 0; i < Math.min(antennaParts.length, 2); i++) {
+    const dishArm = new Mesh(new CylinderGeometry(0.02, 0.02, 0.4, 6), darkMat);
+    dishArm.position.set(-0.4 + i * 0.8, -0.5, 0);
+    dishArm.rotation.z = 0.5;
+    group.add(dishArm);
+    const dishCup = new Mesh(
+      new SphereGeometry(0.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+      darkMat
+    );
+    dishCup.position.set(-0.65 + i * 1.3, -0.3, 0);
+    dishCup.rotation.z = -Math.PI / 2;
+    group.add(dishCup);
+  }
+  for (const ut of utilityParts.filter((u) => u.name.includes("\u5BF9\u63A5"))) {
+    const dock = new Mesh(
+      new RingGeometry(0.1, 0.25, 16),
+      goldMat
+    );
+    dock.position.y = currentY - 0.05;
+    dock.rotation.x = -Math.PI / 2;
+    group.add(dock);
+    currentY -= 0.1;
+  }
+  const flameGroup = new Group();
+  flameGroup.name = "engineFlame";
+  const flameCore = new Mesh(
+    new ConeGeometry(0.2, 1.2, 12),
+    new MeshBasicMaterial({ color: 8965375, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false })
+  );
+  flameCore.position.y = -1;
+  flameCore.rotation.x = Math.PI;
+  flameGroup.add(flameCore);
+  const flameOuter = new Mesh(
+    new ConeGeometry(0.35, 1.8, 12),
+    new MeshBasicMaterial({ color: 16737843, transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false })
+  );
+  flameOuter.position.y = -1.2;
+  flameOuter.rotation.x = Math.PI;
+  flameGroup.add(flameOuter);
+  const flameGlow = new Mesh(
+    new SphereGeometry(0.4, 12, 8),
+    new MeshBasicMaterial({ color: 16755268, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false })
+  );
+  flameGlow.position.y = -0.8;
+  flameGlow.scale.set(1, 0.5, 1);
+  flameGroup.add(flameGlow);
+  flameGroup.visible = false;
+  group.add(flameGroup);
+  const box = new Box3().setFromObject(group);
+  const center = box.getCenter(new Vector3());
+  group.position.sub(new Vector3(0, center.y, 0));
+  return group;
+}
 function createAstronautModel() {
   const group = new Group();
   const suitMat = new MeshStandardMaterial({ color: 16777215, roughness: 0.5, metalness: 0.15 });
@@ -24764,7 +25053,7 @@ function createSpaceCenterScene() {
 
 // src/game/entities.ts
 var Rocket = class _Rocket {
-  constructor(name, startMass, fuel, thrust, isp) {
+  constructor(name, startMass, fuel, thrust, isp, parts) {
     this.throttle = 0;
     this.orientation = new Quaternion();
     this.angularVel = new Vector3();
@@ -24785,7 +25074,7 @@ var Rocket = class _Rocket {
     this.maxFuel = fuel;
     this.thrust = thrust;
     this.isp = isp;
-    this.group = createRocketModel();
+    this.group = parts && parts.length > 0 ? createRocketModelFromParts(parts) : createRocketModel();
     this.flameGroup = this.group.getObjectByName("engineFlame");
     this.body = {
       name,
@@ -25782,7 +26071,7 @@ var StarChunkManager = class {
 
 // src/game/game.ts
 var Game = class {
-  constructor(container2, quality = "high") {
+  constructor(container2, quality = "high", parts) {
     this.clock = new Clock();
     this.physics = new NBodySystem();
     this.researchBases = [];
@@ -25825,6 +26114,7 @@ var Game = class {
     this.retrogradeMarker = null;
     this.TRAJECTORY_STEPS = 200;
     this.TRAJECTORY_DT = 5;
+    this.onExit = null;
     // === 主游戏循环 ===
     this.gameLoop = () => {
       if (!this.isRunning) return;
@@ -25835,6 +26125,7 @@ var Game = class {
     };
     this.container = container2;
     this.quality = quality;
+    this.customParts = parts;
     this.hud = new GameUI(this);
     TextureFactory.setQuality(quality);
     const qcfg = QUALITY_CONFIG[quality];
@@ -26009,7 +26300,30 @@ var Game = class {
     const rotSpeed = 2 * Math.PI / earthData.rotationPeriod;
     const rotVel = new Vector3(rotSpeed * earthData.radius, 0, 0);
     const startVel = earth.velocity.clone().add(rotVel);
-    this.rocket = new Rocket("\u706B\u7BAD", 2e3, 15e3, 5e5, 350);
+    let rocketName = "\u706B\u7BAD";
+    let dryMass = 2e3;
+    let fuelMass = 15e3;
+    let thrust = 5e5;
+    let isp = 350;
+    if (this.customParts && this.customParts.length > 0) {
+      let totalDry = 0, totalFuel = 0, totalThrust = 0, totalIsp = 0, engineCount = 0;
+      for (const p of this.customParts) {
+        totalDry += p.mass;
+        totalFuel += p.fuelMass || 0;
+        if (p.thrust && p.thrust > 0) {
+          totalThrust += p.thrust;
+          totalIsp += p.isp || 350;
+          engineCount++;
+        }
+      }
+      if (totalDry > 0) dryMass = totalDry;
+      if (totalFuel > 0) fuelMass = totalFuel;
+      if (totalThrust > 0) thrust = totalThrust;
+      if (engineCount > 0) isp = totalIsp / engineCount;
+      const cmd = this.customParts.find((p) => p.type === "command");
+      if (cmd) rocketName = cmd.name;
+    }
+    this.rocket = new Rocket(rocketName, dryMass, fuelMass, thrust, isp, this.customParts);
     this.rocket.body.position.copy(startPos);
     this.rocket.body.velocity.copy(startVel);
     this.rocket.parentBody = "Earth";
@@ -26093,6 +26407,12 @@ var Game = class {
   handleOneShotKey(key, e) {
     if (key === " " || key === "tab") e.preventDefault();
     switch (key) {
+      case "escape":
+        if (this.onExit) {
+          this.onExit();
+          return;
+        }
+        break;
       case " ":
         if (this.rocket) {
           this.rocket.stage();
@@ -29982,9 +30302,14 @@ if (!container) {
 var menu = new StartMenu((quality) => {
   const sc = new SpaceCenter({
     onLaunch: () => {
+      const parts = sc.getSelectedParts();
       sc.destroy();
-      const game = new Game(container, quality);
+      const game = new Game(container, quality, parts.length > 0 ? parts : void 0);
       game.showHUD();
+      game.onExit = () => {
+        game.dispose();
+        location.reload();
+      };
     },
     onBack: () => {
       sc.destroy();
