@@ -22142,6 +22142,21 @@ var Light = class extends Object3D {
     return data;
   }
 };
+var HemisphereLight = class extends Light {
+  constructor(skyColor, groundColor, intensity) {
+    super(skyColor, intensity);
+    this.isHemisphereLight = true;
+    this.type = "HemisphereLight";
+    this.position.copy(Object3D.DEFAULT_UP);
+    this.updateMatrix();
+    this.groundColor = new Color(groundColor);
+  }
+  copy(source, recursive) {
+    super.copy(source, recursive);
+    this.groundColor.copy(source.groundColor);
+    return this;
+  }
+};
 var _projScreenMatrix$1 = /* @__PURE__ */ new Matrix4();
 var _lightPositionWorld$1 = /* @__PURE__ */ new Vector3();
 var _lookTarget$1 = /* @__PURE__ */ new Vector3();
@@ -22914,6 +22929,7 @@ if (typeof window !== "undefined") {
 
 // src/game/data.ts
 var G = 66743e-15;
+var AU = 149597870700;
 var SPEED_OF_LIGHT = 299792458;
 var LY = 94607e11;
 var DIST_SCALE = 1e-7;
@@ -23311,7 +23327,7 @@ var NBodySystem = class {
 };
 
 // src/game/render.ts
-var HIGH_QUALITY_TEXTURE_SIZE = 2048;
+var HIGH_QUALITY_TEXTURE_SIZE = 4096;
 var ATMOSPHERE_VERT = `
   varying vec3 vWorldNormal;
   varying vec3 vWorldPos;
@@ -23324,22 +23340,77 @@ var ATMOSPHERE_VERT = `
 `;
 var ATMOSPHERE_FRAG = `
   uniform vec3 uSunPosition;
-  uniform vec3 uAtmColor;
+  uniform vec3 uRayleighColor;
+  uniform vec3 uMieColor;
+  uniform vec3 uSunColor;
   uniform float uIntensity;
+  uniform float uAtmThickness;
   varying vec3 vWorldNormal;
   varying vec3 vWorldPos;
+
   void main() {
     vec3 n = normalize(vWorldNormal);
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     vec3 sunDir = normalize(uSunPosition - vWorldPos);
+
     // Fresnel limb glow (abs handles BackSide rendering)
     float ndv = abs(dot(n, viewDir));
     float fresnel = pow(1.0 - ndv, 3.0);
+
     // Atmosphere only visible on lit side
     float sunFactor = smoothstep(-0.15, 0.35, dot(n, sunDir));
-    float alpha = fresnel * uIntensity * sunFactor;
-    vec3 color = uAtmColor * (0.5 + fresnel * 0.5);
+
+    // Rayleigh phase function (symmetric, wavelength-independent approx)
+    float cosTheta = dot(viewDir, sunDir);
+    float rayleighPhase = 0.0596831 * (1.0 + cosTheta * cosTheta);
+
+    // Mie phase function (Henyey-Greenstein, forward-peaked)
+    float g = 0.76;
+    float miePhase = (1.0 - g*g) / (4.0 * 3.14159265 * pow(1.0 + g*g - 2.0*g*cosTheta, 1.5));
+
+    // Optical depth approximation (thicker at limb)
+    float depth = pow(fresnel, 0.5) * uAtmThickness;
+
+    // Rayleigh scattering (blue sky tint)
+    vec3 rayleigh = uRayleighColor * rayleighPhase * depth;
+
+    // Mie scattering (bright halo near sun direction)
+    vec3 mie = uMieColor * miePhase * depth * 0.4;
+
+    // Sunset/twilight color shift at terminator
+    float terminator = dot(n, sunDir);
+    float twilight = smoothstep(0.35, 0.0, terminator) * smoothstep(-0.2, 0.0, terminator);
+    vec3 twilightColor = vec3(1.0, 0.45, 0.15);
+    vec3 color = rayleigh + mie;
+    color = mix(color, twilightColor * (rayleighPhase + miePhase) * depth * 2.0, twilight);
+
+    // Apply sun color tint
+    color *= uSunColor;
+
+    float alpha = (fresnel * uIntensity * 0.7 + depth * 0.15) * sunFactor;
+    alpha = clamp(alpha, 0.0, 0.95);
     gl_FragColor = vec4(color, alpha);
+  }
+`;
+var STARFIELD_VERT = `
+  attribute float starSize;
+  attribute vec3 starColor;
+  varying vec3 vColor;
+  void main() {
+    vColor = starColor;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = starSize;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+var STARFIELD_FRAG = `
+  varying vec3 vColor;
+  void main() {
+    vec2 uv = gl_PointCoord - 0.5;
+    float dist = length(uv);
+    if (dist > 0.5) discard;
+    float alpha = smoothstep(0.5, 0.05, dist);
+    gl_FragColor = vec4(vColor, alpha);
   }
 `;
 function createTextSprite(text, color = "#ffffff", fontSize = 36) {
@@ -23363,6 +23434,60 @@ function createTextSprite(text, color = "#ffffff", fontSize = 36) {
   const sprite = new Sprite(material);
   sprite.scale.set(8, 2, 1);
   return sprite;
+}
+function generateGroundTexture(type) {
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const imgData = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const n1 = TextureFactory["fractalNoise"](x / size * 8, y / size * 8, 42, 5);
+      const n2 = TextureFactory["fractalNoise"](x / size * 32, y / size * 32, 99, 3) * 0.3;
+      const noise = n1 + n2;
+      let r, g, b;
+      if (type === "concrete") {
+        const v = 130 + noise * 50;
+        r = v;
+        g = v + 5;
+        b = v + 8;
+        const crack = TextureFactory["ridgedNoise"](x / size * 16, y / size * 16, 77, 4);
+        if (crack > 0.75) {
+          r *= 0.5;
+          g *= 0.5;
+          b *= 0.5;
+        }
+      } else if (type === "grass") {
+        const v = 60 + noise * 40;
+        r = v * 0.5;
+        g = v + 20;
+        b = v * 0.3;
+        if (noise < 0.35) {
+          r += 30;
+          g -= 10;
+          b -= 5;
+        }
+      } else {
+        const v = 50 + noise * 25;
+        r = v;
+        g = v;
+        b = v + 3;
+      }
+      imgData.data[idx] = Math.max(0, Math.min(255, r));
+      imgData.data[idx + 1] = Math.max(0, Math.min(255, g));
+      imgData.data[idx + 2] = Math.max(0, Math.min(255, b));
+      imgData.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  tex.colorSpace = SRGBColorSpace;
+  return tex;
 }
 var TextureFactory = class {
   static {
@@ -23401,7 +23526,7 @@ var TextureFactory = class {
     const v = fy * fy * (3 - 2 * fy);
     return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
   }
-  // Fractal noise with 8-10 octaves for KSP-level detail
+  // Fractal noise with up to 14 octaves for KSP-level detail
   static fractalNoise(x, y, seed, octaves) {
     let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
     for (let i = 0; i < octaves; i++) {
@@ -23427,8 +23552,8 @@ var TextureFactory = class {
   }
   // Domain-warped noise for organic patterns (gas giants, lava)
   static warpedNoise(x, y, seed, octaves) {
-    const wx = this.fractalNoise(x + 10.5, y + 5.2, seed + 50, 3) * 2;
-    const wy = this.fractalNoise(x + 3.7, y + 8.1, seed + 60, 3) * 2;
+    const wx = this.fractalNoise(x + 10.5, y + 5.2, seed + 50, 4) * 2;
+    const wy = this.fractalNoise(x + 3.7, y + 8.1, seed + 60, 4) * 2;
     return this.fractalNoise(x + wx, y + wy, seed, octaves);
   }
   // Latitude-aware UV mapping to reduce pole distortion
@@ -23444,14 +23569,13 @@ var TextureFactory = class {
       craters.push({
         x: this.hash(i * 3 + 1, 7, seed),
         y: this.hash(i * 3 + 2, 13, seed),
-        r: 4e-3 + this.hash(i * 3 + 3, 19, seed) * 0.022,
+        r: 4e-3 + this.hash(i * 3 + 3, 19, seed) * 0.025,
         age: this.hash(i * 3 + 4, 23, seed)
-        // 0=fresh(bright), 1=eroded(dim)
       });
     }
     return craters;
   }
-  // Draw circular craters on canvas (actual crater shapes, not just noise)
+  // Draw circular craters on canvas (ejecta, floor, rim, shadow, rays)
   static drawCraters(ctx, size, craters) {
     for (const c of craters) {
       const cx = c.x * size;
@@ -23460,21 +23584,21 @@ var TextureFactory = class {
       const fresh = 1 - c.age;
       const gradEjecta = ctx.createRadialGradient(cx, cy, cr * 0.6, cx, cy, cr * 1.8);
       gradEjecta.addColorStop(0, `rgba(255,255,255,0)`);
-      gradEjecta.addColorStop(0.6, `rgba(255,250,240,${0.04 + fresh * 0.06})`);
+      gradEjecta.addColorStop(0.6, `rgba(255,250,240,${0.04 + fresh * 0.08})`);
       gradEjecta.addColorStop(1, `rgba(255,255,255,0)`);
       ctx.fillStyle = gradEjecta;
       ctx.beginPath();
       ctx.arc(cx, cy, cr * 1.8, 0, Math.PI * 2);
       ctx.fill();
       const gradFloor = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr * 0.85);
-      gradFloor.addColorStop(0, `rgba(0,0,0,${0.3 + fresh * 0.1})`);
-      gradFloor.addColorStop(0.6, `rgba(0,0,0,${0.15 + fresh * 0.05})`);
+      gradFloor.addColorStop(0, `rgba(0,0,0,${0.35 + fresh * 0.12})`);
+      gradFloor.addColorStop(0.6, `rgba(0,0,0,${0.18 + fresh * 0.06})`);
       gradFloor.addColorStop(1, `rgba(0,0,0,0)`);
       ctx.fillStyle = gradFloor;
       ctx.beginPath();
       ctx.arc(cx, cy, cr * 0.85, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = `rgba(255,250,235,${0.1 + fresh * 0.12})`;
+      ctx.strokeStyle = `rgba(255,250,235,${0.12 + fresh * 0.15})`;
       ctx.lineWidth = Math.max(1, cr * 0.08);
       ctx.beginPath();
       ctx.arc(cx, cy, cr * 0.78, 0, Math.PI * 2);
@@ -23487,19 +23611,25 @@ var TextureFactory = class {
         cy - cr * 0.2,
         cr * 0.7
       );
-      gradShadow.addColorStop(0, `rgba(0,0,0,${0.2 + fresh * 0.1})`);
+      gradShadow.addColorStop(0, `rgba(0,0,0,${0.22 + fresh * 0.12})`);
       gradShadow.addColorStop(1, `rgba(0,0,0,0)`);
       ctx.fillStyle = gradShadow;
       ctx.beginPath();
       ctx.arc(cx, cy, cr * 0.7, 0, Math.PI * 2);
       ctx.fill();
+      if (fresh > 0.5 && cr > size * 0.012) {
+        ctx.fillStyle = `rgba(255,250,235,${0.08 + fresh * 0.06})`;
+        ctx.beginPath();
+        ctx.arc(cx, cy, cr * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+      }
       if (fresh > 0.7 && cr > size * 0.01) {
-        const rayCount = 6 + Math.floor(fresh * 6);
-        ctx.strokeStyle = `rgba(255,250,240,${0.04 + fresh * 0.04})`;
+        const rayCount = 6 + Math.floor(fresh * 8);
+        ctx.strokeStyle = `rgba(255,250,240,${0.05 + fresh * 0.05})`;
         ctx.lineWidth = Math.max(1, cr * 0.05);
         for (let r = 0; r < rayCount; r++) {
           const angle = r / rayCount * Math.PI * 2 + c.age * 3;
-          const rayLen = cr * (2 + fresh * 2);
+          const rayLen = cr * (2.5 + fresh * 2.5);
           ctx.beginPath();
           ctx.moveTo(cx + Math.cos(angle) * cr * 0.8, cy + Math.sin(angle) * cr * 0.8);
           ctx.lineTo(cx + Math.cos(angle) * rayLen, cy + Math.sin(angle) * rayLen);
@@ -23526,89 +23656,149 @@ var TextureFactory = class {
           case "star": {
             const cx = size / 2, cy = size / 2;
             const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / (size / 2);
-            const n = this.fractalNoise(u, v, seed, 8);
-            const granule = this.fractalNoise(u * 14, v * 14, seed + 10, 5);
-            const flare = this.ridgedNoise(u * 3, v * 3, seed + 20, 4);
+            const n = this.fractalNoise(u, v, seed, 12);
+            const granule = this.fractalNoise(u * 16, v * 16, seed + 10, 6);
+            const granuleFine = this.fractalNoise(u * 40, v * 40, seed + 15, 4) * 0.15;
+            const flare = this.ridgedNoise(u * 3, v * 3, seed + 20, 5);
+            const flareDetail = this.fractalNoise(u * 10, v * 10, seed + 25, 4) * 0.3;
             const limb = Math.max(0, 1 - dist * 1.2);
-            const t = limb * (0.5 + n * 0.3 + granule * 0.2);
-            const flareBoost = flare > 0.7 ? (flare - 0.7) * 3 : 0;
-            r = color1.r * 255 * t + 255 * (1 - t) * 0.35 + granule * 25 + flareBoost * 80;
-            g = color1.g * 255 * t + 200 * (1 - t) * 0.25 + granule * 15 + flareBoost * 40;
-            b = color1.b * 255 * t + 80 * (1 - t) * 0.08 + granule * 5 + flareBoost * 10;
+            const t = limb * (0.5 + n * 0.3 + granule * 0.15 + granuleFine);
+            const flareBoost = flare > 0.65 ? (flare - 0.65) * 3.5 : 0;
+            const flareDetailBoost = flareDetail > 0.6 ? (flareDetail - 0.6) * 2 : 0;
+            r = color1.r * 255 * t + 255 * (1 - t) * 0.35 + granule * 25 + (flareBoost + flareDetailBoost) * 90;
+            g = color1.g * 255 * t + 200 * (1 - t) * 0.25 + granule * 15 + (flareBoost + flareDetailBoost) * 45;
+            b = color1.b * 255 * t + 80 * (1 - t) * 0.08 + granule * 5 + (flareBoost + flareDetailBoost) * 12;
             break;
           }
           case "gas": {
-            const bandFreq = 18 + Math.sin(seed) * 5;
-            const warpNoise = this.warpedNoise(u * 2, v * 0.4, seed, 5);
-            const band = Math.sin(v * bandFreq + warpNoise * 6) * 0.5 + 0.5;
-            const turb = this.fractalNoise(u * 6, v * 12, seed, 8) * 0.35;
-            const turbDetail = this.fractalNoise(u * 20, v * 30, seed + 15, 5) * 0.12;
-            const vortex = this.ridgedNoise(u * 5, v * 7, seed + 5, 4) * 0.18;
+            const isIceGiant = data.type === "ice-giant";
+            const bandFreq = isIceGiant ? 10 + Math.sin(seed) * 3 : 18 + Math.sin(seed) * 5;
+            const warpNoise = this.warpedNoise(u * 2, v * 0.4, seed, 6);
+            const band = Math.sin(v * bandFreq + warpNoise * 7) * 0.5 + 0.5;
+            const turb = this.fractalNoise(u * 6, v * 12, seed, 10) * 0.35;
+            const turbDetail = this.fractalNoise(u * 22, v * 32, seed + 15, 6) * 0.12;
+            const turbFine = this.fractalNoise(u * 50, v * 60, seed + 35, 4) * 0.05;
+            const vortex = this.ridgedNoise(u * 5, v * 7, seed + 5, 5) * 0.18;
             const spotX = 0.3 + this.smoothNoise(seed, seed, seed) * 0.4;
             const spotY = 0.4 + this.smoothNoise(seed + 1, seed + 1, seed) * 0.2;
             const spotDist = Math.sqrt((u / 8 - spotX) ** 2 + (v / 4 - spotY) ** 2);
-            const spotSwirl = this.fractalNoise(u * 10, v * 6, seed + 77, 4);
-            const spot = spotDist < 0.1 ? (1 - spotDist / 0.1) * (0.3 + spotSwirl * 0.15) : 0;
+            const spotSwirl = this.fractalNoise(u * 12, v * 8, seed + 77, 5);
+            const spot = isIceGiant ? 0 : spotDist < 0.1 ? (1 - spotDist / 0.1) * (0.3 + spotSwirl * 0.18) : 0;
             const storm = this.smoothNoise(u * 10, v * 5, seed + 7) > 0.9 ? 0.12 : 0;
-            const storm2 = this.ridgedNoise(u * 15, v * 8, seed + 33, 3) > 0.6 ? 0.08 : 0;
-            const t = Math.max(0, Math.min(1, band + turb + turbDetail + vortex + storm + storm2 + spot));
+            const storm2 = this.ridgedNoise(u * 15, v * 8, seed + 33, 4) > 0.6 ? 0.08 : 0;
+            const eddy = this.fractalNoise(u * 30, v * 20, seed + 44, 3) > 0.7 ? 0.06 : 0;
+            const t = Math.max(0, Math.min(1, band + turb + turbDetail + turbFine + vortex + storm + storm2 + eddy + spot));
             const poleShift = 1 - Math.pow(Math.abs(y / size - 0.5) * 2, 3) * 0.15;
-            r = (color1.r * 255 * (1 - t) + color2.r * 255 * t) * (0.8 + latFactor * 0.2) * poleShift;
-            g = (color1.g * 255 * (1 - t) + color2.g * 255 * t) * (0.8 + latFactor * 0.2) * poleShift;
-            b = (color1.b * 255 * (1 - t) + color2.b * 255 * t) * (0.8 + latFactor * 0.2) * poleShift;
+            let polarVortex = 0;
+            if (isIceGiant) {
+              const polarFactor = Math.abs(y / size - 0.5) * 2;
+              if (polarFactor > 0.85) {
+                const vortexNoise = this.fractalNoise(u * 8, v * 8, seed + 200, 4);
+                polarVortex = vortexNoise > 0.6 ? (vortexNoise - 0.6) * 0.4 : 0;
+              }
+            }
+            const baseR = isIceGiant ? 85 / 255 : color1.r;
+            const baseG = isIceGiant ? 187 / 255 : color1.g;
+            const baseB = isIceGiant ? 221 / 255 : color1.b;
+            r = (baseR * 255 * (1 - t) + color2.r * 255 * t) * (0.8 + latFactor * 0.2) * poleShift * (1 - polarVortex);
+            g = (baseG * 255 * (1 - t) + color2.g * 255 * t) * (0.8 + latFactor * 0.2) * poleShift * (1 - polarVortex);
+            b = (baseB * 255 * (1 - t) + color2.b * 255 * t) * (0.8 + latFactor * 0.2) * poleShift * (1 - polarVortex * 0.5);
             break;
           }
           case "ice": {
-            const n = this.fractalNoise(u * 7, v * 7, seed, 9);
-            const detail = this.fractalNoise(u * 25, v * 25, seed + 8, 5) * 0.12;
-            const crack = this.ridgedNoise(u * 16, v * 16, seed + 5, 5);
-            const crackVal = crack > 0.55 ? (crack - 0.55) * 0.6 : 0;
-            const oceanHint = this.fractalNoise(u * 3, v * 3, seed + 50, 3);
-            const t = Math.max(0, Math.min(1, n * 0.6 + detail + crackVal * 0.3));
-            r = (color1.r * 255 * (1 - t * 0.3) + color2.r * 255 * t * 0.3) * (0.85 + latFactor * 0.15);
-            g = (color1.g * 255 * (1 - t * 0.3) + color2.g * 255 * t * 0.3 + 10 + oceanHint * 15) * (0.85 + latFactor * 0.15);
-            b = (color1.b * 255 * (1 - t * 0.3) + color2.b * 255 * t * 0.3 + 20 + oceanHint * 25) * (0.85 + latFactor * 0.15);
+            if (data.type === "ice-giant") {
+              const n = this.fractalNoise(u * 4, v * 4, seed, 12);
+              const bandWarp = this.warpedNoise(u * 2, v * 0.3, seed + 30, 5) * 0.3;
+              const band = Math.sin(v * 8 + bandWarp * 5) * 0.15 + 0.5;
+              const detail = this.fractalNoise(u * 20, v * 20, seed + 8, 5) * 0.1;
+              const haze = this.fractalNoise(u * 6, v * 3, seed + 50, 4) * 0.08;
+              const t = Math.max(0, Math.min(1, n * 0.3 + band * 0.3 + detail + haze));
+              const methaneR = 68, methaneG = 170, methaneB = 204;
+              r = (methaneR * (1 - t * 0.2) + color2.r * 255 * t * 0.2) * (0.85 + latFactor * 0.15);
+              g = (methaneG * (1 - t * 0.2) + color2.g * 255 * t * 0.2) * (0.85 + latFactor * 0.15);
+              b = (methaneB * (1 - t * 0.2) + color2.b * 255 * t * 0.2) * (0.85 + latFactor * 0.15);
+              const polarFactor = Math.abs(y / size - 0.5) * 2;
+              if (polarFactor > 0.82) {
+                const vortexN = this.fractalNoise(u * 8, v * 8, seed + 200, 4);
+                const vortex = vortexN > 0.55 ? (vortexN - 0.55) * 0.5 : 0;
+                r *= 1 - vortex;
+                g *= 1 - vortex * 0.8;
+                b *= 1 - vortex * 0.6;
+              }
+            } else {
+              const n = this.fractalNoise(u * 7, v * 7, seed, 12);
+              const detail = this.fractalNoise(u * 28, v * 28, seed + 8, 6) * 0.12;
+              const fineDetail = this.fractalNoise(u * 60, v * 60, seed + 18, 4) * 0.05;
+              const crack = this.ridgedNoise(u * 18, v * 18, seed + 5, 6);
+              const crackVal = crack > 0.52 ? (crack - 0.52) * 0.7 : 0;
+              const crackBranch = this.ridgedNoise(u * 35, v * 35, seed + 12, 4);
+              const crackBranchVal = crackBranch > 0.65 ? (crackBranch - 0.65) * 0.3 : 0;
+              const oceanHint = this.fractalNoise(u * 3, v * 3, seed + 50, 4);
+              const t = Math.max(0, Math.min(1, n * 0.6 + detail + fineDetail + crackVal * 0.3 + crackBranchVal * 0.2));
+              r = (color1.r * 255 * (1 - t * 0.3) + color2.r * 255 * t * 0.3) * (0.85 + latFactor * 0.15);
+              g = (color1.g * 255 * (1 - t * 0.3) + color2.g * 255 * t * 0.3 + 10 + oceanHint * 18) * (0.85 + latFactor * 0.15);
+              b = (color1.b * 255 * (1 - t * 0.3) + color2.b * 255 * t * 0.3 + 25 + oceanHint * 30) * (0.85 + latFactor * 0.15);
+            }
             break;
           }
           case "ocean": {
-            const n = this.fractalNoise(u * 5, v * 5, seed, 10);
-            const detail = this.fractalNoise(u * 18, v * 18, seed + 3, 5) * 0.15;
-            const warp = this.warpedNoise(u * 4, v * 4, seed + 40, 4) * 0.08;
-            const elevation = n + detail + warp;
+            const n = this.fractalNoise(u * 5, v * 5, seed, 12);
+            const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 6) * 0.15;
+            const fineDetail = this.fractalNoise(u * 50, v * 50, seed + 13, 4) * 0.05;
+            const warp = this.warpedNoise(u * 4, v * 4, seed + 40, 5) * 0.08;
+            const elevation = n + detail + fineDetail + warp;
             const landThreshold = 0.5;
             const polarFactor = Math.abs(y / size - 0.5) * 2;
-            const iceNoise = this.fractalNoise(u * 12, v * 8, seed + 90, 4) * 0.06;
-            const iceCap = polarFactor > 0.78 ? Math.min(1, (polarFactor - 0.78) * 5.5 + iceNoise) : 0;
+            const iceNoise = this.fractalNoise(u * 14, v * 10, seed + 90, 5) * 0.06;
+            const iceCap = polarFactor > 0.76 ? Math.min(1, (polarFactor - 0.76) * 6 + iceNoise) : 0;
             if (elevation < landThreshold) {
               const depth = elevation / landThreshold;
-              const deepNoise = this.fractalNoise(u * 10, v * 10, seed + 60, 4) * 0.1;
-              r = 8 + (depth + deepNoise) * 35;
-              g = 35 + (depth + deepNoise) * 55;
-              b = 70 + (depth + deepNoise) * 95;
+              const deepNoise = this.fractalNoise(u * 10, v * 10, seed + 60, 5) * 0.1;
+              const current = this.warpedNoise(u * 8, v * 4, seed + 70, 4) * 0.05;
+              r = 8 + (depth + deepNoise) * 35 + current * 10;
+              g = 35 + (depth + deepNoise) * 55 + current * 15;
+              b = 70 + (depth + deepNoise) * 95 + current * 20;
             } else {
               const land = (elevation - landThreshold) / (1 - landThreshold);
-              const biomeNoise = this.fractalNoise(u * 8, v * 8, seed + 70, 4);
-              if (land < 0.12) {
-                r = 200 + land * 100 + biomeNoise * 20;
-                g = 185 + land * 70 + biomeNoise * 15;
-                b = 130 + land * 40 + biomeNoise * 10;
-              } else if (land < 0.35) {
-                const greenVar = biomeNoise * 0.5 + 0.5;
+              const biomeNoise = this.fractalNoise(u * 8, v * 8, seed + 70, 5);
+              const biomeDetail = this.fractalNoise(u * 25, v * 25, seed + 75, 3) * 0.3;
+              const biome = biomeNoise + biomeDetail;
+              if (land < 0.1) {
+                r = 200 + land * 100 + biome * 20;
+                g = 185 + land * 70 + biome * 15;
+                b = 130 + land * 40 + biome * 10;
+              } else if (land < 0.2) {
+                r = 45 + land * 50 + (1 - biome) * 25;
+                g = 100 + land * 60 + biome * 30;
+                b = 28 + land * 18;
+              } else if (land < 0.4) {
+                const greenVar = biome * 0.5 + 0.5;
                 r = 35 + land * 60 + (1 - greenVar) * 30;
                 g = 90 + land * 70 + greenVar * 30;
                 b = 25 + land * 20;
-              } else if (land < 0.55) {
-                r = 50 + land * 40 + biomeNoise * 20;
-                g = 80 + land * 50 + biomeNoise * 15;
-                b = 30 + land * 15;
-              } else if (land < 0.75) {
-                r = 95 + land * 45 + biomeNoise * 15;
-                g = 78 + land * 38 + biomeNoise * 12;
-                b = 58 + land * 28 + biomeNoise * 8;
+              } else if (land < 0.58) {
+                r = 40 + land * 35 + biome * 20;
+                g = 75 + land * 45 + biome * 15;
+                b = 28 + land * 12;
+              } else if (land < 0.72) {
+                r = 120 + land * 35 + biome * 15;
+                g = 100 + land * 30 + biome * 12;
+                b = 55 + land * 20 + biome * 8;
+              } else if (land < 0.85) {
+                r = 95 + land * 45 + biome * 15;
+                g = 78 + land * 38 + biome * 12;
+                b = 58 + land * 28 + biome * 8;
               } else {
                 r = 210 + land * 30;
                 g = 210 + land * 30;
                 b = 220 + land * 25;
+              }
+              const canyon = this.ridgedNoise(u * 12, v * 12, seed + 88, 5);
+              if (canyon > 0.7 && land > 0.3 && land < 0.85) {
+                const canyonDark = (canyon - 0.7) * 0.6;
+                r *= 1 - canyonDark;
+                g *= 1 - canyonDark;
+                b *= 1 - canyonDark;
               }
             }
             if (iceCap > 0) {
@@ -23617,25 +23807,21 @@ var TextureFactory = class {
               g = g * (1 - ice) + 240 * ice;
               b = b * (1 - ice) + 250 * ice;
             }
-            const cloud = this.fractalNoise(u * 7, v * 4, seed + 20, 5);
-            if (cloud > 0.62) {
-              const cloudOpacity = (cloud - 0.62) * 1.5;
-              r = r * (1 - cloudOpacity) + 240 * cloudOpacity;
-              g = g * (1 - cloudOpacity) + 245 * cloudOpacity;
-              b = b * (1 - cloudOpacity) + 250 * cloudOpacity;
-            }
             break;
           }
           case "lava": {
-            const n = this.fractalNoise(u * 8, v * 8, seed, 9);
-            const lavaWarp = this.warpedNoise(u * 5, v * 5, seed + 30, 4) * 2;
-            const lava = this.ridgedNoise(u * 14 + lavaWarp, v * 14 + lavaWarp, seed + 3, 6);
-            const glow = this.fractalNoise(u * 4, v * 4, seed + 7, 4);
-            const heatFlow = this.warpedNoise(u * 6, v * 6, seed + 80, 5);
-            const lakeNoise = this.fractalNoise(u * 6, v * 6, seed + 90, 4);
-            const lake = lakeNoise > 0.7 ? (lakeNoise - 0.7) * 3 : 0;
-            if (lava > 0.52) {
-              const intensity = (lava - 0.52) * 2.2;
+            const n = this.fractalNoise(u * 8, v * 8, seed, 12);
+            const lavaWarp = this.warpedNoise(u * 5, v * 5, seed + 30, 5) * 2;
+            const lava = this.ridgedNoise(u * 14 + lavaWarp, v * 14 + lavaWarp, seed + 3, 7);
+            const lavaDetail = this.ridgedNoise(u * 30 + lavaWarp, v * 30 + lavaWarp, seed + 13, 4) * 0.3;
+            const glow = this.fractalNoise(u * 4, v * 4, seed + 7, 5);
+            const heatFlow = this.warpedNoise(u * 6, v * 6, seed + 80, 6);
+            const crack = this.ridgedNoise(u * 25, v * 25, seed + 60, 5);
+            const crackGlow = crack > 0.65 ? (crack - 0.65) * 2 : 0;
+            const lakeNoise = this.fractalNoise(u * 6, v * 6, seed + 90, 5);
+            const lake = lakeNoise > 0.68 ? (lakeNoise - 0.68) * 3.5 : 0;
+            if (lava + lavaDetail > 0.52) {
+              const intensity = Math.min(1, (lava + lavaDetail - 0.52) * 2.5);
               const heat = intensity * (0.7 + heatFlow * 0.3);
               r = 255;
               g = 80 + heat * 140 + glow * 25;
@@ -23645,6 +23831,11 @@ var TextureFactory = class {
               r = 255;
               g = 120 + lakeInt * 100 + glow * 20;
               b = 15 + lakeInt * 45;
+            } else if (crackGlow > 0) {
+              const dark = 0.25 + n * 0.45;
+              r = color1.r * 255 * dark + color2.r * 255 * (1 - dark) * 0.2 + crackGlow * 200;
+              g = color1.g * 255 * dark + color2.g * 255 * (1 - dark) * 0.12 + crackGlow * 100;
+              b = color1.b * 255 * dark + color2.b * 255 * (1 - dark) * 0.05 + crackGlow * 20;
             } else {
               const dark = 0.25 + n * 0.45;
               const heatTint = glow * 0.15;
@@ -23655,16 +23846,25 @@ var TextureFactory = class {
             break;
           }
           default: {
-            const n = this.fractalNoise(u * 7, v * 7, seed, 9);
-            const detail = this.fractalNoise(u * 25, v * 25, seed + 3, 4) * 0.1;
-            const regolith = this.fractalNoise(u * 40, v * 40, seed + 20, 3) * 0.05;
-            const t = Math.max(0, Math.min(1, n + detail + regolith));
+            const n = this.fractalNoise(u * 7, v * 7, seed, 12);
+            const detail = this.fractalNoise(u * 28, v * 28, seed + 3, 5) * 0.1;
+            const fineDetail = this.fractalNoise(u * 60, v * 60, seed + 13, 3) * 0.04;
+            const regolith = this.fractalNoise(u * 45, v * 45, seed + 20, 4) * 0.05;
+            const canyon = this.ridgedNoise(u * 14, v * 14, seed + 33, 6);
+            const canyonVal = canyon > 0.6 ? (canyon - 0.6) * 0.4 : 0;
+            const weather = this.fractalNoise(u * 10, v * 10, seed + 44, 4) * 0.08;
+            const t = Math.max(0, Math.min(1, n + detail + fineDetail + regolith - canyonVal + weather));
             r = (color1.r * 255 * (1 - t) + color2.r * 255 * t) * (0.85 + latFactor * 0.15);
             g = (color1.g * 255 * (1 - t) + color2.g * 255 * t) * (0.85 + latFactor * 0.15);
             b = (color1.b * 255 * (1 - t) + color2.b * 255 * t) * (0.85 + latFactor * 0.15);
+            if (canyonVal > 0) {
+              r *= 1 - canyonVal * 0.5;
+              g *= 1 - canyonVal * 0.5;
+              b *= 1 - canyonVal * 0.5;
+            }
             if (data.hasAtmosphere) {
               const polarFactor = Math.abs(y / size - 0.5) * 2;
-              const iceNoise = this.fractalNoise(u * 10, v * 6, seed + 90, 4) * 0.08;
+              const iceNoise = this.fractalNoise(u * 10, v * 6, seed + 90, 5) * 0.08;
               const iceCap = polarFactor > 0.8 ? Math.min(1, (polarFactor - 0.8) * 4.5 + iceNoise) : 0;
               if (iceCap > 0) {
                 const ice = Math.min(1, iceCap);
@@ -23683,8 +23883,8 @@ var TextureFactory = class {
       }
     }
     ctx.putImageData(imgData, 0, 0);
-    if (data.textureType === "rocky" || data.textureType === "ice") {
-      const craterCount = 35 + Math.floor(this.hash(0, 0, seed) * 35);
+    if (data.textureType === "rocky" || data.textureType === "ice" && data.type !== "ice-giant") {
+      const craterCount = 50 + Math.floor(this.hash(0, 0, seed) * 50);
       const craters = this.generateCraterData(seed, craterCount);
       this.drawCraters(ctx, size, craters);
     }
@@ -23705,13 +23905,52 @@ var TextureFactory = class {
       for (let x = 0; x < size; x++) {
         const u = x / size * 8;
         const v = y / size * 4;
-        const n = this.fractalNoise(u * 6, v * 6, seed, 8);
-        const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 4);
-        heightField[y * size + x] = n + ridge * 0.3;
+        let h;
+        switch (data.textureType) {
+          case "gas": {
+            const bandWarp = this.warpedNoise(u * 2, v * 0.4, seed, 5) * 0.3;
+            const band = Math.sin(v * 18 + bandWarp * 6) * 0.3;
+            const turb = this.fractalNoise(u * 6, v * 12, seed, 8) * 0.2;
+            h = band + turb;
+            break;
+          }
+          case "ice": {
+            if (data.type === "ice-giant") {
+              const n = this.fractalNoise(u * 4, v * 4, seed, 10);
+              const band = Math.sin(v * 8) * 0.1;
+              h = n * 0.3 + band;
+            } else {
+              const n = this.fractalNoise(u * 7, v * 7, seed, 10);
+              const crack = this.ridgedNoise(u * 18, v * 18, seed + 5, 5);
+              h = n + crack * 0.4;
+            }
+            break;
+          }
+          case "ocean": {
+            const n = this.fractalNoise(u * 5, v * 5, seed, 12);
+            const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 5);
+            h = n > 0.5 ? (n - 0.5) * 2 + ridge * 0.4 : n * 0.1;
+            break;
+          }
+          case "lava": {
+            const lavaWarp = this.warpedNoise(u * 5, v * 5, seed + 30, 4) * 2;
+            const lava = this.ridgedNoise(u * 14 + lavaWarp, v * 14 + lavaWarp, seed + 3, 6);
+            const n = this.fractalNoise(u * 8, v * 8, seed, 8);
+            h = n + lava * 0.5;
+            break;
+          }
+          default: {
+            const n = this.fractalNoise(u * 6, v * 6, seed, 10);
+            const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 5);
+            h = n + ridge * 0.35;
+            break;
+          }
+        }
+        heightField[y * size + x] = h;
       }
     }
-    if (data.textureType === "rocky" || data.textureType === "ice") {
-      const craterCount = 25 + Math.floor(this.hash(0, 0, seed) * 20);
+    if (data.textureType === "rocky" || data.textureType === "ice" && data.type !== "ice-giant") {
+      const craterCount = 35 + Math.floor(this.hash(0, 0, seed) * 25);
       const craters = this.generateCraterData(seed, craterCount);
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
@@ -23724,9 +23963,12 @@ var TextureFactory = class {
               const t = dist / c.r;
               const fresh = 1 - c.age;
               if (t < 0.7) {
-                h -= (1 - t / 0.7) * 0.35 * fresh;
+                h -= (1 - t / 0.7) * 0.4 * fresh;
               } else {
-                h += (t - 0.7) / 0.3 * 0.18 * fresh;
+                h += (t - 0.7) / 0.3 * 0.2 * fresh;
+              }
+              if (t < 0.1 && fresh > 0.5) {
+                h += 0.1 * fresh;
               }
             }
           }
@@ -23734,7 +23976,7 @@ var TextureFactory = class {
         }
       }
     }
-    const strength = 2.5;
+    const strength = data.textureType === "gas" ? 1 : 3;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
@@ -23767,18 +24009,38 @@ var TextureFactory = class {
         const idx = (y * size + x) * 4;
         const u = x / size * 8;
         const v = y / size * 4;
-        const n = this.fractalNoise(u * 6, v * 6, seed, 8);
-        const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 4);
-        const val = Math.floor((n + ridge * 0.3) * 255);
-        imgData.data[idx] = val;
-        imgData.data[idx + 1] = val;
-        imgData.data[idx + 2] = val;
+        let val;
+        switch (data.textureType) {
+          case "gas": {
+            const bandWarp = this.warpedNoise(u * 2, v * 0.4, seed, 4) * 0.3;
+            const band = Math.sin(v * 18 + bandWarp * 6) * 0.2 + 0.5;
+            const turb = this.fractalNoise(u * 6, v * 12, seed, 6) * 0.15;
+            val = band + turb;
+            break;
+          }
+          case "ice": {
+            const n = this.fractalNoise(u * 7, v * 7, seed, 10);
+            const ridge = this.ridgedNoise(u * 18, v * 18, seed + 5, 5);
+            val = n + ridge * 0.3;
+            break;
+          }
+          default: {
+            const n = this.fractalNoise(u * 6, v * 6, seed, 10);
+            const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 5);
+            val = n + ridge * 0.3;
+            break;
+          }
+        }
+        const b = Math.floor(Math.max(0, Math.min(1, val)) * 255);
+        imgData.data[idx] = b;
+        imgData.data[idx + 1] = b;
+        imgData.data[idx + 2] = b;
         imgData.data[idx + 3] = 255;
       }
     }
     ctx.putImageData(imgData, 0, 0);
-    if (data.textureType === "rocky" || data.textureType === "ice") {
-      const craterCount = 25 + Math.floor(this.hash(0, 0, seed) * 20);
+    if (data.textureType === "rocky" || data.textureType === "ice" && data.type !== "ice-giant") {
+      const craterCount = 35 + Math.floor(this.hash(0, 0, seed) * 25);
       const craters = this.generateCraterData(seed, craterCount);
       for (const c of craters) {
         const cx = c.x * size;
@@ -23786,13 +24048,13 @@ var TextureFactory = class {
         const cr = c.r * size;
         const fresh = 1 - c.age;
         const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr * 0.85);
-        grad.addColorStop(0, `rgba(0,0,0,${0.25 * fresh})`);
+        grad.addColorStop(0, `rgba(0,0,0,${0.3 * fresh})`);
         grad.addColorStop(1, `rgba(0,0,0,0)`);
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(cx, cy, cr * 0.85, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = `rgba(255,255,255,${0.12 * fresh})`;
+        ctx.strokeStyle = `rgba(255,255,255,${0.15 * fresh})`;
         ctx.lineWidth = Math.max(1, cr * 0.06);
         ctx.beginPath();
         ctx.arc(cx, cy, cr * 0.78, 0, Math.PI * 2);
@@ -23813,6 +24075,7 @@ var TextureFactory = class {
       let alpha = 0.3 + 0.4 * Math.sin(t * 35) * Math.sin(t * 7.3) * Math.sin(t * 13.1);
       if (t > 0.55 && t < 0.6) alpha *= 0.1;
       if (t > 0.75 && t < 0.77) alpha *= 0.2;
+      if (t > 0.82 && t < 0.83) alpha *= 0.15;
       if (t < 0.05) alpha *= t / 0.05;
       if (t > 0.95) alpha *= (1 - t) / 0.05;
       const brightness = 0.4 + 0.6 * Math.abs(Math.sin(t * 50));
@@ -23824,7 +24087,7 @@ var TextureFactory = class {
     }
     return new CanvasTexture(canvas);
   }
-  // New: Generate roughness map for ocean planets (shiny oceans, rough land)
+  // Roughness map: ocean = smooth (shiny), land = rough
   static generateRoughnessMap(data) {
     const size = Math.floor(this.getTextureSize() / 2);
     const canvas = this.getCanvas(size);
@@ -23836,25 +24099,27 @@ var TextureFactory = class {
         const idx = (y * size + x) * 4;
         const u = x / size * 8;
         const v = y / size * 4;
-        const n = this.fractalNoise(u * 5, v * 5, seed, 9);
-        const detail = this.fractalNoise(u * 18, v * 18, seed + 3, 5) * 0.15;
+        const n = this.fractalNoise(u * 5, v * 5, seed, 12);
+        const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 5) * 0.15;
         const elevation = n + detail;
         const landThreshold = 0.5;
         let roughness;
         if (elevation < landThreshold) {
           const depth = elevation / landThreshold;
-          roughness = 0.08 + depth * 0.07;
+          roughness = 0.06 + depth * 0.06;
         } else {
           const land = (elevation - landThreshold) / (1 - landThreshold);
-          if (land < 0.12) roughness = 0.55;
-          else if (land < 0.35) roughness = 0.82;
-          else if (land < 0.55) roughness = 0.88;
-          else if (land < 0.75) roughness = 0.92;
-          else roughness = 0.65;
+          if (land < 0.1) roughness = 0.5;
+          else if (land < 0.2) roughness = 0.75;
+          else if (land < 0.4) roughness = 0.82;
+          else if (land < 0.58) roughness = 0.88;
+          else if (land < 0.72) roughness = 0.85;
+          else if (land < 0.85) roughness = 0.92;
+          else roughness = 0.6;
         }
         const polarFactor = Math.abs(y / size - 0.5) * 2;
-        if (polarFactor > 0.78) {
-          roughness = Math.min(roughness, 0.2);
+        if (polarFactor > 0.76) {
+          roughness = Math.min(roughness, 0.18);
         }
         const val = Math.floor(roughness * 255);
         imgData.data[idx] = val;
@@ -23868,7 +24133,46 @@ var TextureFactory = class {
     texture.wrapS = RepeatWrapping;
     return texture;
   }
-  // New: Generate city lights emissive texture for earth-like planets
+  // Metalness map: ocean = high (reflective), land = low (matte) — acts as specular control
+  static generateMetalnessMap(data) {
+    const size = Math.floor(this.getTextureSize() / 2);
+    const canvas = this.getCanvas(size);
+    const ctx = canvas.getContext("2d");
+    const imgData = ctx.createImageData(size, size);
+    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const u = x / size * 8;
+        const v = y / size * 4;
+        const n = this.fractalNoise(u * 5, v * 5, seed, 12);
+        const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 5) * 0.15;
+        const elevation = n + detail;
+        const landThreshold = 0.5;
+        let metalness;
+        if (elevation < landThreshold) {
+          const depth = elevation / landThreshold;
+          metalness = 0.6 + depth * 0.2;
+        } else {
+          metalness = 0.05;
+        }
+        const polarFactor = Math.abs(y / size - 0.5) * 2;
+        if (polarFactor > 0.76) {
+          metalness = 0.3;
+        }
+        const val = Math.floor(metalness * 255);
+        imgData.data[idx] = val;
+        imgData.data[idx + 1] = val;
+        imgData.data[idx + 2] = val;
+        imgData.data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    const texture = new CanvasTexture(canvas);
+    texture.wrapS = RepeatWrapping;
+    return texture;
+  }
+  // City lights: brighter, denser, coastal distribution
   static generateCityLightsTexture(data) {
     const size = Math.floor(this.getTextureSize() / 2);
     const canvas = this.getCanvas(size);
@@ -23880,25 +24184,27 @@ var TextureFactory = class {
         const idx = (y * size + x) * 4;
         const u = x / size * 8;
         const v = y / size * 4;
-        const n = this.fractalNoise(u * 5, v * 5, seed, 9);
-        const detail = this.fractalNoise(u * 18, v * 18, seed + 3, 5) * 0.15;
+        const n = this.fractalNoise(u * 5, v * 5, seed, 12);
+        const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 5) * 0.15;
         const elevation = n + detail;
         const landThreshold = 0.5;
         const polarFactor = Math.abs(y / size - 0.5) * 2;
-        const iceCap = polarFactor > 0.78 ? (polarFactor - 0.78) * 5.5 : 0;
+        const iceCap = polarFactor > 0.76 ? (polarFactor - 0.76) * 6 : 0;
         if (elevation > landThreshold && iceCap < 0.3) {
           const land = (elevation - landThreshold) / (1 - landThreshold);
           const latFactor = Math.sin(y / size * Math.PI);
           const tempZone = Math.max(0, 1 - Math.abs(latFactor - 0.5) * 1.8);
-          const cityNoise = this.fractalNoise(u * 35, v * 35, seed + 100, 5);
-          const cityDetail = this.fractalNoise(u * 70, v * 70, seed + 110, 3) * 0.4;
-          const cityVal = (cityNoise + cityDetail) * tempZone * (1 - land * 0.6);
-          if (cityVal > 0.62 && land < 0.72) {
-            const intensity = Math.min(1, (cityVal - 0.62) * 3.5);
+          const coastalProximity = Math.max(0, 1 - land / 0.25);
+          const cityNoise = this.fractalNoise(u * 40, v * 40, seed + 100, 6);
+          const cityDetail = this.fractalNoise(u * 80, v * 80, seed + 110, 4) * 0.5;
+          const cityFine = this.fractalNoise(u * 120, v * 120, seed + 120, 3) * 0.3;
+          const cityVal = (cityNoise + cityDetail + cityFine) * tempZone * (1 - land * 0.5) * (0.5 + coastalProximity * 1.5);
+          if (cityVal > 0.55 && land < 0.75) {
+            const intensity = Math.min(1, (cityVal - 0.55) * 4);
             imgData.data[idx] = 255;
-            imgData.data[idx + 1] = 190 + intensity * 60;
-            imgData.data[idx + 2] = 80 + intensity * 60;
-            imgData.data[idx + 3] = Math.floor(intensity * 220);
+            imgData.data[idx + 1] = 200 + intensity * 55;
+            imgData.data[idx + 2] = 90 + intensity * 70;
+            imgData.data[idx + 3] = Math.floor(intensity * 240);
           } else {
             imgData.data[idx + 3] = 0;
           }
@@ -23918,30 +24224,44 @@ var TextureFactory = class {
     texture.wrapS = RepeatWrapping;
     return texture;
   }
-  // New: Generate cloud texture (transparent, white clouds) for ocean planets
-  static generateCloudTexture(data) {
+  // Multi-layer cloud texture with shadows
+  static generateCloudTexture(data, layer = 0) {
     const size = Math.floor(this.getTextureSize() / 2);
     const canvas = this.getCanvas(size);
     const ctx = canvas.getContext("2d");
     const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
+    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1 + layer * 100;
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const idx = (y * size + x) * 4;
         const u = x / size * 8;
         const v = y / size * 4;
-        const warp = this.warpedNoise(u * 3, v * 2, seed + 200, 4) * 1.5;
-        const cloud = this.fractalNoise(u * 7 + warp, v * 4 + warp, seed + 20, 7);
-        const cloudDetail = this.fractalNoise(u * 22, v * 16, seed + 30, 4) * 0.2;
+        let cloudScale, cloudThresh, cloudOpacity;
+        if (layer === 0) {
+          cloudScale = 7;
+          cloudThresh = 0.5;
+          cloudOpacity = 2.8;
+        } else if (layer === 1) {
+          cloudScale = 12;
+          cloudThresh = 0.55;
+          cloudOpacity = 2.2;
+        } else {
+          cloudScale = 20;
+          cloudThresh = 0.62;
+          cloudOpacity = 1.8;
+        }
+        const warp = this.warpedNoise(u * 3, v * 2, seed + 200, 5) * 1.5;
+        const cloud = this.fractalNoise(u * cloudScale + warp, v * (cloudScale * 0.6) + warp, seed + 20, 8);
+        const cloudDetail = this.fractalNoise(u * (cloudScale * 3), v * (cloudScale * 2), seed + 30, 5) * 0.2;
         const cloudVal = cloud + cloudDetail;
         const latFactor = Math.sin(y / size * Math.PI);
         const cloudBand = 0.6 + latFactor * 0.3 + Math.sin(y / size * Math.PI * 6) * 0.1;
-        if (cloudVal > 0.52) {
-          const opacity = Math.min(1, (cloudVal - 0.52) * 2.8) * cloudBand;
+        if (cloudVal > cloudThresh) {
+          const opacity = Math.min(1, (cloudVal - cloudThresh) * cloudOpacity) * cloudBand;
           imgData.data[idx] = 255;
           imgData.data[idx + 1] = 255;
           imgData.data[idx + 2] = 255;
-          imgData.data[idx + 3] = Math.floor(opacity * 210);
+          imgData.data[idx + 3] = Math.floor(opacity * 220);
         } else {
           imgData.data[idx] = 0;
           imgData.data[idx + 1] = 0;
@@ -23957,6 +24277,38 @@ var TextureFactory = class {
     texture.anisotropy = 8;
     return texture;
   }
+  // Cloud shadow texture (dark where clouds are, for surface shadowing)
+  static generateCloudShadowTexture(data) {
+    const size = Math.floor(this.getTextureSize() / 2);
+    const canvas = this.getCanvas(size);
+    const ctx = canvas.getContext("2d");
+    const imgData = ctx.createImageData(size, size);
+    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const u = x / size * 8;
+        const v = y / size * 4;
+        const warp = this.warpedNoise(u * 3, v * 2, seed + 200, 4) * 1.5;
+        const cloud = this.fractalNoise(u * 7 + warp, v * 4 + warp, seed + 20, 7);
+        const cloudDetail = this.fractalNoise(u * 22, v * 16, seed + 30, 4) * 0.2;
+        const cloudVal = cloud + cloudDetail;
+        if (cloudVal > 0.5) {
+          const opacity = Math.min(1, (cloudVal - 0.5) * 2.8);
+          imgData.data[idx] = 0;
+          imgData.data[idx + 1] = 0;
+          imgData.data[idx + 2] = 0;
+          imgData.data[idx + 3] = Math.floor(opacity * 100);
+        } else {
+          imgData.data[idx + 3] = 0;
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+    const texture = new CanvasTexture(canvas);
+    texture.wrapS = RepeatWrapping;
+    return texture;
+  }
 };
 function createCelestialMesh(data, quality = "high") {
   const [segsW, segsH] = QUALITY_CONFIG[quality].sphereSegments;
@@ -23970,8 +24322,10 @@ function createCelestialMesh(data, quality = "high") {
     const bumpMap = quality === "high" ? TextureFactory.generateBumpMap(data) : null;
     const normalMap = quality === "high" ? TextureFactory.generateNormalMap(data) : null;
     const isOcean = data.textureType === "ocean";
+    const isIceGiant = data.type === "ice-giant";
     if (isOcean) {
       const roughnessMap = quality === "high" ? TextureFactory.generateRoughnessMap(data) : null;
+      const metalnessMap = quality === "high" ? TextureFactory.generateMetalnessMap(data) : null;
       const cityLights = quality === "high" ? TextureFactory.generateCityLightsTexture(data) : null;
       material = new MeshStandardMaterial({
         map: texture,
@@ -23980,13 +24334,34 @@ function createCelestialMesh(data, quality = "high") {
         normalMap: normalMap || void 0,
         normalScale: new Vector2(0.8, 0.8),
         roughnessMap: roughnessMap || void 0,
+        metalnessMap: metalnessMap || void 0,
         roughness: 1,
-        // Controlled by roughnessMap
-        metalness: 0.3,
+        metalness: 1,
         emissiveMap: cityLights || void 0,
         emissive: new Color(16755268),
-        emissiveIntensity: 2.5
-        // Bright city lights on dark side
+        emissiveIntensity: 3
+      });
+    } else if (isIceGiant) {
+      material = new MeshStandardMaterial({
+        map: texture,
+        bumpMap: bumpMap || void 0,
+        bumpScale: 5e-3,
+        normalMap: normalMap || void 0,
+        normalScale: new Vector2(0.3, 0.3),
+        roughness: 0.6,
+        metalness: 0.1,
+        emissive: new Color(data.color).multiplyScalar(0.02)
+      });
+    } else if (data.textureType === "gas") {
+      material = new MeshStandardMaterial({
+        map: texture,
+        bumpMap: bumpMap || void 0,
+        bumpScale: 0.01,
+        normalMap: normalMap || void 0,
+        normalScale: new Vector2(0.4, 0.4),
+        roughness: 0.7,
+        metalness: 0.05,
+        emissive: new Color(data.color).multiplyScalar(0.015)
       });
     } else {
       material = new MeshStandardMaterial({
@@ -23995,8 +24370,8 @@ function createCelestialMesh(data, quality = "high") {
         bumpScale: 0.03,
         normalMap: normalMap || void 0,
         normalScale: new Vector2(0.8, 0.8),
-        roughness: isOcean ? 0.25 : 0.85,
-        metalness: isOcean ? 0.5 : 0.05,
+        roughness: 0.85,
+        metalness: 0.05,
         emissive: new Color(data.color).multiplyScalar(0.012)
       });
     }
@@ -24033,20 +24408,80 @@ function createCelestialMesh(data, quality = "high") {
     mesh.add(ring);
   }
   if (data.textureType === "ocean" && quality === "high") {
-    const cloudTex = TextureFactory.generateCloudTexture(data);
-    const cloudGeo = new SphereGeometry(renderRadius * 1.015, segsW, segsH);
-    const cloudMat = new MeshLambertMaterial({
-      map: cloudTex,
+    const shadowTex = TextureFactory.generateCloudShadowTexture(data);
+    const shadowGeo = new SphereGeometry(renderRadius * 1.003, segsW, segsH);
+    const shadowMat = new MeshLambertMaterial({
+      map: shadowTex,
       transparent: true,
       depthWrite: false
     });
-    const cloudLayer = new Mesh(cloudGeo, cloudMat);
-    cloudLayer.name = `${data.name}_clouds`;
-    mesh.add(cloudLayer);
-    mesh.userData.cloudLayer = cloudLayer;
+    const shadowLayer = new Mesh(shadowGeo, shadowMat);
+    shadowLayer.name = `${data.name}_cloudshadow`;
+    mesh.add(shadowLayer);
+    const cloudTex0 = TextureFactory.generateCloudTexture(data, 0);
+    const cloudGeo0 = new SphereGeometry(renderRadius * 1.012, segsW, segsH);
+    const cloudMat0 = new MeshLambertMaterial({
+      map: cloudTex0,
+      transparent: true,
+      depthWrite: false
+    });
+    const cloudLayer0 = new Mesh(cloudGeo0, cloudMat0);
+    cloudLayer0.name = `${data.name}_clouds_low`;
+    mesh.add(cloudLayer0);
+    const cloudTex1 = TextureFactory.generateCloudTexture(data, 1);
+    const cloudGeo1 = new SphereGeometry(renderRadius * 1.018, segsW, segsH);
+    const cloudMat1 = new MeshLambertMaterial({
+      map: cloudTex1,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.7
+    });
+    const cloudLayer1 = new Mesh(cloudGeo1, cloudMat1);
+    cloudLayer1.name = `${data.name}_clouds_med`;
+    mesh.add(cloudLayer1);
+    const cloudTex2 = TextureFactory.generateCloudTexture(data, 2);
+    const cloudGeo2 = new SphereGeometry(renderRadius * 1.025, segsW, segsH);
+    const cloudMat2 = new MeshLambertMaterial({
+      map: cloudTex2,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.5
+    });
+    const cloudLayer2 = new Mesh(cloudGeo2, cloudMat2);
+    cloudLayer2.name = `${data.name}_clouds_high`;
+    mesh.add(cloudLayer2);
+    mesh.userData.cloudLayers = [cloudLayer0, cloudLayer1, cloudLayer2];
+    mesh.userData.cloudLayer = cloudLayer0;
   }
   if (data.hasAtmosphere) {
     const atmColor = new Color(data.color);
+    const isIceGiant = data.type === "ice-giant";
+    const isGasGiant = data.type === "gas-giant";
+    let rayleighColor;
+    let mieColor;
+    let sunColor;
+    let atmThickness;
+    if (isIceGiant) {
+      rayleighColor = new Color(4491468);
+      mieColor = new Color(8960989);
+      sunColor = new Color(16777215);
+      atmThickness = 1.2;
+    } else if (isGasGiant) {
+      rayleighColor = new Color(data.color).lerp(new Color(13426175), 0.3);
+      mieColor = new Color(14535850);
+      sunColor = new Color(16777215);
+      atmThickness = 1.5;
+    } else if (data.textureType === "ocean") {
+      rayleighColor = new Color(4491519);
+      mieColor = new Color(13426175);
+      sunColor = new Color(16777215);
+      atmThickness = 1;
+    } else {
+      rayleighColor = atmColor.clone().lerp(new Color(16746598), 0.3);
+      mieColor = atmColor.clone().lerp(new Color(16768426), 0.4);
+      sunColor = new Color(16772812);
+      atmThickness = 0.7;
+    }
     const atmMaterials = [];
     const atmGeo1 = new SphereGeometry(renderRadius * 1.025, segsW, segsH);
     const atmMat1 = new ShaderMaterial({
@@ -24054,8 +24489,11 @@ function createCelestialMesh(data, quality = "high") {
       fragmentShader: ATMOSPHERE_FRAG,
       uniforms: {
         uSunPosition: { value: new Vector3(0, 0, 0) },
-        uAtmColor: { value: atmColor.clone() },
-        uIntensity: { value: 0.5 }
+        uRayleighColor: { value: rayleighColor.clone() },
+        uMieColor: { value: mieColor.clone() },
+        uSunColor: { value: sunColor.clone() },
+        uIntensity: { value: 0.5 },
+        uAtmThickness: { value: atmThickness }
       },
       transparent: true,
       side: BackSide,
@@ -24070,8 +24508,11 @@ function createCelestialMesh(data, quality = "high") {
       fragmentShader: ATMOSPHERE_FRAG,
       uniforms: {
         uSunPosition: { value: new Vector3(0, 0, 0) },
-        uAtmColor: { value: atmColor.clone() },
-        uIntensity: { value: 0.2 }
+        uRayleighColor: { value: rayleighColor.clone() },
+        uMieColor: { value: mieColor.clone() },
+        uSunColor: { value: sunColor.clone() },
+        uIntensity: { value: 0.25 },
+        uAtmThickness: { value: atmThickness * 0.8 }
       },
       transparent: true,
       side: BackSide,
@@ -24086,8 +24527,11 @@ function createCelestialMesh(data, quality = "high") {
       fragmentShader: ATMOSPHERE_FRAG,
       uniforms: {
         uSunPosition: { value: new Vector3(0, 0, 0) },
-        uAtmColor: { value: atmColor.clone() },
-        uIntensity: { value: 0.08 }
+        uRayleighColor: { value: rayleighColor.clone() },
+        uMieColor: { value: mieColor.clone() },
+        uSunColor: { value: sunColor.clone() },
+        uIntensity: { value: 0.1 },
+        uAtmThickness: { value: atmThickness * 0.5 }
       },
       transparent: true,
       side: BackSide,
@@ -24113,245 +24557,808 @@ function createStarField(starCount = 5e4) {
     positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
     positions[i * 3 + 2] = r * Math.cos(phi);
     const ct = Math.random();
-    if (ct < 0.5) {
-      const dim = 0.5 + Math.random() * 0.25;
-      colors[i * 3] = dim;
-      colors[i * 3 + 1] = dim;
-      colors[i * 3 + 2] = dim * 0.95;
-    } else if (ct < 0.7) {
-      colors[i * 3] = 0.35 + Math.random() * 0.15;
-      colors[i * 3 + 1] = 0.4 + Math.random() * 0.15;
+    let brightness;
+    if (ct < 1e-4) {
+      colors[i * 3] = 0.7 + Math.random() * 0.3;
+      colors[i * 3 + 1] = 0.8 + Math.random() * 0.2;
+      colors[i * 3 + 2] = 1;
+      brightness = 0.8 + Math.random() * 0.2;
+      sizes[i] = 2.5 + Math.random() * 2;
+    } else if (ct < 0.05) {
+      colors[i * 3] = 0.6 + Math.random() * 0.2;
+      colors[i * 3 + 1] = 0.7 + Math.random() * 0.2;
+      colors[i * 3 + 2] = 0.9 + Math.random() * 0.1;
+      brightness = 0.5 + Math.random() * 0.3;
+      sizes[i] = 1.5 + Math.random() * 1.5;
+    } else if (ct < 0.2) {
+      colors[i * 3] = 0.85 + Math.random() * 0.15;
+      colors[i * 3 + 1] = 0.85 + Math.random() * 0.15;
+      colors[i * 3 + 2] = 0.9 + Math.random() * 0.1;
+      brightness = 0.4 + Math.random() * 0.3;
+      sizes[i] = 1 + Math.random() * 1.2;
+    } else if (ct < 0.45) {
+      colors[i * 3] = 0.9 + Math.random() * 0.1;
+      colors[i * 3 + 1] = 0.8 + Math.random() * 0.15;
       colors[i * 3 + 2] = 0.5 + Math.random() * 0.2;
-    } else if (ct < 0.88) {
-      colors[i * 3] = 0.45 + Math.random() * 0.15;
-      colors[i * 3 + 1] = 0.38 + Math.random() * 0.12;
-      colors[i * 3 + 2] = 0.25 + Math.random() * 0.1;
+      brightness = 0.3 + Math.random() * 0.3;
+      sizes[i] = 0.8 + Math.random() * 1;
+    } else if (ct < 0.75) {
+      colors[i * 3] = 0.9 + Math.random() * 0.1;
+      colors[i * 3 + 1] = 0.55 + Math.random() * 0.2;
+      colors[i * 3 + 2] = 0.3 + Math.random() * 0.15;
+      brightness = 0.25 + Math.random() * 0.25;
+      sizes[i] = 0.6 + Math.random() * 0.8;
+    } else if (ct < 0.95) {
+      colors[i * 3] = 0.8 + Math.random() * 0.15;
+      colors[i * 3 + 1] = 0.3 + Math.random() * 0.15;
+      colors[i * 3 + 2] = 0.15 + Math.random() * 0.1;
+      brightness = 0.2 + Math.random() * 0.2;
+      sizes[i] = 0.4 + Math.random() * 0.6;
     } else {
-      colors[i * 3] = 0.4 + Math.random() * 0.15;
-      colors[i * 3 + 1] = 0.2 + Math.random() * 0.1;
-      colors[i * 3 + 2] = 0.12 + Math.random() * 0.08;
+      colors[i * 3] = 0.9 + Math.random() * 0.1;
+      colors[i * 3 + 1] = 0.25 + Math.random() * 0.15;
+      colors[i * 3 + 2] = 0.1 + Math.random() * 0.08;
+      brightness = 0.5 + Math.random() * 0.3;
+      sizes[i] = 1.8 + Math.random() * 1.5;
     }
-    sizes[i] = Math.random() * 1.2 + 0.15;
+    colors[i * 3] *= brightness;
+    colors[i * 3 + 1] *= brightness;
+    colors[i * 3 + 2] *= brightness;
   }
-  geometry.setAttribute("position", new BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new BufferAttribute(colors, 3));
-  geometry.setAttribute("size", new BufferAttribute(sizes, 1));
-  const material = new PointsMaterial({
-    size: 1.2,
-    vertexColors: true,
-    sizeAttenuation: false,
+  const nebulaCount = 300;
+  const totalPositions = new Float32Array((starCount + nebulaCount) * 3);
+  const totalColors = new Float32Array((starCount + nebulaCount) * 3);
+  const totalSizes = new Float32Array(starCount + nebulaCount);
+  totalPositions.set(positions);
+  totalColors.set(colors);
+  totalSizes.set(sizes);
+  for (let i = 0; i < nebulaCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 85e3 + Math.random() * 15e3;
+    const ni = starCount + i;
+    totalPositions[ni * 3] = r * Math.sin(phi) * Math.cos(theta);
+    totalPositions[ni * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    totalPositions[ni * 3 + 2] = r * Math.cos(phi);
+    const nc = Math.random();
+    if (nc < 0.3) {
+      totalColors[ni * 3] = 0.05;
+      totalColors[ni * 3 + 1] = 0.08;
+      totalColors[ni * 3 + 2] = 0.15;
+    } else if (nc < 0.6) {
+      totalColors[ni * 3] = 0.1;
+      totalColors[ni * 3 + 1] = 0.05;
+      totalColors[ni * 3 + 2] = 0.12;
+    } else if (nc < 0.8) {
+      totalColors[ni * 3] = 0.15;
+      totalColors[ni * 3 + 1] = 0.05;
+      totalColors[ni * 3 + 2] = 0.06;
+    } else {
+      totalColors[ni * 3] = 0.05;
+      totalColors[ni * 3 + 1] = 0.12;
+      totalColors[ni * 3 + 2] = 0.1;
+    }
+    totalSizes[ni] = 30 + Math.random() * 60;
+  }
+  geometry.setAttribute("position", new BufferAttribute(totalPositions, 3));
+  geometry.setAttribute("starColor", new BufferAttribute(totalColors, 3));
+  geometry.setAttribute("starSize", new BufferAttribute(totalSizes, 1));
+  const material = new ShaderMaterial({
+    vertexShader: STARFIELD_VERT,
+    fragmentShader: STARFIELD_FRAG,
     transparent: true,
-    opacity: 0.4
+    blending: AdditiveBlending,
+    depthWrite: false
   });
   return new Points(geometry, material);
 }
 function createStarGlow(color, size) {
-  const reducedSize = size * 0.6;
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext("2d");
-  const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
   const c = new Color(color);
-  grad.addColorStop(0, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.8)`);
-  grad.addColorStop(0.15, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.45)`);
-  grad.addColorStop(0.4, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.1)`);
-  grad.addColorStop(0.8, `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.02)`);
-  grad.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = `rgba(${c.r * 255},${c.g * 255},${c.b * 255},0.08)`;
+  const grad1 = ctx.createRadialGradient(256, 256, 0, 256, 256, 80);
+  grad1.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.95)`);
+  grad1.addColorStop(0.3, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.6)`);
+  grad1.addColorStop(1, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0)`);
+  ctx.fillStyle = grad1;
+  ctx.fillRect(0, 0, 512, 512);
+  const grad2 = ctx.createRadialGradient(256, 256, 40, 256, 256, 200);
+  grad2.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0)`);
+  grad2.addColorStop(0.3, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.25)`);
+  grad2.addColorStop(0.7, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.08)`);
+  grad2.addColorStop(1, `rgba(0,0,0,0)`);
+  ctx.fillStyle = grad2;
+  ctx.fillRect(0, 0, 512, 512);
+  const grad3 = ctx.createRadialGradient(256, 256, 100, 256, 256, 256);
+  grad3.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0)`);
+  grad3.addColorStop(0.4, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.06)`);
+  grad3.addColorStop(1, `rgba(0,0,0,0)`);
+  ctx.fillStyle = grad3;
+  ctx.fillRect(0, 0, 512, 512);
+  const rayCount = 16;
+  for (let i = 0; i < rayCount; i++) {
+    const angle = i / rayCount * Math.PI * 2;
+    const rayLen = 180 + Math.random() * 80;
+    const rayWidth = 2 + Math.random() * 3;
+    ctx.save();
+    ctx.translate(256, 256);
+    ctx.rotate(angle);
+    const rayGrad = ctx.createLinearGradient(0, 0, rayLen, 0);
+    rayGrad.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.15)`);
+    rayGrad.addColorStop(0.5, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.06)`);
+    rayGrad.addColorStop(1, `rgba(0,0,0,0)`);
+    ctx.fillStyle = rayGrad;
+    ctx.fillRect(0, -rayWidth / 2, rayLen, rayWidth);
+    ctx.restore();
+  }
+  ctx.strokeStyle = `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.12)`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 256);
+  ctx.lineTo(512, 256);
+  ctx.moveTo(256, 0);
+  ctx.lineTo(256, 512);
+  ctx.stroke();
+  ctx.strokeStyle = `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.05)`;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, 128);
-  ctx.lineTo(256, 128);
-  ctx.moveTo(128, 0);
-  ctx.lineTo(128, 256);
+  ctx.moveTo(60, 60);
+  ctx.lineTo(452, 452);
+  ctx.moveTo(452, 60);
+  ctx.lineTo(60, 452);
   ctx.stroke();
   const texture = new CanvasTexture(canvas);
-  const material = new SpriteMaterial({ map: texture, blending: AdditiveBlending, transparent: true, depthWrite: false });
+  texture.colorSpace = SRGBColorSpace;
+  const material = new SpriteMaterial({
+    map: texture,
+    blending: AdditiveBlending,
+    transparent: true,
+    depthWrite: false
+  });
   const sprite = new Sprite(material);
-  sprite.scale.set(reducedSize, reducedSize, 1);
+  sprite.scale.set(size, size, 1);
   return sprite;
+}
+function createRocketMats() {
+  return {
+    hull: new MeshStandardMaterial({ color: 15658734, metalness: 0.7, roughness: 0.25 }),
+    white: new MeshStandardMaterial({ color: 16119285, metalness: 0.3, roughness: 0.4 }),
+    dark: new MeshStandardMaterial({ color: 2763306, metalness: 0.9, roughness: 0.15 }),
+    red: new MeshStandardMaterial({ color: 13382451, metalness: 0.4, roughness: 0.4 }),
+    accent: new MeshStandardMaterial({ color: 3368652, emissive: 1122884, metalness: 0.6, roughness: 0.2 }),
+    window: new MeshStandardMaterial({ color: 6728447, emissive: 3359846, metalness: 0.8, roughness: 0.05 }),
+    gold: new MeshStandardMaterial({ color: 16763972, metalness: 0.9, roughness: 0.1 }),
+    copper: new MeshStandardMaterial({ color: 13404228, metalness: 0.85, roughness: 0.2 }),
+    nozzle: new MeshStandardMaterial({ color: 4473924, metalness: 0.95, roughness: 0.1, side: DoubleSide }),
+    solar: new MeshStandardMaterial({ color: 1127338, emissive: 528708, metalness: 0.7, roughness: 0.2 }),
+    solarFrame: new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 }),
+    heatShield: new MeshStandardMaterial({ color: 3809296, roughness: 0.95, metalness: 0.05 }),
+    leg: new MeshStandardMaterial({ color: 10066329, metalness: 0.7, roughness: 0.3 }),
+    rcs: new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.2 }),
+    glass: new MeshStandardMaterial({ color: 8956620, emissive: 2241348, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.7 })
+  };
+}
+function buildCommandPod(parent, mat, radius, yTop) {
+  const podHeight = radius * 1.8;
+  const baseHeight = 0.2;
+  const conePoints = [];
+  for (let t = 0; t <= 1; t += 0.1) {
+    const r = radius * (1 - t * 0.7) + radius * 0.05 * Math.sin(t * Math.PI);
+    conePoints.push(new Vector2(r, -t * podHeight * 0.7));
+  }
+  const coneGeo = new LatheGeometry(conePoints, 24);
+  const cone = new Mesh(coneGeo, mat.hull);
+  cone.position.y = yTop;
+  cone.castShadow = true;
+  parent.add(cone);
+  const base = new Mesh(new CylinderGeometry(radius * 0.32, radius * 0.95, baseHeight, 24), mat.dark);
+  base.position.y = yTop - podHeight * 0.7;
+  base.castShadow = true;
+  parent.add(base);
+  const dome = new Mesh(new SphereGeometry(radius * 0.32, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat.hull);
+  dome.position.y = yTop;
+  parent.add(dome);
+  for (let i = 0; i < 4; i++) {
+    const angle = i * Math.PI / 2 + Math.PI / 4;
+    const wy = yTop - podHeight * 0.25;
+    const wr = radius * 0.55;
+    const winFrame = new Mesh(new RingGeometry(0.06, 0.12, 16), mat.dark);
+    winFrame.position.set(Math.cos(angle) * wr, wy, Math.sin(angle) * wr);
+    winFrame.lookAt(Math.cos(angle) * 3, wy, Math.sin(angle) * 3);
+    parent.add(winFrame);
+    const win = new Mesh(new CircleGeometry(0.08, 16), mat.glass);
+    win.position.set(Math.cos(angle) * (wr + 0.01), wy, Math.sin(angle) * (wr + 0.01));
+    win.lookAt(Math.cos(angle) * 3, wy, Math.sin(angle) * 3);
+    parent.add(win);
+    for (let b = 0; b < 4; b++) {
+      const ba = b * Math.PI / 2;
+      const bolt = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.02, 4), mat.dark);
+      bolt.position.set(
+        Math.cos(angle) * wr + Math.cos(ba) * 0.1,
+        wy + Math.sin(ba) * 0.1,
+        Math.sin(angle) * wr
+      );
+      bolt.lookAt(Math.cos(angle) * 3, wy, Math.sin(angle) * 3);
+      parent.add(bolt);
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    const angle = i * Math.PI / 2;
+    const ry = yTop - podHeight * 0.45;
+    const rr = radius * 0.5;
+    const rcsBlock = new Mesh(new BoxGeometry(0.1, 0.14, 0.1), mat.rcs);
+    rcsBlock.position.set(Math.cos(angle) * rr, ry, Math.sin(angle) * rr);
+    parent.add(rcsBlock);
+    const rcsU = new Mesh(new CylinderGeometry(0.02, 0.03, 0.05, 6), mat.dark);
+    rcsU.position.set(Math.cos(angle) * rr, ry + 0.09, Math.sin(angle) * rr);
+    parent.add(rcsU);
+    const rcsS = new Mesh(new CylinderGeometry(0.02, 0.03, 0.05, 6), mat.dark);
+    rcsS.position.set(Math.cos(angle) * (rr + 0.07), ry, Math.sin(angle) * (rr + 0.07));
+    rcsS.rotation.z = Math.PI / 2;
+    rcsS.rotation.y = angle;
+    parent.add(rcsS);
+  }
+  const antenna = new Mesh(new CylinderGeometry(0.015, 0.015, 0.6, 6), mat.dark);
+  antenna.position.set(radius * 0.25, yTop + 0.35, 0);
+  parent.add(antenna);
+  const antennaTip = new Mesh(new SphereGeometry(0.04, 8, 6), mat.red);
+  antennaTip.position.set(radius * 0.25, yTop + 0.65, 0);
+  parent.add(antennaTip);
+  const heatShieldPoints = [];
+  for (let t = 0; t <= 1; t += 0.15) {
+    const r = radius * (0.95 - t * 0.5);
+    heatShieldPoints.push(new Vector2(r, -t * 0.15));
+  }
+  const heatShieldGeo = new LatheGeometry(heatShieldPoints, 24);
+  const heatShield = new Mesh(heatShieldGeo, mat.heatShield);
+  heatShield.position.y = yTop - podHeight * 0.7 - baseHeight;
+  parent.add(heatShield);
+  for (let i = 0; i < 6; i++) {
+    const angle = i * Math.PI / 3;
+    const panel = new Mesh(new BoxGeometry(0.15, 0.08, 0.02), mat.dark);
+    panel.position.set(Math.cos(angle) * radius * 0.45, yTop - podHeight * 0.15, Math.sin(angle) * radius * 0.45);
+    panel.lookAt(Math.cos(angle) * 3, yTop - podHeight * 0.15, Math.sin(angle) * 3);
+    parent.add(panel);
+  }
+  return podHeight * 0.7 + baseHeight + 0.15;
+}
+function buildFuelTank(parent, mat, radius, yTop, fuelMass, isFirst) {
+  const tankHeight = 1 + Math.min(3, fuelMass / 8e3);
+  const capHeight = radius * 0.3;
+  const tank = new Mesh(new CylinderGeometry(radius, radius, tankHeight, 32), mat.white);
+  tank.position.y = yTop - tankHeight / 2;
+  tank.castShadow = true;
+  parent.add(tank);
+  const upperCap = new Mesh(
+    new SphereGeometry(radius, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+    mat.white
+  );
+  upperCap.position.y = yTop;
+  upperCap.scale.y = 0.6;
+  parent.add(upperCap);
+  const lowerCap = new Mesh(
+    new SphereGeometry(radius, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+    mat.white
+  );
+  lowerCap.position.y = yTop - tankHeight;
+  lowerCap.scale.y = 0.6;
+  parent.add(lowerCap);
+  const bandCount = Math.max(2, Math.floor(tankHeight / 0.7));
+  for (let j = 0; j < bandCount; j++) {
+    const band = new Mesh(new TorusGeometry(radius + 0.02, 0.035, 8, 32), mat.dark);
+    band.position.y = yTop - (j + 0.5) * (tankHeight / bandCount);
+    band.rotation.x = Math.PI / 2;
+    parent.add(band);
+  }
+  const weldCount = Math.floor(tankHeight / 0.3);
+  for (let j = 0; j < weldCount; j++) {
+    const weld = new Mesh(new TorusGeometry(radius - 0.01, 0.01, 6, 32), mat.dark);
+    weld.position.y = yTop - (j + 0.5) * (tankHeight / weldCount);
+    weld.rotation.x = Math.PI / 2;
+    parent.add(weld);
+  }
+  if (isFirst) {
+    const stripe = new Mesh(
+      new CylinderGeometry(radius - 5e-3, radius - 5e-3, 0.12, 32, 1, false, 0, Math.PI * 0.35),
+      mat.red
+    );
+    stripe.position.y = yTop - tankHeight * 0.75;
+    parent.add(stripe);
+  }
+  for (let i = 0; i < 2; i++) {
+    const angle = i * Math.PI + Math.PI / 4;
+    const pipe = new Mesh(new CylinderGeometry(0.03, 0.03, tankHeight * 0.8, 8), mat.copper);
+    pipe.position.set(Math.cos(angle) * (radius + 0.02), yTop - tankHeight * 0.5, Math.sin(angle) * (radius + 0.02));
+    parent.add(pipe);
+  }
+  return tankHeight + capHeight * 0.5;
+}
+function buildEngine(parent, mat, maxRadius, yTop, thrust) {
+  const eRadius = 0.3 + Math.min(0.3, Math.sqrt(thrust) / 800);
+  const housingHeight = 0.5;
+  const nozzleHeight = 0.4 + Math.min(0.4, thrust / 4e5);
+  const housingPoints = [];
+  housingPoints.push(new Vector2(maxRadius * 0.85, 0));
+  for (let t = 0; t <= 1; t += 0.15) {
+    const r = maxRadius * 0.85 * (1 - t * 0.3) + eRadius * 0.5 * t;
+    housingPoints.push(new Vector2(r, -t * housingHeight));
+  }
+  const housingGeo = new LatheGeometry(housingPoints, 24);
+  const housing = new Mesh(housingGeo, mat.dark);
+  housing.position.y = yTop;
+  housing.castShadow = true;
+  parent.add(housing);
+  const gimbal = new Mesh(new TorusGeometry(maxRadius * 0.82, 0.04, 8, 24), mat.copper);
+  gimbal.position.y = yTop;
+  gimbal.rotation.x = Math.PI / 2;
+  parent.add(gimbal);
+  const nozzlePoints = [];
+  const throatRadius = eRadius * 0.45;
+  const exitRadius = eRadius * 1.4;
+  for (let t = 0; t <= 1; t += 0.1) {
+    const r = eRadius * 0.5 * (1 - t * 0.3) + throatRadius * t;
+    nozzlePoints.push(new Vector2(r, -t * nozzleHeight * 0.2));
+  }
+  nozzlePoints.push(new Vector2(throatRadius, -nozzleHeight * 0.2));
+  for (let t = 0; t <= 1; t += 0.08) {
+    const bellT = t * t * (3 - 2 * t);
+    const r = throatRadius + (exitRadius - throatRadius) * bellT;
+    nozzlePoints.push(new Vector2(r, -nozzleHeight * 0.2 - t * nozzleHeight * 0.8));
+  }
+  const nozzleGeo = new LatheGeometry(nozzlePoints, 32);
+  const nozzle = new Mesh(nozzleGeo, mat.nozzle);
+  nozzle.position.y = yTop - housingHeight;
+  nozzle.castShadow = true;
+  parent.add(nozzle);
+  for (let t = 0.2; t <= 0.8; t += 0.15) {
+    const r = throatRadius + (exitRadius - throatRadius) * (t * t * (3 - 2 * t)) * 0.9;
+    const rib = new Mesh(new TorusGeometry(r, 8e-3, 4, 32), mat.copper);
+    rib.position.y = yTop - housingHeight - nozzleHeight * 0.2 - t * nozzleHeight * 0.8;
+    rib.rotation.x = Math.PI / 2;
+    parent.add(rib);
+  }
+  const innerGlow = new Mesh(
+    new CircleGeometry(throatRadius * 0.8, 20),
+    new MeshBasicMaterial({ color: 3346688, side: DoubleSide })
+  );
+  innerGlow.position.y = yTop - housingHeight - nozzleHeight * 0.15;
+  innerGlow.rotation.x = -Math.PI / 2;
+  parent.add(innerGlow);
+  const turbopump = new Mesh(new CylinderGeometry(0.08, 0.08, 0.25, 12), mat.copper);
+  turbopump.position.set(maxRadius * 0.6, yTop - housingHeight * 0.3, 0);
+  turbopump.rotation.z = Math.PI / 2;
+  parent.add(turbopump);
+  for (let i = 0; i < 2; i++) {
+    const offset = i === 0 ? 0.08 : -0.08;
+    const pipe = new Mesh(new CylinderGeometry(0.02, 0.02, 0.3, 8), mat.copper);
+    pipe.position.set(maxRadius * 0.55 + offset, yTop - housingHeight * 0.5, 0);
+    pipe.rotation.z = Math.PI / 3;
+    parent.add(pipe);
+  }
+  const manifold = new Mesh(new BoxGeometry(0.12, 0.08, 0.12), mat.dark);
+  manifold.position.set(maxRadius * 0.7, yTop - housingHeight * 0.15, 0);
+  parent.add(manifold);
+  return housingHeight + nozzleHeight;
+}
+function buildBooster(parent, mat, bRadius, angle, dist, yTop, height, fuelMass) {
+  const bHeight = 2.5 + Math.min(1.5, fuelMass / 3e3);
+  const bx = Math.cos(angle) * dist;
+  const bz = Math.sin(angle) * dist;
+  const body = new Mesh(new CylinderGeometry(bRadius, bRadius, bHeight, 20), mat.white);
+  body.position.set(bx, yTop - bHeight / 2, bz);
+  body.castShadow = true;
+  parent.add(body);
+  for (let j = 0; j < 3; j++) {
+    const band = new Mesh(new TorusGeometry(bRadius + 0.015, 0.025, 6, 20), mat.dark);
+    band.position.set(bx, yTop - (j + 0.5) * (bHeight / 3), bz);
+    band.rotation.x = Math.PI / 2;
+    parent.add(band);
+  }
+  const nosePoints = [];
+  for (let t = 0; t <= 1; t += 0.1) {
+    const r = bRadius * Math.pow(1 - t, 0.5);
+    nosePoints.push(new Vector2(r, t * 0.5));
+  }
+  const noseGeo = new LatheGeometry(nosePoints, 20);
+  const nose = new Mesh(noseGeo, mat.dark);
+  nose.position.set(bx, yTop, bz);
+  parent.add(nose);
+  const nozzlePoints = [];
+  for (let t = 0; t <= 1; t += 0.1) {
+    const r = bRadius * 0.4 * (0.5 + t * 0.8);
+    nozzlePoints.push(new Vector2(r, -t * 0.3));
+  }
+  const nozzleGeo = new LatheGeometry(nozzlePoints, 20);
+  const nozzle = new Mesh(nozzleGeo, mat.nozzle);
+  nozzle.position.set(bx, yTop - bHeight - 0.05, bz);
+  parent.add(nozzle);
+  for (let s = 0; s < 2; s++) {
+    const sa = angle + (s === 0 ? 0.5 : -0.5);
+    const sepNozzle = new Mesh(new CylinderGeometry(0.03, 0.04, 0.08, 6), mat.dark);
+    sepNozzle.position.set(bx + Math.cos(sa) * (bRadius + 0.05), yTop + 0.15, bz + Math.sin(sa) * (bRadius + 0.05));
+    sepNozzle.rotation.x = Math.PI;
+    parent.add(sepNozzle);
+  }
+  const bracket = new Mesh(new BoxGeometry(0.15, 0.1, 0.05), mat.dark);
+  bracket.position.set(bx - Math.cos(angle) * bRadius * 0.8, yTop - bHeight * 0.5, bz - Math.sin(angle) * bRadius * 0.8);
+  bracket.lookAt(0, yTop - bHeight * 0.5, 0);
+  parent.add(bracket);
+  const feedLine = new Mesh(new CylinderGeometry(0.025, 0.025, bHeight * 0.7, 8), mat.copper);
+  feedLine.position.set(bx - Math.cos(angle) * (bRadius + 0.02), yTop - bHeight * 0.5, bz - Math.sin(angle) * (bRadius + 0.02));
+  parent.add(feedLine);
+}
+function buildDecoupler(parent, mat, radius, yTop) {
+  const height = 0.18;
+  const ring = new Mesh(new CylinderGeometry(radius, radius * 0.98, height, 24), mat.dark);
+  ring.position.y = yTop - height / 2;
+  parent.add(ring);
+  const stripe = new Mesh(new TorusGeometry(radius, 0.035, 8, 24), mat.red);
+  stripe.position.y = yTop - height / 2;
+  stripe.rotation.x = Math.PI / 2;
+  parent.add(stripe);
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const bolt = new Mesh(new CylinderGeometry(0.02, 0.02, 0.04, 6), mat.copper);
+    bolt.position.set(Math.cos(angle) * radius, yTop - height / 2, Math.sin(angle) * radius);
+    bolt.rotation.z = Math.PI / 2;
+    bolt.rotation.y = angle;
+    parent.add(bolt);
+  }
+  return height;
+}
+function buildParachute(parent, mat, yTop) {
+  const canHeight = 0.28;
+  const can = new Mesh(new CylinderGeometry(0.12, 0.1, canHeight, 16), mat.red);
+  can.position.y = yTop - canHeight / 2;
+  parent.add(can);
+  const cap = new Mesh(new SphereGeometry(0.12, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat.red);
+  cap.position.y = yTop;
+  parent.add(cap);
+  const deployRing = new Mesh(new TorusGeometry(0.11, 0.015, 6, 16), mat.dark);
+  deployRing.position.y = yTop - canHeight;
+  deployRing.rotation.x = Math.PI / 2;
+  parent.add(deployRing);
+  const bracket = new Mesh(new BoxGeometry(0.05, 0.08, 0.03), mat.dark);
+  bracket.position.set(0.11, yTop - canHeight * 0.5, 0);
+  parent.add(bracket);
+  return canHeight;
+}
+function buildAeroFin(parent, mat, angle, radius, y) {
+  const finShape = new Shape();
+  finShape.moveTo(0, 0);
+  finShape.lineTo(0, -0.9);
+  finShape.quadraticCurveTo(0.3, -0.5, 0.55, -0.15);
+  finShape.lineTo(0.5, 0.12);
+  finShape.lineTo(0.15, 0.15);
+  finShape.lineTo(0, 0);
+  const finGeo = new ExtrudeGeometry(finShape, { depth: 0.05, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01, bevelSegments: 1 });
+  const fin = new Mesh(finGeo, mat.dark);
+  fin.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+  fin.rotation.y = angle + Math.PI / 2;
+  fin.castShadow = true;
+  parent.add(fin);
+  const ctrlLine = new Mesh(new BoxGeometry(0.02, 0.5, 0.06), mat.dark);
+  ctrlLine.position.set(Math.cos(angle) * (radius + 0.25), y - 0.2, Math.sin(angle) * (radius + 0.25));
+  ctrlLine.rotation.y = angle + Math.PI / 2;
+  parent.add(ctrlLine);
+}
+function buildRCSBlock(parent, mat, angle, radius, y) {
+  const x = Math.cos(angle) * radius;
+  const z = Math.sin(angle) * radius;
+  const block = new Mesh(new BoxGeometry(0.1, 0.14, 0.1), mat.rcs);
+  block.position.set(x, y, z);
+  parent.add(block);
+  const nozzleDirs = [
+    { dx: 0, dy: 0.08, dz: 0, rx: 0, rz: 0 },
+    { dx: 0, dy: -0.08, dz: 0, rx: Math.PI, rz: 0 },
+    { dx: 0.06, dy: 0, dz: 0, rx: 0, rz: Math.PI / 2 },
+    { dx: -0.06, dy: 0, dz: 0, rx: 0, rz: -Math.PI / 2 }
+  ];
+  for (const d of nozzleDirs) {
+    const noz = new Mesh(new CylinderGeometry(0.018, 0.025, 0.04, 6), mat.dark);
+    noz.position.set(x + d.dx, y + d.dy, z + d.dz);
+    noz.rotation.x = d.rx;
+    noz.rotation.z = d.rz;
+    parent.add(noz);
+  }
+  const pipe = new Mesh(new CylinderGeometry(0.012, 0.012, 0.1, 6), mat.copper);
+  pipe.position.set(Math.cos(angle) * (radius - 0.05), y, Math.sin(angle) * (radius - 0.05));
+  pipe.rotation.z = Math.PI / 2;
+  pipe.rotation.y = angle;
+  parent.add(pipe);
+}
+function buildSolarPanel(parent, mat, side, y) {
+  const hinge = new Mesh(new CylinderGeometry(0.03, 0.03, 0.08, 8), mat.dark);
+  hinge.position.set(side * 0.45, y, 0);
+  hinge.rotation.z = Math.PI / 2;
+  parent.add(hinge);
+  const arm1 = new Mesh(new CylinderGeometry(0.025, 0.025, 0.35, 6), mat.solarFrame);
+  arm1.position.set(side * 0.65, y, 0);
+  arm1.rotation.z = Math.PI / 2;
+  parent.add(arm1);
+  const armJoint = new Mesh(new SphereGeometry(0.028, 8, 6), mat.dark);
+  armJoint.position.set(side * 0.82, y, 0);
+  parent.add(armJoint);
+  const panelFrame = new Mesh(new BoxGeometry(1.3, 0.04, 0.65), mat.solarFrame);
+  panelFrame.position.set(side * 1.5, y, 0);
+  parent.add(panelFrame);
+  const panel = new Mesh(new BoxGeometry(1.25, 0.03, 0.6), mat.solar);
+  panel.position.set(side * 1.5, y + 0.01, 0);
+  panel.castShadow = true;
+  parent.add(panel);
+  for (let j = 0; j < 4; j++) {
+    const line = new Mesh(new BoxGeometry(1.25, 0.035, 0.015), mat.solarFrame);
+    line.position.set(side * 1.5, y + 0.015, (j - 1.5) * 0.15);
+    parent.add(line);
+  }
+  for (let j = 0; j < 5; j++) {
+    const line = new Mesh(new BoxGeometry(0.015, 0.035, 0.6), mat.solarFrame);
+    line.position.set(side * (1.5 + (j - 2) * 0.25), y + 0.015, 0);
+    parent.add(line);
+  }
+  const backing = new Mesh(new BoxGeometry(1.25, 0.02, 0.6), mat.dark);
+  backing.position.set(side * 1.5, y - 0.02, 0);
+  parent.add(backing);
+}
+function buildLandingLeg(parent, mat, angle, y) {
+  const x = Math.cos(angle);
+  const z = Math.sin(angle);
+  const hip = new Mesh(new SphereGeometry(0.05, 8, 6), mat.dark);
+  hip.position.set(x * 0.5, y, z * 0.5);
+  parent.add(hip);
+  const thigh = new Mesh(new CylinderGeometry(0.035, 0.03, 0.55, 8), mat.leg);
+  thigh.position.set(x * 0.75, y - 0.25, z * 0.75);
+  thigh.rotation.z = x * 0.5;
+  thigh.rotation.x = -z * 0.5;
+  parent.add(thigh);
+  const knee = new Mesh(new SphereGeometry(0.04, 8, 6), mat.dark);
+  knee.position.set(x * 0.95, y - 0.5, z * 0.95);
+  parent.add(knee);
+  const shin = new Mesh(new CylinderGeometry(0.028, 0.025, 0.7, 8), mat.leg);
+  shin.position.set(x * 1.05, y - 0.85, z * 1.05);
+  shin.rotation.z = x * 0.9;
+  shin.rotation.x = -z * 0.9;
+  parent.add(shin);
+  const damper = new Mesh(new CylinderGeometry(0.018, 0.018, 0.4, 6), mat.copper);
+  damper.position.set(x * 0.7, y - 0.2, z * 0.7);
+  damper.rotation.z = x * 0.6;
+  damper.rotation.x = -z * 0.6;
+  parent.add(damper);
+  const piston = new Mesh(new CylinderGeometry(0.012, 0.012, 0.25, 6), mat.dark);
+  piston.position.set(x * 0.85, y - 0.38, z * 0.85);
+  piston.rotation.z = x * 0.7;
+  piston.rotation.x = -z * 0.7;
+  parent.add(piston);
+  const pad = new Mesh(new CylinderGeometry(0.12, 0.1, 0.05, 12), mat.dark);
+  pad.position.set(x * 1.15, y - 1.2, z * 1.15);
+  parent.add(pad);
+  const padRim = new Mesh(new TorusGeometry(0.11, 0.015, 6, 12), mat.leg);
+  padRim.position.set(x * 1.15, y - 1.17, z * 1.15);
+  padRim.rotation.x = Math.PI / 2;
+  parent.add(padRim);
+}
+function buildScienceInstrument(parent, mat, part, angle, radius, y) {
+  const x = Math.cos(angle);
+  const z = Math.sin(angle);
+  const name = part.name.toLowerCase();
+  if (name.includes("\u5929\u7EBF") || name.includes("\u789F") || name.includes("antenna")) {
+    const arm = new Mesh(new CylinderGeometry(0.02, 0.02, 0.3, 6), mat.dark);
+    arm.position.set(x * (radius + 0.05), y, z * (radius + 0.05));
+    arm.lookAt(x * (radius + 0.35), y, z * (radius + 0.35));
+    arm.rotateX(Math.PI / 2);
+    parent.add(arm);
+    const dish = new Mesh(new SphereGeometry(0.12, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat.dark);
+    dish.position.set(x * (radius + 0.2), y + 0.1, z * (radius + 0.2));
+    dish.lookAt(x * (radius + 0.5), y, z * (radius + 0.5));
+    parent.add(dish);
+    const receiver = new Mesh(new SphereGeometry(0.025, 8, 6), mat.accent);
+    receiver.position.set(x * (radius + 0.15), y + 0.13, z * (radius + 0.15));
+    parent.add(receiver);
+  } else if (name.includes("\u4F20\u611F") || name.includes("sensor")) {
+    const box = new Mesh(new BoxGeometry(0.2, 0.25, 0.18), mat.accent);
+    box.position.set(x * (radius + 0.05), y, z * (radius + 0.05));
+    parent.add(box);
+    const lens = new Mesh(new CircleGeometry(0.05, 12), new MeshBasicMaterial({ color: 65382 }));
+    lens.position.set(x * (radius + 0.16), y + 0.05, z * (radius + 0.16));
+    lens.lookAt(x * 3, y + 0.05, z * 3);
+    parent.add(lens);
+    const ant = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.2, 4), mat.dark);
+    ant.position.set(x * (radius + 0.05), y + 0.22, z * (radius + 0.05));
+    parent.add(ant);
+  } else if (name.includes("\u673A\u68B0") || name.includes("\u81C2") || name.includes("arm")) {
+    const base = new Mesh(new CylinderGeometry(0.04, 0.04, 0.06, 8), mat.dark);
+    base.position.set(x * (radius + 0.03), y, z * (radius + 0.03));
+    parent.add(base);
+    const seg1 = new Mesh(new CylinderGeometry(0.025, 0.025, 0.3, 6), mat.leg);
+    seg1.position.set(x * (radius + 0.12), y + 0.1, z * (radius + 0.12));
+    seg1.rotation.z = x * 0.8;
+    parent.add(seg1);
+    const joint = new Mesh(new SphereGeometry(0.03, 8, 6), mat.dark);
+    joint.position.set(x * (radius + 0.22), y + 0.2, z * (radius + 0.22));
+    parent.add(joint);
+    const seg2 = new Mesh(new CylinderGeometry(0.02, 0.02, 0.25, 6), mat.leg);
+    seg2.position.set(x * (radius + 0.3), y + 0.15, z * (radius + 0.3));
+    seg2.rotation.z = x * -0.5;
+    parent.add(seg2);
+    const claw = new Mesh(new BoxGeometry(0.04, 0.04, 0.06), mat.accent);
+    claw.position.set(x * (radius + 0.38), y + 0.1, z * (radius + 0.38));
+    parent.add(claw);
+  } else {
+    const box = new Mesh(new BoxGeometry(0.2, 0.25, 0.18), mat.accent);
+    box.position.set(x * (radius + 0.05), y, z * (radius + 0.05));
+    parent.add(box);
+    const lens = new Mesh(new CircleGeometry(0.05, 12), new MeshBasicMaterial({ color: 65382 }));
+    lens.position.set(x * (radius + 0.16), y + 0.05, z * (radius + 0.16));
+    lens.lookAt(x * 3, y + 0.05, z * 3);
+    parent.add(lens);
+  }
+}
+function buildCommAntenna(parent, mat, index, y) {
+  const offset = (index - 0.5) * 0.8;
+  const baseHinge = new Mesh(new CylinderGeometry(0.03, 0.03, 0.06, 8), mat.dark);
+  baseHinge.position.set(offset, y, 0);
+  baseHinge.rotation.z = Math.PI / 2;
+  parent.add(baseHinge);
+  for (let s = 0; s < 3; s++) {
+    const segLen = 0.2 - s * 0.03;
+    const segRad = 0.02 - s * 3e-3;
+    const rod = new Mesh(new CylinderGeometry(segRad, segRad, segLen, 6), mat.dark);
+    rod.position.set(offset - 0.1 - s * 0.18, y + 0.1 + s * 0.18, 0);
+    rod.rotation.z = 0.6;
+    parent.add(rod);
+  }
+  const dish = new Mesh(new SphereGeometry(0.12, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat.dark);
+  dish.position.set(offset - 0.6, y + 0.45, 0);
+  dish.rotation.z = -Math.PI / 2 + 0.5;
+  parent.add(dish);
+  for (let r = 0.05; r < 0.12; r += 0.03) {
+    const ring = new Mesh(new TorusGeometry(r, 5e-3, 4, 16), mat.copper);
+    ring.position.set(offset - 0.6, y + 0.45, 0);
+    ring.rotation.z = -Math.PI / 2 + 0.5;
+    parent.add(ring);
+  }
+  const feed = new Mesh(new ConeGeometry(0.025, 0.06, 8), mat.copper);
+  feed.position.set(offset - 0.52, y + 0.48, 0);
+  feed.rotation.z = Math.PI / 2 - 0.5;
+  parent.add(feed);
+}
+function buildDockingPort(parent, mat, yTop) {
+  const height = 0.12;
+  const outerRing = new Mesh(new TorusGeometry(0.2, 0.04, 8, 24), mat.gold);
+  outerRing.position.y = yTop;
+  outerRing.rotation.x = Math.PI / 2;
+  parent.add(outerRing);
+  const guide = new Mesh(new ConeGeometry(0.08, 0.06, 16), mat.dark);
+  guide.position.y = yTop - 0.03;
+  guide.rotation.x = Math.PI;
+  parent.add(guide);
+  const seal = new Mesh(new TorusGeometry(0.14, 0.02, 6, 20), mat.copper);
+  seal.position.y = yTop - 0.02;
+  seal.rotation.x = Math.PI / 2;
+  parent.add(seal);
+  for (let i = 0; i < 4; i++) {
+    const angle = i * Math.PI / 2;
+    const led = new Mesh(new SphereGeometry(0.015, 6, 4), new MeshBasicMaterial({ color: 65348 }));
+    led.position.set(Math.cos(angle) * 0.18, yTop, Math.sin(angle) * 0.18);
+    parent.add(led);
+  }
+  const base = new Mesh(new CylinderGeometry(0.22, 0.22, 0.03, 20), mat.dark);
+  base.position.y = yTop - 0.06;
+  parent.add(base);
+  return height;
+}
+function buildStructuralTube(parent, mat, radius, yTop) {
+  const height = 0.4;
+  const topRing = new Mesh(new TorusGeometry(radius * 0.85, 0.03, 6, 20), mat.leg);
+  topRing.position.y = yTop;
+  topRing.rotation.x = Math.PI / 2;
+  parent.add(topRing);
+  const botRing = new Mesh(new TorusGeometry(radius * 0.85, 0.03, 6, 20), mat.leg);
+  botRing.position.y = yTop - height;
+  botRing.rotation.x = Math.PI / 2;
+  parent.add(botRing);
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const beam = new Mesh(new CylinderGeometry(0.02, 0.02, height, 6), mat.leg);
+    beam.position.set(Math.cos(angle) * radius * 0.82, yTop - height / 2, Math.sin(angle) * radius * 0.82);
+    parent.add(beam);
+  }
+  for (let i = 0; i < 4; i++) {
+    const angle1 = i / 4 * Math.PI * 2;
+    const angle2 = (i + 1) / 4 * Math.PI * 2;
+    const midAngle = (angle1 + angle2) / 2;
+    const x1 = Math.cos(angle1) * radius * 0.82;
+    const z1 = Math.sin(angle1) * radius * 0.82;
+    const x2 = Math.cos(angle2) * radius * 0.82;
+    const z2 = Math.sin(angle2) * radius * 0.82;
+    const len = Math.sqrt((x2 - x1) ** 2 + height ** 2 + (z2 - z1) ** 2);
+    const brace = new Mesh(new CylinderGeometry(0.012, 0.012, len, 4), mat.leg);
+    brace.position.set((x1 + x2) / 2, yTop - height / 2, (z1 + z2) / 2);
+    const dir = new Vector3(x2 - x1, -height, z2 - z1).normalize();
+    brace.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir);
+    parent.add(brace);
+  }
+  return height;
+}
+function buildAdapter(parent, mat, topRadius, yTop) {
+  const height = 0.3;
+  const bottomRadius = topRadius * 0.8;
+  const adapterPoints = [];
+  for (let t = 0; t <= 1; t += 0.1) {
+    const r = topRadius * (1 - t * 0.2) + bottomRadius * t * 0.2;
+    const curveR = topRadius + (bottomRadius - topRadius) * (t * t * (3 - 2 * t));
+    adapterPoints.push(new Vector2(curveR, -t * height));
+  }
+  const adapterGeo = new LatheGeometry(adapterPoints, 24);
+  const adapter = new Mesh(adapterGeo, mat.dark);
+  adapter.position.y = yTop;
+  parent.add(adapter);
+  const ring1 = new Mesh(new TorusGeometry(topRadius, 0.025, 6, 20), mat.copper);
+  ring1.position.y = yTop;
+  ring1.rotation.x = Math.PI / 2;
+  parent.add(ring1);
+  const ring2 = new Mesh(new TorusGeometry(bottomRadius, 0.025, 6, 20), mat.copper);
+  ring2.position.y = yTop - height;
+  ring2.rotation.x = Math.PI / 2;
+  parent.add(ring2);
+  return height;
 }
 function createRocketModel() {
   const group = new Group();
-  const hullMat = new MeshStandardMaterial({ color: 15658734, metalness: 0.7, roughness: 0.25 });
-  const whiteMat = new MeshStandardMaterial({ color: 16119285, metalness: 0.3, roughness: 0.4 });
-  const darkMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.9, roughness: 0.15 });
-  const redMat = new MeshStandardMaterial({ color: 13382451, metalness: 0.4, roughness: 0.4 });
-  const accentMat = new MeshStandardMaterial({ color: 3368652, emissive: 1122884, metalness: 0.6, roughness: 0.2 });
-  const podGeo = new ConeGeometry(0.8, 1.5, 20);
-  const pod = new Mesh(podGeo, hullMat);
-  pod.position.y = 2;
-  pod.castShadow = true;
-  group.add(pod);
-  const podBase = new Mesh(new CylinderGeometry(0.82, 0.75, 0.2, 20), darkMat);
-  podBase.position.y = 1.2;
+  const mat = createRocketMats();
+  const podHeight = buildCommandPod(group, mat, 0.8, 2.75);
+  const podBase = new Mesh(new CylinderGeometry(0.82, 0.75, 0.2, 24), mat.dark);
+  podBase.position.y = 2.75 - podHeight;
   group.add(podBase);
-  const windowMat = new MeshStandardMaterial({ color: 6728447, emissive: 3359846, metalness: 0.8, roughness: 0.05 });
-  for (let i = 0; i < 3; i++) {
-    const angle = i * 2.094;
-    const winFrame = new Mesh(new RingGeometry(0.08, 0.16, 12), darkMat);
-    winFrame.position.set(Math.cos(angle) * 0.42, 1.85, Math.sin(angle) * 0.42);
-    winFrame.lookAt(Math.cos(angle) * 2, 1.85, Math.sin(angle) * 2);
-    group.add(winFrame);
-    const win = new Mesh(new CircleGeometry(0.1, 12), windowMat);
-    win.position.set(Math.cos(angle) * 0.43, 1.85, Math.sin(angle) * 0.43);
-    win.lookAt(Math.cos(angle) * 2, 1.85, Math.sin(angle) * 2);
-    group.add(win);
-  }
-  const antenna = new Mesh(new CylinderGeometry(0.02, 0.02, 0.8, 6), darkMat);
-  antenna.position.set(0.3, 2.9, 0);
-  group.add(antenna);
-  const antennaTip = new Mesh(new SphereGeometry(0.05, 8, 6), redMat);
-  antennaTip.position.set(0.3, 3.3, 0);
-  group.add(antennaTip);
-  const decoupler = new Mesh(new CylinderGeometry(0.72, 0.72, 0.15, 20), darkMat);
-  decoupler.position.y = 1.05;
-  group.add(decoupler);
-  const tank = new Mesh(new CylinderGeometry(0.7, 0.7, 3, 24), whiteMat);
-  tank.position.y = -0.5;
-  tank.castShadow = true;
-  group.add(tank);
+  const decHeight = buildDecoupler(group, mat, 0.72, 2.75 - podHeight - 0.2);
+  let currentY = 2.75 - podHeight - 0.2 - decHeight;
+  const tankHeight = buildFuelTank(group, mat, 0.7, currentY, 25e3, true);
+  currentY -= tankHeight;
+  const dec2Height = buildDecoupler(group, mat, 0.72, currentY);
+  currentY -= dec2Height;
+  const engHeight = buildEngine(group, mat, 0.7, currentY, 5e5);
+  currentY -= engHeight;
   for (let i = 0; i < 4; i++) {
-    const band = new Mesh(new TorusGeometry(0.72, 0.05, 8, 24), darkMat);
-    band.position.y = -1.5 + i * 0.75;
-    band.rotation.x = Math.PI / 2;
-    group.add(band);
-  }
-  const stripeMat = new MeshStandardMaterial({ color: 13382451, metalness: 0.3, roughness: 0.5 });
-  const stripe = new Mesh(new CylinderGeometry(0.71, 0.71, 0.15, 24, 1, false, 0, Math.PI * 0.3), stripeMat);
-  stripe.position.y = 0.2;
-  group.add(stripe);
-  const decoupler2 = new Mesh(new CylinderGeometry(0.72, 0.65, 0.2, 20), darkMat);
-  decoupler2.position.y = -2.15;
-  group.add(decoupler2);
-  const engineHousing = new Mesh(new CylinderGeometry(0.65, 0.45, 0.6, 20), darkMat);
-  engineHousing.position.y = -2.55;
-  engineHousing.castShadow = true;
-  group.add(engineHousing);
-  const nozzleGeo = new CylinderGeometry(0.3, 0.5, 0.5, 24, 1, true);
-  const nozzle = new Mesh(nozzleGeo, new MeshStandardMaterial({ color: 4473924, metalness: 0.95, roughness: 0.1, side: DoubleSide }));
-  nozzle.position.y = -3.1;
-  group.add(nozzle);
-  const nozzleInner = new Mesh(new CircleGeometry(0.28, 20), new MeshBasicMaterial({ color: 3346688, side: DoubleSide }));
-  nozzleInner.position.y = -3.1;
-  nozzleInner.rotation.x = -Math.PI / 2;
-  group.add(nozzleInner);
-  const finShape = new Shape();
-  finShape.moveTo(0, 0);
-  finShape.lineTo(0, -1);
-  finShape.lineTo(0.6, -0.3);
-  finShape.lineTo(0.6, 0.1);
-  finShape.lineTo(0, 0);
-  const finGeo = new ExtrudeGeometry(finShape, { depth: 0.06, bevelEnabled: false });
-  for (let i = 0; i < 4; i++) {
-    const fin = new Mesh(finGeo, darkMat);
-    fin.position.y = -2.2;
     const angle = i * Math.PI / 2;
-    fin.position.x = Math.cos(angle) * 0.7;
-    fin.position.z = Math.sin(angle) * 0.7;
-    fin.rotation.y = angle + Math.PI / 2;
-    fin.castShadow = true;
-    group.add(fin);
+    buildAeroFin(group, mat, angle, 0.7, currentY + 0.5);
   }
-  const rcsMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.2 });
   for (let i = 0; i < 4; i++) {
     const angle = i * Math.PI / 2 + Math.PI / 4;
-    const rcsBlock = new Mesh(new BoxGeometry(0.12, 0.18, 0.12), rcsMat);
-    rcsBlock.position.set(Math.cos(angle) * 0.75, 1.5, Math.sin(angle) * 0.75);
-    group.add(rcsBlock);
-    const rcsNozU = new Mesh(new CylinderGeometry(0.03, 0.04, 0.06, 6), darkMat);
-    rcsNozU.position.set(Math.cos(angle) * 0.75, 1.62, Math.sin(angle) * 0.75);
-    group.add(rcsNozU);
-    const rcsNozS = new Mesh(new CylinderGeometry(0.03, 0.04, 0.06, 6), darkMat);
-    rcsNozS.position.set(Math.cos(angle) * 0.82, 1.5, Math.sin(angle) * 0.82);
-    rcsNozS.rotation.z = Math.PI / 2;
-    rcsNozS.rotation.y = angle;
-    group.add(rcsNozS);
+    buildRCSBlock(group, mat, angle, 0.75, 1.5);
   }
-  const solarMat = new MeshStandardMaterial({ color: 1127338, emissive: 528708, metalness: 0.7, roughness: 0.2 });
-  const solarFrameMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 });
-  for (const side of [-1, 1]) {
-    const arm = new Mesh(new CylinderGeometry(0.04, 0.04, 0.8, 6), solarFrameMat);
-    arm.position.set(side * 0.9, -0.5, 0);
-    arm.rotation.z = Math.PI / 2;
-    group.add(arm);
-    const panel = new Mesh(new BoxGeometry(1.2, 0.03, 0.7), solarMat);
-    panel.position.set(side * 1.7, -0.5, 0);
-    panel.castShadow = true;
-    group.add(panel);
-    for (let j = 0; j < 3; j++) {
-      const line = new Mesh(new BoxGeometry(1.2, 0.035, 0.02), solarFrameMat);
-      line.position.set(side * 1.7, -0.49, (j - 1) * 0.2);
-      group.add(line);
-    }
-  }
-  const legMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.7, roughness: 0.3 });
+  buildSolarPanel(group, mat, -1, -0.5);
+  buildSolarPanel(group, mat, 1, -0.5);
   for (let i = 0; i < 3; i++) {
     const angle = i * 2.094 + 0.5;
-    const strutU = new Mesh(new CylinderGeometry(0.03, 0.03, 0.6, 6), legMat);
-    strutU.position.set(Math.cos(angle) * 0.55, -2.3, Math.sin(angle) * 0.55);
-    strutU.rotation.z = Math.cos(angle) * 0.5;
-    strutU.rotation.x = -Math.sin(angle) * 0.5;
-    group.add(strutU);
-    const strutL = new Mesh(new CylinderGeometry(0.025, 0.03, 0.8, 6), legMat);
-    strutL.position.set(Math.cos(angle) * 0.9, -2.7, Math.sin(angle) * 0.9);
-    strutL.rotation.z = Math.cos(angle) * 0.9;
-    strutL.rotation.x = -Math.sin(angle) * 0.9;
-    group.add(strutL);
-    const pad = new Mesh(new CylinderGeometry(0.1, 0.08, 0.06, 10), darkMat);
-    pad.position.set(Math.cos(angle) * 1.15, -3, Math.sin(angle) * 1.15);
-    group.add(pad);
+    buildLandingLeg(group, mat, angle, -2.3);
   }
-  const chuteCan = new Mesh(new CylinderGeometry(0.12, 0.1, 0.25, 12), redMat);
-  chuteCan.position.y = 2.85;
-  group.add(chuteCan);
-  const chuteCap = new Mesh(new SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), redMat);
-  chuteCap.position.y = 2.95;
-  group.add(chuteCap);
-  const heatShield = new Mesh(
-    new CylinderGeometry(0.55, 0.4, 0.15, 20),
-    new MeshStandardMaterial({ color: 3809296, roughness: 0.9, metalness: 0.1 })
-  );
-  heatShield.position.y = -2.05;
-  group.add(heatShield);
-  const sciBay = new Mesh(new BoxGeometry(0.25, 0.3, 0.2), accentMat);
-  sciBay.position.set(0, 0.5, 0.72);
-  group.add(sciBay);
-  const sciLens = new Mesh(new CircleGeometry(0.06, 10), new MeshBasicMaterial({ color: 65382 }));
-  sciLens.position.set(0, 0.55, 0.83);
-  group.add(sciLens);
-  const dishArm = new Mesh(new CylinderGeometry(0.02, 0.02, 0.5, 6), darkMat);
-  dishArm.position.set(-0.45, 2.3, 0);
-  dishArm.rotation.z = 0.5;
-  group.add(dishArm);
-  const dishCup = new Mesh(new SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), darkMat);
-  dishCup.position.set(-0.75, 2.5, 0);
-  dishCup.rotation.z = -Math.PI / 2;
-  group.add(dishCup);
+  buildParachute(group, mat, 2.75 + 0.05);
+  const sciPart = { id: "sci", name: "\u4F20\u611F\u5668\u7BB1", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 50 };
+  buildScienceInstrument(group, mat, sciPart, 0, 0.72, 0.5);
+  buildCommAntenna(group, mat, 0, 2.3);
   const flameGroup = new Group();
   flameGroup.name = "engineFlame";
   const flameCore = new Mesh(
-    new ConeGeometry(0.25, 1.5, 12),
+    new ConeGeometry(0.25, 1.5, 16),
     new MeshBasicMaterial({ color: 8965375, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false })
   );
-  flameCore.position.y = -3.6;
+  flameCore.position.y = currentY - 0.8;
   flameCore.rotation.x = Math.PI;
   flameGroup.add(flameCore);
   const flameOuter = new Mesh(
-    new ConeGeometry(0.4, 2, 12),
+    new ConeGeometry(0.4, 2, 16),
     new MeshBasicMaterial({ color: 16737843, transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false })
   );
-  flameOuter.position.y = -3.8;
+  flameOuter.position.y = currentY - 1;
   flameOuter.rotation.x = Math.PI;
   flameGroup.add(flameOuter);
   const flameGlow = new Mesh(
-    new SphereGeometry(0.5, 12, 8),
+    new SphereGeometry(0.5, 16, 10),
     new MeshBasicMaterial({ color: 16755268, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false })
   );
-  flameGlow.position.y = -3.3;
+  flameGlow.position.y = currentY - 0.5;
   flameGlow.scale.set(1, 0.5, 1);
   flameGroup.add(flameGlow);
   flameGroup.visible = false;
@@ -24360,13 +25367,7 @@ function createRocketModel() {
 }
 function createRocketModelFromParts(parts) {
   const group = new Group();
-  const hullMat = new MeshStandardMaterial({ color: 15658734, metalness: 0.7, roughness: 0.25 });
-  const whiteMat = new MeshStandardMaterial({ color: 16119285, metalness: 0.3, roughness: 0.4 });
-  const darkMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.9, roughness: 0.15 });
-  const redMat = new MeshStandardMaterial({ color: 13382451, metalness: 0.4, roughness: 0.4 });
-  const accentMat = new MeshStandardMaterial({ color: 3368652, emissive: 1122884, metalness: 0.6, roughness: 0.2 });
-  const windowMat = new MeshStandardMaterial({ color: 6728447, emissive: 3359846, metalness: 0.8, roughness: 0.05 });
-  const goldMat = new MeshStandardMaterial({ color: 16763972, metalness: 0.9, roughness: 0.1 });
+  const mat = createRocketMats();
   const byType = (type) => parts.filter((p) => p.type === type);
   const commands = byType("command");
   const fuels = byType("fuel");
@@ -24391,38 +25392,8 @@ function createRocketModelFromParts(parts) {
   );
   let currentY = 0;
   for (const eng of engines) {
-    const eRadius = 0.3 + Math.min(0.3, Math.sqrt(eng.thrust) / 800);
-    const housing = new Mesh(
-      new CylinderGeometry(maxRadius * 0.85, eRadius * 0.8, 0.5, 20),
-      darkMat
-    );
-    housing.position.y = currentY - 0.3;
-    housing.castShadow = true;
-    group.add(housing);
-    const nozzleHeight = 0.4 + Math.min(0.3, eng.thrust / 4e5);
-    const nozzlePoints = [];
-    for (let t = 0; t <= 1; t += 0.1) {
-      const r = eRadius * (0.5 + t * 0.9 * (1 - t * 0.3));
-      nozzlePoints.push(new Vector2(r, -t * nozzleHeight));
-    }
-    const nozzleGeo = new LatheGeometry(nozzlePoints, 24);
-    const nozzle = new Mesh(nozzleGeo, new MeshStandardMaterial({
-      color: 4473924,
-      metalness: 0.95,
-      roughness: 0.1,
-      side: DoubleSide
-    }));
-    nozzle.position.y = currentY - 0.55;
-    nozzle.castShadow = true;
-    group.add(nozzle);
-    const innerGlow = new Mesh(
-      new CircleGeometry(eRadius * 0.45, 20),
-      new MeshBasicMaterial({ color: 3346688, side: DoubleSide })
-    );
-    innerGlow.position.y = currentY - 0.55;
-    innerGlow.rotation.x = -Math.PI / 2;
-    group.add(innerGlow);
-    currentY -= 0.55 + nozzleHeight;
+    const eHeight = buildEngine(group, mat, maxRadius, currentY, eng.thrust);
+    currentY -= eHeight;
   }
   if (boosters.length > 0) {
     for (let i = 0; i < boosters.length; i++) {
@@ -24431,271 +25402,86 @@ function createRocketModelFromParts(parts) {
       const bHeight = 2.5 + Math.min(1.5, b.fuelMass / 3e3);
       const angle = i / boosters.length * Math.PI * 2;
       const dist = maxRadius + bRadius + 0.1;
-      const boosterBody = new Mesh(
-        new CylinderGeometry(bRadius, bRadius, bHeight, 16),
-        whiteMat
-      );
-      boosterBody.position.set(Math.cos(angle) * dist, currentY - bHeight / 2, Math.sin(angle) * dist);
-      boosterBody.castShadow = true;
-      group.add(boosterBody);
-      const nose = new Mesh(new ConeGeometry(bRadius, 0.4, 16), darkMat);
-      nose.position.set(Math.cos(angle) * dist, currentY + 0.2, Math.sin(angle) * dist);
-      group.add(nose);
-      const bNoz = new Mesh(
-        new CylinderGeometry(bRadius * 0.5, bRadius * 0.7, 0.3, 12),
-        darkMat
-      );
-      bNoz.position.set(Math.cos(angle) * dist, currentY - bHeight - 0.15, Math.sin(angle) * dist);
-      group.add(bNoz);
+      buildBooster(group, mat, bRadius, angle, dist, currentY, bHeight, b.fuelMass);
     }
   }
   for (const dec of decouplers) {
-    const decoupler = new Mesh(
-      new CylinderGeometry(maxRadius, maxRadius * 0.95, 0.15, 20),
-      darkMat
-    );
-    decoupler.position.y = currentY - 0.075;
-    group.add(decoupler);
-    const stripe = new Mesh(
-      new TorusGeometry(maxRadius, 0.04, 8, 24),
-      redMat
-    );
-    stripe.position.y = currentY - 0.075;
-    stripe.rotation.x = Math.PI / 2;
-    group.add(stripe);
-    currentY -= 0.2;
+    const decHeight = buildDecoupler(group, mat, maxRadius, currentY);
+    currentY -= decHeight;
   }
   for (let i = fuels.length - 1; i >= 0; i--) {
     const f = fuels[i];
     const tankRadius = 0.4 + Math.min(0.6, f.fuelMass / 2e4);
-    const tankHeight = 1 + Math.min(3, f.fuelMass / 8e3);
-    const tank = new Mesh(
-      new CylinderGeometry(tankRadius, tankRadius, tankHeight, 24),
-      whiteMat
-    );
-    tank.position.y = currentY - tankHeight / 2;
-    tank.castShadow = true;
-    group.add(tank);
-    const bandCount = Math.max(2, Math.floor(tankHeight / 0.8));
-    for (let j = 0; j < bandCount; j++) {
-      const band = new Mesh(
-        new TorusGeometry(tankRadius + 0.02, 0.04, 8, 24),
-        darkMat
-      );
-      band.position.y = currentY - (j + 0.5) * (tankHeight / bandCount);
-      band.rotation.x = Math.PI / 2;
-      group.add(band);
-    }
-    if (i === 0) {
-      const stripe = new Mesh(
-        new CylinderGeometry(tankRadius - 0.01, tankRadius - 0.01, 0.15, 24, 1, false, 0, Math.PI * 0.3),
-        redMat
-      );
-      stripe.position.y = currentY - tankHeight * 0.7;
-      group.add(stripe);
-    }
+    const tankHeight = buildFuelTank(group, mat, tankRadius, currentY, f.fuelMass, i === 0);
     currentY -= tankHeight;
   }
   for (const apt of adapterParts) {
-    const aptHeight = 0.3;
-    const adapter = new Mesh(
-      new CylinderGeometry(maxRadius, maxRadius * 0.8, aptHeight, 20),
-      darkMat
-    );
-    adapter.position.y = currentY - aptHeight / 2;
-    group.add(adapter);
+    const aptHeight = buildAdapter(group, mat, maxRadius, currentY);
     currentY -= aptHeight;
   }
   for (const st of structuralParts) {
-    const stHeight = 0.4;
-    const tube = new Mesh(
-      new CylinderGeometry(maxRadius * 0.9, maxRadius * 0.9, stHeight, 16),
-      new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 })
-    );
-    tube.position.y = currentY - stHeight / 2;
-    group.add(tube);
+    const stHeight = buildStructuralTube(group, mat, maxRadius, currentY);
     currentY -= stHeight;
   }
   for (const cmd of commands) {
     const podRadius = 0.5 + Math.min(0.4, cmd.mass / 2e3);
-    const podHeight = 1 + Math.min(0.8, cmd.mass / 1500);
-    const pod = new Mesh(
-      new ConeGeometry(podRadius, podHeight, 20),
-      hullMat
-    );
-    pod.position.y = currentY - podHeight / 2;
-    pod.castShadow = true;
-    group.add(pod);
-    const podBase = new Mesh(
-      new CylinderGeometry(podRadius * 1.02, maxRadius * 0.95, 0.2, 20),
-      darkMat
-    );
-    podBase.position.y = currentY - 0.1;
-    group.add(podBase);
-    for (let w = 0; w < 3; w++) {
-      const angle = w * 2.094;
-      const wy = currentY - podHeight * 0.35;
-      const winFrame = new Mesh(new RingGeometry(0.08, 0.16, 12), darkMat);
-      winFrame.position.set(Math.cos(angle) * podRadius * 0.5, wy, Math.sin(angle) * podRadius * 0.5);
-      winFrame.lookAt(Math.cos(angle) * 2, wy, Math.sin(angle) * 2);
-      group.add(winFrame);
-      const win = new Mesh(new CircleGeometry(0.1, 12), windowMat);
-      win.position.set(Math.cos(angle) * podRadius * 0.51, wy, Math.sin(angle) * podRadius * 0.51);
-      win.lookAt(Math.cos(angle) * 2, wy, Math.sin(angle) * 2);
-      group.add(win);
-    }
-    const antenna = new Mesh(new CylinderGeometry(0.02, 0.02, 0.5, 6), darkMat);
-    antenna.position.set(0.3, currentY - podHeight - 0.25, 0);
-    group.add(antenna);
-    const antennaTip = new Mesh(new SphereGeometry(0.04, 8, 6), redMat);
-    antennaTip.position.set(0.3, currentY - podHeight - 0.5, 0);
-    group.add(antennaTip);
-    currentY -= podHeight + 0.2;
+    const podHeight = buildCommandPod(group, mat, podRadius, currentY);
+    currentY -= podHeight + 0.1;
   }
   for (const pc of parachutes) {
-    const chuteCan = new Mesh(
-      new CylinderGeometry(0.12, 0.1, 0.25, 12),
-      redMat
-    );
-    chuteCan.position.y = currentY - 0.12;
-    group.add(chuteCan);
-    const chuteCap = new Mesh(
-      new SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
-      redMat
-    );
-    chuteCap.position.y = currentY - 0.25;
-    group.add(chuteCap);
-    currentY -= 0.3;
+    const chuteHeight = buildParachute(group, mat, currentY);
+    currentY -= chuteHeight;
+  }
+  for (const ut of utilityParts.filter((u) => u.name.includes("\u5BF9\u63A5"))) {
+    const dockHeight = buildDockingPort(group, mat, currentY);
+    currentY -= dockHeight;
   }
   const aeroCount = Math.min(aeroParts.length, 6);
   for (let i = 0; i < aeroCount; i++) {
     const angle = i / aeroCount * Math.PI * 2;
-    const finShape = new Shape();
-    finShape.moveTo(0, 0);
-    finShape.lineTo(0, -0.8);
-    finShape.lineTo(0.5, -0.2);
-    finShape.lineTo(0.5, 0.1);
-    finShape.lineTo(0, 0);
-    const finGeo = new ExtrudeGeometry(finShape, { depth: 0.05, bevelEnabled: false });
-    const fin = new Mesh(finGeo, darkMat);
-    fin.position.set(Math.cos(angle) * maxRadius, -1, Math.sin(angle) * maxRadius);
-    fin.rotation.y = angle + Math.PI / 2;
-    fin.castShadow = true;
-    group.add(fin);
+    buildAeroFin(group, mat, angle, maxRadius, -1);
   }
   const rcsCount = Math.min(rcsParts.length, 4);
   for (let i = 0; i < Math.max(rcsCount, 1); i++) {
     const angle = i * Math.PI / 2 + Math.PI / 4;
-    const rcsBlock = new Mesh(
-      new BoxGeometry(0.12, 0.18, 0.12),
-      new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.2 })
-    );
-    rcsBlock.position.set(Math.cos(angle) * (maxRadius + 0.05), -0.3, Math.sin(angle) * (maxRadius + 0.05));
-    group.add(rcsBlock);
-    const rcsNoz = new Mesh(new CylinderGeometry(0.03, 0.04, 0.06, 6), darkMat);
-    rcsNoz.position.set(Math.cos(angle) * (maxRadius + 0.12), -0.3, Math.sin(angle) * (maxRadius + 0.12));
-    rcsNoz.rotation.z = Math.PI / 2;
-    rcsNoz.rotation.y = angle;
-    group.add(rcsNoz);
+    buildRCSBlock(group, mat, angle, maxRadius + 0.05, -0.3);
   }
-  for (let i = 0; i < Math.min(solarParts.length, 4); i++) {
-    const side = i < 2 ? -1 : 1;
-    const idx = i % 2;
-    const arm = new Mesh(
-      new CylinderGeometry(0.04, 0.04, 0.6, 6),
-      new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 })
-    );
-    arm.position.set(side * 0.8, -0.5 - idx * 1.5, 0);
-    arm.rotation.z = Math.PI / 2;
-    group.add(arm);
-    const panel = new Mesh(
-      new BoxGeometry(1, 0.03, 0.6),
-      new MeshStandardMaterial({ color: 1127338, emissive: 528708, metalness: 0.7, roughness: 0.2 })
-    );
-    panel.position.set(side * 1.4, -0.5 - idx * 1.5, 0);
-    panel.castShadow = true;
-    group.add(panel);
-    for (let j = 0; j < 3; j++) {
-      const line = new Mesh(
-        new BoxGeometry(1, 0.035, 0.02),
-        new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 })
-      );
-      line.position.set(side * 1.4, -0.49 - idx * 1.5, (j - 1) * 0.15);
-      group.add(line);
-    }
+  const solarCount = Math.min(solarParts.length, 4);
+  for (let i = 0; i < Math.max(solarCount, 2); i++) {
+    const side = i < Math.ceil(solarCount / 2) ? -1 : 1;
+    const idx = i % Math.ceil(solarCount / 2);
+    buildSolarPanel(group, mat, side, -0.5 - idx * 1.5);
   }
   const legCount = Math.min(landingParts.length, 3) || 3;
-  const legMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < legCount; i++) {
     const angle = i * 2.094 + 0.5;
-    const strutU = new Mesh(new CylinderGeometry(0.03, 0.03, 0.5, 6), legMat);
-    strutU.position.set(Math.cos(angle) * 0.55, -1.5, Math.sin(angle) * 0.55);
-    strutU.rotation.z = Math.cos(angle) * 0.5;
-    strutU.rotation.x = -Math.sin(angle) * 0.5;
-    group.add(strutU);
-    const strutL = new Mesh(new CylinderGeometry(0.025, 0.03, 0.7, 6), legMat);
-    strutL.position.set(Math.cos(angle) * 0.85, -1.9, Math.sin(angle) * 0.85);
-    strutL.rotation.z = Math.cos(angle) * 0.9;
-    strutL.rotation.x = -Math.sin(angle) * 0.9;
-    group.add(strutL);
-    const pad = new Mesh(new CylinderGeometry(0.1, 0.08, 0.06, 10), darkMat);
-    pad.position.set(Math.cos(angle) * 1.1, -2.2, Math.sin(angle) * 1.1);
-    group.add(pad);
+    buildLandingLeg(group, mat, angle, -1.5);
   }
   for (let i = 0; i < Math.min(scienceParts.length, 3); i++) {
     const angle = i * 2.094 + 0.3;
-    const sciBay = new Mesh(new BoxGeometry(0.2, 0.25, 0.18), accentMat);
-    sciBay.position.set(Math.cos(angle) * (maxRadius + 0.05), 0.5, Math.sin(angle) * (maxRadius + 0.05));
-    group.add(sciBay);
-    const sciLens = new Mesh(
-      new CircleGeometry(0.05, 10),
-      new MeshBasicMaterial({ color: 65382 })
-    );
-    sciLens.position.set(Math.cos(angle) * (maxRadius + 0.16), 0.55, Math.sin(angle) * (maxRadius + 0.16));
-    sciLens.lookAt(Math.cos(angle) * 3, 0.55, Math.sin(angle) * 3);
-    group.add(sciLens);
+    buildScienceInstrument(group, mat, scienceParts[i], angle, maxRadius + 0.05, 0.5);
   }
   for (let i = 0; i < Math.min(antennaParts.length, 2); i++) {
-    const dishArm = new Mesh(new CylinderGeometry(0.02, 0.02, 0.4, 6), darkMat);
-    dishArm.position.set(-0.4 + i * 0.8, -0.5, 0);
-    dishArm.rotation.z = 0.5;
-    group.add(dishArm);
-    const dishCup = new Mesh(
-      new SphereGeometry(0.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-      darkMat
-    );
-    dishCup.position.set(-0.65 + i * 1.3, -0.3, 0);
-    dishCup.rotation.z = -Math.PI / 2;
-    group.add(dishCup);
-  }
-  for (const ut of utilityParts.filter((u) => u.name.includes("\u5BF9\u63A5"))) {
-    const dock = new Mesh(
-      new RingGeometry(0.1, 0.25, 16),
-      goldMat
-    );
-    dock.position.y = currentY - 0.05;
-    dock.rotation.x = -Math.PI / 2;
-    group.add(dock);
-    currentY -= 0.1;
+    buildCommAntenna(group, mat, i, 0.5);
   }
   const flameGroup = new Group();
   flameGroup.name = "engineFlame";
   const flameCore = new Mesh(
-    new ConeGeometry(0.2, 1.2, 12),
+    new ConeGeometry(0.2, 1.2, 16),
     new MeshBasicMaterial({ color: 8965375, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false })
   );
   flameCore.position.y = -1;
   flameCore.rotation.x = Math.PI;
   flameGroup.add(flameCore);
   const flameOuter = new Mesh(
-    new ConeGeometry(0.35, 1.8, 12),
+    new ConeGeometry(0.35, 1.8, 16),
     new MeshBasicMaterial({ color: 16737843, transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false })
   );
   flameOuter.position.y = -1.2;
   flameOuter.rotation.x = Math.PI;
   flameGroup.add(flameOuter);
   const flameGlow = new Mesh(
-    new SphereGeometry(0.4, 12, 8),
+    new SphereGeometry(0.4, 16, 10),
     new MeshBasicMaterial({ color: 16755268, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false })
   );
   flameGlow.position.y = -0.8;
@@ -24848,30 +25634,32 @@ function createResearchBaseModel() {
 function createSpaceCenterScene() {
   const group = new Group();
   group.name = "SpaceCenter";
-  const groundMat = new MeshStandardMaterial({ color: 4881466, roughness: 0.9, metalness: 0 });
-  const concreteMat = new MeshStandardMaterial({ color: 10066329, roughness: 0.85, metalness: 0.05 });
+  const concreteMat = new MeshStandardMaterial({ map: generateGroundTexture("concrete"), roughness: 0.85, metalness: 0.05 });
+  const grassMat = new MeshStandardMaterial({ map: generateGroundTexture("grass"), roughness: 0.9, metalness: 0 });
   const buildingMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.5, metalness: 0.3 });
   const darkBuildingMat = new MeshStandardMaterial({ color: 5596791, roughness: 0.4, metalness: 0.4 });
   const roofMat = new MeshStandardMaterial({ color: 13386786, roughness: 0.5, metalness: 0.2 });
   const domeMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.3, metalness: 0.4 });
-  const roadMat = new MeshStandardMaterial({ color: 3815994, roughness: 0.9, metalness: 0 });
+  const roadMat = new MeshStandardMaterial({ map: generateGroundTexture("asphalt"), roughness: 0.9, metalness: 0 });
   const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.2, metalness: 0.8 });
   const windowMat = new MeshStandardMaterial({ color: 8956620, emissive: 2241348, roughness: 0.1, metalness: 0.8 });
   const redMat = new MeshStandardMaterial({ color: 13382451, roughness: 0.4, metalness: 0.3 });
-  const ground = new Mesh(new PlaneGeometry(140, 140), groundMat);
+  const yellowMat = new MeshStandardMaterial({ color: 16768324, emissive: 3351040, roughness: 0.4, metalness: 0.3 });
+  const grassTex = grassMat.map;
+  grassTex.repeat.set(20, 20);
+  const concreteTex = concreteMat.map;
+  concreteTex.repeat.set(10, 10);
+  const roadTex = roadMat.map;
+  roadTex.repeat.set(4, 8);
+  const ground = new Mesh(new PlaneGeometry(140, 140), grassMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   group.add(ground);
   const roadPositions = [
-    // [x, z, width, length] - centered at origin
     [17, 0, 3, 24],
-    // East road: VAB to Launch Pad
     [-17, 0, 3, 24],
-    // West road: VAB to R&D
     [0, -17, 24, 3],
-    // North road: VAB to Tracking Station
     [0, 13, 18, 3]
-    // South road: VAB to Astronaut Complex
   ];
   for (const [rx, rz, rw, rl] of roadPositions) {
     const road = new Mesh(new PlaneGeometry(rw, rl), roadMat);
@@ -24879,6 +25667,13 @@ function createSpaceCenterScene() {
     road.position.set(rx, 0.02, rz);
     road.receiveShadow = true;
     group.add(road);
+    const markCount = Math.floor(rl / 2);
+    for (let m = 0; m < markCount; m++) {
+      const mark = new Mesh(new PlaneGeometry(0.15, 0.6), yellowMat);
+      mark.rotation.x = -Math.PI / 2;
+      mark.position.set(rx, 0.03, rz - rl / 2 + m * 2 + 0.5);
+      group.add(mark);
+    }
   }
   const vabGroup = new Group();
   vabGroup.name = "VAB";
@@ -24890,17 +25685,48 @@ function createSpaceCenterScene() {
   const vabDome = new Mesh(new SphereGeometry(5.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
   vabDome.position.y = 14;
   vabGroup.add(vabDome);
+  const vabAnt = new Mesh(new CylinderGeometry(0.1, 0.1, 3, 6), metalMat);
+  vabAnt.position.y = 16;
+  vabGroup.add(vabAnt);
+  const vabAntBall = new Mesh(new SphereGeometry(0.3, 8, 6), redMat);
+  vabAntBall.position.y = 17.5;
+  vabGroup.add(vabAntBall);
   const vabDoor = new Mesh(new BoxGeometry(3, 7, 0.3), darkBuildingMat);
   vabDoor.position.set(0, 3.5, 5.3);
   vabGroup.add(vabDoor);
-  for (let i = 0; i < 6; i++) {
-    const angle = i / 6 * Math.PI * 2;
-    if (Math.abs(angle) < 0.5 || Math.abs(angle - Math.PI * 2) < 0.5) continue;
-    const win = new Mesh(new BoxGeometry(1.2, 1.5, 0.1), windowMat);
-    win.position.set(Math.cos(angle) * 5.1, 9, Math.sin(angle) * 5.1);
-    win.lookAt(0, 9, 0);
-    vabGroup.add(win);
+  for (let h = 0; h < 5; h++) {
+    const doorLine = new Mesh(new BoxGeometry(3.1, 0.1, 0.32), metalMat);
+    doorLine.position.set(0, 1 + h * 1.4, 5.3);
+    vabGroup.add(doorLine);
   }
+  const doorFrameL = new Mesh(new BoxGeometry(0.2, 7.5, 0.35), metalMat);
+  doorFrameL.position.set(-1.6, 3.5, 5.3);
+  vabGroup.add(doorFrameL);
+  const doorFrameR = new Mesh(new BoxGeometry(0.2, 7.5, 0.35), metalMat);
+  doorFrameR.position.set(1.6, 3.5, 5.3);
+  vabGroup.add(doorFrameR);
+  const doorFrameT = new Mesh(new BoxGeometry(3.4, 0.2, 0.35), metalMat);
+  doorFrameT.position.set(0, 7, 5.3);
+  vabGroup.add(doorFrameT);
+  for (let row = 0; row < 2; row++) {
+    for (let i = 0; i < 6; i++) {
+      const angle = i / 6 * Math.PI * 2;
+      if (Math.abs(angle) < 0.5 || Math.abs(angle - Math.PI * 2) < 0.5) continue;
+      const win = new Mesh(new BoxGeometry(1.2, 1.5, 0.1), windowMat);
+      win.position.set(Math.cos(angle) * 5.1, 6 + row * 4, Math.sin(angle) * 5.1);
+      win.lookAt(0, 6 + row * 4, 0);
+      vabGroup.add(win);
+      const winFrame = new Mesh(new BoxGeometry(1.4, 1.7, 0.08), metalMat);
+      winFrame.position.copy(win.position);
+      winFrame.position.multiplyScalar(0.98);
+      winFrame.lookAt(0, 6 + row * 4, 0);
+      vabGroup.add(winFrame);
+    }
+  }
+  const vabSign = createTextSprite("KSP", "#ffdd44", 48);
+  vabSign.scale.set(4, 1, 1);
+  vabSign.position.set(0, 11, 5.4);
+  vabGroup.add(vabSign);
   const vabLabel = createTextSprite("\u822A\u5929\u5668\u88C5\u914D\u5927\u697C", "#ffdd44");
   vabLabel.position.set(0, 22, 0);
   vabGroup.add(vabLabel);
@@ -24913,10 +25739,27 @@ function createSpaceCenterScene() {
   padBase.castShadow = true;
   padBase.receiveShadow = true;
   padGroup.add(padBase);
+  const trench = new Mesh(new CylinderGeometry(3, 2.5, 1.5, 16), darkBuildingMat);
+  trench.position.y = -0.5;
+  padGroup.add(trench);
   const padMark = new Mesh(new RingGeometry(4, 4.5, 32), new MeshBasicMaterial({ color: 11184810, side: DoubleSide }));
   padMark.rotation.x = -Math.PI / 2;
   padMark.position.y = 0.82;
   padGroup.add(padMark);
+  const padCross1 = new Mesh(new PlaneGeometry(9, 0.2), new MeshBasicMaterial({ color: 11184810, side: DoubleSide }));
+  padCross1.rotation.x = -Math.PI / 2;
+  padCross1.position.y = 0.82;
+  padGroup.add(padCross1);
+  const padCross2 = new Mesh(new PlaneGeometry(0.2, 9), new MeshBasicMaterial({ color: 11184810, side: DoubleSide }));
+  padCross2.rotation.x = -Math.PI / 2;
+  padCross2.position.y = 0.82;
+  padGroup.add(padCross2);
+  for (let i = 0; i < 4; i++) {
+    const angle = i * Math.PI / 2 + Math.PI / 4;
+    const clamp2 = new Mesh(new BoxGeometry(0.4, 0.5, 0.4), metalMat);
+    clamp2.position.set(Math.cos(angle) * 1.5, 0.9, Math.sin(angle) * 1.5);
+    padGroup.add(clamp2);
+  }
   for (let i = 0; i < 4; i++) {
     const angle = i * Math.PI / 2;
     const legX = Math.cos(angle) * 1.5;
@@ -24936,15 +25779,37 @@ function createSpaceCenterScene() {
       brace.rotation.y = i * Math.PI / 2;
       padGroup.add(brace);
     }
+    for (let i = 0; i < 4; i++) {
+      const angle = i * Math.PI / 2;
+      const diag = new Mesh(new BoxGeometry(0.08, 3.2, 0.08), metalMat);
+      diag.position.set(Math.cos(angle) * 1.5, y + 1.5, Math.sin(angle) * 1.5);
+      diag.rotation.y = angle + Math.PI / 4;
+      diag.rotation.z = Math.PI / 4;
+      padGroup.add(diag);
+    }
+  }
+  for (let h = 0; h < 5; h++) {
+    const platform = new Mesh(new BoxGeometry(2.5, 0.1, 0.8), metalMat);
+    platform.position.set(1.5, 2 + h * 3, 0);
+    padGroup.add(platform);
+    const railing = new Mesh(new BoxGeometry(2.5, 0.4, 0.05), metalMat);
+    railing.position.set(1.5, 2.25 + h * 3, 0.4);
+    padGroup.add(railing);
   }
   const towerTop = new Mesh(new BoxGeometry(2, 0.3, 2), metalMat);
   towerTop.position.set(0, 17, 0);
   padGroup.add(towerTop);
-  const lightningRod = new Mesh(new CylinderGeometry(0.05, 0.05, 4, 6), metalMat);
-  lightningRod.position.set(0, 19, 0);
+  const lightningRod = new Mesh(new CylinderGeometry(0.05, 0.05, 5, 6), metalMat);
+  lightningRod.position.set(0, 19.5, 0);
   padGroup.add(lightningRod);
+  const rodBall = new Mesh(new SphereGeometry(0.15, 8, 6), redMat);
+  rodBall.position.set(0, 22, 0);
+  padGroup.add(rodBall);
+  const padLight = new Mesh(new SphereGeometry(0.12, 8, 6), new MeshBasicMaterial({ color: 16711680 }));
+  padLight.position.set(0, 17.5, 0);
+  padGroup.add(padLight);
   const padLabel = createTextSprite("\u53D1\u5C04\u53F0", "#ffaa44");
-  padLabel.position.set(0, 24, 0);
+  padLabel.position.set(0, 25, 0);
   padGroup.add(padLabel);
   padGroup.position.set(30, 0, 0);
   group.add(padGroup);
@@ -24957,16 +25822,41 @@ function createSpaceCenterScene() {
   const trackBase = new Mesh(new CylinderGeometry(4, 4, 2, 24), buildingMat);
   trackBase.position.y = 1;
   trackGroup.add(trackBase);
+  const trackBaseRing = new Mesh(new TorusGeometry(4.05, 0.1, 8, 24), metalMat);
+  trackBaseRing.position.y = 2;
+  trackBaseRing.rotation.x = Math.PI / 2;
+  trackGroup.add(trackBaseRing);
   const trackPole = new Mesh(new CylinderGeometry(0.15, 0.15, 4, 8), metalMat);
   trackPole.position.y = 6;
   trackGroup.add(trackPole);
-  const trackDish = new Mesh(new SphereGeometry(1.5, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
+  const trackDish = new Mesh(new SphereGeometry(1.8, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
   trackDish.position.set(0, 8, 0);
   trackDish.rotation.x = -Math.PI / 3;
   trackGroup.add(trackDish);
+  for (let r = 0.4; r < 1.8; r += 0.35) {
+    const rib = new Mesh(new TorusGeometry(r, 0.02, 4, 24), darkBuildingMat);
+    rib.position.set(0, 8, 0);
+    rib.rotation.x = -Math.PI / 3;
+    trackGroup.add(rib);
+  }
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const rib = new Mesh(new BoxGeometry(1.8, 0.02, 0.02), darkBuildingMat);
+    rib.position.set(Math.cos(angle) * 0.7, 8 + Math.sin(angle) * 0.2, Math.sin(angle) * 0.7 - 0.5);
+    rib.rotation.x = -Math.PI / 3;
+    rib.rotation.y = angle;
+    trackGroup.add(rib);
+  }
   const trackReceiver = new Mesh(new SphereGeometry(0.15, 8, 6), redMat);
-  trackReceiver.position.set(0, 7.5, 0.5);
+  trackReceiver.position.set(0, 7.5, 0.8);
   trackGroup.add(trackReceiver);
+  const smallDish = new Mesh(new SphereGeometry(0.5, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
+  smallDish.position.set(3, 3, 0);
+  smallDish.rotation.x = -Math.PI / 4;
+  trackGroup.add(smallDish);
+  const smallPole = new Mesh(new CylinderGeometry(0.05, 0.05, 1.5, 6), metalMat);
+  smallPole.position.set(3, 2.5, 0);
+  trackGroup.add(smallPole);
   const trackLabel = createTextSprite("\u8DDF\u8E2A\u7AD9", "#44ddff");
   trackLabel.position.set(0, 12, 0);
   trackGroup.add(trackLabel);
@@ -24984,12 +25874,20 @@ function createSpaceCenterScene() {
   const astroDoor = new Mesh(new BoxGeometry(1.5, 2, 0.3), darkBuildingMat);
   astroDoor.position.set(0, 1, 3.4);
   astroGroup.add(astroDoor);
+  const canopy = new Mesh(new BoxGeometry(2.5, 0.1, 1), metalMat);
+  canopy.position.set(0, 2.2, 3.8);
+  astroGroup.add(canopy);
   for (let i = 0; i < 5; i++) {
     const angle = i / 5 * Math.PI * 1.5 + 0.3;
     const win = new Mesh(new BoxGeometry(0.8, 1, 0.1), windowMat);
     win.position.set(Math.cos(angle) * 3.4, 2, Math.sin(angle) * 3.4);
     win.lookAt(0, 2, 0);
     astroGroup.add(win);
+    const winFrame = new Mesh(new BoxGeometry(0.95, 1.15, 0.08), metalMat);
+    winFrame.position.copy(win.position);
+    winFrame.position.multiplyScalar(0.98);
+    winFrame.lookAt(0, 2, 0);
+    astroGroup.add(winFrame);
   }
   const astroLabel = createTextSprite("\u822A\u5929\u5458\u4E2D\u5FC3", "#44ff88");
   astroLabel.position.set(0, 8, 0);
@@ -25016,14 +25914,19 @@ function createSpaceCenterScene() {
   const rdAntBall = new Mesh(new SphereGeometry(0.3, 8, 6), redMat);
   rdAntBall.position.set(5, 12.5, 0);
   rdGroup.add(rdAntBall);
-  for (let i = -2; i <= 2; i++) {
-    const win = new Mesh(new BoxGeometry(1.5, 1.5, 0.1), windowMat);
-    win.position.set(i * 2.5, 2.5, 3.55);
-    rdGroup.add(win);
+  for (let row = 0; row < 2; row++) {
+    for (let i = -2; i <= 2; i++) {
+      const win = new Mesh(new BoxGeometry(1.5, 1.5, 0.1), windowMat);
+      win.position.set(i * 2.5, 2 + row * 1.8, 3.55);
+      rdGroup.add(win);
+    }
   }
   const rdDoor = new Mesh(new BoxGeometry(2, 2.5, 0.3), darkBuildingMat);
   rdDoor.position.set(0, 1.25, 3.55);
   rdGroup.add(rdDoor);
+  const steps = new Mesh(new BoxGeometry(3, 0.15, 0.8), concreteMat);
+  steps.position.set(0, 0.075, 3.9);
+  rdGroup.add(steps);
   const rdLabel = createTextSprite("\u7814\u53D1\u4E2D\u5FC3", "#aa88ff");
   rdLabel.position.set(0, 13, 0);
   rdGroup.add(rdLabel);
@@ -25048,6 +25951,30 @@ function createSpaceCenterScene() {
   flagGroup.add(flagLabel);
   flagGroup.position.set(0, 0, 12);
   group.add(flagGroup);
+  const runwayGroup = new Group();
+  runwayGroup.name = "Runway";
+  const runway = new Mesh(new PlaneGeometry(8, 40), concreteMat);
+  runway.rotation.x = -Math.PI / 2;
+  runway.position.set(50, 0.02, 0);
+  runway.receiveShadow = true;
+  runwayGroup.add(runway);
+  for (let m = 0; m < 20; m++) {
+    const mark = new Mesh(new PlaneGeometry(0.3, 1.5), yellowMat);
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.set(50, 0.03, -19 + m * 2);
+    runwayGroup.add(mark);
+  }
+  for (let i = 0; i < 4; i++) {
+    const thresh = new Mesh(new PlaneGeometry(0.3, 3), yellowMat);
+    thresh.rotation.x = -Math.PI / 2;
+    thresh.position.set(48 + i * 0.8, 0.03, -18);
+    runwayGroup.add(thresh);
+    const thresh2 = new Mesh(new PlaneGeometry(0.3, 3), yellowMat);
+    thresh2.rotation.x = -Math.PI / 2;
+    thresh2.position.set(48 + i * 0.8, 0.03, 18);
+    runwayGroup.add(thresh2);
+  }
+  group.add(runwayGroup);
   return group;
 }
 
@@ -26070,6 +26997,86 @@ var StarChunkManager = class {
 };
 
 // src/game/game.ts
+var FS_VERTEX = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+var BRIGHT_FRAGMENT = `
+uniform sampler2D tDiffuse;
+uniform float threshold;
+uniform float softKnee;
+varying vec2 vUv;
+void main() {
+  vec3 c = texture2D(tDiffuse, vUv).rgb;
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  float knee = threshold * softKnee + 1e-5;
+  float soft = l - threshold + knee;
+  soft = clamp(soft, 0.0, 2.0 * knee);
+  soft = soft * soft / (4.0 * knee + 1e-4);
+  float contribution = max(soft, l - threshold);
+  contribution /= max(l, 1e-4);
+  contribution = max(contribution, 0.0);
+  gl_FragColor = vec4(c * contribution, 1.0);
+}
+`;
+var BLUR_FRAGMENT = `
+uniform sampler2D tDiffuse;
+uniform vec2 direction;
+varying vec2 vUv;
+void main() {
+  vec3 sum = vec3(0.0);
+  sum += texture2D(tDiffuse, vUv).rgb * 0.227027;
+  sum += texture2D(tDiffuse, vUv + direction * 1.0).rgb * 0.1945946;
+  sum += texture2D(tDiffuse, vUv - direction * 1.0).rgb * 0.1945946;
+  sum += texture2D(tDiffuse, vUv + direction * 2.0).rgb * 0.1216216;
+  sum += texture2D(tDiffuse, vUv - direction * 2.0).rgb * 0.1216216;
+  sum += texture2D(tDiffuse, vUv + direction * 3.0).rgb * 0.054054;
+  sum += texture2D(tDiffuse, vUv - direction * 3.0).rgb * 0.054054;
+  gl_FragColor = vec4(sum, 1.0);
+}
+`;
+var COMPOSITE_FRAGMENT = `
+uniform sampler2D tScene;
+uniform sampler2D tBloom;
+uniform float bloomStrength;
+uniform float exposure;
+varying vec2 vUv;
+
+vec3 RRTAndODTFit(vec3 v) {
+  vec3 a = v * (v + 0.0245786) - 0.000090537;
+  vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+  return a / b;
+}
+vec3 ACESFilmic(vec3 color) {
+  const mat3 ACESInputMat = mat3(
+    vec3(0.59719, 0.07600, 0.02840),
+    vec3(0.35458, 0.90834, 0.13383),
+    vec3(0.04823, 0.01566, 0.83777)
+  );
+  const mat3 ACESOutputMat = mat3(
+    vec3( 1.60475, -0.10208, -0.00327),
+    vec3(-0.53108,  1.10813, -0.07276),
+    vec3(-0.07367, -0.00605,  1.07602)
+  );
+  color *= exposure / 0.6;
+  color = ACESInputMat * color;
+  color = RRTAndODTFit(color);
+  color = ACESOutputMat * color;
+  return clamp(color, 0.0, 1.0);
+}
+void main() {
+  vec3 scene = texture2D(tScene, vUv).rgb;
+  vec3 bloom = texture2D(tBloom, vUv).rgb;
+  vec3 color = ACESFilmic(scene) + bloom * bloomStrength;
+  color = clamp(color, 0.0, 1.0);
+  // \u7EBF\u6027 -> sRGB\uFF08ShaderMaterial \u4E0D\u4F1A\u81EA\u52A8\u505A\u8272\u5F69\u7A7A\u95F4\u8F6C\u6362\uFF09
+  color = pow(color, vec3(1.0 / 2.2));
+  gl_FragColor = vec4(color, 1.0);
+}
+`;
 var Game = class {
   constructor(container2, quality = "high", parts) {
     this.clock = new Clock();
@@ -26115,13 +27122,23 @@ var Game = class {
     this.TRAJECTORY_STEPS = 200;
     this.TRAJECTORY_DT = 5;
     this.onExit = null;
+    // 模糊 ping-pong（半分辨率）
+    this.fsScene = new Scene();
+    this.fsCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.bloomEnabled = true;
+    this.bloomIterations = 2;
+    this.bloomThreshold = 0.6;
+    this.bloomStrength = 0.7;
+    // === 动态曝光 ===
+    this.currentExposure = 1;
     // === 主游戏循环 ===
     this.gameLoop = () => {
       if (!this.isRunning) return;
       this.animationId = requestAnimationFrame(this.gameLoop);
       const dt = Math.min(this.clock.getDelta(), 0.1);
       this.update(dt);
-      this.renderer.render(this.scene, this.camera);
+      this.updateExposure();
+      this.renderWithBloom();
     };
     this.container = container2;
     this.quality = quality;
@@ -26131,28 +27148,37 @@ var Game = class {
     const qcfg = QUALITY_CONFIG[quality];
     this.scene = new Scene();
     this.scene.background = new Color(0);
-    this.camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1e-3, 5e6);
+    this.camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1e7);
     this.camera.position.set(0, 30, 50);
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, qcfg.pixelRatio));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
+    this.renderer.outputColorSpace = SRGBColorSpace;
+    this.renderer.physicallyCorrectLights = true;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = PCFSoftShadowMap;
     container2.appendChild(this.renderer.domElement);
     const ambient = new AmbientLight(657940, 0.02);
     this.scene.add(ambient);
     this.sunLight = new PointLight(16777215, 5, 0, 0.3);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = qcfg.shadowMapSize;
-    this.sunLight.shadow.mapSize.height = qcfg.shadowMapSize;
+    const shadowSize = this.quality === "high" ? 4096 : qcfg.shadowMapSize;
+    this.sunLight.shadow.mapSize.width = shadowSize;
+    this.sunLight.shadow.mapSize.height = shadowSize;
     this.sunLight.shadow.camera.near = 0.1;
-    this.sunLight.shadow.camera.far = 1e4;
+    this.sunLight.shadow.camera.far = 4e4;
+    this.sunLight.shadow.bias = -4e-4;
+    this.sunLight.shadow.normalBias = 0.02;
+    this.sunLight.shadow.radius = 2;
     this.scene.add(this.sunLight);
     this.starField = createStarField(qcfg.starCount);
     this.scene.add(this.starField);
     this.starChunkManager = new StarChunkManager(this.scene);
+    this.bloomEnabled = this.quality !== "low";
+    this.bloomIterations = this.quality === "high" ? 2 : 1;
+    this.initBloom();
     this.initSolarSystem();
     this.initRocket();
     this.setupTrajectoryLine();
@@ -26216,12 +27242,19 @@ var Game = class {
         else if (mat) mat.dispose();
       }
     });
+    this.sceneRT?.dispose();
+    this.brightRT?.dispose();
+    this.blurRTA?.dispose();
+    this.brightPassMat?.dispose();
+    this.blurMat?.dispose();
+    this.compositeMat?.dispose();
+    this.fsQuad?.geometry.dispose();
     this.renderer.dispose();
     if (this.renderer.domElement.parentNode) {
       this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
     }
   }
-  // === 太阳系�化 ===
+  // === 太阳系初始化 ===
   orbitalElementsToState(data, parentPos, parentVel, parentMass) {
     if (!data.parent || data.semiMajorAxis === 0) {
       return { pos: new Vector3(), vel: new Vector3() };
@@ -26332,6 +27365,10 @@ var Game = class {
     this.rocket.setThrottle(0);
     this.physics.addBody(this.rocket.body);
     this.scene.add(this.rocket.group);
+    this.rocketCabinLight = new PointLight(16764040, 0.6, 40, 2);
+    this.rocketCabinLight.position.set(0, 0, 0);
+    this.rocketCabinLight.castShadow = false;
+    this.rocket.group.add(this.rocketCabinLight);
   }
   // === 轨迹与标记 ===
   setupTrajectoryLine() {
@@ -26719,6 +27756,36 @@ var Game = class {
     }
   }
   // === 相机 ===
+  /** 火箭是否处于近地表（用于切换近裁剪面到表面模式） */
+  isNearSurface() {
+    if (!this.rocket) return false;
+    let nearest = null;
+    let nd = Infinity;
+    for (const b of this.physics.bodies) {
+      if (b.name === "\u706B\u7BAD" || b.name === "Rocket" || b.name === "Sun") continue;
+      const d = b.position.distanceTo(this.rocket.body.position);
+      if (d < nd) {
+        nd = d;
+        nearest = b;
+      }
+    }
+    if (!nearest) return false;
+    return nd - nearest.radius < nearest.radius * 0.05;
+  }
+  /**
+   * 根据相机模式动态调整近/远裁剪面：
+   *  - 表面模式（着陆或近地表）：近裁剪面 0.001，便于贴近地表观察
+   *  - 轨道模式：近裁剪面 0.1
+   *  - 远裁剪面 10000000
+   *  同时按相机距离适度抬高 near，避免超大远近比导致 z-fighting
+   */
+  updateCameraClip() {
+    const surfaceMode = !!this.rocket && (this.rocket.isLanded || this.isNearSurface());
+    const baseNear = surfaceMode ? 1e-3 : 0.1;
+    this.camera.near = Math.max(baseNear, this.cameraSmoothDistance * 5e-4);
+    this.camera.far = 1e7;
+    this.camera.updateProjectionMatrix();
+  }
   updateCamera() {
     if (this.gameState === "map") {
       const sun = this.physics.getBody("Sun");
@@ -26726,7 +27793,8 @@ var Game = class {
       this.camera.position.lerp(new Vector3(targetPos2.x, targetPos2.y + 5e3, targetPos2.z + 1e3), 0.1);
       this.camera.up.set(0, 1, 0);
       this.camera.lookAt(targetPos2);
-      this.camera.far = 5e6;
+      this.camera.near = 1;
+      this.camera.far = 1e7;
       this.camera.updateProjectionMatrix();
       this.updateMarkers();
       return;
@@ -26751,6 +27819,12 @@ var Game = class {
         break;
     }
     this.updateMarkers();
+    if (this.rocket && this.rocket.throttle > 0 && this.rocket.fuelMass > 0) {
+      const amt = Math.min(0.5, this.rocket.throttle * 2e-3 * this.cameraSmoothDistance);
+      this.camera.position.x += (Math.random() - 0.5) * amt;
+      this.camera.position.y += (Math.random() - 0.5) * amt;
+      this.camera.position.z += (Math.random() - 0.5) * amt;
+    }
   }
   updateOrbitCamera(targetPos) {
     this.cameraTargetPos.lerp(targetPos, 0.15);
@@ -26761,9 +27835,7 @@ var Game = class {
     this.camera.position.set(x, y, z);
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(this.cameraTargetPos);
-    this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
-    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e6);
-    this.camera.updateProjectionMatrix();
+    this.updateCameraClip();
   }
   updateChaseCamera(targetPos) {
     if (!this.rocket) {
@@ -26778,9 +27850,7 @@ var Game = class {
     this.camera.position.lerp(camPos, 0.15);
     this.camera.up.copy(new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation));
     this.camera.lookAt(this.cameraTargetPos);
-    this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
-    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e6);
-    this.camera.updateProjectionMatrix();
+    this.updateCameraClip();
   }
   updateFreeCamera(_targetPos) {
     this.cameraSmoothDistance += (this.cameraDistance - this.cameraSmoothDistance) * 0.15;
@@ -26790,9 +27860,7 @@ var Game = class {
     this.camera.position.set(x, y, z);
     this.camera.up.set(0, 1, 0);
     this.camera.lookAt(this.cameraTargetPos);
-    this.camera.near = Math.max(1e-3, this.cameraSmoothDistance * 1e-3);
-    this.camera.far = Math.max(this.cameraSmoothDistance * 100, 5e6);
-    this.camera.updateProjectionMatrix();
+    this.updateCameraClip();
   }
   updateMarkers() {
     if (!this.rocket || !this.progradeMarker || !this.retrogradeMarker) return;
@@ -26952,10 +28020,144 @@ var Game = class {
     this.hud.updateNavball(this.rocket.orientation, this.rocket.body.velocity);
     this.hud.updateStarCount(this.starChunkManager.getLoadedStarCount());
   }
+  // === Bloom 后处理 ===
+  /** 初始化渲染目标、着色器材质与全屏 quad */
+  initBloom() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const hw = Math.max(1, Math.floor(w / 2));
+    const hh = Math.max(1, Math.floor(h / 2));
+    this.sceneRT = new WebGLRenderTarget(w, h, {
+      type: HalfFloatType,
+      format: RGBAFormat,
+      minFilter: LinearFilter,
+      magFilter: LinearFilter,
+      depthBuffer: true,
+      stencilBuffer: false
+    });
+    const halfOpts = {
+      type: HalfFloatType,
+      format: RGBAFormat,
+      minFilter: LinearFilter,
+      magFilter: LinearFilter,
+      depthBuffer: false,
+      stencilBuffer: false
+    };
+    this.brightRT = new WebGLRenderTarget(hw, hh, halfOpts);
+    this.blurRTA = new WebGLRenderTarget(hw, hh, halfOpts);
+    this.brightPassMat = new ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: null },
+        threshold: { value: this.bloomThreshold },
+        softKnee: { value: 0.5 }
+      },
+      vertexShader: FS_VERTEX,
+      fragmentShader: BRIGHT_FRAGMENT,
+      depthTest: false,
+      depthWrite: false
+    });
+    this.blurMat = new ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: null },
+        direction: { value: new Vector2(1, 0) }
+      },
+      vertexShader: FS_VERTEX,
+      fragmentShader: BLUR_FRAGMENT,
+      depthTest: false,
+      depthWrite: false
+    });
+    this.compositeMat = new ShaderMaterial({
+      uniforms: {
+        tScene: { value: null },
+        tBloom: { value: null },
+        bloomStrength: { value: this.bloomStrength },
+        exposure: { value: this.currentExposure }
+      },
+      vertexShader: FS_VERTEX,
+      fragmentShader: COMPOSITE_FRAGMENT,
+      depthTest: false,
+      depthWrite: false
+    });
+    this.fsQuad = new Mesh(new PlaneGeometry(2, 2), this.brightPassMat);
+    this.fsQuad.frustumCulled = false;
+    this.fsScene.add(this.fsQuad);
+  }
+  /** 窗口尺寸变化时同步渲染目标 */
+  resizeBloom() {
+    if (!this.sceneRT) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.sceneRT.setSize(w, h);
+    const hw = Math.max(1, Math.floor(w / 2));
+    const hh = Math.max(1, Math.floor(h / 2));
+    this.brightRT.setSize(hw, hh);
+    this.blurRTA.setSize(hw, hh);
+  }
+  /**
+   * 动态曝光：靠近太阳时降低曝光（防过曝），深空时提高曝光（看清暗部）。
+   * 在 [0.3 AU, 5 AU] 之间用 smoothstep 平滑过渡：0.5 → 1.3。
+   */
+  updateExposure() {
+    if (!this.rocket) return;
+    const sun = this.physics.getBody("Sun");
+    let target = this.currentExposure;
+    if (sun) {
+      const d = sun.position.distanceTo(this.rocket.body.position);
+      const near = 0.3 * AU;
+      const far = 5 * AU;
+      let t = (d - near) / (far - near);
+      t = Math.max(0, Math.min(1, t));
+      t = t * t * (3 - 2 * t);
+      target = 0.5 + t * (1.3 - 0.5);
+    } else {
+      target = 1;
+    }
+    this.currentExposure += (target - this.currentExposure) * 0.05;
+    this.renderer.toneMappingExposure = this.currentExposure;
+  }
+  /**
+   * Bloom 渲染管线：
+   *  1. 场景渲染到 HDR 场景缓冲（tone mapping 自动关闭，保留高光 >1.0）
+   *  2. 亮度提取（软阈值）→ brightRT
+   *  3. 高斯模糊（横向/纵向 ping-pong，按质量迭代）
+   *  4. 合成到屏幕：手动 ACES 色调映射 + bloom 叠加 + 线性→sRGB
+   */
+  renderWithBloom() {
+    if (!this.bloomEnabled) {
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+    const bw = this.brightRT.width;
+    const bh = this.brightRT.height;
+    this.renderer.setRenderTarget(this.sceneRT);
+    this.renderer.render(this.scene, this.camera);
+    this.fsQuad.material = this.brightPassMat;
+    this.brightPassMat.uniforms.tDiffuse.value = this.sceneRT.texture;
+    this.renderer.setRenderTarget(this.brightRT);
+    this.renderer.render(this.fsScene, this.fsCamera);
+    for (let i = 0; i < this.bloomIterations; i++) {
+      this.fsQuad.material = this.blurMat;
+      this.blurMat.uniforms.tDiffuse.value = this.brightRT.texture;
+      this.blurMat.uniforms.direction.value.set(1 / bw, 0);
+      this.renderer.setRenderTarget(this.blurRTA);
+      this.renderer.render(this.fsScene, this.fsCamera);
+      this.blurMat.uniforms.tDiffuse.value = this.blurRTA.texture;
+      this.blurMat.uniforms.direction.value.set(0, 1 / bh);
+      this.renderer.setRenderTarget(this.brightRT);
+      this.renderer.render(this.fsScene, this.fsCamera);
+    }
+    this.fsQuad.material = this.compositeMat;
+    this.compositeMat.uniforms.tScene.value = this.sceneRT.texture;
+    this.compositeMat.uniforms.tBloom.value = this.brightRT.texture;
+    this.compositeMat.uniforms.exposure.value = this.currentExposure;
+    this.renderer.setRenderTarget(null);
+    this.renderer.render(this.fsScene, this.fsCamera);
+  }
   onResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.resizeBloom();
   }
 };
 
@@ -27165,36 +28367,46 @@ var VAB3DPreview = class {
       this.renderer.render(this.scene, this.camera);
     };
     this.canvas = canvas;
-    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false });
+    this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1;
+    this.renderer.outputColorSpace = SRGBColorSpace;
     this.scene = new Scene();
     this.scene.background = new Color(657930);
     this.scene.fog = new Fog(657930, 30, 80);
     this.camera = new PerspectiveCamera(45, 1, 0.1, 1e3);
     this.camera.position.set(8, 6, 12);
-    const ambient = new AmbientLight(4210760, 0.5);
+    const ambient = new AmbientLight(4210760, 0.4);
     this.scene.add(ambient);
-    const keyLight = new DirectionalLight(16777215, 1.5);
+    const hemi = new HemisphereLight(8425632, 2105384, 0.3);
+    this.scene.add(hemi);
+    const keyLight = new DirectionalLight(16777215, 2);
     keyLight.position.set(10, 20, 8);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.mapSize.width = 4096;
+    keyLight.shadow.mapSize.height = 4096;
     keyLight.shadow.camera.near = 0.5;
     keyLight.shadow.camera.far = 80;
     keyLight.shadow.camera.left = -15;
     keyLight.shadow.camera.right = 15;
     keyLight.shadow.camera.top = 20;
     keyLight.shadow.camera.bottom = -5;
-    keyLight.shadow.bias = -5e-4;
+    keyLight.shadow.bias = -4e-4;
+    keyLight.shadow.normalBias = 0.02;
+    keyLight.shadow.radius = 2;
     this.scene.add(keyLight);
-    const fillLight = new DirectionalLight(6719658, 0.5);
+    const fillLight = new DirectionalLight(6719658, 0.6);
     fillLight.position.set(-8, 8, -5);
     this.scene.add(fillLight);
-    const rimLight = new DirectionalLight(11189196, 0.3);
+    const rimLight = new DirectionalLight(11189196, 0.4);
     rimLight.position.set(0, 5, -15);
     this.scene.add(rimLight);
+    const topLight = new DirectionalLight(16777215, 0.5);
+    topLight.position.set(0, 25, 0);
+    this.scene.add(topLight);
     this.createVABFloor();
     this.rocketGroup = new Group();
     this.scene.add(this.rocketGroup);
@@ -29332,11 +30544,14 @@ var SpaceCenter3DScene = class {
     this.canvas = document.createElement("canvas");
     this.canvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;";
     container2.appendChild(this.canvas);
-    this.renderer = new WebGLRenderer({ canvas: this.canvas, antialias: true });
+    this.renderer = new WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1;
+    this.renderer.outputColorSpace = SRGBColorSpace;
     this.scene = new Scene();
     const bgCanvas = document.createElement("canvas");
     bgCanvas.width = 2;
@@ -29368,24 +30583,31 @@ var SpaceCenter3DScene = class {
     this.scene.add(stars);
     this.camera = new PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
     this.camera.position.set(40, 35, 40);
-    const ambient = new AmbientLight(4478344, 0.5);
+    const ambient = new AmbientLight(4478344, 0.4);
     this.scene.add(ambient);
-    const sunLight = new DirectionalLight(16772812, 1);
+    const hemi = new HemisphereLight(6719658, 2236979, 0.3);
+    this.scene.add(hemi);
+    const sunLight = new DirectionalLight(16772812, 1.5);
     sunLight.position.set(30, 50, 20);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.mapSize.width = 4096;
+    sunLight.shadow.mapSize.height = 4096;
     sunLight.shadow.camera.near = 1;
     sunLight.shadow.camera.far = 200;
     sunLight.shadow.camera.left = -60;
     sunLight.shadow.camera.right = 60;
     sunLight.shadow.camera.top = 60;
     sunLight.shadow.camera.bottom = -60;
-    sunLight.shadow.bias = -5e-4;
+    sunLight.shadow.bias = -4e-4;
+    sunLight.shadow.normalBias = 0.02;
+    sunLight.shadow.radius = 2;
     this.scene.add(sunLight);
-    const fillLight = new DirectionalLight(4491519, 0.3);
+    const fillLight = new DirectionalLight(4491519, 0.4);
     fillLight.position.set(-20, 10, -20);
     this.scene.add(fillLight);
+    const rimLight = new DirectionalLight(16764074, 0.3);
+    rimLight.position.set(0, 20, -40);
+    this.scene.add(rimLight);
     this.centerGroup = createSpaceCenterScene();
     this.scene.add(this.centerGroup);
     this.centerGroup.traverse((child) => {
