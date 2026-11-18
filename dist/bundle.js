@@ -18178,412 +18178,6 @@ var Scene = class extends Object3D {
     return data;
   }
 };
-var InterleavedBuffer = class {
-  constructor(array, stride) {
-    this.isInterleavedBuffer = true;
-    this.array = array;
-    this.stride = stride;
-    this.count = array !== void 0 ? array.length / stride : 0;
-    this.usage = StaticDrawUsage;
-    this.updateRanges = [];
-    this.version = 0;
-    this.uuid = generateUUID();
-  }
-  onUploadCallback() {
-  }
-  set needsUpdate(value) {
-    if (value === true) this.version++;
-  }
-  setUsage(value) {
-    this.usage = value;
-    return this;
-  }
-  addUpdateRange(start, count) {
-    this.updateRanges.push({ start, count });
-  }
-  clearUpdateRanges() {
-    this.updateRanges.length = 0;
-  }
-  copy(source) {
-    this.array = new source.array.constructor(source.array);
-    this.count = source.count;
-    this.stride = source.stride;
-    this.usage = source.usage;
-    return this;
-  }
-  copyAt(index1, attribute, index2) {
-    index1 *= this.stride;
-    index2 *= attribute.stride;
-    for (let i = 0, l = this.stride; i < l; i++) {
-      this.array[index1 + i] = attribute.array[index2 + i];
-    }
-    return this;
-  }
-  set(value, offset = 0) {
-    this.array.set(value, offset);
-    return this;
-  }
-  clone(data) {
-    if (data.arrayBuffers === void 0) {
-      data.arrayBuffers = {};
-    }
-    if (this.array.buffer._uuid === void 0) {
-      this.array.buffer._uuid = generateUUID();
-    }
-    if (data.arrayBuffers[this.array.buffer._uuid] === void 0) {
-      data.arrayBuffers[this.array.buffer._uuid] = this.array.slice(0).buffer;
-    }
-    const array = new this.array.constructor(data.arrayBuffers[this.array.buffer._uuid]);
-    const ib = new this.constructor(array, this.stride);
-    ib.setUsage(this.usage);
-    return ib;
-  }
-  onUpload(callback) {
-    this.onUploadCallback = callback;
-    return this;
-  }
-  toJSON(data) {
-    if (data.arrayBuffers === void 0) {
-      data.arrayBuffers = {};
-    }
-    if (this.array.buffer._uuid === void 0) {
-      this.array.buffer._uuid = generateUUID();
-    }
-    if (data.arrayBuffers[this.array.buffer._uuid] === void 0) {
-      data.arrayBuffers[this.array.buffer._uuid] = Array.from(new Uint32Array(this.array.buffer));
-    }
-    return {
-      uuid: this.uuid,
-      buffer: this.array.buffer._uuid,
-      type: this.array.constructor.name,
-      stride: this.stride
-    };
-  }
-};
-var _vector$6 = /* @__PURE__ */ new Vector3();
-var InterleavedBufferAttribute = class _InterleavedBufferAttribute {
-  constructor(interleavedBuffer, itemSize, offset, normalized = false) {
-    this.isInterleavedBufferAttribute = true;
-    this.name = "";
-    this.data = interleavedBuffer;
-    this.itemSize = itemSize;
-    this.offset = offset;
-    this.normalized = normalized;
-  }
-  get count() {
-    return this.data.count;
-  }
-  get array() {
-    return this.data.array;
-  }
-  set needsUpdate(value) {
-    this.data.needsUpdate = value;
-  }
-  applyMatrix4(m) {
-    for (let i = 0, l = this.data.count; i < l; i++) {
-      _vector$6.fromBufferAttribute(this, i);
-      _vector$6.applyMatrix4(m);
-      this.setXYZ(i, _vector$6.x, _vector$6.y, _vector$6.z);
-    }
-    return this;
-  }
-  applyNormalMatrix(m) {
-    for (let i = 0, l = this.count; i < l; i++) {
-      _vector$6.fromBufferAttribute(this, i);
-      _vector$6.applyNormalMatrix(m);
-      this.setXYZ(i, _vector$6.x, _vector$6.y, _vector$6.z);
-    }
-    return this;
-  }
-  transformDirection(m) {
-    for (let i = 0, l = this.count; i < l; i++) {
-      _vector$6.fromBufferAttribute(this, i);
-      _vector$6.transformDirection(m);
-      this.setXYZ(i, _vector$6.x, _vector$6.y, _vector$6.z);
-    }
-    return this;
-  }
-  getComponent(index, component) {
-    let value = this.array[index * this.data.stride + this.offset + component];
-    if (this.normalized) value = denormalize(value, this.array);
-    return value;
-  }
-  setComponent(index, component, value) {
-    if (this.normalized) value = normalize(value, this.array);
-    this.data.array[index * this.data.stride + this.offset + component] = value;
-    return this;
-  }
-  setX(index, x) {
-    if (this.normalized) x = normalize(x, this.array);
-    this.data.array[index * this.data.stride + this.offset] = x;
-    return this;
-  }
-  setY(index, y) {
-    if (this.normalized) y = normalize(y, this.array);
-    this.data.array[index * this.data.stride + this.offset + 1] = y;
-    return this;
-  }
-  setZ(index, z) {
-    if (this.normalized) z = normalize(z, this.array);
-    this.data.array[index * this.data.stride + this.offset + 2] = z;
-    return this;
-  }
-  setW(index, w) {
-    if (this.normalized) w = normalize(w, this.array);
-    this.data.array[index * this.data.stride + this.offset + 3] = w;
-    return this;
-  }
-  getX(index) {
-    let x = this.data.array[index * this.data.stride + this.offset];
-    if (this.normalized) x = denormalize(x, this.array);
-    return x;
-  }
-  getY(index) {
-    let y = this.data.array[index * this.data.stride + this.offset + 1];
-    if (this.normalized) y = denormalize(y, this.array);
-    return y;
-  }
-  getZ(index) {
-    let z = this.data.array[index * this.data.stride + this.offset + 2];
-    if (this.normalized) z = denormalize(z, this.array);
-    return z;
-  }
-  getW(index) {
-    let w = this.data.array[index * this.data.stride + this.offset + 3];
-    if (this.normalized) w = denormalize(w, this.array);
-    return w;
-  }
-  setXY(index, x, y) {
-    index = index * this.data.stride + this.offset;
-    if (this.normalized) {
-      x = normalize(x, this.array);
-      y = normalize(y, this.array);
-    }
-    this.data.array[index + 0] = x;
-    this.data.array[index + 1] = y;
-    return this;
-  }
-  setXYZ(index, x, y, z) {
-    index = index * this.data.stride + this.offset;
-    if (this.normalized) {
-      x = normalize(x, this.array);
-      y = normalize(y, this.array);
-      z = normalize(z, this.array);
-    }
-    this.data.array[index + 0] = x;
-    this.data.array[index + 1] = y;
-    this.data.array[index + 2] = z;
-    return this;
-  }
-  setXYZW(index, x, y, z, w) {
-    index = index * this.data.stride + this.offset;
-    if (this.normalized) {
-      x = normalize(x, this.array);
-      y = normalize(y, this.array);
-      z = normalize(z, this.array);
-      w = normalize(w, this.array);
-    }
-    this.data.array[index + 0] = x;
-    this.data.array[index + 1] = y;
-    this.data.array[index + 2] = z;
-    this.data.array[index + 3] = w;
-    return this;
-  }
-  clone(data) {
-    if (data === void 0) {
-      console.log("THREE.InterleavedBufferAttribute.clone(): Cloning an interleaved buffer attribute will de-interleave buffer data.");
-      const array = [];
-      for (let i = 0; i < this.count; i++) {
-        const index = i * this.data.stride + this.offset;
-        for (let j = 0; j < this.itemSize; j++) {
-          array.push(this.data.array[index + j]);
-        }
-      }
-      return new BufferAttribute(new this.array.constructor(array), this.itemSize, this.normalized);
-    } else {
-      if (data.interleavedBuffers === void 0) {
-        data.interleavedBuffers = {};
-      }
-      if (data.interleavedBuffers[this.data.uuid] === void 0) {
-        data.interleavedBuffers[this.data.uuid] = this.data.clone(data);
-      }
-      return new _InterleavedBufferAttribute(data.interleavedBuffers[this.data.uuid], this.itemSize, this.offset, this.normalized);
-    }
-  }
-  toJSON(data) {
-    if (data === void 0) {
-      console.log("THREE.InterleavedBufferAttribute.toJSON(): Serializing an interleaved buffer attribute will de-interleave buffer data.");
-      const array = [];
-      for (let i = 0; i < this.count; i++) {
-        const index = i * this.data.stride + this.offset;
-        for (let j = 0; j < this.itemSize; j++) {
-          array.push(this.data.array[index + j]);
-        }
-      }
-      return {
-        itemSize: this.itemSize,
-        type: this.array.constructor.name,
-        array,
-        normalized: this.normalized
-      };
-    } else {
-      if (data.interleavedBuffers === void 0) {
-        data.interleavedBuffers = {};
-      }
-      if (data.interleavedBuffers[this.data.uuid] === void 0) {
-        data.interleavedBuffers[this.data.uuid] = this.data.toJSON(data);
-      }
-      return {
-        isInterleavedBufferAttribute: true,
-        itemSize: this.itemSize,
-        data: this.data.uuid,
-        offset: this.offset,
-        normalized: this.normalized
-      };
-    }
-  }
-};
-var SpriteMaterial = class extends Material {
-  static get type() {
-    return "SpriteMaterial";
-  }
-  constructor(parameters) {
-    super();
-    this.isSpriteMaterial = true;
-    this.color = new Color(16777215);
-    this.map = null;
-    this.alphaMap = null;
-    this.rotation = 0;
-    this.sizeAttenuation = true;
-    this.transparent = true;
-    this.fog = true;
-    this.setValues(parameters);
-  }
-  copy(source) {
-    super.copy(source);
-    this.color.copy(source.color);
-    this.map = source.map;
-    this.alphaMap = source.alphaMap;
-    this.rotation = source.rotation;
-    this.sizeAttenuation = source.sizeAttenuation;
-    this.fog = source.fog;
-    return this;
-  }
-};
-var _geometry;
-var _intersectPoint = /* @__PURE__ */ new Vector3();
-var _worldScale = /* @__PURE__ */ new Vector3();
-var _mvPosition = /* @__PURE__ */ new Vector3();
-var _alignedPosition = /* @__PURE__ */ new Vector2();
-var _rotatedPosition = /* @__PURE__ */ new Vector2();
-var _viewWorldMatrix = /* @__PURE__ */ new Matrix4();
-var _vA = /* @__PURE__ */ new Vector3();
-var _vB = /* @__PURE__ */ new Vector3();
-var _vC = /* @__PURE__ */ new Vector3();
-var _uvA = /* @__PURE__ */ new Vector2();
-var _uvB = /* @__PURE__ */ new Vector2();
-var _uvC = /* @__PURE__ */ new Vector2();
-var Sprite = class extends Object3D {
-  constructor(material = new SpriteMaterial()) {
-    super();
-    this.isSprite = true;
-    this.type = "Sprite";
-    if (_geometry === void 0) {
-      _geometry = new BufferGeometry();
-      const float32Array = new Float32Array([
-        -0.5,
-        -0.5,
-        0,
-        0,
-        0,
-        0.5,
-        -0.5,
-        0,
-        1,
-        0,
-        0.5,
-        0.5,
-        0,
-        1,
-        1,
-        -0.5,
-        0.5,
-        0,
-        0,
-        1
-      ]);
-      const interleavedBuffer = new InterleavedBuffer(float32Array, 5);
-      _geometry.setIndex([0, 1, 2, 0, 2, 3]);
-      _geometry.setAttribute("position", new InterleavedBufferAttribute(interleavedBuffer, 3, 0, false));
-      _geometry.setAttribute("uv", new InterleavedBufferAttribute(interleavedBuffer, 2, 3, false));
-    }
-    this.geometry = _geometry;
-    this.material = material;
-    this.center = new Vector2(0.5, 0.5);
-  }
-  raycast(raycaster, intersects2) {
-    if (raycaster.camera === null) {
-      console.error('THREE.Sprite: "Raycaster.camera" needs to be set in order to raycast against sprites.');
-    }
-    _worldScale.setFromMatrixScale(this.matrixWorld);
-    _viewWorldMatrix.copy(raycaster.camera.matrixWorld);
-    this.modelViewMatrix.multiplyMatrices(raycaster.camera.matrixWorldInverse, this.matrixWorld);
-    _mvPosition.setFromMatrixPosition(this.modelViewMatrix);
-    if (raycaster.camera.isPerspectiveCamera && this.material.sizeAttenuation === false) {
-      _worldScale.multiplyScalar(-_mvPosition.z);
-    }
-    const rotation = this.material.rotation;
-    let sin, cos;
-    if (rotation !== 0) {
-      cos = Math.cos(rotation);
-      sin = Math.sin(rotation);
-    }
-    const center = this.center;
-    transformVertex(_vA.set(-0.5, -0.5, 0), _mvPosition, center, _worldScale, sin, cos);
-    transformVertex(_vB.set(0.5, -0.5, 0), _mvPosition, center, _worldScale, sin, cos);
-    transformVertex(_vC.set(0.5, 0.5, 0), _mvPosition, center, _worldScale, sin, cos);
-    _uvA.set(0, 0);
-    _uvB.set(1, 0);
-    _uvC.set(1, 1);
-    let intersect2 = raycaster.ray.intersectTriangle(_vA, _vB, _vC, false, _intersectPoint);
-    if (intersect2 === null) {
-      transformVertex(_vB.set(-0.5, 0.5, 0), _mvPosition, center, _worldScale, sin, cos);
-      _uvB.set(0, 1);
-      intersect2 = raycaster.ray.intersectTriangle(_vA, _vC, _vB, false, _intersectPoint);
-      if (intersect2 === null) {
-        return;
-      }
-    }
-    const distance = raycaster.ray.origin.distanceTo(_intersectPoint);
-    if (distance < raycaster.near || distance > raycaster.far) return;
-    intersects2.push({
-      distance,
-      point: _intersectPoint.clone(),
-      uv: Triangle.getInterpolation(_intersectPoint, _vA, _vB, _vC, _uvA, _uvB, _uvC, new Vector2()),
-      face: null,
-      object: this
-    });
-  }
-  copy(source, recursive) {
-    super.copy(source, recursive);
-    if (source.center !== void 0) this.center.copy(source.center);
-    this.material = source.material;
-    return this;
-  }
-};
-function transformVertex(vertexPosition, mvPosition, center, scale, sin, cos) {
-  _alignedPosition.subVectors(vertexPosition, center).addScalar(0.5).multiply(scale);
-  if (sin !== void 0) {
-    _rotatedPosition.x = cos * _alignedPosition.x - sin * _alignedPosition.y;
-    _rotatedPosition.y = sin * _alignedPosition.x + cos * _alignedPosition.y;
-  } else {
-    _rotatedPosition.copy(_alignedPosition);
-  }
-  vertexPosition.copy(mvPosition);
-  vertexPosition.x += _rotatedPosition.x;
-  vertexPosition.y += _rotatedPosition.y;
-  vertexPosition.applyMatrix4(_viewWorldMatrix);
-}
 var LineBasicMaterial = class extends Material {
   static get type() {
     return "LineBasicMaterial";
@@ -20010,24 +19604,6 @@ var LatheGeometry = class _LatheGeometry extends BufferGeometry {
     return new _LatheGeometry(data.points, data.segments, data.phiStart, data.phiLength);
   }
 };
-var CapsuleGeometry = class _CapsuleGeometry extends LatheGeometry {
-  constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
-    const path = new Path();
-    path.absarc(0, -length / 2, radius, Math.PI * 1.5, 0);
-    path.absarc(0, length / 2, radius, 0, Math.PI * 0.5);
-    super(path.getPoints(capSegments), radialSegments);
-    this.type = "CapsuleGeometry";
-    this.parameters = {
-      radius,
-      length,
-      capSegments,
-      radialSegments
-    };
-  }
-  static fromJSON(data) {
-    return new _CapsuleGeometry(data.radius, data.length, data.capSegments, data.radialSegments);
-  }
-};
 var CircleGeometry = class _CircleGeometry extends BufferGeometry {
   constructor(radius = 1, segments = 32, thetaStart = 0, thetaLength = Math.PI * 2) {
     super();
@@ -21373,6 +20949,103 @@ var TorusGeometry = class _TorusGeometry extends BufferGeometry {
     return new _TorusGeometry(data.radius, data.tube, data.radialSegments, data.tubularSegments, data.arc);
   }
 };
+var TubeGeometry = class _TubeGeometry extends BufferGeometry {
+  constructor(path = new QuadraticBezierCurve3(new Vector3(-1, -1, 0), new Vector3(-1, 1, 0), new Vector3(1, 1, 0)), tubularSegments = 64, radius = 1, radialSegments = 8, closed = false) {
+    super();
+    this.type = "TubeGeometry";
+    this.parameters = {
+      path,
+      tubularSegments,
+      radius,
+      radialSegments,
+      closed
+    };
+    const frames = path.computeFrenetFrames(tubularSegments, closed);
+    this.tangents = frames.tangents;
+    this.normals = frames.normals;
+    this.binormals = frames.binormals;
+    const vertex2 = new Vector3();
+    const normal = new Vector3();
+    const uv = new Vector2();
+    let P = new Vector3();
+    const vertices = [];
+    const normals = [];
+    const uvs = [];
+    const indices = [];
+    generateBufferData();
+    this.setIndex(indices);
+    this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+    this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    function generateBufferData() {
+      for (let i = 0; i < tubularSegments; i++) {
+        generateSegment(i);
+      }
+      generateSegment(closed === false ? tubularSegments : 0);
+      generateUVs();
+      generateIndices();
+    }
+    function generateSegment(i) {
+      P = path.getPointAt(i / tubularSegments, P);
+      const N = frames.normals[i];
+      const B = frames.binormals[i];
+      for (let j = 0; j <= radialSegments; j++) {
+        const v = j / radialSegments * Math.PI * 2;
+        const sin = Math.sin(v);
+        const cos = -Math.cos(v);
+        normal.x = cos * N.x + sin * B.x;
+        normal.y = cos * N.y + sin * B.y;
+        normal.z = cos * N.z + sin * B.z;
+        normal.normalize();
+        normals.push(normal.x, normal.y, normal.z);
+        vertex2.x = P.x + radius * normal.x;
+        vertex2.y = P.y + radius * normal.y;
+        vertex2.z = P.z + radius * normal.z;
+        vertices.push(vertex2.x, vertex2.y, vertex2.z);
+      }
+    }
+    function generateIndices() {
+      for (let j = 1; j <= tubularSegments; j++) {
+        for (let i = 1; i <= radialSegments; i++) {
+          const a = (radialSegments + 1) * (j - 1) + (i - 1);
+          const b = (radialSegments + 1) * j + (i - 1);
+          const c = (radialSegments + 1) * j + i;
+          const d = (radialSegments + 1) * (j - 1) + i;
+          indices.push(a, b, d);
+          indices.push(b, c, d);
+        }
+      }
+    }
+    function generateUVs() {
+      for (let i = 0; i <= tubularSegments; i++) {
+        for (let j = 0; j <= radialSegments; j++) {
+          uv.x = i / tubularSegments;
+          uv.y = j / radialSegments;
+          uvs.push(uv.x, uv.y);
+        }
+      }
+    }
+  }
+  copy(source) {
+    super.copy(source);
+    this.parameters = Object.assign({}, source.parameters);
+    return this;
+  }
+  toJSON() {
+    const data = super.toJSON();
+    data.path = this.parameters.path.toJSON();
+    return data;
+  }
+  static fromJSON(data) {
+    return new _TubeGeometry(
+      new Curves[data.path.type]().fromJSON(data.path),
+      data.tubularSegments,
+      data.radius,
+      data.radialSegments,
+      data.closed
+    );
+  }
+};
 var MeshStandardMaterial = class extends Material {
   static get type() {
     return "MeshStandardMaterial";
@@ -21442,80 +21115,6 @@ var MeshStandardMaterial = class extends Material {
     this.envMap = source.envMap;
     this.envMapRotation.copy(source.envMapRotation);
     this.envMapIntensity = source.envMapIntensity;
-    this.wireframe = source.wireframe;
-    this.wireframeLinewidth = source.wireframeLinewidth;
-    this.wireframeLinecap = source.wireframeLinecap;
-    this.wireframeLinejoin = source.wireframeLinejoin;
-    this.flatShading = source.flatShading;
-    this.fog = source.fog;
-    return this;
-  }
-};
-var MeshLambertMaterial = class extends Material {
-  static get type() {
-    return "MeshLambertMaterial";
-  }
-  constructor(parameters) {
-    super();
-    this.isMeshLambertMaterial = true;
-    this.color = new Color(16777215);
-    this.map = null;
-    this.lightMap = null;
-    this.lightMapIntensity = 1;
-    this.aoMap = null;
-    this.aoMapIntensity = 1;
-    this.emissive = new Color(0);
-    this.emissiveIntensity = 1;
-    this.emissiveMap = null;
-    this.bumpMap = null;
-    this.bumpScale = 1;
-    this.normalMap = null;
-    this.normalMapType = TangentSpaceNormalMap;
-    this.normalScale = new Vector2(1, 1);
-    this.displacementMap = null;
-    this.displacementScale = 1;
-    this.displacementBias = 0;
-    this.specularMap = null;
-    this.alphaMap = null;
-    this.envMap = null;
-    this.envMapRotation = new Euler();
-    this.combine = MultiplyOperation;
-    this.reflectivity = 1;
-    this.refractionRatio = 0.98;
-    this.wireframe = false;
-    this.wireframeLinewidth = 1;
-    this.wireframeLinecap = "round";
-    this.wireframeLinejoin = "round";
-    this.flatShading = false;
-    this.fog = true;
-    this.setValues(parameters);
-  }
-  copy(source) {
-    super.copy(source);
-    this.color.copy(source.color);
-    this.map = source.map;
-    this.lightMap = source.lightMap;
-    this.lightMapIntensity = source.lightMapIntensity;
-    this.aoMap = source.aoMap;
-    this.aoMapIntensity = source.aoMapIntensity;
-    this.emissive.copy(source.emissive);
-    this.emissiveMap = source.emissiveMap;
-    this.emissiveIntensity = source.emissiveIntensity;
-    this.bumpMap = source.bumpMap;
-    this.bumpScale = source.bumpScale;
-    this.normalMap = source.normalMap;
-    this.normalMapType = source.normalMapType;
-    this.normalScale.copy(source.normalScale);
-    this.displacementMap = source.displacementMap;
-    this.displacementScale = source.displacementScale;
-    this.displacementBias = source.displacementBias;
-    this.specularMap = source.specularMap;
-    this.alphaMap = source.alphaMap;
-    this.envMap = source.envMap;
-    this.envMapRotation.copy(source.envMapRotation);
-    this.combine = source.combine;
-    this.reflectivity = source.reflectivity;
-    this.refractionRatio = source.refractionRatio;
     this.wireframe = source.wireframe;
     this.wireframeLinewidth = source.wireframeLinewidth;
     this.wireframeLinecap = source.wireframeLinecap;
@@ -23327,2654 +22926,1621 @@ var NBodySystem = class {
 };
 
 // src/game/render.ts
-var HIGH_QUALITY_TEXTURE_SIZE = 4096;
-var ATMOSPHERE_VERT = `
-  varying vec3 vWorldNormal;
-  varying vec3 vWorldPos;
-  void main() {
-    vWorldNormal = normalize(mat3(modelMatrix) * normal);
-    vec4 wp = modelMatrix * vec4(position, 1.0);
-    vWorldPos = wp.xyz;
-    gl_Position = projectionMatrix * viewMatrix * wp;
-  }
-`;
-var ATMOSPHERE_FRAG = `
-  uniform vec3 uSunPosition;
-  uniform vec3 uRayleighColor;
-  uniform vec3 uMieColor;
-  uniform vec3 uSunColor;
-  uniform float uIntensity;
-  uniform float uAtmThickness;
-  varying vec3 vWorldNormal;
-  varying vec3 vWorldPos;
-
-  void main() {
-    vec3 n = normalize(vWorldNormal);
-    vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    vec3 sunDir = normalize(uSunPosition - vWorldPos);
-
-    // Fresnel limb glow (abs handles BackSide rendering)
-    float ndv = abs(dot(n, viewDir));
-    float fresnel = pow(1.0 - ndv, 3.0);
-
-    // Atmosphere only visible on lit side
-    float sunFactor = smoothstep(-0.15, 0.35, dot(n, sunDir));
-
-    // Rayleigh phase function (symmetric, wavelength-independent approx)
-    float cosTheta = dot(viewDir, sunDir);
-    float rayleighPhase = 0.0596831 * (1.0 + cosTheta * cosTheta);
-
-    // Mie phase function (Henyey-Greenstein, forward-peaked)
-    float g = 0.76;
-    float miePhase = (1.0 - g*g) / (4.0 * 3.14159265 * pow(1.0 + g*g - 2.0*g*cosTheta, 1.5));
-
-    // Optical depth approximation (thicker at limb)
-    float depth = pow(fresnel, 0.5) * uAtmThickness;
-
-    // Rayleigh scattering (blue sky tint)
-    vec3 rayleigh = uRayleighColor * rayleighPhase * depth;
-
-    // Mie scattering (bright halo near sun direction)
-    vec3 mie = uMieColor * miePhase * depth * 0.4;
-
-    // Sunset/twilight color shift at terminator
-    float terminator = dot(n, sunDir);
-    float twilight = smoothstep(0.35, 0.0, terminator) * smoothstep(-0.2, 0.0, terminator);
-    vec3 twilightColor = vec3(1.0, 0.45, 0.15);
-    vec3 color = rayleigh + mie;
-    color = mix(color, twilightColor * (rayleighPhase + miePhase) * depth * 2.0, twilight);
-
-    // Apply sun color tint
-    color *= uSunColor;
-
-    float alpha = (fresnel * uIntensity * 0.7 + depth * 0.15) * sunFactor;
-    alpha = clamp(alpha, 0.0, 0.95);
-    gl_FragColor = vec4(color, alpha);
-  }
-`;
-var STARFIELD_VERT = `
-  attribute float starSize;
-  attribute vec3 starColor;
-  varying vec3 vColor;
-  void main() {
-    vColor = starColor;
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = starSize;
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-var STARFIELD_FRAG = `
-  varying vec3 vColor;
-  void main() {
-    vec2 uv = gl_PointCoord - 0.5;
-    float dist = length(uv);
-    if (dist > 0.5) discard;
-    float alpha = smoothstep(0.5, 0.05, dist);
-    gl_FragColor = vec4(vColor, alpha);
-  }
-`;
-function createTextSprite(text, color = "#ffffff", fontSize = 36) {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  canvas.width = 512;
-  canvas.height = 128;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-  ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-  ctx.font = `bold ${fontSize}px "Microsoft YaHei", "PingFang SC", "Heiti SC", sans-serif`;
-  ctx.fillStyle = color;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  const material = new SpriteMaterial({ map: texture, depthTest: true, depthWrite: false, transparent: true });
-  const sprite = new Sprite(material);
-  sprite.scale.set(8, 2, 1);
-  return sprite;
-}
-function generateGroundTexture(type) {
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const imgData = ctx.createImageData(size, size);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const n1 = TextureFactory["fractalNoise"](x / size * 8, y / size * 8, 42, 5);
-      const n2 = TextureFactory["fractalNoise"](x / size * 32, y / size * 32, 99, 3) * 0.3;
-      const noise = n1 + n2;
-      let r, g, b;
-      if (type === "concrete") {
-        const v = 130 + noise * 50;
-        r = v;
-        g = v + 5;
-        b = v + 8;
-        const crack = TextureFactory["ridgedNoise"](x / size * 16, y / size * 16, 77, 4);
-        if (crack > 0.75) {
-          r *= 0.5;
-          g *= 0.5;
-          b *= 0.5;
-        }
-      } else if (type === "grass") {
-        const v = 60 + noise * 40;
-        r = v * 0.5;
-        g = v + 20;
-        b = v * 0.3;
-        if (noise < 0.35) {
-          r += 30;
-          g -= 10;
-          b -= 5;
-        }
-      } else {
-        const v = 50 + noise * 25;
-        r = v;
-        g = v;
-        b = v + 3;
-      }
-      imgData.data[idx] = Math.max(0, Math.min(255, r));
-      imgData.data[idx + 1] = Math.max(0, Math.min(255, g));
-      imgData.data[idx + 2] = Math.max(0, Math.min(255, b));
-      imgData.data[idx + 3] = 255;
-    }
-  }
-  ctx.putImageData(imgData, 0, 0);
-  const tex = new CanvasTexture(canvas);
-  tex.wrapS = RepeatWrapping;
-  tex.wrapT = RepeatWrapping;
-  tex.colorSpace = SRGBColorSpace;
-  return tex;
-}
-var TextureFactory = class {
-  static {
-    this.canvas = null;
-  }
+var TextureFactory = class _TextureFactory {
   static {
     this.quality = "high";
   }
-  static setQuality(q) {
-    this.quality = q;
+  static setQuality(quality) {
+    _TextureFactory.quality = quality;
   }
-  static getCanvas(size) {
-    if (!this.canvas) {
-      this.canvas = document.createElement("canvas");
-    }
-    this.canvas.width = size;
-    this.canvas.height = size;
-    return this.canvas;
+  static getQuality() {
+    return _TextureFactory.quality;
   }
-  static getTextureSize() {
-    return this.quality === "high" ? HIGH_QUALITY_TEXTURE_SIZE : QUALITY_CONFIG[this.quality].textureSize;
+  static getResolution() {
+    return _TextureFactory.quality === "low" ? 512 : _TextureFactory.quality === "medium" ? 1024 : 4096;
   }
-  // --- Enhanced noise functions ---
-  static hash(x, y, seed) {
-    const n = Math.sin(x * 127.1 + y * 311.7 + seed * 43.7) * 43758.5453;
-    return n - Math.floor(n);
+  // --- Value noise ---
+  static hash(x, y) {
+    let h = x * 374761393 + y * 668265263 | 0;
+    h = (h ^ h >> 13) * 1274126177 | 0;
+    return ((h ^ h >> 16) >>> 0) / 4294967295;
   }
-  static smoothNoise(x, y, seed) {
+  static smoothNoise(x, y) {
     const ix = Math.floor(x), iy = Math.floor(y);
     const fx = x - ix, fy = y - iy;
-    const a = this.hash(ix, iy, seed);
-    const b = this.hash(ix + 1, iy, seed);
-    const c = this.hash(ix, iy + 1, seed);
-    const d = this.hash(ix + 1, iy + 1, seed);
+    const a = _TextureFactory.hash(ix, iy);
+    const b = _TextureFactory.hash(ix + 1, iy);
+    const c = _TextureFactory.hash(ix, iy + 1);
+    const d = _TextureFactory.hash(ix + 1, iy + 1);
     const u = fx * fx * (3 - 2 * fx);
     const v = fy * fy * (3 - 2 * fy);
     return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
   }
-  // Fractal noise with up to 14 octaves for KSP-level detail
-  static fractalNoise(x, y, seed, octaves) {
-    let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
+  static fbm(x, y, octaves, persistence = 0.5, lacunarity = 2) {
+    let total = 0, amp = 1, freq = 1, maxVal = 0;
     for (let i = 0; i < octaves; i++) {
-      value += this.smoothNoise(x * frequency, y * frequency, seed + i * 17.3) * amplitude;
-      maxValue += amplitude;
-      amplitude *= 0.5;
-      frequency *= 2;
+      total += _TextureFactory.smoothNoise(x * freq, y * freq) * amp;
+      maxVal += amp;
+      amp *= persistence;
+      freq *= lacunarity;
     }
-    return value / maxValue;
+    return total / maxVal;
   }
-  // Ridged noise for mountains, cracks, and river channels
-  static ridgedNoise(x, y, seed, octaves) {
-    let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
-    for (let i = 0; i < octaves; i++) {
-      let n = 1 - Math.abs(this.smoothNoise(x * frequency, y * frequency, seed + i * 17.3) * 2 - 1);
-      n *= n;
-      value += n * amplitude;
-      maxValue += amplitude;
-      amplitude *= 0.5;
-      frequency *= 2;
-    }
-    return value / maxValue;
-  }
-  // Domain-warped noise for organic patterns (gas giants, lava)
-  static warpedNoise(x, y, seed, octaves) {
-    const wx = this.fractalNoise(x + 10.5, y + 5.2, seed + 50, 4) * 2;
-    const wy = this.fractalNoise(x + 3.7, y + 8.1, seed + 60, 4) * 2;
-    return this.fractalNoise(x + wx, y + wy, seed, octaves);
-  }
-  // Latitude-aware UV mapping to reduce pole distortion
-  static sphericalUV(x, y, size) {
-    const u = x / size * 8;
-    const v = y / size * 4;
-    return { u, v };
-  }
-  // Generate crater data (UV-space positions, radii, ages)
-  static generateCraterData(seed, count) {
-    const craters = [];
-    for (let i = 0; i < count; i++) {
-      craters.push({
-        x: this.hash(i * 3 + 1, 7, seed),
-        y: this.hash(i * 3 + 2, 13, seed),
-        r: 4e-3 + this.hash(i * 3 + 3, 19, seed) * 0.025,
-        age: this.hash(i * 3 + 4, 23, seed)
-      });
-    }
-    return craters;
-  }
-  // Draw circular craters on canvas (ejecta, floor, rim, shadow, rays)
-  static drawCraters(ctx, size, craters) {
-    for (const c of craters) {
-      const cx = c.x * size;
-      const cy = c.y * size;
-      const cr = c.r * size;
-      const fresh = 1 - c.age;
-      const gradEjecta = ctx.createRadialGradient(cx, cy, cr * 0.6, cx, cy, cr * 1.8);
-      gradEjecta.addColorStop(0, `rgba(255,255,255,0)`);
-      gradEjecta.addColorStop(0.6, `rgba(255,250,240,${0.04 + fresh * 0.08})`);
-      gradEjecta.addColorStop(1, `rgba(255,255,255,0)`);
-      ctx.fillStyle = gradEjecta;
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr * 1.8, 0, Math.PI * 2);
-      ctx.fill();
-      const gradFloor = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr * 0.85);
-      gradFloor.addColorStop(0, `rgba(0,0,0,${0.35 + fresh * 0.12})`);
-      gradFloor.addColorStop(0.6, `rgba(0,0,0,${0.18 + fresh * 0.06})`);
-      gradFloor.addColorStop(1, `rgba(0,0,0,0)`);
-      ctx.fillStyle = gradFloor;
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr * 0.85, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = `rgba(255,250,235,${0.12 + fresh * 0.15})`;
-      ctx.lineWidth = Math.max(1, cr * 0.08);
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr * 0.78, 0, Math.PI * 2);
-      ctx.stroke();
-      const gradShadow = ctx.createRadialGradient(
-        cx - cr * 0.2,
-        cy - cr * 0.2,
-        0,
-        cx - cr * 0.2,
-        cy - cr * 0.2,
-        cr * 0.7
-      );
-      gradShadow.addColorStop(0, `rgba(0,0,0,${0.22 + fresh * 0.12})`);
-      gradShadow.addColorStop(1, `rgba(0,0,0,0)`);
-      ctx.fillStyle = gradShadow;
-      ctx.beginPath();
-      ctx.arc(cx, cy, cr * 0.7, 0, Math.PI * 2);
-      ctx.fill();
-      if (fresh > 0.5 && cr > size * 0.012) {
-        ctx.fillStyle = `rgba(255,250,235,${0.08 + fresh * 0.06})`;
-        ctx.beginPath();
-        ctx.arc(cx, cy, cr * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (fresh > 0.7 && cr > size * 0.01) {
-        const rayCount = 6 + Math.floor(fresh * 8);
-        ctx.strokeStyle = `rgba(255,250,240,${0.05 + fresh * 0.05})`;
-        ctx.lineWidth = Math.max(1, cr * 0.05);
-        for (let r = 0; r < rayCount; r++) {
-          const angle = r / rayCount * Math.PI * 2 + c.age * 3;
-          const rayLen = cr * (2.5 + fresh * 2.5);
-          ctx.beginPath();
-          ctx.moveTo(cx + Math.cos(angle) * cr * 0.8, cy + Math.sin(angle) * cr * 0.8);
-          ctx.lineTo(cx + Math.cos(angle) * rayLen, cy + Math.sin(angle) * rayLen);
-          ctx.stroke();
-        }
-      }
+  // --- Planet color palettes ---
+  static getPalette(textureType) {
+    switch (textureType) {
+      case "ocean":
+        return { land: [0.3, 0.55, 0.25], sea: [0.05, 0.15, 0.45], mountain: [0.5, 0.4, 0.3], polar: [0.9, 0.92, 0.95] };
+      case "rock":
+        return { land: [0.5, 0.4, 0.3], sea: [0.2, 0.15, 0.1], mountain: [0.35, 0.25, 0.2], polar: [0.7, 0.65, 0.6] };
+      case "lava":
+        return { land: [0.4, 0.1, 0.05], sea: [0.8, 0.3, 0.05], mountain: [0.2, 0.05, 0.02], polar: [0.3, 0.1, 0.08] };
+      case "ice":
+        return { land: [0.7, 0.8, 0.85], sea: [0.2, 0.4, 0.6], mountain: [0.8, 0.85, 0.9], polar: [0.95, 0.97, 1] };
+      default:
+        return { land: [0.5, 0.45, 0.35], sea: [0.15, 0.2, 0.25], mountain: [0.4, 0.3, 0.25], polar: [0.8, 0.8, 0.85] };
     }
   }
-  static generateTexture(data) {
-    const size = this.getTextureSize();
-    const canvas = this.getCanvas(size);
+  static generatePlanetTexture(data) {
+    const size = _TextureFactory.getResolution();
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size / 2;
     const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const color1 = new Color(data.color);
-    const color2 = new Color(data.color2);
-    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const { u, v } = this.sphericalUV(x, y, size);
-        const latFactor = Math.sin(y / size * Math.PI);
+    const imgData = ctx.createImageData(canvas.width, canvas.height);
+    const d = imgData.data;
+    const bumpCanvas = document.createElement("canvas");
+    bumpCanvas.width = size;
+    bumpCanvas.height = size / 2;
+    const bctx = bumpCanvas.getContext("2d");
+    const bumpData = bctx.createImageData(bumpCanvas.width, bumpCanvas.height);
+    const bd = bumpData.data;
+    const metalCanvas = document.createElement("canvas");
+    metalCanvas.width = size;
+    metalCanvas.height = size / 2;
+    const mctx = metalCanvas.getContext("2d");
+    const metalData = mctx.createImageData(metalCanvas.width, metalCanvas.height);
+    const md = metalData.data;
+    const palette = _TextureFactory.getPalette(data.textureType || "rock");
+    const octaves = _TextureFactory.quality === "high" ? 12 : _TextureFactory.quality === "medium" ? 8 : 5;
+    const w = canvas.width, h = canvas.height;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const u = x / w, v = y / h;
+        const lon = u * Math.PI * 2, lat = (v - 0.5) * Math.PI;
+        const sx = Math.cos(lat) * Math.cos(lon);
+        const sy = Math.cos(lat) * Math.sin(lon);
+        const sz = Math.sin(lat);
         let r, g, b;
-        switch (data.textureType) {
-          case "star": {
-            const cx = size / 2, cy = size / 2;
-            const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / (size / 2);
-            const n = this.fractalNoise(u, v, seed, 12);
-            const granule = this.fractalNoise(u * 16, v * 16, seed + 10, 6);
-            const granuleFine = this.fractalNoise(u * 40, v * 40, seed + 15, 4) * 0.15;
-            const flare = this.ridgedNoise(u * 3, v * 3, seed + 20, 5);
-            const flareDetail = this.fractalNoise(u * 10, v * 10, seed + 25, 4) * 0.3;
-            const limb = Math.max(0, 1 - dist * 1.2);
-            const t = limb * (0.5 + n * 0.3 + granule * 0.15 + granuleFine);
-            const flareBoost = flare > 0.65 ? (flare - 0.65) * 3.5 : 0;
-            const flareDetailBoost = flareDetail > 0.6 ? (flareDetail - 0.6) * 2 : 0;
-            r = color1.r * 255 * t + 255 * (1 - t) * 0.35 + granule * 25 + (flareBoost + flareDetailBoost) * 90;
-            g = color1.g * 255 * t + 200 * (1 - t) * 0.25 + granule * 15 + (flareBoost + flareDetailBoost) * 45;
-            b = color1.b * 255 * t + 80 * (1 - t) * 0.08 + granule * 5 + (flareBoost + flareDetailBoost) * 12;
-            break;
-          }
-          case "gas": {
-            const isIceGiant = data.type === "ice-giant";
-            const bandFreq = isIceGiant ? 10 + Math.sin(seed) * 3 : 18 + Math.sin(seed) * 5;
-            const warpNoise = this.warpedNoise(u * 2, v * 0.4, seed, 6);
-            const band = Math.sin(v * bandFreq + warpNoise * 7) * 0.5 + 0.5;
-            const turb = this.fractalNoise(u * 6, v * 12, seed, 10) * 0.35;
-            const turbDetail = this.fractalNoise(u * 22, v * 32, seed + 15, 6) * 0.12;
-            const turbFine = this.fractalNoise(u * 50, v * 60, seed + 35, 4) * 0.05;
-            const vortex = this.ridgedNoise(u * 5, v * 7, seed + 5, 5) * 0.18;
-            const spotX = 0.3 + this.smoothNoise(seed, seed, seed) * 0.4;
-            const spotY = 0.4 + this.smoothNoise(seed + 1, seed + 1, seed) * 0.2;
-            const spotDist = Math.sqrt((u / 8 - spotX) ** 2 + (v / 4 - spotY) ** 2);
-            const spotSwirl = this.fractalNoise(u * 12, v * 8, seed + 77, 5);
-            const spot = isIceGiant ? 0 : spotDist < 0.1 ? (1 - spotDist / 0.1) * (0.3 + spotSwirl * 0.18) : 0;
-            const storm = this.smoothNoise(u * 10, v * 5, seed + 7) > 0.9 ? 0.12 : 0;
-            const storm2 = this.ridgedNoise(u * 15, v * 8, seed + 33, 4) > 0.6 ? 0.08 : 0;
-            const eddy = this.fractalNoise(u * 30, v * 20, seed + 44, 3) > 0.7 ? 0.06 : 0;
-            const t = Math.max(0, Math.min(1, band + turb + turbDetail + turbFine + vortex + storm + storm2 + eddy + spot));
-            const poleShift = 1 - Math.pow(Math.abs(y / size - 0.5) * 2, 3) * 0.15;
-            let polarVortex = 0;
-            if (isIceGiant) {
-              const polarFactor = Math.abs(y / size - 0.5) * 2;
-              if (polarFactor > 0.85) {
-                const vortexNoise = this.fractalNoise(u * 8, v * 8, seed + 200, 4);
-                polarVortex = vortexNoise > 0.6 ? (vortexNoise - 0.6) * 0.4 : 0;
-              }
-            }
-            const baseR = isIceGiant ? 85 / 255 : color1.r;
-            const baseG = isIceGiant ? 187 / 255 : color1.g;
-            const baseB = isIceGiant ? 221 / 255 : color1.b;
-            r = (baseR * 255 * (1 - t) + color2.r * 255 * t) * (0.8 + latFactor * 0.2) * poleShift * (1 - polarVortex);
-            g = (baseG * 255 * (1 - t) + color2.g * 255 * t) * (0.8 + latFactor * 0.2) * poleShift * (1 - polarVortex);
-            b = (baseB * 255 * (1 - t) + color2.b * 255 * t) * (0.8 + latFactor * 0.2) * poleShift * (1 - polarVortex * 0.5);
-            break;
-          }
-          case "ice": {
-            if (data.type === "ice-giant") {
-              const n = this.fractalNoise(u * 4, v * 4, seed, 12);
-              const bandWarp = this.warpedNoise(u * 2, v * 0.3, seed + 30, 5) * 0.3;
-              const band = Math.sin(v * 8 + bandWarp * 5) * 0.15 + 0.5;
-              const detail = this.fractalNoise(u * 20, v * 20, seed + 8, 5) * 0.1;
-              const haze = this.fractalNoise(u * 6, v * 3, seed + 50, 4) * 0.08;
-              const t = Math.max(0, Math.min(1, n * 0.3 + band * 0.3 + detail + haze));
-              const methaneR = 68, methaneG = 170, methaneB = 204;
-              r = (methaneR * (1 - t * 0.2) + color2.r * 255 * t * 0.2) * (0.85 + latFactor * 0.15);
-              g = (methaneG * (1 - t * 0.2) + color2.g * 255 * t * 0.2) * (0.85 + latFactor * 0.15);
-              b = (methaneB * (1 - t * 0.2) + color2.b * 255 * t * 0.2) * (0.85 + latFactor * 0.15);
-              const polarFactor = Math.abs(y / size - 0.5) * 2;
-              if (polarFactor > 0.82) {
-                const vortexN = this.fractalNoise(u * 8, v * 8, seed + 200, 4);
-                const vortex = vortexN > 0.55 ? (vortexN - 0.55) * 0.5 : 0;
-                r *= 1 - vortex;
-                g *= 1 - vortex * 0.8;
-                b *= 1 - vortex * 0.6;
-              }
-            } else {
-              const n = this.fractalNoise(u * 7, v * 7, seed, 12);
-              const detail = this.fractalNoise(u * 28, v * 28, seed + 8, 6) * 0.12;
-              const fineDetail = this.fractalNoise(u * 60, v * 60, seed + 18, 4) * 0.05;
-              const crack = this.ridgedNoise(u * 18, v * 18, seed + 5, 6);
-              const crackVal = crack > 0.52 ? (crack - 0.52) * 0.7 : 0;
-              const crackBranch = this.ridgedNoise(u * 35, v * 35, seed + 12, 4);
-              const crackBranchVal = crackBranch > 0.65 ? (crackBranch - 0.65) * 0.3 : 0;
-              const oceanHint = this.fractalNoise(u * 3, v * 3, seed + 50, 4);
-              const t = Math.max(0, Math.min(1, n * 0.6 + detail + fineDetail + crackVal * 0.3 + crackBranchVal * 0.2));
-              r = (color1.r * 255 * (1 - t * 0.3) + color2.r * 255 * t * 0.3) * (0.85 + latFactor * 0.15);
-              g = (color1.g * 255 * (1 - t * 0.3) + color2.g * 255 * t * 0.3 + 10 + oceanHint * 18) * (0.85 + latFactor * 0.15);
-              b = (color1.b * 255 * (1 - t * 0.3) + color2.b * 255 * t * 0.3 + 25 + oceanHint * 30) * (0.85 + latFactor * 0.15);
-            }
-            break;
-          }
-          case "ocean": {
-            const n = this.fractalNoise(u * 5, v * 5, seed, 12);
-            const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 6) * 0.15;
-            const fineDetail = this.fractalNoise(u * 50, v * 50, seed + 13, 4) * 0.05;
-            const warp = this.warpedNoise(u * 4, v * 4, seed + 40, 5) * 0.08;
-            const elevation = n + detail + fineDetail + warp;
-            const landThreshold = 0.5;
-            const polarFactor = Math.abs(y / size - 0.5) * 2;
-            const iceNoise = this.fractalNoise(u * 14, v * 10, seed + 90, 5) * 0.06;
-            const iceCap = polarFactor > 0.76 ? Math.min(1, (polarFactor - 0.76) * 6 + iceNoise) : 0;
-            if (elevation < landThreshold) {
-              const depth = elevation / landThreshold;
-              const deepNoise = this.fractalNoise(u * 10, v * 10, seed + 60, 5) * 0.1;
-              const current = this.warpedNoise(u * 8, v * 4, seed + 70, 4) * 0.05;
-              r = 8 + (depth + deepNoise) * 35 + current * 10;
-              g = 35 + (depth + deepNoise) * 55 + current * 15;
-              b = 70 + (depth + deepNoise) * 95 + current * 20;
-            } else {
-              const land = (elevation - landThreshold) / (1 - landThreshold);
-              const biomeNoise = this.fractalNoise(u * 8, v * 8, seed + 70, 5);
-              const biomeDetail = this.fractalNoise(u * 25, v * 25, seed + 75, 3) * 0.3;
-              const biome = biomeNoise + biomeDetail;
-              if (land < 0.1) {
-                r = 200 + land * 100 + biome * 20;
-                g = 185 + land * 70 + biome * 15;
-                b = 130 + land * 40 + biome * 10;
-              } else if (land < 0.2) {
-                r = 45 + land * 50 + (1 - biome) * 25;
-                g = 100 + land * 60 + biome * 30;
-                b = 28 + land * 18;
-              } else if (land < 0.4) {
-                const greenVar = biome * 0.5 + 0.5;
-                r = 35 + land * 60 + (1 - greenVar) * 30;
-                g = 90 + land * 70 + greenVar * 30;
-                b = 25 + land * 20;
-              } else if (land < 0.58) {
-                r = 40 + land * 35 + biome * 20;
-                g = 75 + land * 45 + biome * 15;
-                b = 28 + land * 12;
-              } else if (land < 0.72) {
-                r = 120 + land * 35 + biome * 15;
-                g = 100 + land * 30 + biome * 12;
-                b = 55 + land * 20 + biome * 8;
-              } else if (land < 0.85) {
-                r = 95 + land * 45 + biome * 15;
-                g = 78 + land * 38 + biome * 12;
-                b = 58 + land * 28 + biome * 8;
-              } else {
-                r = 210 + land * 30;
-                g = 210 + land * 30;
-                b = 220 + land * 25;
-              }
-              const canyon = this.ridgedNoise(u * 12, v * 12, seed + 88, 5);
-              if (canyon > 0.7 && land > 0.3 && land < 0.85) {
-                const canyonDark = (canyon - 0.7) * 0.6;
-                r *= 1 - canyonDark;
-                g *= 1 - canyonDark;
-                b *= 1 - canyonDark;
-              }
-            }
-            if (iceCap > 0) {
-              const ice = Math.min(1, iceCap);
-              r = r * (1 - ice) + 235 * ice;
-              g = g * (1 - ice) + 240 * ice;
-              b = b * (1 - ice) + 250 * ice;
-            }
-            break;
-          }
-          case "lava": {
-            const n = this.fractalNoise(u * 8, v * 8, seed, 12);
-            const lavaWarp = this.warpedNoise(u * 5, v * 5, seed + 30, 5) * 2;
-            const lava = this.ridgedNoise(u * 14 + lavaWarp, v * 14 + lavaWarp, seed + 3, 7);
-            const lavaDetail = this.ridgedNoise(u * 30 + lavaWarp, v * 30 + lavaWarp, seed + 13, 4) * 0.3;
-            const glow = this.fractalNoise(u * 4, v * 4, seed + 7, 5);
-            const heatFlow = this.warpedNoise(u * 6, v * 6, seed + 80, 6);
-            const crack = this.ridgedNoise(u * 25, v * 25, seed + 60, 5);
-            const crackGlow = crack > 0.65 ? (crack - 0.65) * 2 : 0;
-            const lakeNoise = this.fractalNoise(u * 6, v * 6, seed + 90, 5);
-            const lake = lakeNoise > 0.68 ? (lakeNoise - 0.68) * 3.5 : 0;
-            if (lava + lavaDetail > 0.52) {
-              const intensity = Math.min(1, (lava + lavaDetail - 0.52) * 2.5);
-              const heat = intensity * (0.7 + heatFlow * 0.3);
-              r = 255;
-              g = 80 + heat * 140 + glow * 25;
-              b = 5 + heat * 50;
-            } else if (lake > 0.3) {
-              const lakeInt = Math.min(1, lake - 0.3);
-              r = 255;
-              g = 120 + lakeInt * 100 + glow * 20;
-              b = 15 + lakeInt * 45;
-            } else if (crackGlow > 0) {
-              const dark = 0.25 + n * 0.45;
-              r = color1.r * 255 * dark + color2.r * 255 * (1 - dark) * 0.2 + crackGlow * 200;
-              g = color1.g * 255 * dark + color2.g * 255 * (1 - dark) * 0.12 + crackGlow * 100;
-              b = color1.b * 255 * dark + color2.b * 255 * (1 - dark) * 0.05 + crackGlow * 20;
-            } else {
-              const dark = 0.25 + n * 0.45;
-              const heatTint = glow * 0.15;
-              r = color1.r * 255 * dark + color2.r * 255 * (1 - dark) * 0.2 + heatTint * 30;
-              g = color1.g * 255 * dark + color2.g * 255 * (1 - dark) * 0.12 + heatTint * 10;
-              b = color1.b * 255 * dark + color2.b * 255 * (1 - dark) * 0.05;
-            }
-            break;
-          }
-          default: {
-            const n = this.fractalNoise(u * 7, v * 7, seed, 12);
-            const detail = this.fractalNoise(u * 28, v * 28, seed + 3, 5) * 0.1;
-            const fineDetail = this.fractalNoise(u * 60, v * 60, seed + 13, 3) * 0.04;
-            const regolith = this.fractalNoise(u * 45, v * 45, seed + 20, 4) * 0.05;
-            const canyon = this.ridgedNoise(u * 14, v * 14, seed + 33, 6);
-            const canyonVal = canyon > 0.6 ? (canyon - 0.6) * 0.4 : 0;
-            const weather = this.fractalNoise(u * 10, v * 10, seed + 44, 4) * 0.08;
-            const t = Math.max(0, Math.min(1, n + detail + fineDetail + regolith - canyonVal + weather));
-            r = (color1.r * 255 * (1 - t) + color2.r * 255 * t) * (0.85 + latFactor * 0.15);
-            g = (color1.g * 255 * (1 - t) + color2.g * 255 * t) * (0.85 + latFactor * 0.15);
-            b = (color1.b * 255 * (1 - t) + color2.b * 255 * t) * (0.85 + latFactor * 0.15);
-            if (canyonVal > 0) {
-              r *= 1 - canyonVal * 0.5;
-              g *= 1 - canyonVal * 0.5;
-              b *= 1 - canyonVal * 0.5;
-            }
-            if (data.hasAtmosphere) {
-              const polarFactor = Math.abs(y / size - 0.5) * 2;
-              const iceNoise = this.fractalNoise(u * 10, v * 6, seed + 90, 5) * 0.08;
-              const iceCap = polarFactor > 0.8 ? Math.min(1, (polarFactor - 0.8) * 4.5 + iceNoise) : 0;
-              if (iceCap > 0) {
-                const ice = Math.min(1, iceCap);
-                r = r * (1 - ice * 0.8) + 230 * ice * 0.8;
-                g = g * (1 - ice * 0.8) + 235 * ice * 0.8;
-                b = b * (1 - ice * 0.8) + 245 * ice * 0.8;
-              }
-            }
-            break;
-          }
-        }
-        imgData.data[idx] = Math.max(0, Math.min(255, r));
-        imgData.data[idx + 1] = Math.max(0, Math.min(255, g));
-        imgData.data[idx + 2] = Math.max(0, Math.min(255, b));
-        imgData.data[idx + 3] = 255;
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    if (data.textureType === "rocky" || data.textureType === "ice" && data.type !== "ice-giant") {
-      const craterCount = 50 + Math.floor(this.hash(0, 0, seed) * 50);
-      const craters = this.generateCraterData(seed, craterCount);
-      this.drawCraters(ctx, size, craters);
-    }
-    const texture = new CanvasTexture(canvas);
-    texture.colorSpace = SRGBColorSpace;
-    texture.anisotropy = 8;
-    texture.wrapS = RepeatWrapping;
-    return texture;
-  }
-  static generateNormalMap(data) {
-    const size = Math.floor(this.getTextureSize() / 2);
-    const canvas = this.getCanvas(size);
-    const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 17.3 + 100;
-    const heightField = new Float32Array(size * size);
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const u = x / size * 8;
-        const v = y / size * 4;
-        let h;
-        switch (data.textureType) {
-          case "gas": {
-            const bandWarp = this.warpedNoise(u * 2, v * 0.4, seed, 5) * 0.3;
-            const band = Math.sin(v * 18 + bandWarp * 6) * 0.3;
-            const turb = this.fractalNoise(u * 6, v * 12, seed, 8) * 0.2;
-            h = band + turb;
-            break;
-          }
-          case "ice": {
-            if (data.type === "ice-giant") {
-              const n = this.fractalNoise(u * 4, v * 4, seed, 10);
-              const band = Math.sin(v * 8) * 0.1;
-              h = n * 0.3 + band;
-            } else {
-              const n = this.fractalNoise(u * 7, v * 7, seed, 10);
-              const crack = this.ridgedNoise(u * 18, v * 18, seed + 5, 5);
-              h = n + crack * 0.4;
-            }
-            break;
-          }
-          case "ocean": {
-            const n = this.fractalNoise(u * 5, v * 5, seed, 12);
-            const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 5);
-            h = n > 0.5 ? (n - 0.5) * 2 + ridge * 0.4 : n * 0.1;
-            break;
-          }
-          case "lava": {
-            const lavaWarp = this.warpedNoise(u * 5, v * 5, seed + 30, 4) * 2;
-            const lava = this.ridgedNoise(u * 14 + lavaWarp, v * 14 + lavaWarp, seed + 3, 6);
-            const n = this.fractalNoise(u * 8, v * 8, seed, 8);
-            h = n + lava * 0.5;
-            break;
-          }
-          default: {
-            const n = this.fractalNoise(u * 6, v * 6, seed, 10);
-            const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 5);
-            h = n + ridge * 0.35;
-            break;
-          }
-        }
-        heightField[y * size + x] = h;
-      }
-    }
-    if (data.textureType === "rocky" || data.textureType === "ice" && data.type !== "ice-giant") {
-      const craterCount = 35 + Math.floor(this.hash(0, 0, seed) * 25);
-      const craters = this.generateCraterData(seed, craterCount);
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          let h = heightField[y * size + x];
-          for (const c of craters) {
-            const dx = x / size - c.x;
-            const dy = y / size - c.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < c.r) {
-              const t = dist / c.r;
-              const fresh = 1 - c.age;
-              if (t < 0.7) {
-                h -= (1 - t / 0.7) * 0.4 * fresh;
-              } else {
-                h += (t - 0.7) / 0.3 * 0.2 * fresh;
-              }
-              if (t < 0.1 && fresh > 0.5) {
-                h += 0.1 * fresh;
-              }
-            }
-          }
-          heightField[y * size + x] = h;
-        }
-      }
-    }
-    const strength = data.textureType === "gas" ? 1 : 3;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const xL = heightField[y * size + Math.max(0, x - 1)];
-        const xR = heightField[y * size + Math.min(size - 1, x + 1)];
-        const yU = heightField[Math.max(0, y - 1) * size + x];
-        const yD = heightField[Math.min(size - 1, y + 1) * size + x];
-        const dx = (xR - xL) * strength;
-        const dy = (yD - yU) * strength;
-        const len = Math.sqrt(dx * dx + dy * dy + 1);
-        imgData.data[idx] = Math.floor((-dx / len * 0.5 + 0.5) * 255);
-        imgData.data[idx + 1] = Math.floor((-dy / len * 0.5 + 0.5) * 255);
-        imgData.data[idx + 2] = Math.floor((1 / len * 0.5 + 0.5) * 255);
-        imgData.data[idx + 3] = 255;
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    const tex = new CanvasTexture(canvas);
-    tex.wrapS = RepeatWrapping;
-    return tex;
-  }
-  static generateBumpMap(data) {
-    const size = Math.floor(this.getTextureSize() / 2);
-    const canvas = this.getCanvas(size);
-    const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 17.3 + 100;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const u = x / size * 8;
-        const v = y / size * 4;
-        let val;
-        switch (data.textureType) {
-          case "gas": {
-            const bandWarp = this.warpedNoise(u * 2, v * 0.4, seed, 4) * 0.3;
-            const band = Math.sin(v * 18 + bandWarp * 6) * 0.2 + 0.5;
-            const turb = this.fractalNoise(u * 6, v * 12, seed, 6) * 0.15;
-            val = band + turb;
-            break;
-          }
-          case "ice": {
-            const n = this.fractalNoise(u * 7, v * 7, seed, 10);
-            const ridge = this.ridgedNoise(u * 18, v * 18, seed + 5, 5);
-            val = n + ridge * 0.3;
-            break;
-          }
-          default: {
-            const n = this.fractalNoise(u * 6, v * 6, seed, 10);
-            const ridge = this.ridgedNoise(u * 14, v * 14, seed + 5, 5);
-            val = n + ridge * 0.3;
-            break;
-          }
-        }
-        const b = Math.floor(Math.max(0, Math.min(1, val)) * 255);
-        imgData.data[idx] = b;
-        imgData.data[idx + 1] = b;
-        imgData.data[idx + 2] = b;
-        imgData.data[idx + 3] = 255;
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    if (data.textureType === "rocky" || data.textureType === "ice" && data.type !== "ice-giant") {
-      const craterCount = 35 + Math.floor(this.hash(0, 0, seed) * 25);
-      const craters = this.generateCraterData(seed, craterCount);
-      for (const c of craters) {
-        const cx = c.x * size;
-        const cy = c.y * size;
-        const cr = c.r * size;
-        const fresh = 1 - c.age;
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, cr * 0.85);
-        grad.addColorStop(0, `rgba(0,0,0,${0.3 * fresh})`);
-        grad.addColorStop(1, `rgba(0,0,0,0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, cr * 0.85, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = `rgba(255,255,255,${0.15 * fresh})`;
-        ctx.lineWidth = Math.max(1, cr * 0.06);
-        ctx.beginPath();
-        ctx.arc(cx, cy, cr * 0.78, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    }
-    const tex = new CanvasTexture(canvas);
-    tex.wrapS = RepeatWrapping;
-    return tex;
-  }
-  static generateRingTexture(color) {
-    const size = 512;
-    const canvas = this.getCanvas(size);
-    const ctx = canvas.getContext("2d");
-    const c = new Color(color);
-    for (let x = 0; x < size; x++) {
-      const t = x / size;
-      let alpha = 0.3 + 0.4 * Math.sin(t * 35) * Math.sin(t * 7.3) * Math.sin(t * 13.1);
-      if (t > 0.55 && t < 0.6) alpha *= 0.1;
-      if (t > 0.75 && t < 0.77) alpha *= 0.2;
-      if (t > 0.82 && t < 0.83) alpha *= 0.15;
-      if (t < 0.05) alpha *= t / 0.05;
-      if (t > 0.95) alpha *= (1 - t) / 0.05;
-      const brightness = 0.4 + 0.6 * Math.abs(Math.sin(t * 50));
-      const r = c.r * 255 * brightness;
-      const g = (c.g + 0.1) * 255 * brightness;
-      const b = (c.b + 0.05) * 255 * brightness;
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${Math.max(0, alpha)})`;
-      ctx.fillRect(x, 0, 1, size);
-    }
-    return new CanvasTexture(canvas);
-  }
-  // Roughness map: ocean = smooth (shiny), land = rough
-  static generateRoughnessMap(data) {
-    const size = Math.floor(this.getTextureSize() / 2);
-    const canvas = this.getCanvas(size);
-    const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const u = x / size * 8;
-        const v = y / size * 4;
-        const n = this.fractalNoise(u * 5, v * 5, seed, 12);
-        const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 5) * 0.15;
-        const elevation = n + detail;
-        const landThreshold = 0.5;
-        let roughness;
-        if (elevation < landThreshold) {
-          const depth = elevation / landThreshold;
-          roughness = 0.06 + depth * 0.06;
+        let bump = 0, metal = 0;
+        const idx = (y * w + x) * 4;
+        if (data.textureType === "gas") {
+          const bandNoise = _TextureFactory.fbm(sx * 3, sz * 8 + sy * 20, octaves, 0.55, 2.2);
+          const turbulence = _TextureFactory.fbm(sx * 12, sy * 6 + bandNoise * 5, 6, 0.5, 2.5);
+          const band = Math.sin(sy * 18 + turbulence * 3) * 0.5 + 0.5;
+          const c = data.color;
+          r = (c >> 16 & 255) / 255 * (0.6 + band * 0.4);
+          g = (c >> 8 & 255) / 255 * (0.6 + band * 0.4);
+          b = (c & 255) / 255 * (0.6 + band * 0.4);
+          bump = band * 0.5;
+        } else if (data.textureType === "ice") {
+          const bandNoise = _TextureFactory.fbm(sx * 2, sy * 10, 8, 0.5, 2);
+          const swirl = _TextureFactory.fbm(sx * 6, sy * 4 + bandNoise * 3, 6, 0.5, 2);
+          r = 0.3 + swirl * 0.15;
+          g = 0.45 + swirl * 0.2;
+          b = 0.7 + swirl * 0.3;
+          bump = swirl * 0.3;
         } else {
-          const land = (elevation - landThreshold) / (1 - landThreshold);
-          if (land < 0.1) roughness = 0.5;
-          else if (land < 0.2) roughness = 0.75;
-          else if (land < 0.4) roughness = 0.82;
-          else if (land < 0.58) roughness = 0.88;
-          else if (land < 0.72) roughness = 0.85;
-          else if (land < 0.85) roughness = 0.92;
-          else roughness = 0.6;
-        }
-        const polarFactor = Math.abs(y / size - 0.5) * 2;
-        if (polarFactor > 0.76) {
-          roughness = Math.min(roughness, 0.18);
-        }
-        const val = Math.floor(roughness * 255);
-        imgData.data[idx] = val;
-        imgData.data[idx + 1] = val;
-        imgData.data[idx + 2] = val;
-        imgData.data[idx + 3] = 255;
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    const texture = new CanvasTexture(canvas);
-    texture.wrapS = RepeatWrapping;
-    return texture;
-  }
-  // Metalness map: ocean = high (reflective), land = low (matte) — acts as specular control
-  static generateMetalnessMap(data) {
-    const size = Math.floor(this.getTextureSize() / 2);
-    const canvas = this.getCanvas(size);
-    const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const u = x / size * 8;
-        const v = y / size * 4;
-        const n = this.fractalNoise(u * 5, v * 5, seed, 12);
-        const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 5) * 0.15;
-        const elevation = n + detail;
-        const landThreshold = 0.5;
-        let metalness;
-        if (elevation < landThreshold) {
-          const depth = elevation / landThreshold;
-          metalness = 0.6 + depth * 0.2;
-        } else {
-          metalness = 0.05;
-        }
-        const polarFactor = Math.abs(y / size - 0.5) * 2;
-        if (polarFactor > 0.76) {
-          metalness = 0.3;
-        }
-        const val = Math.floor(metalness * 255);
-        imgData.data[idx] = val;
-        imgData.data[idx + 1] = val;
-        imgData.data[idx + 2] = val;
-        imgData.data[idx + 3] = 255;
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    const texture = new CanvasTexture(canvas);
-    texture.wrapS = RepeatWrapping;
-    return texture;
-  }
-  // City lights: brighter, denser, coastal distribution
-  static generateCityLightsTexture(data) {
-    const size = Math.floor(this.getTextureSize() / 2);
-    const canvas = this.getCanvas(size);
-    const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const u = x / size * 8;
-        const v = y / size * 4;
-        const n = this.fractalNoise(u * 5, v * 5, seed, 12);
-        const detail = this.fractalNoise(u * 20, v * 20, seed + 3, 5) * 0.15;
-        const elevation = n + detail;
-        const landThreshold = 0.5;
-        const polarFactor = Math.abs(y / size - 0.5) * 2;
-        const iceCap = polarFactor > 0.76 ? (polarFactor - 0.76) * 6 : 0;
-        if (elevation > landThreshold && iceCap < 0.3) {
-          const land = (elevation - landThreshold) / (1 - landThreshold);
-          const latFactor = Math.sin(y / size * Math.PI);
-          const tempZone = Math.max(0, 1 - Math.abs(latFactor - 0.5) * 1.8);
-          const coastalProximity = Math.max(0, 1 - land / 0.25);
-          const cityNoise = this.fractalNoise(u * 40, v * 40, seed + 100, 6);
-          const cityDetail = this.fractalNoise(u * 80, v * 80, seed + 110, 4) * 0.5;
-          const cityFine = this.fractalNoise(u * 120, v * 120, seed + 120, 3) * 0.3;
-          const cityVal = (cityNoise + cityDetail + cityFine) * tempZone * (1 - land * 0.5) * (0.5 + coastalProximity * 1.5);
-          if (cityVal > 0.55 && land < 0.75) {
-            const intensity = Math.min(1, (cityVal - 0.55) * 4);
-            imgData.data[idx] = 255;
-            imgData.data[idx + 1] = 200 + intensity * 55;
-            imgData.data[idx + 2] = 90 + intensity * 70;
-            imgData.data[idx + 3] = Math.floor(intensity * 240);
+          const elevation = _TextureFactory.fbm(sx * 4, sy * 4, octaves, 0.5, 2);
+          const detail = _TextureFactory.fbm(sx * 20, sy * 20, 5, 0.4, 2.5);
+          const height = elevation + detail * 0.15;
+          const polarFactor = Math.pow(Math.abs(sz), 3);
+          if (data.textureType === "ocean" && height < 0.45) {
+            const depth = (0.45 - height) / 0.45;
+            r = palette.sea[0] * (1 - depth * 0.3);
+            g = palette.sea[1] * (1 - depth * 0.3);
+            b = palette.sea[2] * (1 - depth * 0.2);
+            metal = 80;
+            bump = 20;
+          } else if (data.textureType === "lava" && height < 0.35) {
+            r = palette.sea[0] + (1 - height) * 0.3;
+            g = palette.sea[1] * 0.5;
+            b = palette.sea[2] * 0.2;
+            bump = 40;
           } else {
-            imgData.data[idx + 3] = 0;
+            const mountainFactor = Math.max(0, (height - 0.55) * 3);
+            r = palette.land[0] * (1 - mountainFactor * 0.3) + palette.mountain[0] * mountainFactor * 0.5;
+            g = palette.land[1] * (1 - mountainFactor * 0.3) + palette.mountain[1] * mountainFactor * 0.5;
+            b = palette.land[2] * (1 - mountainFactor * 0.3) + palette.mountain[2] * mountainFactor * 0.5;
+            bump = height * 200;
+            metal = 10;
+            const craterNoise = _TextureFactory.fbm(sx * 40, sy * 40, 4, 0.5, 2.5);
+            if (craterNoise > 0.65) {
+              const crater = (craterNoise - 0.65) / 0.35;
+              bump -= crater * 60;
+            }
           }
-        } else {
-          imgData.data[idx + 3] = 0;
+          if (polarFactor > 0.7) {
+            const polarBlend = (polarFactor - 0.7) / 0.3;
+            r = r * (1 - polarBlend) + palette.polar[0] * 255 * polarBlend;
+            g = g * (1 - polarBlend) + palette.polar[1] * 255 * polarBlend;
+            b = b * (1 - polarBlend) + palette.polar[2] * 255 * polarBlend;
+            bump = bump * (1 - polarBlend) + 100 * polarBlend;
+          }
+          if (data.textureType === "ocean" && height > 0.45 && height < 0.7) {
+            const cityNoise = _TextureFactory.fbm(sx * 60, sy * 60, 3, 0.5, 2);
+            if (cityNoise > 0.7) metal += 30;
+          }
         }
-        if (imgData.data[idx + 3] === 0) {
-          imgData.data[idx] = 0;
-          imgData.data[idx + 1] = 0;
-          imgData.data[idx + 2] = 0;
-        }
+        d[idx] = Math.min(255, r * 255);
+        d[idx + 1] = Math.min(255, g * 255);
+        d[idx + 2] = Math.min(255, b * 255);
+        d[idx + 3] = 255;
+        bd[idx] = bd[idx + 1] = bd[idx + 2] = Math.min(255, Math.max(0, bump));
+        bd[idx + 3] = 255;
+        md[idx] = md[idx + 1] = md[idx + 2] = Math.min(255, metal);
+        md[idx + 3] = 255;
       }
     }
     ctx.putImageData(imgData, 0, 0);
-    const texture = new CanvasTexture(canvas);
-    texture.colorSpace = SRGBColorSpace;
-    texture.wrapS = RepeatWrapping;
-    return texture;
+    bctx.putImageData(bumpData, 0, 0);
+    mctx.putImageData(metalData, 0, 0);
+    const map = new CanvasTexture(canvas);
+    map.colorSpace = SRGBColorSpace;
+    map.wrapS = RepeatWrapping;
+    map.anisotropy = 8;
+    const bumpMap = new CanvasTexture(bumpCanvas);
+    bumpMap.wrapS = RepeatWrapping;
+    const metalnessMap = new CanvasTexture(metalCanvas);
+    metalnessMap.wrapS = RepeatWrapping;
+    return { map, bumpMap, metalnessMap };
   }
-  // Multi-layer cloud texture with shadows
-  static generateCloudTexture(data, layer = 0) {
-    const size = Math.floor(this.getTextureSize() / 2);
-    const canvas = this.getCanvas(size);
+  static generateCloudTexture(data) {
+    const size = _TextureFactory.getResolution();
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size / 2;
     const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1 + layer * 100;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const u = x / size * 8;
-        const v = y / size * 4;
-        let cloudScale, cloudThresh, cloudOpacity;
-        if (layer === 0) {
-          cloudScale = 7;
-          cloudThresh = 0.5;
-          cloudOpacity = 2.8;
-        } else if (layer === 1) {
-          cloudScale = 12;
-          cloudThresh = 0.55;
-          cloudOpacity = 2.2;
-        } else {
-          cloudScale = 20;
-          cloudThresh = 0.62;
-          cloudOpacity = 1.8;
-        }
-        const warp = this.warpedNoise(u * 3, v * 2, seed + 200, 5) * 1.5;
-        const cloud = this.fractalNoise(u * cloudScale + warp, v * (cloudScale * 0.6) + warp, seed + 20, 8);
-        const cloudDetail = this.fractalNoise(u * (cloudScale * 3), v * (cloudScale * 2), seed + 30, 5) * 0.2;
-        const cloudVal = cloud + cloudDetail;
-        const latFactor = Math.sin(y / size * Math.PI);
-        const cloudBand = 0.6 + latFactor * 0.3 + Math.sin(y / size * Math.PI * 6) * 0.1;
-        if (cloudVal > cloudThresh) {
-          const opacity = Math.min(1, (cloudVal - cloudThresh) * cloudOpacity) * cloudBand;
-          imgData.data[idx] = 255;
-          imgData.data[idx + 1] = 255;
-          imgData.data[idx + 2] = 255;
-          imgData.data[idx + 3] = Math.floor(opacity * 220);
-        } else {
-          imgData.data[idx] = 0;
-          imgData.data[idx + 1] = 0;
-          imgData.data[idx + 2] = 0;
-          imgData.data[idx + 3] = 0;
-        }
+    const imgData = ctx.createImageData(canvas.width, canvas.height);
+    const d = imgData.data;
+    const w = canvas.width, h = canvas.height;
+    const octaves = _TextureFactory.quality === "high" ? 10 : 6;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const lon = x / w * Math.PI * 2;
+        const lat = (y / h - 0.5) * Math.PI;
+        const sx = Math.cos(lat) * Math.cos(lon);
+        const sy = Math.cos(lat) * Math.sin(lon);
+        const sz = Math.sin(lat);
+        const cloud = _TextureFactory.fbm(sx * 5, sy * 5, octaves, 0.5, 2.2);
+        const swirl = _TextureFactory.fbm(sx * 15 + sz * 3, sy * 10, 5, 0.4, 2);
+        const density = Math.max(0, cloud - 0.4 + swirl * 0.15);
+        const idx = (y * w + x) * 4;
+        d[idx] = d[idx + 1] = d[idx + 2] = 255;
+        d[idx + 3] = Math.min(255, density * 400);
       }
     }
     ctx.putImageData(imgData, 0, 0);
-    const texture = new CanvasTexture(canvas);
-    texture.colorSpace = SRGBColorSpace;
-    texture.wrapS = RepeatWrapping;
-    texture.anisotropy = 8;
-    return texture;
-  }
-  // Cloud shadow texture (dark where clouds are, for surface shadowing)
-  static generateCloudShadowTexture(data) {
-    const size = Math.floor(this.getTextureSize() / 2);
-    const canvas = this.getCanvas(size);
-    const ctx = canvas.getContext("2d");
-    const imgData = ctx.createImageData(size, size);
-    const seed = data.name.charCodeAt(0) * 13.7 + (data.name.charCodeAt(1) || 0) * 7.3 + (data.name.charCodeAt(2) || 0) * 3.1;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = (y * size + x) * 4;
-        const u = x / size * 8;
-        const v = y / size * 4;
-        const warp = this.warpedNoise(u * 3, v * 2, seed + 200, 4) * 1.5;
-        const cloud = this.fractalNoise(u * 7 + warp, v * 4 + warp, seed + 20, 7);
-        const cloudDetail = this.fractalNoise(u * 22, v * 16, seed + 30, 4) * 0.2;
-        const cloudVal = cloud + cloudDetail;
-        if (cloudVal > 0.5) {
-          const opacity = Math.min(1, (cloudVal - 0.5) * 2.8);
-          imgData.data[idx] = 0;
-          imgData.data[idx + 1] = 0;
-          imgData.data[idx + 2] = 0;
-          imgData.data[idx + 3] = Math.floor(opacity * 100);
-        } else {
-          imgData.data[idx + 3] = 0;
-        }
-      }
-    }
-    ctx.putImageData(imgData, 0, 0);
-    const texture = new CanvasTexture(canvas);
-    texture.wrapS = RepeatWrapping;
-    return texture;
+    const tex = new CanvasTexture(canvas);
+    tex.wrapS = RepeatWrapping;
+    return tex;
   }
 };
-function createCelestialMesh(data, quality = "high") {
-  const [segsW, segsH] = QUALITY_CONFIG[quality].sphereSegments;
-  const renderRadius = Math.max(data.radius * BODY_SIZE_SCALE * SIZE_BOOST, MIN_RENDER_SIZE);
-  const geometry = new SphereGeometry(renderRadius, segsW, segsH);
-  const texture = TextureFactory.generateTexture(data);
-  let material;
-  if (data.type === "star") {
-    material = new MeshBasicMaterial({ map: texture });
-  } else {
-    const bumpMap = quality === "high" ? TextureFactory.generateBumpMap(data) : null;
-    const normalMap = quality === "high" ? TextureFactory.generateNormalMap(data) : null;
-    const isOcean = data.textureType === "ocean";
-    const isIceGiant = data.type === "ice-giant";
-    if (isOcean) {
-      const roughnessMap = quality === "high" ? TextureFactory.generateRoughnessMap(data) : null;
-      const metalnessMap = quality === "high" ? TextureFactory.generateMetalnessMap(data) : null;
-      const cityLights = quality === "high" ? TextureFactory.generateCityLightsTexture(data) : null;
-      material = new MeshStandardMaterial({
-        map: texture,
-        bumpMap: bumpMap || void 0,
-        bumpScale: 0.02,
-        normalMap: normalMap || void 0,
-        normalScale: new Vector2(0.8, 0.8),
-        roughnessMap: roughnessMap || void 0,
-        metalnessMap: metalnessMap || void 0,
-        roughness: 1,
-        metalness: 1,
-        emissiveMap: cityLights || void 0,
-        emissive: new Color(16755268),
-        emissiveIntensity: 3
-      });
-    } else if (isIceGiant) {
-      material = new MeshStandardMaterial({
-        map: texture,
-        bumpMap: bumpMap || void 0,
-        bumpScale: 5e-3,
-        normalMap: normalMap || void 0,
-        normalScale: new Vector2(0.3, 0.3),
-        roughness: 0.6,
-        metalness: 0.1,
-        emissive: new Color(data.color).multiplyScalar(0.02)
-      });
-    } else if (data.textureType === "gas") {
-      material = new MeshStandardMaterial({
-        map: texture,
-        bumpMap: bumpMap || void 0,
-        bumpScale: 0.01,
-        normalMap: normalMap || void 0,
-        normalScale: new Vector2(0.4, 0.4),
-        roughness: 0.7,
-        metalness: 0.05,
-        emissive: new Color(data.color).multiplyScalar(0.015)
-      });
-    } else {
-      material = new MeshStandardMaterial({
-        map: texture,
-        bumpMap: bumpMap || void 0,
-        bumpScale: 0.03,
-        normalMap: normalMap || void 0,
-        normalScale: new Vector2(0.8, 0.8),
-        roughness: 0.85,
-        metalness: 0.05,
-        emissive: new Color(data.color).multiplyScalar(0.012)
-      });
-    }
-  }
-  const mesh = new Mesh(geometry, material);
-  mesh.name = data.name;
-  mesh.castShadow = data.type !== "star";
-  mesh.receiveShadow = data.type !== "star";
-  if (data.axialTilt) {
-    mesh.rotation.z = data.axialTilt;
-  }
-  if (data.hasRings) {
-    const ringInner = renderRadius * 1.3;
-    const ringOuter = renderRadius * 2.3;
-    const ringGeo = new RingGeometry(ringInner, ringOuter, 128, 8);
-    const pos = ringGeo.attributes.position;
-    const uv = ringGeo.attributes.uv;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), y = pos.getY(i);
-      const r = Math.sqrt(x * x + y * y);
-      const t = (r - ringInner) / (ringOuter - ringInner);
-      uv.setXY(i, t, 0.5);
-    }
-    const ringTex = TextureFactory.generateRingTexture(data.color2);
-    const ringMat = new MeshBasicMaterial({
-      map: ringTex,
-      side: DoubleSide,
-      transparent: true,
-      opacity: 0.8,
-      depthWrite: false
-    });
-    const ring = new Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2 - 0.2;
-    mesh.add(ring);
-  }
-  if (data.textureType === "ocean" && quality === "high") {
-    const shadowTex = TextureFactory.generateCloudShadowTexture(data);
-    const shadowGeo = new SphereGeometry(renderRadius * 1.003, segsW, segsH);
-    const shadowMat = new MeshLambertMaterial({
-      map: shadowTex,
-      transparent: true,
-      depthWrite: false
-    });
-    const shadowLayer = new Mesh(shadowGeo, shadowMat);
-    shadowLayer.name = `${data.name}_cloudshadow`;
-    mesh.add(shadowLayer);
-    const cloudTex0 = TextureFactory.generateCloudTexture(data, 0);
-    const cloudGeo0 = new SphereGeometry(renderRadius * 1.012, segsW, segsH);
-    const cloudMat0 = new MeshLambertMaterial({
-      map: cloudTex0,
-      transparent: true,
-      depthWrite: false
-    });
-    const cloudLayer0 = new Mesh(cloudGeo0, cloudMat0);
-    cloudLayer0.name = `${data.name}_clouds_low`;
-    mesh.add(cloudLayer0);
-    const cloudTex1 = TextureFactory.generateCloudTexture(data, 1);
-    const cloudGeo1 = new SphereGeometry(renderRadius * 1.018, segsW, segsH);
-    const cloudMat1 = new MeshLambertMaterial({
-      map: cloudTex1,
-      transparent: true,
-      depthWrite: false,
-      opacity: 0.7
-    });
-    const cloudLayer1 = new Mesh(cloudGeo1, cloudMat1);
-    cloudLayer1.name = `${data.name}_clouds_med`;
-    mesh.add(cloudLayer1);
-    const cloudTex2 = TextureFactory.generateCloudTexture(data, 2);
-    const cloudGeo2 = new SphereGeometry(renderRadius * 1.025, segsW, segsH);
-    const cloudMat2 = new MeshLambertMaterial({
-      map: cloudTex2,
-      transparent: true,
-      depthWrite: false,
-      opacity: 0.5
-    });
-    const cloudLayer2 = new Mesh(cloudGeo2, cloudMat2);
-    cloudLayer2.name = `${data.name}_clouds_high`;
-    mesh.add(cloudLayer2);
-    mesh.userData.cloudLayers = [cloudLayer0, cloudLayer1, cloudLayer2];
-    mesh.userData.cloudLayer = cloudLayer0;
-  }
-  if (data.hasAtmosphere) {
-    const atmColor = new Color(data.color);
-    const isIceGiant = data.type === "ice-giant";
-    const isGasGiant = data.type === "gas-giant";
-    let rayleighColor;
-    let mieColor;
-    let sunColor;
-    let atmThickness;
-    if (isIceGiant) {
-      rayleighColor = new Color(4491468);
-      mieColor = new Color(8960989);
-      sunColor = new Color(16777215);
-      atmThickness = 1.2;
-    } else if (isGasGiant) {
-      rayleighColor = new Color(data.color).lerp(new Color(13426175), 0.3);
-      mieColor = new Color(14535850);
-      sunColor = new Color(16777215);
-      atmThickness = 1.5;
-    } else if (data.textureType === "ocean") {
-      rayleighColor = new Color(4491519);
-      mieColor = new Color(13426175);
-      sunColor = new Color(16777215);
-      atmThickness = 1;
-    } else {
-      rayleighColor = atmColor.clone().lerp(new Color(16746598), 0.3);
-      mieColor = atmColor.clone().lerp(new Color(16768426), 0.4);
-      sunColor = new Color(16772812);
-      atmThickness = 0.7;
-    }
-    const atmMaterials = [];
-    const atmGeo1 = new SphereGeometry(renderRadius * 1.025, segsW, segsH);
-    const atmMat1 = new ShaderMaterial({
-      vertexShader: ATMOSPHERE_VERT,
-      fragmentShader: ATMOSPHERE_FRAG,
-      uniforms: {
-        uSunPosition: { value: new Vector3(0, 0, 0) },
-        uRayleighColor: { value: rayleighColor.clone() },
-        uMieColor: { value: mieColor.clone() },
-        uSunColor: { value: sunColor.clone() },
-        uIntensity: { value: 0.5 },
-        uAtmThickness: { value: atmThickness }
-      },
-      transparent: true,
-      side: BackSide,
-      blending: AdditiveBlending,
-      depthWrite: false
-    });
-    atmMaterials.push(atmMat1);
-    mesh.add(new Mesh(atmGeo1, atmMat1));
-    const atmGeo2 = new SphereGeometry(renderRadius * 1.08, segsW, segsH);
-    const atmMat2 = new ShaderMaterial({
-      vertexShader: ATMOSPHERE_VERT,
-      fragmentShader: ATMOSPHERE_FRAG,
-      uniforms: {
-        uSunPosition: { value: new Vector3(0, 0, 0) },
-        uRayleighColor: { value: rayleighColor.clone() },
-        uMieColor: { value: mieColor.clone() },
-        uSunColor: { value: sunColor.clone() },
-        uIntensity: { value: 0.25 },
-        uAtmThickness: { value: atmThickness * 0.8 }
-      },
-      transparent: true,
-      side: BackSide,
-      blending: AdditiveBlending,
-      depthWrite: false
-    });
-    atmMaterials.push(atmMat2);
-    mesh.add(new Mesh(atmGeo2, atmMat2));
-    const atmGeo3 = new SphereGeometry(renderRadius * 1.14, segsW, segsH);
-    const atmMat3 = new ShaderMaterial({
-      vertexShader: ATMOSPHERE_VERT,
-      fragmentShader: ATMOSPHERE_FRAG,
-      uniforms: {
-        uSunPosition: { value: new Vector3(0, 0, 0) },
-        uRayleighColor: { value: rayleighColor.clone() },
-        uMieColor: { value: mieColor.clone() },
-        uSunColor: { value: sunColor.clone() },
-        uIntensity: { value: 0.1 },
-        uAtmThickness: { value: atmThickness * 0.5 }
-      },
-      transparent: true,
-      side: BackSide,
-      blending: AdditiveBlending,
-      depthWrite: false
-    });
-    atmMaterials.push(atmMat3);
-    mesh.add(new Mesh(atmGeo3, atmMat3));
-    mesh.userData.atmosphereMaterials = atmMaterials;
-  }
-  return mesh;
-}
-function createStarField(starCount = 5e4) {
+function createStarField(count = 15e3) {
   const geometry = new BufferGeometry();
-  const positions = new Float32Array(starCount * 3);
-  const colors = new Float32Array(starCount * 3);
-  const sizes = new Float32Array(starCount);
-  for (let i = 0; i < starCount; i++) {
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const r = 8e3 + Math.random() * 2e3;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
-    const r = 8e4 + Math.random() * 2e4;
     positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
     positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
     positions[i * 3 + 2] = r * Math.cos(phi);
-    const ct = Math.random();
-    let brightness;
-    if (ct < 1e-4) {
-      colors[i * 3] = 0.7 + Math.random() * 0.3;
-      colors[i * 3 + 1] = 0.8 + Math.random() * 0.2;
+    const t = Math.random();
+    if (t < 3e-3) {
+      colors[i * 3] = 0.6;
+      colors[i * 3 + 1] = 0.7;
       colors[i * 3 + 2] = 1;
-      brightness = 0.8 + Math.random() * 0.2;
-      sizes[i] = 2.5 + Math.random() * 2;
-    } else if (ct < 0.05) {
-      colors[i * 3] = 0.6 + Math.random() * 0.2;
-      colors[i * 3 + 1] = 0.7 + Math.random() * 0.2;
-      colors[i * 3 + 2] = 0.9 + Math.random() * 0.1;
-      brightness = 0.5 + Math.random() * 0.3;
-      sizes[i] = 1.5 + Math.random() * 1.5;
-    } else if (ct < 0.2) {
-      colors[i * 3] = 0.85 + Math.random() * 0.15;
-      colors[i * 3 + 1] = 0.85 + Math.random() * 0.15;
-      colors[i * 3 + 2] = 0.9 + Math.random() * 0.1;
-      brightness = 0.4 + Math.random() * 0.3;
-      sizes[i] = 1 + Math.random() * 1.2;
-    } else if (ct < 0.45) {
-      colors[i * 3] = 0.9 + Math.random() * 0.1;
-      colors[i * 3 + 1] = 0.8 + Math.random() * 0.15;
-      colors[i * 3 + 2] = 0.5 + Math.random() * 0.2;
-      brightness = 0.3 + Math.random() * 0.3;
-      sizes[i] = 0.8 + Math.random() * 1;
-    } else if (ct < 0.75) {
-      colors[i * 3] = 0.9 + Math.random() * 0.1;
-      colors[i * 3 + 1] = 0.55 + Math.random() * 0.2;
-      colors[i * 3 + 2] = 0.3 + Math.random() * 0.15;
-      brightness = 0.25 + Math.random() * 0.25;
-      sizes[i] = 0.6 + Math.random() * 0.8;
-    } else if (ct < 0.95) {
-      colors[i * 3] = 0.8 + Math.random() * 0.15;
-      colors[i * 3 + 1] = 0.3 + Math.random() * 0.15;
-      colors[i * 3 + 2] = 0.15 + Math.random() * 0.1;
-      brightness = 0.2 + Math.random() * 0.2;
-      sizes[i] = 0.4 + Math.random() * 0.6;
+      sizes[i] = 3.5 + Math.random() * 1.5;
+    } else if (t < 0.03) {
+      colors[i * 3] = 0.85;
+      colors[i * 3 + 1] = 0.9;
+      colors[i * 3 + 2] = 1;
+      sizes[i] = 2.5 + Math.random() * 1.5;
+    } else if (t < 0.12) {
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.97;
+      colors[i * 3 + 2] = 0.85;
+      sizes[i] = 2 + Math.random() * 1;
+    } else if (t < 0.3) {
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.92;
+      colors[i * 3 + 2] = 0.6;
+      sizes[i] = 1.5 + Math.random() * 1;
+    } else if (t < 0.55) {
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.7;
+      colors[i * 3 + 2] = 0.4;
+      sizes[i] = 1 + Math.random() * 0.8;
     } else {
-      colors[i * 3] = 0.9 + Math.random() * 0.1;
-      colors[i * 3 + 1] = 0.25 + Math.random() * 0.15;
-      colors[i * 3 + 2] = 0.1 + Math.random() * 0.08;
-      brightness = 0.5 + Math.random() * 0.3;
-      sizes[i] = 1.8 + Math.random() * 1.5;
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.5;
+      colors[i * 3 + 2] = 0.3;
+      sizes[i] = 0.5 + Math.random() * 0.6;
     }
-    colors[i * 3] *= brightness;
-    colors[i * 3 + 1] *= brightness;
-    colors[i * 3 + 2] *= brightness;
   }
-  const nebulaCount = 300;
-  const totalPositions = new Float32Array((starCount + nebulaCount) * 3);
-  const totalColors = new Float32Array((starCount + nebulaCount) * 3);
-  const totalSizes = new Float32Array(starCount + nebulaCount);
-  totalPositions.set(positions);
-  totalColors.set(colors);
-  totalSizes.set(sizes);
-  for (let i = 0; i < nebulaCount; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    const r = 85e3 + Math.random() * 15e3;
-    const ni = starCount + i;
-    totalPositions[ni * 3] = r * Math.sin(phi) * Math.cos(theta);
-    totalPositions[ni * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-    totalPositions[ni * 3 + 2] = r * Math.cos(phi);
-    const nc = Math.random();
-    if (nc < 0.3) {
-      totalColors[ni * 3] = 0.05;
-      totalColors[ni * 3 + 1] = 0.08;
-      totalColors[ni * 3 + 2] = 0.15;
-    } else if (nc < 0.6) {
-      totalColors[ni * 3] = 0.1;
-      totalColors[ni * 3 + 1] = 0.05;
-      totalColors[ni * 3 + 2] = 0.12;
-    } else if (nc < 0.8) {
-      totalColors[ni * 3] = 0.15;
-      totalColors[ni * 3 + 1] = 0.05;
-      totalColors[ni * 3 + 2] = 0.06;
-    } else {
-      totalColors[ni * 3] = 0.05;
-      totalColors[ni * 3 + 1] = 0.12;
-      totalColors[ni * 3 + 2] = 0.1;
-    }
-    totalSizes[ni] = 30 + Math.random() * 60;
-  }
-  geometry.setAttribute("position", new BufferAttribute(totalPositions, 3));
-  geometry.setAttribute("starColor", new BufferAttribute(totalColors, 3));
-  geometry.setAttribute("starSize", new BufferAttribute(totalSizes, 1));
+  geometry.setAttribute("position", new BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new BufferAttribute(colors, 3));
+  geometry.setAttribute("size", new BufferAttribute(sizes, 1));
   const material = new ShaderMaterial({
-    vertexShader: STARFIELD_VERT,
-    fragmentShader: STARFIELD_FRAG,
+    uniforms: { time: { value: 0 } },
+    vertexShader: `
+      attribute float size;
+      attribute vec3 color;
+      varying vec3 vColor;
+      uniform float time;
+      void main() {
+        vColor = color;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        float twinkle = 0.85 + 0.15 * sin(time * 0.5 + position.x * 0.01 + position.y * 0.01);
+        gl_PointSize = size * twinkle * (300.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+        float alpha = 1.0 - smoothstep(0.0, 0.5, d);
+        alpha *= alpha;
+        gl_FragColor = vec4(vColor, alpha);
+      }
+    `,
     transparent: true,
-    blending: AdditiveBlending,
-    depthWrite: false
+    depthWrite: false,
+    blending: AdditiveBlending
   });
   return new Points(geometry, material);
 }
-function createStarGlow(color, size) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext("2d");
-  const c = new Color(color);
-  const grad1 = ctx.createRadialGradient(256, 256, 0, 256, 256, 80);
-  grad1.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.95)`);
-  grad1.addColorStop(0.3, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.6)`);
-  grad1.addColorStop(1, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0)`);
-  ctx.fillStyle = grad1;
-  ctx.fillRect(0, 0, 512, 512);
-  const grad2 = ctx.createRadialGradient(256, 256, 40, 256, 256, 200);
-  grad2.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0)`);
-  grad2.addColorStop(0.3, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.25)`);
-  grad2.addColorStop(0.7, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.08)`);
-  grad2.addColorStop(1, `rgba(0,0,0,0)`);
-  ctx.fillStyle = grad2;
-  ctx.fillRect(0, 0, 512, 512);
-  const grad3 = ctx.createRadialGradient(256, 256, 100, 256, 256, 256);
-  grad3.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0)`);
-  grad3.addColorStop(0.4, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.06)`);
-  grad3.addColorStop(1, `rgba(0,0,0,0)`);
-  ctx.fillStyle = grad3;
-  ctx.fillRect(0, 0, 512, 512);
-  const rayCount = 16;
-  for (let i = 0; i < rayCount; i++) {
-    const angle = i / rayCount * Math.PI * 2;
-    const rayLen = 180 + Math.random() * 80;
-    const rayWidth = 2 + Math.random() * 3;
-    ctx.save();
-    ctx.translate(256, 256);
-    ctx.rotate(angle);
-    const rayGrad = ctx.createLinearGradient(0, 0, rayLen, 0);
-    rayGrad.addColorStop(0, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.15)`);
-    rayGrad.addColorStop(0.5, `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.06)`);
-    rayGrad.addColorStop(1, `rgba(0,0,0,0)`);
-    ctx.fillStyle = rayGrad;
-    ctx.fillRect(0, -rayWidth / 2, rayLen, rayWidth);
-    ctx.restore();
-  }
-  ctx.strokeStyle = `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.12)`;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(0, 256);
-  ctx.lineTo(512, 256);
-  ctx.moveTo(256, 0);
-  ctx.lineTo(256, 512);
-  ctx.stroke();
-  ctx.strokeStyle = `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},0.05)`;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(60, 60);
-  ctx.lineTo(452, 452);
-  ctx.moveTo(452, 60);
-  ctx.lineTo(60, 452);
-  ctx.stroke();
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  const material = new SpriteMaterial({
-    map: texture,
-    blending: AdditiveBlending,
-    transparent: true,
-    depthWrite: false
-  });
-  const sprite = new Sprite(material);
-  sprite.scale.set(size, size, 1);
-  return sprite;
-}
-function createRocketMats() {
-  return {
-    hull: new MeshStandardMaterial({ color: 15658734, metalness: 0.7, roughness: 0.25 }),
-    white: new MeshStandardMaterial({ color: 16119285, metalness: 0.3, roughness: 0.4 }),
-    dark: new MeshStandardMaterial({ color: 2763306, metalness: 0.9, roughness: 0.15 }),
-    red: new MeshStandardMaterial({ color: 13382451, metalness: 0.4, roughness: 0.4 }),
-    accent: new MeshStandardMaterial({ color: 3368652, emissive: 1122884, metalness: 0.6, roughness: 0.2 }),
-    window: new MeshStandardMaterial({ color: 6728447, emissive: 3359846, metalness: 0.8, roughness: 0.05 }),
-    gold: new MeshStandardMaterial({ color: 16763972, metalness: 0.9, roughness: 0.1 }),
-    copper: new MeshStandardMaterial({ color: 13404228, metalness: 0.85, roughness: 0.2 }),
-    nozzle: new MeshStandardMaterial({ color: 4473924, metalness: 0.95, roughness: 0.1, side: DoubleSide }),
-    solar: new MeshStandardMaterial({ color: 1127338, emissive: 528708, metalness: 0.7, roughness: 0.2 }),
-    solarFrame: new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 }),
-    heatShield: new MeshStandardMaterial({ color: 3809296, roughness: 0.95, metalness: 0.05 }),
-    leg: new MeshStandardMaterial({ color: 10066329, metalness: 0.7, roughness: 0.3 }),
-    rcs: new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.2 }),
-    glass: new MeshStandardMaterial({ color: 8956620, emissive: 2241348, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.7 })
-  };
-}
-function buildCommandPod(parent, mat, radius, yTop) {
-  const podHeight = radius * 1.8;
-  const baseHeight = 0.2;
-  const conePoints = [];
-  for (let t = 0; t <= 1; t += 0.1) {
-    const r = radius * (1 - t * 0.7) + radius * 0.05 * Math.sin(t * Math.PI);
-    conePoints.push(new Vector2(r, -t * podHeight * 0.7));
-  }
-  const coneGeo = new LatheGeometry(conePoints, 24);
-  const cone = new Mesh(coneGeo, mat.hull);
-  cone.position.y = yTop;
-  cone.castShadow = true;
-  parent.add(cone);
-  const base = new Mesh(new CylinderGeometry(radius * 0.32, radius * 0.95, baseHeight, 24), mat.dark);
-  base.position.y = yTop - podHeight * 0.7;
-  base.castShadow = true;
-  parent.add(base);
-  const dome = new Mesh(new SphereGeometry(radius * 0.32, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat.hull);
-  dome.position.y = yTop;
-  parent.add(dome);
-  for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2 + Math.PI / 4;
-    const wy = yTop - podHeight * 0.25;
-    const wr = radius * 0.55;
-    const winFrame = new Mesh(new RingGeometry(0.06, 0.12, 16), mat.dark);
-    winFrame.position.set(Math.cos(angle) * wr, wy, Math.sin(angle) * wr);
-    winFrame.lookAt(Math.cos(angle) * 3, wy, Math.sin(angle) * 3);
-    parent.add(winFrame);
-    const win = new Mesh(new CircleGeometry(0.08, 16), mat.glass);
-    win.position.set(Math.cos(angle) * (wr + 0.01), wy, Math.sin(angle) * (wr + 0.01));
-    win.lookAt(Math.cos(angle) * 3, wy, Math.sin(angle) * 3);
-    parent.add(win);
-    for (let b = 0; b < 4; b++) {
-      const ba = b * Math.PI / 2;
-      const bolt = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.02, 4), mat.dark);
-      bolt.position.set(
-        Math.cos(angle) * wr + Math.cos(ba) * 0.1,
-        wy + Math.sin(ba) * 0.1,
-        Math.sin(angle) * wr
-      );
-      bolt.lookAt(Math.cos(angle) * 3, wy, Math.sin(angle) * 3);
-      parent.add(bolt);
+function createCelestialMesh(data, quality = "high") {
+  const renderRadius = Math.max(data.radius * BODY_SIZE_SCALE * SIZE_BOOST, MIN_RENDER_SIZE);
+  const segments = quality === "low" ? 24 : quality === "medium" ? 48 : 64;
+  const geometry = new SphereGeometry(renderRadius, segments, segments);
+  const group = new Group();
+  let material;
+  if (data.type === "star") {
+    const starCanvas = document.createElement("canvas");
+    starCanvas.width = 1024;
+    starCanvas.height = 512;
+    const sctx = starCanvas.getContext("2d");
+    const sd = sctx.createImageData(1024, 512);
+    for (let y = 0; y < 512; y++) {
+      for (let x = 0; x < 1024; x++) {
+        const lon = x / 1024 * Math.PI * 2, lat = (y / 512 - 0.5) * Math.PI;
+        const sx = Math.cos(lat) * Math.cos(lon), sy = Math.cos(lat) * Math.sin(lon), sz = Math.sin(lat);
+        const n1 = TextureFactory.fbm(sx * 6, sy * 6, 8, 0.55, 2.2);
+        const n2 = TextureFactory.fbm(sx * 20, sy * 20 + sz * 5, 5, 0.45, 2.5);
+        const granule = n1 * 0.6 + n2 * 0.4;
+        const c = data.color;
+        const r = c >> 16 & 255, g = c >> 8 & 255, b = c & 255;
+        const idx = (y * 1024 + x) * 4;
+        sd.data[idx] = Math.min(255, r * (0.7 + granule * 0.5));
+        sd.data[idx + 1] = Math.min(255, g * (0.7 + granule * 0.5));
+        sd.data[idx + 2] = Math.min(255, b * (0.7 + granule * 0.5));
+        sd.data[idx + 3] = 255;
+      }
+    }
+    sctx.putImageData(sd, 0, 0);
+    const starTex = new CanvasTexture(starCanvas);
+    starTex.colorSpace = SRGBColorSpace;
+    material = new MeshStandardMaterial({
+      map: starTex,
+      color: data.color,
+      emissive: data.color,
+      emissiveIntensity: 2,
+      roughness: 1,
+      metalness: 0
+    });
+  } else if (data.textureType === "gas" || data.textureType === "ice") {
+    const { map, bumpMap } = TextureFactory.generatePlanetTexture(data);
+    material = new MeshStandardMaterial({
+      map,
+      bumpMap,
+      bumpScale: 2e-3,
+      color: 16777215,
+      roughness: 0.7,
+      metalness: 0
+    });
+  } else {
+    const { map, bumpMap, metalnessMap } = TextureFactory.generatePlanetTexture(data);
+    material = new MeshStandardMaterial({
+      map,
+      bumpMap,
+      bumpScale: 5e-3,
+      metalnessMap,
+      metalness: 0.3,
+      roughness: 0.7,
+      color: 16777215
+    });
+    if (data.textureType === "ocean" && quality !== "low") {
+      const cloudTex = TextureFactory.generateCloudTexture(data);
+      const cloudGeo = new SphereGeometry(renderRadius * 1.01, segments, segments);
+      const cloudMat = new MeshStandardMaterial({
+        map: cloudTex,
+        transparent: true,
+        opacity: 0.6,
+        depthWrite: false,
+        roughness: 1,
+        metalness: 0
+      });
+      const cloudMesh = new Mesh(cloudGeo, cloudMat);
+      cloudMesh.castShadow = false;
+      cloudMesh.receiveShadow = true;
+      group.add(cloudMesh);
     }
   }
-  for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2;
-    const ry = yTop - podHeight * 0.45;
-    const rr = radius * 0.5;
-    const rcsBlock = new Mesh(new BoxGeometry(0.1, 0.14, 0.1), mat.rcs);
-    rcsBlock.position.set(Math.cos(angle) * rr, ry, Math.sin(angle) * rr);
-    parent.add(rcsBlock);
-    const rcsU = new Mesh(new CylinderGeometry(0.02, 0.03, 0.05, 6), mat.dark);
-    rcsU.position.set(Math.cos(angle) * rr, ry + 0.09, Math.sin(angle) * rr);
-    parent.add(rcsU);
-    const rcsS = new Mesh(new CylinderGeometry(0.02, 0.03, 0.05, 6), mat.dark);
-    rcsS.position.set(Math.cos(angle) * (rr + 0.07), ry, Math.sin(angle) * (rr + 0.07));
-    rcsS.rotation.z = Math.PI / 2;
-    rcsS.rotation.y = angle;
-    parent.add(rcsS);
+  const mesh = new Mesh(geometry, material);
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  if (data.type !== "star" && data.type !== "moon" && quality !== "low") {
+    const atmoColors = {
+      ocean: 4491519,
+      rock: 11176038,
+      lava: 16729122,
+      ice: 8965375,
+      gas: 14535850
+    };
+    const atmoColor = atmoColors[data.textureType || "rock"] || 4491519;
+    const atmoRadius = renderRadius * 1.025;
+    const atmoGeo = new SphereGeometry(atmoRadius, segments, segments);
+    const atmoMat = new ShaderMaterial({
+      uniforms: {
+        atmoColor: { value: new Color(atmoColor) },
+        intensity: { value: 1 },
+        power: { value: 2.5 }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          vViewDir = normalize(-mvPosition.xyz);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 atmoColor;
+        uniform float intensity;
+        uniform float power;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        void main() {
+          float rim = 1.0 - max(dot(vNormal, vViewDir), 0.0);
+          float glow = pow(rim, power) * intensity;
+          vec3 col = atmoColor * glow;
+          gl_FragColor = vec4(col, glow * 0.8);
+        }
+      `,
+      transparent: true,
+      side: BackSide,
+      blending: AdditiveBlending,
+      depthWrite: false
+    });
+    const atmoMesh = new Mesh(atmoGeo, atmoMat);
+    group.add(atmoMesh);
+    const hazeGeo = new SphereGeometry(renderRadius * 1.08, segments, segments);
+    const hazeMat = new ShaderMaterial({
+      uniforms: {
+        atmoColor: { value: new Color(atmoColor) }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          vViewDir = normalize(-mvPosition.xyz);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 atmoColor;
+        varying vec3 vNormal;
+        varying vec3 vViewDir;
+        void main() {
+          float rim = 1.0 - max(dot(vNormal, vViewDir), 0.0);
+          float glow = pow(rim, 4.0) * 0.5;
+          gl_FragColor = vec4(atmoColor * glow, glow * 0.4);
+        }
+      `,
+      transparent: true,
+      side: BackSide,
+      blending: AdditiveBlending,
+      depthWrite: false
+    });
+    group.add(new Mesh(hazeGeo, hazeMat));
   }
-  const antenna = new Mesh(new CylinderGeometry(0.015, 0.015, 0.6, 6), mat.dark);
-  antenna.position.set(radius * 0.25, yTop + 0.35, 0);
-  parent.add(antenna);
-  const antennaTip = new Mesh(new SphereGeometry(0.04, 8, 6), mat.red);
-  antennaTip.position.set(radius * 0.25, yTop + 0.65, 0);
-  parent.add(antennaTip);
-  const heatShieldPoints = [];
-  for (let t = 0; t <= 1; t += 0.15) {
-    const r = radius * (0.95 - t * 0.5);
-    heatShieldPoints.push(new Vector2(r, -t * 0.15));
+  if (data.axialTilt) {
+    group.rotation.z = data.axialTilt * Math.PI / 180;
   }
-  const heatShieldGeo = new LatheGeometry(heatShieldPoints, 24);
-  const heatShield = new Mesh(heatShieldGeo, mat.heatShield);
-  heatShield.position.y = yTop - podHeight * 0.7 - baseHeight;
-  parent.add(heatShield);
-  for (let i = 0; i < 6; i++) {
-    const angle = i * Math.PI / 3;
-    const panel = new Mesh(new BoxGeometry(0.15, 0.08, 0.02), mat.dark);
-    panel.position.set(Math.cos(angle) * radius * 0.45, yTop - podHeight * 0.15, Math.sin(angle) * radius * 0.45);
-    panel.lookAt(Math.cos(angle) * 3, yTop - podHeight * 0.15, Math.sin(angle) * 3);
-    parent.add(panel);
+  if (data.hasRings) {
+    const ringGeo = new RingGeometry(renderRadius * 1.3, renderRadius * 2.2, 128);
+    const ringMat = new MeshStandardMaterial({
+      color: 9075306,
+      side: DoubleSide,
+      transparent: true,
+      opacity: 0.7,
+      roughness: 0.8
+    });
+    const ring = new Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2 - 0.1;
+    group.add(ring);
   }
-  return podHeight * 0.7 + baseHeight + 0.15;
+  mesh.add(...group.children.filter((c) => c !== mesh));
+  return mesh;
 }
-function buildFuelTank(parent, mat, radius, yTop, fuelMass, isFirst) {
-  const tankHeight = 1 + Math.min(3, fuelMass / 8e3);
-  const capHeight = radius * 0.3;
-  const tank = new Mesh(new CylinderGeometry(radius, radius, tankHeight, 32), mat.white);
-  tank.position.y = yTop - tankHeight / 2;
-  tank.castShadow = true;
-  parent.add(tank);
-  const upperCap = new Mesh(
-    new SphereGeometry(radius, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-    mat.white
-  );
-  upperCap.position.y = yTop;
-  upperCap.scale.y = 0.6;
-  parent.add(upperCap);
-  const lowerCap = new Mesh(
-    new SphereGeometry(radius, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
-    mat.white
-  );
-  lowerCap.position.y = yTop - tankHeight;
-  lowerCap.scale.y = 0.6;
-  parent.add(lowerCap);
-  const bandCount = Math.max(2, Math.floor(tankHeight / 0.7));
-  for (let j = 0; j < bandCount; j++) {
-    const band = new Mesh(new TorusGeometry(radius + 0.02, 0.035, 8, 32), mat.dark);
-    band.position.y = yTop - (j + 0.5) * (tankHeight / bandCount);
-    band.rotation.x = Math.PI / 2;
-    parent.add(band);
+function createStarGlow(color, size) {
+  const group = new Group();
+  const r = Math.max(size, 0.01);
+  const col = new Color(color);
+  const coreGeo = new SphereGeometry(r * 1.15, 32, 32);
+  const coreMat = new MeshBasicMaterial({
+    color: col.clone().multiplyScalar(1.5),
+    transparent: true,
+    opacity: 0.3,
+    side: BackSide,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
+  group.add(new Mesh(coreGeo, coreMat));
+  const midGeo = new SphereGeometry(r * 1.4, 32, 32);
+  const midMat = new MeshBasicMaterial({
+    color: col,
+    transparent: true,
+    opacity: 0.12,
+    side: BackSide,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
+  group.add(new Mesh(midGeo, midMat));
+  const haloGeo = new SphereGeometry(r * 2, 32, 32);
+  const haloMat = new MeshBasicMaterial({
+    color: col.clone().multiplyScalar(0.7),
+    transparent: true,
+    opacity: 0.05,
+    side: BackSide,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
+  group.add(new Mesh(haloGeo, haloMat));
+  const rayMat = new MeshBasicMaterial({
+    color: col,
+    transparent: true,
+    opacity: 0.08,
+    side: DoubleSide,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
+  for (let i = 0; i < 16; i++) {
+    const angle = i / 16 * Math.PI * 2;
+    const rayLen = r * (1.5 + Math.random() * 1.5);
+    const rayWidth = 0.03 + Math.random() * 0.05;
+    const rayGeo = new PlaneGeometry(rayLen, rayWidth * r);
+    const ray = new Mesh(rayGeo, rayMat);
+    ray.position.set(Math.cos(angle) * r * 0.8, Math.sin(angle) * r * 0.8, 0);
+    ray.rotation.z = angle;
+    group.add(ray);
   }
-  const weldCount = Math.floor(tankHeight / 0.3);
-  for (let j = 0; j < weldCount; j++) {
-    const weld = new Mesh(new TorusGeometry(radius - 0.01, 0.01, 6, 32), mat.dark);
-    weld.position.y = yTop - (j + 0.5) * (tankHeight / weldCount);
-    weld.rotation.x = Math.PI / 2;
-    parent.add(weld);
-  }
-  if (isFirst) {
-    const stripe = new Mesh(
-      new CylinderGeometry(radius - 5e-3, radius - 5e-3, 0.12, 32, 1, false, 0, Math.PI * 0.35),
-      mat.red
-    );
-    stripe.position.y = yTop - tankHeight * 0.75;
-    parent.add(stripe);
-  }
-  for (let i = 0; i < 2; i++) {
-    const angle = i * Math.PI + Math.PI / 4;
-    const pipe = new Mesh(new CylinderGeometry(0.03, 0.03, tankHeight * 0.8, 8), mat.copper);
-    pipe.position.set(Math.cos(angle) * (radius + 0.02), yTop - tankHeight * 0.5, Math.sin(angle) * (radius + 0.02));
-    parent.add(pipe);
-  }
-  return tankHeight + capHeight * 0.5;
-}
-function buildEngine(parent, mat, maxRadius, yTop, thrust) {
-  const eRadius = 0.3 + Math.min(0.3, Math.sqrt(thrust) / 800);
-  const housingHeight = 0.5;
-  const nozzleHeight = 0.4 + Math.min(0.4, thrust / 4e5);
-  const housingPoints = [];
-  housingPoints.push(new Vector2(maxRadius * 0.85, 0));
-  for (let t = 0; t <= 1; t += 0.15) {
-    const r = maxRadius * 0.85 * (1 - t * 0.3) + eRadius * 0.5 * t;
-    housingPoints.push(new Vector2(r, -t * housingHeight));
-  }
-  const housingGeo = new LatheGeometry(housingPoints, 24);
-  const housing = new Mesh(housingGeo, mat.dark);
-  housing.position.y = yTop;
-  housing.castShadow = true;
-  parent.add(housing);
-  const gimbal = new Mesh(new TorusGeometry(maxRadius * 0.82, 0.04, 8, 24), mat.copper);
-  gimbal.position.y = yTop;
-  gimbal.rotation.x = Math.PI / 2;
-  parent.add(gimbal);
-  const nozzlePoints = [];
-  const throatRadius = eRadius * 0.45;
-  const exitRadius = eRadius * 1.4;
-  for (let t = 0; t <= 1; t += 0.1) {
-    const r = eRadius * 0.5 * (1 - t * 0.3) + throatRadius * t;
-    nozzlePoints.push(new Vector2(r, -t * nozzleHeight * 0.2));
-  }
-  nozzlePoints.push(new Vector2(throatRadius, -nozzleHeight * 0.2));
-  for (let t = 0; t <= 1; t += 0.08) {
-    const bellT = t * t * (3 - 2 * t);
-    const r = throatRadius + (exitRadius - throatRadius) * bellT;
-    nozzlePoints.push(new Vector2(r, -nozzleHeight * 0.2 - t * nozzleHeight * 0.8));
-  }
-  const nozzleGeo = new LatheGeometry(nozzlePoints, 32);
-  const nozzle = new Mesh(nozzleGeo, mat.nozzle);
-  nozzle.position.y = yTop - housingHeight;
-  nozzle.castShadow = true;
-  parent.add(nozzle);
-  for (let t = 0.2; t <= 0.8; t += 0.15) {
-    const r = throatRadius + (exitRadius - throatRadius) * (t * t * (3 - 2 * t)) * 0.9;
-    const rib = new Mesh(new TorusGeometry(r, 8e-3, 4, 32), mat.copper);
-    rib.position.y = yTop - housingHeight - nozzleHeight * 0.2 - t * nozzleHeight * 0.8;
-    rib.rotation.x = Math.PI / 2;
-    parent.add(rib);
-  }
-  const innerGlow = new Mesh(
-    new CircleGeometry(throatRadius * 0.8, 20),
-    new MeshBasicMaterial({ color: 3346688, side: DoubleSide })
-  );
-  innerGlow.position.y = yTop - housingHeight - nozzleHeight * 0.15;
-  innerGlow.rotation.x = -Math.PI / 2;
-  parent.add(innerGlow);
-  const turbopump = new Mesh(new CylinderGeometry(0.08, 0.08, 0.25, 12), mat.copper);
-  turbopump.position.set(maxRadius * 0.6, yTop - housingHeight * 0.3, 0);
-  turbopump.rotation.z = Math.PI / 2;
-  parent.add(turbopump);
-  for (let i = 0; i < 2; i++) {
-    const offset = i === 0 ? 0.08 : -0.08;
-    const pipe = new Mesh(new CylinderGeometry(0.02, 0.02, 0.3, 8), mat.copper);
-    pipe.position.set(maxRadius * 0.55 + offset, yTop - housingHeight * 0.5, 0);
-    pipe.rotation.z = Math.PI / 3;
-    parent.add(pipe);
-  }
-  const manifold = new Mesh(new BoxGeometry(0.12, 0.08, 0.12), mat.dark);
-  manifold.position.set(maxRadius * 0.7, yTop - housingHeight * 0.15, 0);
-  parent.add(manifold);
-  return housingHeight + nozzleHeight;
-}
-function buildBooster(parent, mat, bRadius, angle, dist, yTop, height, fuelMass) {
-  const bHeight = 2.5 + Math.min(1.5, fuelMass / 3e3);
-  const bx = Math.cos(angle) * dist;
-  const bz = Math.sin(angle) * dist;
-  const body = new Mesh(new CylinderGeometry(bRadius, bRadius, bHeight, 20), mat.white);
-  body.position.set(bx, yTop - bHeight / 2, bz);
-  body.castShadow = true;
-  parent.add(body);
-  for (let j = 0; j < 3; j++) {
-    const band = new Mesh(new TorusGeometry(bRadius + 0.015, 0.025, 6, 20), mat.dark);
-    band.position.set(bx, yTop - (j + 0.5) * (bHeight / 3), bz);
-    band.rotation.x = Math.PI / 2;
-    parent.add(band);
-  }
-  const nosePoints = [];
-  for (let t = 0; t <= 1; t += 0.1) {
-    const r = bRadius * Math.pow(1 - t, 0.5);
-    nosePoints.push(new Vector2(r, t * 0.5));
-  }
-  const noseGeo = new LatheGeometry(nosePoints, 20);
-  const nose = new Mesh(noseGeo, mat.dark);
-  nose.position.set(bx, yTop, bz);
-  parent.add(nose);
-  const nozzlePoints = [];
-  for (let t = 0; t <= 1; t += 0.1) {
-    const r = bRadius * 0.4 * (0.5 + t * 0.8);
-    nozzlePoints.push(new Vector2(r, -t * 0.3));
-  }
-  const nozzleGeo = new LatheGeometry(nozzlePoints, 20);
-  const nozzle = new Mesh(nozzleGeo, mat.nozzle);
-  nozzle.position.set(bx, yTop - bHeight - 0.05, bz);
-  parent.add(nozzle);
-  for (let s = 0; s < 2; s++) {
-    const sa = angle + (s === 0 ? 0.5 : -0.5);
-    const sepNozzle = new Mesh(new CylinderGeometry(0.03, 0.04, 0.08, 6), mat.dark);
-    sepNozzle.position.set(bx + Math.cos(sa) * (bRadius + 0.05), yTop + 0.15, bz + Math.sin(sa) * (bRadius + 0.05));
-    sepNozzle.rotation.x = Math.PI;
-    parent.add(sepNozzle);
-  }
-  const bracket = new Mesh(new BoxGeometry(0.15, 0.1, 0.05), mat.dark);
-  bracket.position.set(bx - Math.cos(angle) * bRadius * 0.8, yTop - bHeight * 0.5, bz - Math.sin(angle) * bRadius * 0.8);
-  bracket.lookAt(0, yTop - bHeight * 0.5, 0);
-  parent.add(bracket);
-  const feedLine = new Mesh(new CylinderGeometry(0.025, 0.025, bHeight * 0.7, 8), mat.copper);
-  feedLine.position.set(bx - Math.cos(angle) * (bRadius + 0.02), yTop - bHeight * 0.5, bz - Math.sin(angle) * (bRadius + 0.02));
-  parent.add(feedLine);
-}
-function buildDecoupler(parent, mat, radius, yTop) {
-  const height = 0.18;
-  const ring = new Mesh(new CylinderGeometry(radius, radius * 0.98, height, 24), mat.dark);
-  ring.position.y = yTop - height / 2;
-  parent.add(ring);
-  const stripe = new Mesh(new TorusGeometry(radius, 0.035, 8, 24), mat.red);
-  stripe.position.y = yTop - height / 2;
-  stripe.rotation.x = Math.PI / 2;
-  parent.add(stripe);
-  for (let i = 0; i < 8; i++) {
-    const angle = i / 8 * Math.PI * 2;
-    const bolt = new Mesh(new CylinderGeometry(0.02, 0.02, 0.04, 6), mat.copper);
-    bolt.position.set(Math.cos(angle) * radius, yTop - height / 2, Math.sin(angle) * radius);
-    bolt.rotation.z = Math.PI / 2;
-    bolt.rotation.y = angle;
-    parent.add(bolt);
-  }
-  return height;
-}
-function buildParachute(parent, mat, yTop) {
-  const canHeight = 0.28;
-  const can = new Mesh(new CylinderGeometry(0.12, 0.1, canHeight, 16), mat.red);
-  can.position.y = yTop - canHeight / 2;
-  parent.add(can);
-  const cap = new Mesh(new SphereGeometry(0.12, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat.red);
-  cap.position.y = yTop;
-  parent.add(cap);
-  const deployRing = new Mesh(new TorusGeometry(0.11, 0.015, 6, 16), mat.dark);
-  deployRing.position.y = yTop - canHeight;
-  deployRing.rotation.x = Math.PI / 2;
-  parent.add(deployRing);
-  const bracket = new Mesh(new BoxGeometry(0.05, 0.08, 0.03), mat.dark);
-  bracket.position.set(0.11, yTop - canHeight * 0.5, 0);
-  parent.add(bracket);
-  return canHeight;
-}
-function buildAeroFin(parent, mat, angle, radius, y) {
-  const finShape = new Shape();
-  finShape.moveTo(0, 0);
-  finShape.lineTo(0, -0.9);
-  finShape.quadraticCurveTo(0.3, -0.5, 0.55, -0.15);
-  finShape.lineTo(0.5, 0.12);
-  finShape.lineTo(0.15, 0.15);
-  finShape.lineTo(0, 0);
-  const finGeo = new ExtrudeGeometry(finShape, { depth: 0.05, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01, bevelSegments: 1 });
-  const fin = new Mesh(finGeo, mat.dark);
-  fin.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-  fin.rotation.y = angle + Math.PI / 2;
-  fin.castShadow = true;
-  parent.add(fin);
-  const ctrlLine = new Mesh(new BoxGeometry(0.02, 0.5, 0.06), mat.dark);
-  ctrlLine.position.set(Math.cos(angle) * (radius + 0.25), y - 0.2, Math.sin(angle) * (radius + 0.25));
-  ctrlLine.rotation.y = angle + Math.PI / 2;
-  parent.add(ctrlLine);
-}
-function buildRCSBlock(parent, mat, angle, radius, y) {
-  const x = Math.cos(angle) * radius;
-  const z = Math.sin(angle) * radius;
-  const block = new Mesh(new BoxGeometry(0.1, 0.14, 0.1), mat.rcs);
-  block.position.set(x, y, z);
-  parent.add(block);
-  const nozzleDirs = [
-    { dx: 0, dy: 0.08, dz: 0, rx: 0, rz: 0 },
-    { dx: 0, dy: -0.08, dz: 0, rx: Math.PI, rz: 0 },
-    { dx: 0.06, dy: 0, dz: 0, rx: 0, rz: Math.PI / 2 },
-    { dx: -0.06, dy: 0, dz: 0, rx: 0, rz: -Math.PI / 2 }
-  ];
-  for (const d of nozzleDirs) {
-    const noz = new Mesh(new CylinderGeometry(0.018, 0.025, 0.04, 6), mat.dark);
-    noz.position.set(x + d.dx, y + d.dy, z + d.dz);
-    noz.rotation.x = d.rx;
-    noz.rotation.z = d.rz;
-    parent.add(noz);
-  }
-  const pipe = new Mesh(new CylinderGeometry(0.012, 0.012, 0.1, 6), mat.copper);
-  pipe.position.set(Math.cos(angle) * (radius - 0.05), y, Math.sin(angle) * (radius - 0.05));
-  pipe.rotation.z = Math.PI / 2;
-  pipe.rotation.y = angle;
-  parent.add(pipe);
-}
-function buildSolarPanel(parent, mat, side, y) {
-  const hinge = new Mesh(new CylinderGeometry(0.03, 0.03, 0.08, 8), mat.dark);
-  hinge.position.set(side * 0.45, y, 0);
-  hinge.rotation.z = Math.PI / 2;
-  parent.add(hinge);
-  const arm1 = new Mesh(new CylinderGeometry(0.025, 0.025, 0.35, 6), mat.solarFrame);
-  arm1.position.set(side * 0.65, y, 0);
-  arm1.rotation.z = Math.PI / 2;
-  parent.add(arm1);
-  const armJoint = new Mesh(new SphereGeometry(0.028, 8, 6), mat.dark);
-  armJoint.position.set(side * 0.82, y, 0);
-  parent.add(armJoint);
-  const panelFrame = new Mesh(new BoxGeometry(1.3, 0.04, 0.65), mat.solarFrame);
-  panelFrame.position.set(side * 1.5, y, 0);
-  parent.add(panelFrame);
-  const panel = new Mesh(new BoxGeometry(1.25, 0.03, 0.6), mat.solar);
-  panel.position.set(side * 1.5, y + 0.01, 0);
-  panel.castShadow = true;
-  parent.add(panel);
-  for (let j = 0; j < 4; j++) {
-    const line = new Mesh(new BoxGeometry(1.25, 0.035, 0.015), mat.solarFrame);
-    line.position.set(side * 1.5, y + 0.015, (j - 1.5) * 0.15);
-    parent.add(line);
-  }
-  for (let j = 0; j < 5; j++) {
-    const line = new Mesh(new BoxGeometry(0.015, 0.035, 0.6), mat.solarFrame);
-    line.position.set(side * (1.5 + (j - 2) * 0.25), y + 0.015, 0);
-    parent.add(line);
-  }
-  const backing = new Mesh(new BoxGeometry(1.25, 0.02, 0.6), mat.dark);
-  backing.position.set(side * 1.5, y - 0.02, 0);
-  parent.add(backing);
-}
-function buildLandingLeg(parent, mat, angle, y) {
-  const x = Math.cos(angle);
-  const z = Math.sin(angle);
-  const hip = new Mesh(new SphereGeometry(0.05, 8, 6), mat.dark);
-  hip.position.set(x * 0.5, y, z * 0.5);
-  parent.add(hip);
-  const thigh = new Mesh(new CylinderGeometry(0.035, 0.03, 0.55, 8), mat.leg);
-  thigh.position.set(x * 0.75, y - 0.25, z * 0.75);
-  thigh.rotation.z = x * 0.5;
-  thigh.rotation.x = -z * 0.5;
-  parent.add(thigh);
-  const knee = new Mesh(new SphereGeometry(0.04, 8, 6), mat.dark);
-  knee.position.set(x * 0.95, y - 0.5, z * 0.95);
-  parent.add(knee);
-  const shin = new Mesh(new CylinderGeometry(0.028, 0.025, 0.7, 8), mat.leg);
-  shin.position.set(x * 1.05, y - 0.85, z * 1.05);
-  shin.rotation.z = x * 0.9;
-  shin.rotation.x = -z * 0.9;
-  parent.add(shin);
-  const damper = new Mesh(new CylinderGeometry(0.018, 0.018, 0.4, 6), mat.copper);
-  damper.position.set(x * 0.7, y - 0.2, z * 0.7);
-  damper.rotation.z = x * 0.6;
-  damper.rotation.x = -z * 0.6;
-  parent.add(damper);
-  const piston = new Mesh(new CylinderGeometry(0.012, 0.012, 0.25, 6), mat.dark);
-  piston.position.set(x * 0.85, y - 0.38, z * 0.85);
-  piston.rotation.z = x * 0.7;
-  piston.rotation.x = -z * 0.7;
-  parent.add(piston);
-  const pad = new Mesh(new CylinderGeometry(0.12, 0.1, 0.05, 12), mat.dark);
-  pad.position.set(x * 1.15, y - 1.2, z * 1.15);
-  parent.add(pad);
-  const padRim = new Mesh(new TorusGeometry(0.11, 0.015, 6, 12), mat.leg);
-  padRim.position.set(x * 1.15, y - 1.17, z * 1.15);
-  padRim.rotation.x = Math.PI / 2;
-  parent.add(padRim);
-}
-function buildScienceInstrument(parent, mat, part, angle, radius, y) {
-  const x = Math.cos(angle);
-  const z = Math.sin(angle);
-  const name = part.name.toLowerCase();
-  if (name.includes("\u5929\u7EBF") || name.includes("\u789F") || name.includes("antenna")) {
-    const arm = new Mesh(new CylinderGeometry(0.02, 0.02, 0.3, 6), mat.dark);
-    arm.position.set(x * (radius + 0.05), y, z * (radius + 0.05));
-    arm.lookAt(x * (radius + 0.35), y, z * (radius + 0.35));
-    arm.rotateX(Math.PI / 2);
-    parent.add(arm);
-    const dish = new Mesh(new SphereGeometry(0.12, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat.dark);
-    dish.position.set(x * (radius + 0.2), y + 0.1, z * (radius + 0.2));
-    dish.lookAt(x * (radius + 0.5), y, z * (radius + 0.5));
-    parent.add(dish);
-    const receiver = new Mesh(new SphereGeometry(0.025, 8, 6), mat.accent);
-    receiver.position.set(x * (radius + 0.15), y + 0.13, z * (radius + 0.15));
-    parent.add(receiver);
-  } else if (name.includes("\u4F20\u611F") || name.includes("sensor")) {
-    const box = new Mesh(new BoxGeometry(0.2, 0.25, 0.18), mat.accent);
-    box.position.set(x * (radius + 0.05), y, z * (radius + 0.05));
-    parent.add(box);
-    const lens = new Mesh(new CircleGeometry(0.05, 12), new MeshBasicMaterial({ color: 65382 }));
-    lens.position.set(x * (radius + 0.16), y + 0.05, z * (radius + 0.16));
-    lens.lookAt(x * 3, y + 0.05, z * 3);
-    parent.add(lens);
-    const ant = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.2, 4), mat.dark);
-    ant.position.set(x * (radius + 0.05), y + 0.22, z * (radius + 0.05));
-    parent.add(ant);
-  } else if (name.includes("\u673A\u68B0") || name.includes("\u81C2") || name.includes("arm")) {
-    const base = new Mesh(new CylinderGeometry(0.04, 0.04, 0.06, 8), mat.dark);
-    base.position.set(x * (radius + 0.03), y, z * (radius + 0.03));
-    parent.add(base);
-    const seg1 = new Mesh(new CylinderGeometry(0.025, 0.025, 0.3, 6), mat.leg);
-    seg1.position.set(x * (radius + 0.12), y + 0.1, z * (radius + 0.12));
-    seg1.rotation.z = x * 0.8;
-    parent.add(seg1);
-    const joint = new Mesh(new SphereGeometry(0.03, 8, 6), mat.dark);
-    joint.position.set(x * (radius + 0.22), y + 0.2, z * (radius + 0.22));
-    parent.add(joint);
-    const seg2 = new Mesh(new CylinderGeometry(0.02, 0.02, 0.25, 6), mat.leg);
-    seg2.position.set(x * (radius + 0.3), y + 0.15, z * (radius + 0.3));
-    seg2.rotation.z = x * -0.5;
-    parent.add(seg2);
-    const claw = new Mesh(new BoxGeometry(0.04, 0.04, 0.06), mat.accent);
-    claw.position.set(x * (radius + 0.38), y + 0.1, z * (radius + 0.38));
-    parent.add(claw);
-  } else {
-    const box = new Mesh(new BoxGeometry(0.2, 0.25, 0.18), mat.accent);
-    box.position.set(x * (radius + 0.05), y, z * (radius + 0.05));
-    parent.add(box);
-    const lens = new Mesh(new CircleGeometry(0.05, 12), new MeshBasicMaterial({ color: 65382 }));
-    lens.position.set(x * (radius + 0.16), y + 0.05, z * (radius + 0.16));
-    lens.lookAt(x * 3, y + 0.05, z * 3);
-    parent.add(lens);
-  }
-}
-function buildCommAntenna(parent, mat, index, y) {
-  const offset = (index - 0.5) * 0.8;
-  const baseHinge = new Mesh(new CylinderGeometry(0.03, 0.03, 0.06, 8), mat.dark);
-  baseHinge.position.set(offset, y, 0);
-  baseHinge.rotation.z = Math.PI / 2;
-  parent.add(baseHinge);
-  for (let s = 0; s < 3; s++) {
-    const segLen = 0.2 - s * 0.03;
-    const segRad = 0.02 - s * 3e-3;
-    const rod = new Mesh(new CylinderGeometry(segRad, segRad, segLen, 6), mat.dark);
-    rod.position.set(offset - 0.1 - s * 0.18, y + 0.1 + s * 0.18, 0);
-    rod.rotation.z = 0.6;
-    parent.add(rod);
-  }
-  const dish = new Mesh(new SphereGeometry(0.12, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat.dark);
-  dish.position.set(offset - 0.6, y + 0.45, 0);
-  dish.rotation.z = -Math.PI / 2 + 0.5;
-  parent.add(dish);
-  for (let r = 0.05; r < 0.12; r += 0.03) {
-    const ring = new Mesh(new TorusGeometry(r, 5e-3, 4, 16), mat.copper);
-    ring.position.set(offset - 0.6, y + 0.45, 0);
-    ring.rotation.z = -Math.PI / 2 + 0.5;
-    parent.add(ring);
-  }
-  const feed = new Mesh(new ConeGeometry(0.025, 0.06, 8), mat.copper);
-  feed.position.set(offset - 0.52, y + 0.48, 0);
-  feed.rotation.z = Math.PI / 2 - 0.5;
-  parent.add(feed);
-}
-function buildDockingPort(parent, mat, yTop) {
-  const height = 0.12;
-  const outerRing = new Mesh(new TorusGeometry(0.2, 0.04, 8, 24), mat.gold);
-  outerRing.position.y = yTop;
-  outerRing.rotation.x = Math.PI / 2;
-  parent.add(outerRing);
-  const guide = new Mesh(new ConeGeometry(0.08, 0.06, 16), mat.dark);
-  guide.position.y = yTop - 0.03;
-  guide.rotation.x = Math.PI;
-  parent.add(guide);
-  const seal = new Mesh(new TorusGeometry(0.14, 0.02, 6, 20), mat.copper);
-  seal.position.y = yTop - 0.02;
-  seal.rotation.x = Math.PI / 2;
-  parent.add(seal);
-  for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2;
-    const led = new Mesh(new SphereGeometry(0.015, 6, 4), new MeshBasicMaterial({ color: 65348 }));
-    led.position.set(Math.cos(angle) * 0.18, yTop, Math.sin(angle) * 0.18);
-    parent.add(led);
-  }
-  const base = new Mesh(new CylinderGeometry(0.22, 0.22, 0.03, 20), mat.dark);
-  base.position.y = yTop - 0.06;
-  parent.add(base);
-  return height;
-}
-function buildStructuralTube(parent, mat, radius, yTop) {
-  const height = 0.4;
-  const topRing = new Mesh(new TorusGeometry(radius * 0.85, 0.03, 6, 20), mat.leg);
-  topRing.position.y = yTop;
-  topRing.rotation.x = Math.PI / 2;
-  parent.add(topRing);
-  const botRing = new Mesh(new TorusGeometry(radius * 0.85, 0.03, 6, 20), mat.leg);
-  botRing.position.y = yTop - height;
-  botRing.rotation.x = Math.PI / 2;
-  parent.add(botRing);
-  for (let i = 0; i < 8; i++) {
-    const angle = i / 8 * Math.PI * 2;
-    const beam = new Mesh(new CylinderGeometry(0.02, 0.02, height, 6), mat.leg);
-    beam.position.set(Math.cos(angle) * radius * 0.82, yTop - height / 2, Math.sin(angle) * radius * 0.82);
-    parent.add(beam);
-  }
-  for (let i = 0; i < 4; i++) {
-    const angle1 = i / 4 * Math.PI * 2;
-    const angle2 = (i + 1) / 4 * Math.PI * 2;
-    const midAngle = (angle1 + angle2) / 2;
-    const x1 = Math.cos(angle1) * radius * 0.82;
-    const z1 = Math.sin(angle1) * radius * 0.82;
-    const x2 = Math.cos(angle2) * radius * 0.82;
-    const z2 = Math.sin(angle2) * radius * 0.82;
-    const len = Math.sqrt((x2 - x1) ** 2 + height ** 2 + (z2 - z1) ** 2);
-    const brace = new Mesh(new CylinderGeometry(0.012, 0.012, len, 4), mat.leg);
-    brace.position.set((x1 + x2) / 2, yTop - height / 2, (z1 + z2) / 2);
-    const dir = new Vector3(x2 - x1, -height, z2 - z1).normalize();
-    brace.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir);
-    parent.add(brace);
-  }
-  return height;
-}
-function buildAdapter(parent, mat, topRadius, yTop) {
-  const height = 0.3;
-  const bottomRadius = topRadius * 0.8;
-  const adapterPoints = [];
-  for (let t = 0; t <= 1; t += 0.1) {
-    const r = topRadius * (1 - t * 0.2) + bottomRadius * t * 0.2;
-    const curveR = topRadius + (bottomRadius - topRadius) * (t * t * (3 - 2 * t));
-    adapterPoints.push(new Vector2(curveR, -t * height));
-  }
-  const adapterGeo = new LatheGeometry(adapterPoints, 24);
-  const adapter = new Mesh(adapterGeo, mat.dark);
-  adapter.position.y = yTop;
-  parent.add(adapter);
-  const ring1 = new Mesh(new TorusGeometry(topRadius, 0.025, 6, 20), mat.copper);
-  ring1.position.y = yTop;
-  ring1.rotation.x = Math.PI / 2;
-  parent.add(ring1);
-  const ring2 = new Mesh(new TorusGeometry(bottomRadius, 0.025, 6, 20), mat.copper);
-  ring2.position.y = yTop - height;
-  ring2.rotation.x = Math.PI / 2;
-  parent.add(ring2);
-  return height;
+  const flareMat = new MeshBasicMaterial({
+    color: col,
+    transparent: true,
+    opacity: 0.06,
+    side: DoubleSide,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
+  const flareH = new Mesh(new PlaneGeometry(r * 4, r * 0.05), flareMat);
+  group.add(flareH);
+  const flareV = new Mesh(new PlaneGeometry(r * 0.05, r * 4), flareMat);
+  group.add(flareV);
+  return group;
 }
 function createRocketModel() {
   const group = new Group();
-  const mat = createRocketMats();
-  const podHeight = buildCommandPod(group, mat, 0.8, 2.75);
-  const podBase = new Mesh(new CylinderGeometry(0.82, 0.75, 0.2, 24), mat.dark);
-  podBase.position.y = 2.75 - podHeight;
-  group.add(podBase);
-  const decHeight = buildDecoupler(group, mat, 0.72, 2.75 - podHeight - 0.2);
-  let currentY = 2.75 - podHeight - 0.2 - decHeight;
-  const tankHeight = buildFuelTank(group, mat, 0.7, currentY, 25e3, true);
-  currentY -= tankHeight;
-  const dec2Height = buildDecoupler(group, mat, 0.72, currentY);
-  currentY -= dec2Height;
-  const engHeight = buildEngine(group, mat, 0.7, currentY, 5e5);
-  currentY -= engHeight;
-  for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2;
-    buildAeroFin(group, mat, angle, 0.7, currentY + 0.5);
-  }
-  for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2 + Math.PI / 4;
-    buildRCSBlock(group, mat, angle, 0.75, 1.5);
-  }
-  buildSolarPanel(group, mat, -1, -0.5);
-  buildSolarPanel(group, mat, 1, -0.5);
+  const noseGeo = new ConeGeometry(0.5, 1.5, 12);
+  const noseMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.5, metalness: 0.3 });
+  const nose = new Mesh(noseGeo, noseMat);
+  nose.position.y = 3.25;
+  nose.castShadow = true;
+  group.add(nose);
+  const bodyGeo = new CylinderGeometry(0.5, 0.5, 5, 12);
+  const bodyMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.5, metalness: 0.2 });
+  const body = new Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  group.add(body);
   for (let i = 0; i < 3; i++) {
-    const angle = i * 2.094 + 0.5;
-    buildLandingLeg(group, mat, angle, -2.3);
+    const finGeo = new BoxGeometry(0.05, 1, 0.6);
+    const finMat = new MeshStandardMaterial({ color: 13386820, roughness: 0.6 });
+    const fin = new Mesh(finGeo, finMat);
+    fin.position.y = -2;
+    fin.position.x = Math.cos(i * Math.PI * 2 / 3) * 0.55;
+    fin.position.z = Math.sin(i * Math.PI * 2 / 3) * 0.55;
+    fin.rotation.y = i * Math.PI * 2 / 3;
+    fin.castShadow = true;
+    group.add(fin);
   }
-  buildParachute(group, mat, 2.75 + 0.05);
-  const sciPart = { id: "sci", name: "\u4F20\u611F\u5668\u7BB1", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 50 };
-  buildScienceInstrument(group, mat, sciPart, 0, 0.72, 0.5);
-  buildCommAntenna(group, mat, 0, 2.3);
+  const nozzleGeo = new CylinderGeometry(0.35, 0.5, 0.6, 12);
+  const nozzleMat = new MeshStandardMaterial({ color: 3355443, roughness: 0.8, metalness: 0.5 });
+  const nozzle = new Mesh(nozzleGeo, nozzleMat);
+  nozzle.position.y = -2.8;
+  nozzle.castShadow = true;
+  group.add(nozzle);
   const flameGroup = new Group();
   flameGroup.name = "engineFlame";
-  const flameCore = new Mesh(
-    new ConeGeometry(0.25, 1.5, 16),
-    new MeshBasicMaterial({ color: 8965375, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false })
-  );
-  flameCore.position.y = currentY - 0.8;
-  flameCore.rotation.x = Math.PI;
-  flameGroup.add(flameCore);
-  const flameOuter = new Mesh(
-    new ConeGeometry(0.4, 2, 16),
-    new MeshBasicMaterial({ color: 16737843, transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false })
-  );
-  flameOuter.position.y = currentY - 1;
-  flameOuter.rotation.x = Math.PI;
-  flameGroup.add(flameOuter);
-  const flameGlow = new Mesh(
-    new SphereGeometry(0.5, 16, 10),
-    new MeshBasicMaterial({ color: 16755268, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false })
-  );
-  flameGlow.position.y = currentY - 0.5;
-  flameGlow.scale.set(1, 0.5, 1);
-  flameGroup.add(flameGlow);
+  flameGroup.position.y = -3.2;
   flameGroup.visible = false;
+  const flameGeo = new ConeGeometry(0.3, 2, 8);
+  const flameMat = new MeshBasicMaterial({ color: 16737792, transparent: true, opacity: 0.8 });
+  const flame = new Mesh(flameGeo, flameMat);
+  flame.rotation.x = Math.PI;
+  flameGroup.add(flame);
   group.add(flameGroup);
   return group;
 }
 function createRocketModelFromParts(parts) {
   const group = new Group();
-  const mat = createRocketMats();
-  const byType = (type) => parts.filter((p) => p.type === type);
-  const commands = byType("command");
-  const fuels = byType("fuel");
-  const engines = byType("engine");
-  const boosters = byType("booster");
-  const decouplers = byType("decoupler");
-  const parachutes = byType("parachute");
-  const aeroParts = byType("aero");
-  const rcsParts = byType("rcs");
-  const solarParts = byType("solar");
-  const landingParts = byType("landing");
-  const scienceParts = byType("science");
-  const antennaParts = byType("antenna");
-  const structuralParts = byType("structural");
-  const utilityParts = byType("utility");
-  const adapterParts = byType("adapter");
-  const maxRadius = Math.max(
-    0.5,
-    ...fuels.map((f) => 0.4 + Math.min(0.6, f.fuelMass / 2e4)),
-    ...commands.map((c) => 0.6 + Math.min(0.4, c.mass / 2e3)),
-    0.7
-  );
+  if (parts.length === 0) return group;
   let currentY = 0;
-  for (const eng of engines) {
-    const eHeight = buildEngine(group, mat, maxRadius, currentY, eng.thrust);
-    currentY -= eHeight;
-  }
-  if (boosters.length > 0) {
-    for (let i = 0; i < boosters.length; i++) {
-      const b = boosters[i];
-      const bRadius = 0.25 + Math.min(0.2, b.mass / 3e3);
-      const bHeight = 2.5 + Math.min(1.5, b.fuelMass / 3e3);
-      const angle = i / boosters.length * Math.PI * 2;
-      const dist = maxRadius + bRadius + 0.1;
-      buildBooster(group, mat, bRadius, angle, dist, currentY, bHeight, b.fuelMass);
-    }
-  }
-  for (const dec of decouplers) {
-    const decHeight = buildDecoupler(group, mat, maxRadius, currentY);
-    currentY -= decHeight;
-  }
-  for (let i = fuels.length - 1; i >= 0; i--) {
-    const f = fuels[i];
-    const tankRadius = 0.4 + Math.min(0.6, f.fuelMass / 2e4);
-    const tankHeight = buildFuelTank(group, mat, tankRadius, currentY, f.fuelMass, i === 0);
-    currentY -= tankHeight;
-  }
-  for (const apt of adapterParts) {
-    const aptHeight = buildAdapter(group, mat, maxRadius, currentY);
-    currentY -= aptHeight;
-  }
-  for (const st of structuralParts) {
-    const stHeight = buildStructuralTube(group, mat, maxRadius, currentY);
-    currentY -= stHeight;
-  }
-  for (const cmd of commands) {
-    const podRadius = 0.5 + Math.min(0.4, cmd.mass / 2e3);
-    const podHeight = buildCommandPod(group, mat, podRadius, currentY);
-    currentY -= podHeight + 0.1;
-  }
-  for (const pc of parachutes) {
-    const chuteHeight = buildParachute(group, mat, currentY);
-    currentY -= chuteHeight;
-  }
-  for (const ut of utilityParts.filter((u) => u.name.includes("\u5BF9\u63A5"))) {
-    const dockHeight = buildDockingPort(group, mat, currentY);
-    currentY -= dockHeight;
-  }
-  const aeroCount = Math.min(aeroParts.length, 6);
-  for (let i = 0; i < aeroCount; i++) {
-    const angle = i / aeroCount * Math.PI * 2;
-    buildAeroFin(group, mat, angle, maxRadius, -1);
-  }
-  const rcsCount = Math.min(rcsParts.length, 4);
-  for (let i = 0; i < Math.max(rcsCount, 1); i++) {
-    const angle = i * Math.PI / 2 + Math.PI / 4;
-    buildRCSBlock(group, mat, angle, maxRadius + 0.05, -0.3);
-  }
-  const solarCount = Math.min(solarParts.length, 4);
-  for (let i = 0; i < Math.max(solarCount, 2); i++) {
-    const side = i < Math.ceil(solarCount / 2) ? -1 : 1;
-    const idx = i % Math.ceil(solarCount / 2);
-    buildSolarPanel(group, mat, side, -0.5 - idx * 1.5);
-  }
-  const legCount = Math.min(landingParts.length, 3) || 3;
-  for (let i = 0; i < legCount; i++) {
-    const angle = i * 2.094 + 0.5;
-    buildLandingLeg(group, mat, angle, -1.5);
-  }
-  for (let i = 0; i < Math.min(scienceParts.length, 3); i++) {
-    const angle = i * 2.094 + 0.3;
-    buildScienceInstrument(group, mat, scienceParts[i], angle, maxRadius + 0.05, 0.5);
-  }
-  for (let i = 0; i < Math.min(antennaParts.length, 2); i++) {
-    buildCommAntenna(group, mat, i, 0.5);
+  const partSpacing = 0.1;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[parts.length - 1 - i];
+    const partGroup = createPartVisual(part);
+    const height = partGroup.userData.height || 1;
+    partGroup.position.y = currentY + height / 2;
+    currentY += height + partSpacing;
+    group.add(partGroup);
   }
   const flameGroup = new Group();
   flameGroup.name = "engineFlame";
-  const flameCore = new Mesh(
-    new ConeGeometry(0.2, 1.2, 16),
-    new MeshBasicMaterial({ color: 8965375, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false })
-  );
-  flameCore.position.y = -1;
-  flameCore.rotation.x = Math.PI;
-  flameGroup.add(flameCore);
-  const flameOuter = new Mesh(
-    new ConeGeometry(0.35, 1.8, 16),
-    new MeshBasicMaterial({ color: 16737843, transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false })
-  );
-  flameOuter.position.y = -1.2;
-  flameOuter.rotation.x = Math.PI;
-  flameGroup.add(flameOuter);
-  const flameGlow = new Mesh(
-    new SphereGeometry(0.4, 16, 10),
-    new MeshBasicMaterial({ color: 16755268, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false })
-  );
-  flameGlow.position.y = -0.8;
-  flameGlow.scale.set(1, 0.5, 1);
-  flameGroup.add(flameGlow);
+  flameGroup.position.y = -0.5;
   flameGroup.visible = false;
+  const flameGeo = new ConeGeometry(0.3, 2, 8);
+  const flameMat = new MeshBasicMaterial({ color: 16737792, transparent: true, opacity: 0.8 });
+  const flame = new Mesh(flameGeo, flameMat);
+  flame.rotation.x = Math.PI;
+  flameGroup.add(flame);
   group.add(flameGroup);
-  const box = new Box3().setFromObject(group);
-  const center = box.getCenter(new Vector3());
-  group.position.sub(new Vector3(0, center.y, 0));
+  return group;
+}
+function createPartVisual(part) {
+  switch (part.type) {
+    case "command":
+      return buildCommandPod(part);
+    case "fuel":
+      return buildFuelTank(part);
+    case "engine":
+      return buildEngine(part);
+    case "booster":
+      return buildBooster(part);
+    case "decoupler":
+      return buildDecoupler(part);
+    case "parachute":
+      return buildParachute(part);
+    case "aero":
+      return buildAeroFin(part);
+    case "rcs":
+      return buildRCSBlock(part);
+    case "solar":
+      return buildSolarPanel(part);
+    case "landing":
+      return buildLandingLeg(part);
+    case "science":
+      return buildScienceInstrument(part);
+    case "antenna":
+      return buildCommAntenna(part);
+    case "adapter":
+      return buildAdapter(part);
+    case "structural":
+      return buildStructuralTube(part);
+    default:
+      return buildScienceInstrument(part);
+  }
+}
+function buildCommandPod(part) {
+  const group = new Group();
+  const r = part.mass > 2e3 ? 0.65 : part.mass > 1e3 ? 0.55 : 0.45;
+  const h = part.mass > 2e3 ? 1.4 : part.mass > 1e3 ? 1.2 : 1;
+  const points = [];
+  points.push(new Vector2(0, -h / 2));
+  points.push(new Vector2(r, -h / 2));
+  points.push(new Vector2(r * 0.96, -h / 2 + 0.04));
+  points.push(new Vector2(r * 0.85, -h / 2 + 0.12));
+  points.push(new Vector2(r * 0.65, -h / 2 + h * 0.35));
+  points.push(new Vector2(r * 0.42, -h / 2 + h * 0.65));
+  points.push(new Vector2(r * 0.28, -h / 2 + h * 0.85));
+  points.push(new Vector2(r * 0.22, -h / 2 + h * 0.95));
+  points.push(new Vector2(0, h / 2));
+  const podGeo = new LatheGeometry(points, 32);
+  const podMat = new MeshStandardMaterial({ color: 13158608, metalness: 0.6, roughness: 0.35 });
+  const pod = new Mesh(podGeo, podMat);
+  pod.castShadow = true;
+  group.add(pod);
+  const shieldGeo = new CylinderGeometry(r * 0.98, r * 0.7, 0.12, 32);
+  const shieldMat = new MeshStandardMaterial({ color: 2759178, metalness: 0.2, roughness: 0.9 });
+  const shield = new Mesh(shieldGeo, shieldMat);
+  shield.position.y = -h / 2 - 0.06;
+  shield.castShadow = true;
+  group.add(shield);
+  const windowCount = part.mass > 2e3 ? 6 : 4;
+  const winMat = new MeshStandardMaterial({
+    color: 4491519,
+    metalness: 0.1,
+    roughness: 0.1,
+    emissive: 2245802,
+    emissiveIntensity: 0.3
+  });
+  const frameMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < windowCount; i++) {
+    const angle = i / windowCount * Math.PI * 2;
+    const wy = h * 0.15;
+    const wr = r * 0.7;
+    const winGeo = new BoxGeometry(0.12, 0.08, 0.04);
+    const frameGeo = new BoxGeometry(0.15, 0.11, 0.05);
+    const frame = new Mesh(frameGeo, frameMat);
+    frame.position.set(Math.cos(angle) * wr, wy, Math.sin(angle) * wr);
+    frame.lookAt(0, wy, 0);
+    frame.castShadow = true;
+    group.add(frame);
+    const win = new Mesh(winGeo, winMat);
+    win.position.copy(frame.position);
+    win.lookAt(0, wy, 0);
+    group.add(win);
+  }
+  const rcsMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const rcsGeo = new ConeGeometry(0.04, 0.1, 8);
+    const rcs = new Mesh(rcsGeo, rcsMat);
+    rcs.position.set(Math.cos(angle) * r * 0.9, h * 0.3, Math.sin(angle) * r * 0.9);
+    rcs.rotation.z = Math.PI / 2;
+    rcs.rotation.y = -angle;
+    rcs.castShadow = true;
+    group.add(rcs);
+  }
+  const portBase = new Mesh(
+    new CylinderGeometry(r * 0.18, r * 0.22, 0.06, 16),
+    new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 })
+  );
+  portBase.position.y = h / 2 + 0.03;
+  portBase.castShadow = true;
+  group.add(portBase);
+  const portRing = new Mesh(
+    new TorusGeometry(r * 0.16, 0.02, 8, 16),
+    new MeshStandardMaterial({ color: 11184810, metalness: 0.8, roughness: 0.2 })
+  );
+  portRing.position.y = h / 2 + 0.07;
+  portRing.rotation.x = Math.PI / 2;
+  group.add(portRing);
+  const lineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.5, roughness: 0.5 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const lineGeo = new BoxGeometry(0.01, h * 0.7, 0.02);
+    const line = new Mesh(lineGeo, lineMat);
+    line.position.set(Math.cos(angle) * r * 0.8, 0, Math.sin(angle) * r * 0.8);
+    line.lookAt(0, 0, 0);
+    group.add(line);
+  }
+  group.userData.height = h + 0.2;
+  group.userData.radius = r;
+  return group;
+}
+function buildFuelTank(part) {
+  const group = new Group();
+  const r = part.fuelMass > 15e3 ? 0.85 : part.fuelMass > 2e3 ? 0.65 : part.fuelMass > 500 ? 0.5 : 0.38;
+  const h = part.fuelMass > 15e3 ? 4 : part.fuelMass > 2e3 ? 2.8 : part.fuelMass > 500 ? 1.8 : 1.2;
+  const bodyGeo = new CylinderGeometry(r, r, h, 32);
+  const bodyMat = new MeshStandardMaterial({ color: 15790320, metalness: 0.65, roughness: 0.25 });
+  const body = new Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  group.add(body);
+  const topCapGeo = new SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  const capMat = new MeshStandardMaterial({ color: 15263976, metalness: 0.65, roughness: 0.25 });
+  const topCap = new Mesh(topCapGeo, capMat);
+  topCap.position.y = h / 2;
+  topCap.castShadow = true;
+  group.add(topCap);
+  const botCap = new Mesh(topCapGeo, capMat);
+  botCap.position.y = -h / 2;
+  botCap.rotation.x = Math.PI;
+  botCap.castShadow = true;
+  group.add(botCap);
+  const ringCount = h > 3 ? 3 : 2;
+  const ringMat = new MeshStandardMaterial({ color: 11579568, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < ringCount; i++) {
+    const ringGeo = new TorusGeometry(r * 1.01, 0.03, 8, 32);
+    const ring = new Mesh(ringGeo, ringMat);
+    ring.position.y = -h / 2 + h / (ringCount + 1) * (i + 1);
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
+  }
+  const weldMat = new MeshStandardMaterial({ color: 13684944, metalness: 0.6, roughness: 0.35 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const weldGeo = new BoxGeometry(0.015, h * 0.92, 0.02);
+    const weld = new Mesh(weldGeo, weldMat);
+    weld.position.set(Math.cos(angle) * r * 0.99, 0, Math.sin(angle) * r * 0.99);
+    weld.lookAt(0, 0, 0);
+    group.add(weld);
+  }
+  const bandGeo = new CylinderGeometry(r * 1.005, r * 1.005, 0.1, 32);
+  const bandMat = new MeshStandardMaterial({ color: 13386820, metalness: 0.5, roughness: 0.4 });
+  const band = new Mesh(bandGeo, bandMat);
+  band.position.y = h * 0.15;
+  band.castShadow = true;
+  group.add(band);
+  if (part.fuelMass > 15e3) {
+    const stiffMat = new MeshStandardMaterial({ color: 12632256, metalness: 0.7, roughness: 0.3 });
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * Math.PI * 2;
+      const stiffGeo = new BoxGeometry(0.04, h * 0.9, 0.06);
+      const stiff = new Mesh(stiffGeo, stiffMat);
+      stiff.position.set(Math.cos(angle) * r * 1.01, 0, Math.sin(angle) * r * 1.01);
+      stiff.lookAt(0, 0, 0);
+      stiff.castShadow = true;
+      group.add(stiff);
+    }
+  }
+  group.userData.height = h + r;
+  group.userData.radius = r;
+  return group;
+}
+function buildEngine(part) {
+  const group = new Group();
+  const big = part.thrust > 5e5;
+  const nozzleR = big ? 0.6 : part.thrust > 1e5 ? 0.45 : 0.32;
+  const nozzleH = big ? 1.2 : part.thrust > 1e5 ? 0.9 : 0.65;
+  const points = [];
+  points.push(new Vector2(0, -nozzleH / 2));
+  points.push(new Vector2(nozzleR * 0.4, -nozzleH / 2));
+  points.push(new Vector2(nozzleR * 0.75, -nozzleH / 2 + nozzleH * 0.15));
+  points.push(new Vector2(nozzleR * 0.95, -nozzleH / 2 + nozzleH * 0.35));
+  points.push(new Vector2(nozzleR, -nozzleH / 2 + nozzleH * 0.6));
+  points.push(new Vector2(nozzleR * 0.95, -nozzleH / 2 + nozzleH * 0.8));
+  points.push(new Vector2(nozzleR * 0.6, nozzleH / 2 - nozzleH * 0.08));
+  points.push(new Vector2(nozzleR * 0.25, nozzleH / 2 - 0.02));
+  points.push(new Vector2(nozzleR * 0.18, nozzleH / 2));
+  points.push(new Vector2(0, nozzleH / 2));
+  const nozzleGeo = new LatheGeometry(points, 32);
+  const nozzleMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.4, roughness: 0.8 });
+  const nozzle = new Mesh(nozzleGeo, nozzleMat);
+  nozzle.position.y = -0.1;
+  nozzle.castShadow = true;
+  group.add(nozzle);
+  const ribCount = big ? 12 : 8;
+  const ribMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.7 });
+  for (let i = 0; i < ribCount; i++) {
+    const angle = i / ribCount * Math.PI * 2;
+    const ribGeo = new BoxGeometry(0.02, nozzleH * 0.7, 0.04);
+    const rib = new Mesh(ribGeo, ribMat);
+    rib.position.set(Math.cos(angle) * nozzleR * 0.92, -0.15, Math.sin(angle) * nozzleR * 0.92);
+    rib.lookAt(0, -0.15, 0);
+    group.add(rib);
+  }
+  const chamberGeo = new CylinderGeometry(nozzleR * 0.35, nozzleR * 0.25, 0.25, 16);
+  const chamberMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
+  const chamber = new Mesh(chamberGeo, chamberMat);
+  chamber.position.y = nozzleH / 2 + 0.05;
+  chamber.castShadow = true;
+  group.add(chamber);
+  const pumpGeo = new CylinderGeometry(0.08, 0.08, 0.18, 12);
+  const pumpMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.3 });
+  const pump = new Mesh(pumpGeo, pumpMat);
+  pump.position.set(nozzleR * 0.3, nozzleH / 2 + 0.2, 0);
+  pump.rotation.z = Math.PI / 2;
+  pump.castShadow = true;
+  group.add(pump);
+  const gimbalGeo = new TorusGeometry(nozzleR * 0.3, 0.04, 8, 24);
+  const gimbalMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 });
+  const gimbal = new Mesh(gimbalGeo, gimbalMat);
+  gimbal.position.y = nozzleH / 2 + 0.02;
+  gimbal.rotation.x = Math.PI / 2;
+  gimbal.castShadow = true;
+  group.add(gimbal);
+  const curvePts = [
+    new Vector3(nozzleR * 0.3, nozzleH / 2 + 0.15, 0),
+    new Vector3(nozzleR * 0.5, nozzleH / 2 + 0.05, 0),
+    new Vector3(nozzleR * 0.5, 0, 0),
+    new Vector3(nozzleR * 0.4, -nozzleH * 0.3, 0)
+  ];
+  const curve = new CatmullRomCurve3(curvePts);
+  const tubeGeo = new TubeGeometry(curve, 16, 0.025, 8, false);
+  const tubeMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
+  const tube = new Mesh(tubeGeo, tubeMat);
+  tube.castShadow = true;
+  group.add(tube);
+  const maniMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.5, roughness: 0.6 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const maniGeo = new ConeGeometry(0.04, 0.1, 6);
+    const mani = new Mesh(maniGeo, maniMat);
+    mani.position.set(Math.cos(angle) * nozzleR * 0.35, nozzleH / 2 + 0.08, Math.sin(angle) * nozzleR * 0.35);
+    mani.rotation.x = Math.PI;
+    group.add(mani);
+  }
+  group.userData.height = nozzleH + 0.5;
+  group.userData.radius = nozzleR;
+  return group;
+}
+function buildBooster(part) {
+  const group = new Group();
+  const r = part.fuelMass > 5e3 ? 0.5 : 0.38;
+  const h = part.fuelMass > 5e3 ? 4.5 : 3.2;
+  const bodyGeo = new CylinderGeometry(r, r, h, 24);
+  const bodyMat = new MeshStandardMaterial({ color: 14737632, metalness: 0.6, roughness: 0.3 });
+  const body = new Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  group.add(body);
+  const nosePts = [];
+  nosePts.push(new Vector2(0, h / 2 + r * 1.5));
+  nosePts.push(new Vector2(r * 0.2, h / 2 + r * 1.4));
+  nosePts.push(new Vector2(r * 0.5, h / 2 + r * 1.1));
+  nosePts.push(new Vector2(r * 0.8, h / 2 + r * 0.7));
+  nosePts.push(new Vector2(r * 0.95, h / 2 + r * 0.3));
+  nosePts.push(new Vector2(r, h / 2));
+  const noseGeo = new LatheGeometry(nosePts, 24);
+  const noseMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.6, roughness: 0.3 });
+  const nose = new Mesh(noseGeo, noseMat);
+  nose.castShadow = true;
+  group.add(nose);
+  const nozGeo = new CylinderGeometry(r * 0.5, r * 0.7, 0.35, 20);
+  const nozMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.4, roughness: 0.8 });
+  const noz = new Mesh(nozGeo, nozMat);
+  noz.position.y = -h / 2 - 0.18;
+  noz.castShadow = true;
+  group.add(noz);
+  const sepMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 2; i++) {
+    const sign2 = i === 0 ? 1 : -1;
+    const sepBody = new Mesh(new CylinderGeometry(0.05, 0.05, 0.2, 8), sepMat);
+    sepBody.position.set(sign2 * (r + 0.08), h * 0.3, 0);
+    sepBody.castShadow = true;
+    group.add(sepBody);
+    const sepCone = new Mesh(new ConeGeometry(0.05, 0.08, 8), sepMat);
+    sepCone.position.set(sign2 * (r + 0.08), h * 0.3 + 0.14, 0);
+    group.add(sepCone);
+  }
+  const strutMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < 2; i++) {
+    const y = i === 0 ? h * 0.2 : -h * 0.2;
+    const strut = new Mesh(new BoxGeometry(0.15, 0.04, 0.08), strutMat);
+    strut.position.set(r + 0.07, y, 0);
+    strut.castShadow = true;
+    group.add(strut);
+  }
+  const lineGeo = new CylinderGeometry(0.02, 0.02, h * 0.5, 8);
+  const lineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.4 });
+  const line = new Mesh(lineGeo, lineMat);
+  line.position.set(r * 0.95, 0, 0);
+  group.add(line);
+  const bandGeo = new CylinderGeometry(r * 1.01, r * 1.01, 0.15, 24);
+  const bandMat = new MeshStandardMaterial({ color: 4473958, metalness: 0.5, roughness: 0.4 });
+  const band = new Mesh(bandGeo, bandMat);
+  band.position.y = h * 0.25;
+  group.add(band);
+  group.userData.height = h + r * 1.5 + 0.35;
+  group.userData.radius = r;
+  return group;
+}
+function buildDecoupler(part) {
+  const group = new Group();
+  const r = 0.6;
+  const h = 0.3;
+  const ringGeo = new CylinderGeometry(r, r, h, 32, 1, true);
+  const ringMat = new MeshStandardMaterial({ color: 11184810, metalness: 0.6, roughness: 0.35, side: DoubleSide });
+  const ring = new Mesh(ringGeo, ringMat);
+  ring.castShadow = true;
+  group.add(ring);
+  const capGeo = new RingGeometry(r * 0.7, r, 32);
+  const capMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.35, side: DoubleSide });
+  const topCap = new Mesh(capGeo, capMat);
+  topCap.position.y = h / 2;
+  topCap.rotation.x = -Math.PI / 2;
+  group.add(topCap);
+  const botCap = new Mesh(capGeo, capMat);
+  botCap.position.y = -h / 2;
+  botCap.rotation.x = Math.PI / 2;
+  group.add(botCap);
+  const bandGeo = new CylinderGeometry(r * 1.02, r * 1.02, 0.06, 32);
+  const bandMat = new MeshStandardMaterial({ color: 16737792, metalness: 0.4, roughness: 0.5 });
+  const band = new Mesh(bandGeo, bandMat);
+  band.castShadow = true;
+  group.add(band);
+  const boltMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const boltGeo = new BoxGeometry(0.05, h * 0.8, 0.05);
+    const bolt = new Mesh(boltGeo, boltMat);
+    bolt.position.set(Math.cos(angle) * r * 0.85, 0, Math.sin(angle) * r * 0.85);
+    bolt.lookAt(0, 0, 0);
+    bolt.castShadow = true;
+    group.add(bolt);
+  }
+  const grooveGeo = new TorusGeometry(r * 0.98, 0.02, 6, 32);
+  const grooveMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.5, roughness: 0.6 });
+  const groove = new Mesh(grooveGeo, grooveMat);
+  groove.rotation.x = Math.PI / 2;
+  group.add(groove);
+  group.userData.height = h;
+  group.userData.radius = r;
+  return group;
+}
+function buildParachute(part) {
+  const group = new Group();
+  const r = 0.3;
+  const h = 0.4;
+  const canGeo = new CylinderGeometry(r, r, h, 20);
+  const canMat = new MeshStandardMaterial({ color: 15658734, metalness: 0.5, roughness: 0.35 });
+  const can = new Mesh(canGeo, canMat);
+  can.castShadow = true;
+  group.add(can);
+  const coneGeo = new ConeGeometry(r * 0.9, 0.15, 20);
+  const coneMat = new MeshStandardMaterial({ color: 13382451, metalness: 0.4, roughness: 0.5 });
+  const cone = new Mesh(coneGeo, coneMat);
+  cone.position.y = h / 2 + 0.075;
+  cone.castShadow = true;
+  group.add(cone);
+  const handleGeo = new BoxGeometry(0.06, 0.1, 0.04);
+  const handleMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
+  const handle = new Mesh(handleGeo, handleMat);
+  handle.position.set(r * 0.95, 0, 0);
+  handle.castShadow = true;
+  group.add(handle);
+  const flangeGeo = new CylinderGeometry(r * 1.1, r * 1.1, 0.04, 20);
+  const flangeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.35 });
+  const flange = new Mesh(flangeGeo, flangeMat);
+  flange.position.y = -h / 2 - 0.02;
+  flange.castShadow = true;
+  group.add(flange);
+  group.userData.height = h + 0.15;
+  group.userData.radius = r;
+  return group;
+}
+function buildAeroFin(part) {
+  const group = new Group();
+  const scale = part.mass > 50 ? 1.3 : part.mass > 20 ? 1 : 0.7;
+  const span = 0.8 * scale;
+  const root = 1 * scale;
+  const tip = 0.3 * scale;
+  const thick = 0.04;
+  const shape = new Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(root, 0);
+  shape.lineTo(root * 0.7, span);
+  shape.lineTo(0, span * 0.85);
+  shape.lineTo(0, 0);
+  const extrudeSettings = {
+    depth: thick,
+    bevelEnabled: true,
+    bevelThickness: 0.01,
+    bevelSize: 0.01,
+    bevelSegments: 2
+  };
+  const finGeo = new ExtrudeGeometry(shape, extrudeSettings);
+  const finMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.5, roughness: 0.35 });
+  const fin = new Mesh(finGeo, finMat);
+  fin.rotation.x = -Math.PI / 2;
+  fin.position.z = -thick / 2;
+  fin.castShadow = true;
+  group.add(fin);
+  const ctrlShape = new Shape();
+  ctrlShape.moveTo(root * 0.75, 0);
+  ctrlShape.lineTo(root, 0);
+  ctrlShape.lineTo(root * 0.7, span * 0.4);
+  ctrlShape.lineTo(root * 0.55, span * 0.35);
+  ctrlShape.lineTo(root * 0.75, 0);
+  const ctrlGeo = new ExtrudeGeometry(ctrlShape, extrudeSettings);
+  const ctrlMat = new MeshStandardMaterial({ color: 16746496, metalness: 0.4, roughness: 0.5 });
+  const ctrl = new Mesh(ctrlGeo, ctrlMat);
+  ctrl.rotation.x = -Math.PI / 2;
+  ctrl.position.z = -thick / 2;
+  ctrl.castShadow = true;
+  group.add(ctrl);
+  group.userData.height = 0.06 * scale;
+  group.userData.radius = root;
+  return group;
+}
+function buildRCSBlock(part) {
+  const group = new Group();
+  const baseGeo = new BoxGeometry(0.15, 0.06, 0.15);
+  const baseMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
+  const base = new Mesh(baseGeo, baseMat);
+  base.castShadow = true;
+  group.add(base);
+  const nozMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const nozGeo = new ConeGeometry(0.03, 0.08, 8);
+    const noz = new Mesh(nozGeo, nozMat);
+    noz.position.set(Math.cos(angle) * 0.07, 0.05, Math.sin(angle) * 0.07);
+    noz.rotation.z = Math.PI / 2;
+    noz.rotation.y = -angle;
+    noz.castShadow = true;
+    group.add(noz);
+  }
+  const pipeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const pipeGeo = new CylinderGeometry(8e-3, 8e-3, 0.07, 6);
+    const pipe = new Mesh(pipeGeo, pipeMat);
+    pipe.position.set(Math.cos(angle) * 0.05, 0.03, Math.sin(angle) * 0.05);
+    pipe.rotation.z = Math.PI / 2;
+    pipe.rotation.y = -angle;
+    group.add(pipe);
+  }
+  group.userData.height = 0.15;
+  group.userData.radius = 0.1;
+  return group;
+}
+function buildSolarPanel(part) {
+  const group = new Group();
+  const baseGeo = new BoxGeometry(0.12, 0.08, 0.12);
+  const baseMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.6, roughness: 0.4 });
+  const base = new Mesh(baseGeo, baseMat);
+  base.castShadow = true;
+  group.add(base);
+  const armMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  const arm1 = new Mesh(new CylinderGeometry(0.02, 0.02, 0.2, 8), armMat);
+  arm1.position.set(0.1, 0, 0);
+  arm1.rotation.z = Math.PI / 2;
+  arm1.castShadow = true;
+  group.add(arm1);
+  const joint1 = new Mesh(new SphereGeometry(0.03, 8, 6), armMat);
+  joint1.position.set(0.2, 0, 0);
+  group.add(joint1);
+  const arm2 = new Mesh(new CylinderGeometry(0.02, 0.02, 0.2, 8), armMat);
+  arm2.position.set(0.3, 0, 0);
+  arm2.rotation.z = Math.PI / 2;
+  arm2.castShadow = true;
+  group.add(arm2);
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#1a3a6a";
+  ctx.fillRect(0, 0, 128, 64);
+  ctx.strokeStyle = "#3a6aaa";
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= 128; x += 16) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 64);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= 64; y += 16) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(128, y);
+    ctx.stroke();
+  }
+  const panelTex = new CanvasTexture(canvas);
+  const panelMat = new MeshStandardMaterial({
+    map: panelTex,
+    color: 2245768,
+    metalness: 0.3,
+    roughness: 0.3,
+    emissive: 1122986,
+    emissiveIntensity: 0.25
+  });
+  const panelGeo = new BoxGeometry(0.8, 0.02, 0.35);
+  const panel = new Mesh(panelGeo, panelMat);
+  panel.position.set(0.7, 0, 0);
+  panel.castShadow = true;
+  group.add(panel);
+  const backMat = new MeshStandardMaterial({ color: 3355477, metalness: 0.4, roughness: 0.5 });
+  const back = new Mesh(new BoxGeometry(0.8, 0.01, 0.35), backMat);
+  back.position.set(0.7, -0.02, 0);
+  group.add(back);
+  group.userData.height = 0.12;
+  group.userData.radius = 0.1;
+  return group;
+}
+function buildLandingLeg(part) {
+  const group = new Group();
+  const metalMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  const darkMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.5, roughness: 0.5 });
+  const thigh = new Mesh(new CylinderGeometry(0.04, 0.035, 0.5, 8), metalMat);
+  thigh.position.set(0.2, -0.1, 0);
+  thigh.rotation.z = -0.6;
+  thigh.castShadow = true;
+  group.add(thigh);
+  const knee = new Mesh(new SphereGeometry(0.05, 12, 8), metalMat);
+  knee.position.set(0.42, -0.28, 0);
+  knee.castShadow = true;
+  group.add(knee);
+  const shin = new Mesh(new CylinderGeometry(0.03, 0.025, 0.5, 8), metalMat);
+  shin.position.set(0.5, -0.55, 0);
+  shin.rotation.z = 0.4;
+  shin.castShadow = true;
+  group.add(shin);
+  for (let i = 0; i < 5; i++) {
+    const spring = new Mesh(
+      new TorusGeometry(0.025, 8e-3, 4, 12),
+      darkMat
+    );
+    spring.position.set(0.28 + i * 0.02, -0.15 - i * 0.03, 0);
+    spring.rotation.y = Math.PI / 2;
+    group.add(spring);
+  }
+  const piston = new Mesh(new CylinderGeometry(0.012, 0.012, 0.25, 6), darkMat);
+  piston.position.set(0.25, -0.2, 0.02);
+  piston.rotation.z = -0.5;
+  group.add(piston);
+  const footGeo = new CylinderGeometry(0.1, 0.1, 0.02, 16);
+  const foot = new Mesh(footGeo, metalMat);
+  foot.position.set(0.68, -0.8, 0);
+  foot.castShadow = true;
+  group.add(foot);
+  const footEdge = new Mesh(new TorusGeometry(0.1, 0.012, 6, 16), darkMat);
+  footEdge.position.set(0.68, -0.81, 0);
+  footEdge.rotation.x = Math.PI / 2;
+  group.add(footEdge);
+  group.userData.height = 0.9;
+  group.userData.radius = 0.15;
+  return group;
+}
+function buildScienceInstrument(part) {
+  const group = new Group();
+  const name = (part.name + " " + (part.description || "")).toLowerCase();
+  const mat = new MeshStandardMaterial({ color: 13421772, metalness: 0.5, roughness: 0.4 });
+  const darkMat = new MeshStandardMaterial({ color: 4473941, metalness: 0.4, roughness: 0.5 });
+  if (name.includes("thermometer") || name.includes("\u6E29\u5EA6")) {
+    const stem = new Mesh(new CylinderGeometry(0.03, 0.03, 0.4, 12), mat);
+    stem.position.y = 0.2;
+    stem.castShadow = true;
+    group.add(stem);
+    const bulb = new Mesh(new SphereGeometry(0.06, 12, 8), darkMat);
+    bulb.position.y = 0.45;
+    bulb.castShadow = true;
+    group.add(bulb);
+    const baseBox = new Mesh(new BoxGeometry(0.1, 0.04, 0.08), mat);
+    baseBox.castShadow = true;
+    group.add(baseBox);
+    group.userData.height = 0.5;
+  } else if (name.includes("sensor") || name.includes("science") || name.includes("\u4F20\u611F\u5668") || name.includes("\u79D1\u5B66")) {
+    const box = new Mesh(new BoxGeometry(0.2, 0.15, 0.12), mat);
+    box.castShadow = true;
+    group.add(box);
+    const lens = new Mesh(new CylinderGeometry(0.03, 0.03, 0.04, 12), darkMat);
+    lens.position.z = 0.08;
+    lens.rotation.x = Math.PI / 2;
+    lens.castShadow = true;
+    group.add(lens);
+    const ant = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.2, 6), mat);
+    ant.position.y = 0.17;
+    ant.castShadow = true;
+    group.add(ant);
+    group.userData.height = 0.37;
+  } else if (name.includes("arm") || name.includes("\u81C2")) {
+    const baseJoint = new Mesh(new SphereGeometry(0.05, 10, 8), mat);
+    baseJoint.castShadow = true;
+    group.add(baseJoint);
+    const seg1 = new Mesh(new CylinderGeometry(0.02, 0.02, 0.25, 8), mat);
+    seg1.position.set(0.1, 0.08, 0);
+    seg1.rotation.z = -0.7;
+    seg1.castShadow = true;
+    group.add(seg1);
+    const elbow = new Mesh(new SphereGeometry(0.035, 10, 8), mat);
+    elbow.position.set(0.22, 0.16, 0);
+    group.add(elbow);
+    const seg2 = new Mesh(new CylinderGeometry(0.015, 0.015, 0.2, 8), mat);
+    seg2.position.set(0.32, 0.1, 0);
+    seg2.rotation.z = 0.8;
+    seg2.castShadow = true;
+    group.add(seg2);
+    const claw = new Mesh(new ConeGeometry(0.03, 0.06, 6), darkMat);
+    claw.position.set(0.42, 0.04, 0);
+    claw.rotation.z = Math.PI / 2;
+    group.add(claw);
+    group.userData.height = 0.3;
+  } else {
+    const box = new Mesh(new BoxGeometry(0.18, 0.18, 0.14), mat);
+    box.castShadow = true;
+    group.add(box);
+    const top = new Mesh(new CylinderGeometry(0.04, 0.04, 0.06, 8), darkMat);
+    top.position.y = 0.12;
+    top.castShadow = true;
+    group.add(top);
+    group.userData.height = 0.24;
+  }
+  group.userData.radius = 0.12;
+  return group;
+}
+function buildCommAntenna(part) {
+  const group = new Group();
+  const metalMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  const darkMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.5 });
+  const baseGeo = new CylinderGeometry(0.06, 0.08, 0.06, 12);
+  const base = new Mesh(baseGeo, metalMat);
+  base.castShadow = true;
+  group.add(base);
+  const segs = [0.04, 0.03, 0.02];
+  let yOff = 0.03;
+  for (let i = 0; i < 3; i++) {
+    const seg = new Mesh(new CylinderGeometry(segs[i], segs[i], 0.2, 8), metalMat);
+    seg.position.y = yOff + 0.1;
+    seg.castShadow = true;
+    group.add(seg);
+    yOff += 0.2;
+  }
+  const dishPts = [];
+  dishPts.push(new Vector2(0, 0));
+  dishPts.push(new Vector2(0.05, 0.02));
+  dishPts.push(new Vector2(0.1, 0.05));
+  dishPts.push(new Vector2(0.15, 0.1));
+  dishPts.push(new Vector2(0.2, 0.16));
+  dishPts.push(new Vector2(0.22, 0.2));
+  const dishGeo = new LatheGeometry(dishPts, 24);
+  const dishMat = new MeshStandardMaterial({ color: 11184810, metalness: 0.6, roughness: 0.3, side: DoubleSide });
+  const dish = new Mesh(dishGeo, dishMat);
+  dish.position.y = yOff;
+  dish.castShadow = true;
+  group.add(dish);
+  const horn = new Mesh(new ConeGeometry(0.025, 0.08, 8), darkMat);
+  horn.position.y = yOff + 0.12;
+  horn.castShadow = true;
+  group.add(horn);
+  group.userData.height = yOff + 0.25;
+  group.userData.radius = 0.22;
+  return group;
+}
+function buildStructuralTube(part) {
+  const group = new Group();
+  const r = 0.5;
+  const h = 1;
+  const metalMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 2; i++) {
+    const sign2 = i === 0 ? 1 : -1;
+    const strut = new Mesh(
+      new CylinderGeometry(0.025, 0.025, h, 8),
+      metalMat
+    );
+    strut.position.set(sign2 * r * 0.5, 0, 0);
+    strut.rotation.z = sign2 * 0.7;
+    strut.castShadow = true;
+    group.add(strut);
+  }
+  for (let y = -h / 2; y <= h / 2; y += h) {
+    const ring = new Mesh(
+      new TorusGeometry(r * 0.7, 0.02, 6, 24),
+      metalMat
+    );
+    ring.position.y = y;
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
+  }
+  const nodeMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
+  const positions = [
+    [0, h / 2, 0],
+    [0, -h / 2, 0],
+    [r * 0.5, 0, 0],
+    [-r * 0.5, 0, 0]
+  ];
+  for (const [x, y, z] of positions) {
+    const node = new Mesh(new SphereGeometry(0.04, 10, 8), nodeMat);
+    node.position.set(x, y, z);
+    node.castShadow = true;
+    group.add(node);
+  }
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const post = new Mesh(
+      new CylinderGeometry(0.015, 0.015, h, 6),
+      metalMat
+    );
+    post.position.set(Math.cos(angle) * r * 0.7, 0, Math.sin(angle) * r * 0.7);
+    post.castShadow = true;
+    group.add(post);
+  }
+  group.userData.height = h;
+  group.userData.radius = r * 0.7;
+  return group;
+}
+function buildAdapter(part) {
+  const group = new Group();
+  const topR = 0.4;
+  const botR = 0.7;
+  const h = 0.5;
+  const pts = [];
+  pts.push(new Vector2(0, -h / 2));
+  pts.push(new Vector2(botR, -h / 2));
+  pts.push(new Vector2(botR * 0.98, -h / 2 + 0.03));
+  pts.push(new Vector2(botR * 0.9, -h / 2 + h * 0.2));
+  pts.push(new Vector2(botR * 0.75, -h / 2 + h * 0.45));
+  pts.push(new Vector2(botR * 0.6, -h / 2 + h * 0.65));
+  pts.push(new Vector2(topR * 1.1, -h / 2 + h * 0.85));
+  pts.push(new Vector2(topR, h / 2 - 0.02));
+  pts.push(new Vector2(topR * 0.98, h / 2));
+  pts.push(new Vector2(0, h / 2));
+  const adapterGeo = new LatheGeometry(pts, 32);
+  const adapterMat = new MeshStandardMaterial({ color: 13684944, metalness: 0.65, roughness: 0.25 });
+  const adapter = new Mesh(adapterGeo, adapterMat);
+  adapter.castShadow = true;
+  group.add(adapter);
+  const bandMat = new MeshStandardMaterial({ color: 11579568, metalness: 0.7, roughness: 0.3 });
+  const topBand = new Mesh(new TorusGeometry(topR * 1.01, 0.025, 8, 24), bandMat);
+  topBand.position.y = h / 2;
+  topBand.rotation.x = Math.PI / 2;
+  topBand.castShadow = true;
+  group.add(topBand);
+  const botBand = new Mesh(new TorusGeometry(botR * 1.01, 0.025, 8, 24), bandMat);
+  botBand.position.y = -h / 2;
+  botBand.rotation.x = Math.PI / 2;
+  botBand.castShadow = true;
+  group.add(botBand);
+  const lineMat = new MeshStandardMaterial({ color: 10526880, metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const lineGeo = new BoxGeometry(0.01, h * 0.9, 0.02);
+    const line = new Mesh(lineGeo, lineMat);
+    const midR = (topR + botR) / 2;
+    line.position.set(Math.cos(angle) * midR * 0.95, 0, Math.sin(angle) * midR * 0.95);
+    line.lookAt(0, 0, 0);
+    group.add(line);
+  }
+  group.userData.height = h;
+  group.userData.radius = botR;
   return group;
 }
 function createAstronautModel() {
   const group = new Group();
-  const suitMat = new MeshStandardMaterial({ color: 16777215, roughness: 0.5, metalness: 0.15 });
-  const suitAccentMat = new MeshStandardMaterial({ color: 13386820, roughness: 0.5, metalness: 0.1 });
-  const visorMat = new MeshStandardMaterial({ color: 11189196, transparent: true, opacity: 0.75, metalness: 0.9, roughness: 0.05 });
-  const darkMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.5 });
-  const goldVisorMat = new MeshStandardMaterial({ color: 16763972, metalness: 0.9, roughness: 0.1, transparent: true, opacity: 0.5 });
-  const body = new Mesh(new CapsuleGeometry(0.3, 0.8, 8, 16), suitMat);
-  body.position.y = 0.6;
+  const suitMat = new MeshStandardMaterial({ color: 16777215, roughness: 0.7, metalness: 0.1 });
+  const visorMat = new MeshStandardMaterial({ color: 2241348, roughness: 0.2, metalness: 0.8 });
+  const helmet = new Mesh(new SphereGeometry(0.25, 16, 12), suitMat);
+  helmet.position.y = 1.5;
+  helmet.castShadow = true;
+  group.add(helmet);
+  const visor = new Mesh(new SphereGeometry(0.18, 12, 8, 0, Math.PI), visorMat);
+  visor.position.set(0, 1.5, 0.1);
+  group.add(visor);
+  const body = new Mesh(new CylinderGeometry(0.25, 0.3, 0.8, 8), suitMat);
+  body.position.y = 0.7;
   body.castShadow = true;
   group.add(body);
-  const chest = new Mesh(new BoxGeometry(0.45, 0.35, 0.25), suitAccentMat);
-  chest.position.set(0, 0.85, 0.15);
-  group.add(chest);
-  const head = new Mesh(new SphereGeometry(0.28, 24, 18), suitMat);
-  head.position.y = 1.45;
-  group.add(head);
-  const visor = new Mesh(new SphereGeometry(0.24, 20, 14, 0, Math.PI * 1.4, Math.PI * 0.2, Math.PI * 0.6), goldVisorMat);
-  visor.position.set(0, 1.45, 0.05);
-  group.add(visor);
   for (const side of [-1, 1]) {
-    const shoulder = new Mesh(new SphereGeometry(0.13, 10, 8), suitMat);
-    shoulder.position.set(side * 0.4, 1, 0);
-    group.add(shoulder);
-    const arm = new Mesh(new CapsuleGeometry(0.11, 0.55, 6, 10), suitMat);
-    arm.position.set(side * 0.42, 0.6, 0);
-    arm.rotation.z = side * 0.25;
+    const arm = new Mesh(new CylinderGeometry(0.08, 0.08, 0.6, 6), suitMat);
+    arm.position.set(side * 0.3, 0.7, 0);
     arm.castShadow = true;
     group.add(arm);
-    const glove = new Mesh(new SphereGeometry(0.13, 10, 8), suitAccentMat);
-    glove.position.set(side * 0.55, 0.25, 0);
-    group.add(glove);
   }
   for (const side of [-1, 1]) {
-    const hip = new Mesh(new SphereGeometry(0.14, 10, 8), suitMat);
-    hip.position.set(side * 0.18, 0.1, 0);
-    group.add(hip);
-    const leg = new Mesh(new CapsuleGeometry(0.13, 0.65, 6, 10), suitMat);
-    leg.position.set(side * 0.18, -0.35, 0);
+    const leg = new Mesh(new CylinderGeometry(0.1, 0.1, 0.6, 6), suitMat);
+    leg.position.set(side * 0.12, 0.1, 0);
     leg.castShadow = true;
     group.add(leg);
-    const boot = new Mesh(new BoxGeometry(0.2, 0.12, 0.3), darkMat);
-    boot.position.set(side * 0.18, -0.72, 0.05);
-    group.add(boot);
   }
-  const pack = new Mesh(new BoxGeometry(0.5, 0.65, 0.28), darkMat);
-  pack.position.set(0, 0.7, -0.32);
-  group.add(pack);
-  const plssAnt1 = new Mesh(new CylinderGeometry(0.015, 0.015, 0.4, 4), darkMat);
-  plssAnt1.position.set(0.15, 1.1, -0.35);
-  plssAnt1.rotation.z = 0.2;
-  group.add(plssAnt1);
-  const plssAnt2 = new Mesh(new CylinderGeometry(0.015, 0.015, 0.4, 4), darkMat);
-  plssAnt2.position.set(-0.15, 1.1, -0.35);
-  plssAnt2.rotation.z = -0.2;
-  group.add(plssAnt2);
-  const lightMat = new MeshBasicMaterial({ color: 65348 });
-  const chestLight = new Mesh(new SphereGeometry(0.06, 8, 6), lightMat);
-  chestLight.position.set(0, 0.95, 0.28);
-  group.add(chestLight);
-  const flag = new Mesh(new PlaneGeometry(0.12, 0.08), new MeshBasicMaterial({ color: 3368652, side: DoubleSide }));
-  flag.position.set(0.3, 0.85, 0.22);
-  flag.rotation.y = -0.3;
-  group.add(flag);
   return group;
 }
 function createResearchBaseModel() {
   const group = new Group();
-  const hullMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.6, roughness: 0.35 });
-  const panelMat = new MeshStandardMaterial({ color: 2245802, emissive: 1122884, metalness: 0.8, roughness: 0.15 });
-  const darkMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.25 });
-  const accentMat = new MeshStandardMaterial({ color: 16755234, emissive: 3351040, metalness: 0.5, roughness: 0.3 });
-  const hub = new Mesh(new CylinderGeometry(1, 1.2, 1.5, 16), hullMat);
+  const structMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.6, metalness: 0.3 });
+  const panelMat = new MeshStandardMaterial({ color: 2245802, roughness: 0.4, metalness: 0.2, emissive: 1122884, emissiveIntensity: 0.3 });
+  const hub = new Mesh(new CylinderGeometry(1, 1, 1.5, 16), structMat);
   hub.castShadow = true;
   group.add(hub);
-  const hubRing = new Mesh(new TorusGeometry(1.1, 0.08, 8, 24), darkMat);
-  hubRing.position.y = 0.5;
-  hubRing.rotation.x = Math.PI / 2;
-  group.add(hubRing);
+  const dome = new Mesh(new SphereGeometry(1.2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), structMat);
+  dome.position.y = 0.75;
+  dome.castShadow = true;
+  group.add(dome);
   for (let i = 0; i < 4; i++) {
     const angle = i * Math.PI / 2;
-    const strut = new Mesh(new CylinderGeometry(0.05, 0.05, 1.5, 6), darkMat);
-    strut.position.set(Math.cos(angle) * 1.5, 0, Math.sin(angle) * 1.5);
-    strut.rotation.z = Math.PI / 2;
-    strut.rotation.y = angle;
-    group.add(strut);
-    const panel = new Mesh(new BoxGeometry(3, 0.05, 1.5), panelMat);
-    panel.position.set(Math.cos(angle) * 2.8, 0, Math.sin(angle) * 2.8);
+    const panel = new Mesh(new BoxGeometry(2, 0.05, 0.8), panelMat);
+    panel.position.set(Math.cos(angle) * 1.8, 0.3, Math.sin(angle) * 1.8);
     panel.rotation.y = angle;
     panel.castShadow = true;
     group.add(panel);
-    for (let j = 0; j < 3; j++) {
-      const line = new Mesh(new BoxGeometry(3, 0.06, 0.03), darkMat);
-      line.position.set(Math.cos(angle) * 2.8, 0.01, Math.sin(angle) * 2.8 + (j - 1) * 0.4);
-      line.rotation.y = angle;
-      group.add(line);
-    }
+    const arm = new Mesh(new CylinderGeometry(0.05, 0.05, 1, 6), structMat);
+    arm.rotation.z = Math.PI / 2;
+    arm.position.set(Math.cos(angle) * 1.3, 0.3, Math.sin(angle) * 1.3);
+    arm.rotation.y = angle;
+    group.add(arm);
   }
-  const dish = new Mesh(new SphereGeometry(0.8, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), darkMat);
-  dish.position.y = 2.2;
-  dish.rotation.x = -Math.PI / 4;
+  const mast = new Mesh(new CylinderGeometry(0.03, 0.03, 2, 6), structMat);
+  mast.position.y = 2;
+  group.add(mast);
+  const dish = new Mesh(new SphereGeometry(0.3, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), structMat);
+  dish.position.y = 3;
+  dish.rotation.x = Math.PI;
   group.add(dish);
-  const receiver = new Mesh(new SphereGeometry(0.1, 8, 6), accentMat);
-  receiver.position.set(0, 2.8, 0.4);
-  group.add(receiver);
-  const pole = new Mesh(new CylinderGeometry(0.06, 0.06, 2, 8), hullMat);
-  pole.position.y = 1.5;
-  group.add(pole);
-  for (let i = 0; i < 2; i++) {
-    const lab = new Mesh(new CapsuleGeometry(0.6, 2, 8, 16), hullMat);
-    lab.rotation.z = Math.PI / 2;
-    lab.position.set(0, 0, (i === 0 ? 1 : -1) * 2.5);
-    lab.castShadow = true;
-    group.add(lab);
-    const labWin = new Mesh(new CircleGeometry(0.15, 12), new MeshBasicMaterial({ color: 16768392, transparent: true, opacity: 0.8 }));
-    labWin.position.set(0, 0.3, (i === 0 ? 1 : -1) * 2.5);
-    labWin.rotation.y = i === 0 ? 0 : Math.PI;
-    group.add(labWin);
-  }
-  const lightMat = new MeshBasicMaterial({ color: 65348 });
-  for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2;
-    const light = new Mesh(new SphereGeometry(0.1, 8, 6), lightMat);
-    light.position.set(Math.cos(angle), 0.8, Math.sin(angle));
-    light.name = "blinkLight";
-    group.add(light);
-  }
-  for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2 + Math.PI / 4;
-    const leg = new Mesh(new CylinderGeometry(0.04, 0.04, 1.2, 6), darkMat);
-    leg.position.set(Math.cos(angle) * 0.8, -0.5, Math.sin(angle) * 0.8);
-    leg.rotation.z = Math.cos(angle) * 0.4;
-    leg.rotation.x = -Math.sin(angle) * 0.4;
-    group.add(leg);
-  }
   return group;
 }
 function createSpaceCenterScene() {
   const group = new Group();
-  group.name = "SpaceCenter";
-  const concreteMat = new MeshStandardMaterial({ map: generateGroundTexture("concrete"), roughness: 0.85, metalness: 0.05 });
-  const grassMat = new MeshStandardMaterial({ map: generateGroundTexture("grass"), roughness: 0.9, metalness: 0 });
-  const buildingMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.5, metalness: 0.3 });
-  const darkBuildingMat = new MeshStandardMaterial({ color: 5596791, roughness: 0.4, metalness: 0.4 });
-  const roofMat = new MeshStandardMaterial({ color: 13386786, roughness: 0.5, metalness: 0.2 });
-  const domeMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.3, metalness: 0.4 });
-  const roadMat = new MeshStandardMaterial({ map: generateGroundTexture("asphalt"), roughness: 0.9, metalness: 0 });
-  const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.2, metalness: 0.8 });
-  const windowMat = new MeshStandardMaterial({ color: 8956620, emissive: 2241348, roughness: 0.1, metalness: 0.8 });
-  const redMat = new MeshStandardMaterial({ color: 13382451, roughness: 0.4, metalness: 0.3 });
-  const yellowMat = new MeshStandardMaterial({ color: 16768324, emissive: 3351040, roughness: 0.4, metalness: 0.3 });
-  const grassTex = grassMat.map;
-  grassTex.repeat.set(20, 20);
-  const concreteTex = concreteMat.map;
-  concreteTex.repeat.set(10, 10);
-  const roadTex = roadMat.map;
-  roadTex.repeat.set(4, 8);
-  const ground = new Mesh(new PlaneGeometry(140, 140), grassMat);
+  const groundCanvas = document.createElement("canvas");
+  groundCanvas.width = 512;
+  groundCanvas.height = 512;
+  const gctx = groundCanvas.getContext("2d");
+  gctx.fillStyle = "#3a5a3a";
+  gctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 5e3; i++) {
+    const x = Math.random() * 512, y = Math.random() * 512;
+    const shade = 30 + Math.random() * 40;
+    gctx.fillStyle = `rgba(${shade},${shade + 20},${shade},0.5)`;
+    gctx.fillRect(x, y, 2, 2);
+  }
+  const groundTex = new CanvasTexture(groundCanvas);
+  groundTex.wrapS = groundTex.wrapT = RepeatWrapping;
+  groundTex.repeat.set(8, 8);
+  const groundMat = new MeshStandardMaterial({ map: groundTex, roughness: 0.9, metalness: 0 });
+  const buildingMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.6, metalness: 0.3 });
+  const roofMat = new MeshStandardMaterial({ color: 8952234, roughness: 0.5, metalness: 0.4 });
+  const darkMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
+  const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.7 });
+  const ground = new Mesh(new CircleGeometry(80, 64), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   group.add(ground);
-  const roadPositions = [
-    [17, 0, 3, 24],
-    [-17, 0, 3, 24],
-    [0, -17, 24, 3],
-    [0, 13, 18, 3]
-  ];
-  for (const [rx, rz, rw, rl] of roadPositions) {
-    const road = new Mesh(new PlaneGeometry(rw, rl), roadMat);
-    road.rotation.x = -Math.PI / 2;
-    road.position.set(rx, 0.02, rz);
-    road.receiveShadow = true;
-    group.add(road);
-    const markCount = Math.floor(rl / 2);
-    for (let m = 0; m < markCount; m++) {
-      const mark = new Mesh(new PlaneGeometry(0.15, 0.6), yellowMat);
-      mark.rotation.x = -Math.PI / 2;
-      mark.position.set(rx, 0.03, rz - rl / 2 + m * 2 + 0.5);
-      group.add(mark);
-    }
+  const runwayMat = new MeshStandardMaterial({ color: 1710618, roughness: 0.8, metalness: 0.1 });
+  const runway = new Mesh(new BoxGeometry(4, 0.1, 40), runwayMat);
+  runway.position.set(0, 0.05, -20);
+  runway.receiveShadow = true;
+  group.add(runway);
+  for (let i = 0; i < 20; i++) {
+    const line = new Mesh(new BoxGeometry(0.15, 0.02, 1.2), new MeshBasicMaterial({ color: 16777215 }));
+    line.position.set(0, 0.11, -38 + i * 2);
+    group.add(line);
   }
-  const vabGroup = new Group();
-  vabGroup.name = "VAB";
-  const vabBody = new Mesh(new CylinderGeometry(5, 5.5, 14, 24), buildingMat);
-  vabBody.position.y = 7;
+  const vabBody = new Mesh(new BoxGeometry(12, 10, 8), buildingMat);
+  vabBody.position.set(-15, 5, 5);
   vabBody.castShadow = true;
   vabBody.receiveShadow = true;
-  vabGroup.add(vabBody);
-  const vabDome = new Mesh(new SphereGeometry(5.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
-  vabDome.position.y = 14;
-  vabGroup.add(vabDome);
-  const vabAnt = new Mesh(new CylinderGeometry(0.1, 0.1, 3, 6), metalMat);
-  vabAnt.position.y = 16;
-  vabGroup.add(vabAnt);
-  const vabAntBall = new Mesh(new SphereGeometry(0.3, 8, 6), redMat);
-  vabAntBall.position.y = 17.5;
-  vabGroup.add(vabAntBall);
-  const vabDoor = new Mesh(new BoxGeometry(3, 7, 0.3), darkBuildingMat);
-  vabDoor.position.set(0, 3.5, 5.3);
-  vabGroup.add(vabDoor);
-  for (let h = 0; h < 5; h++) {
-    const doorLine = new Mesh(new BoxGeometry(3.1, 0.1, 0.32), metalMat);
-    doorLine.position.set(0, 1 + h * 1.4, 5.3);
-    vabGroup.add(doorLine);
+  group.add(vabBody);
+  const vabRoof = new Mesh(new SphereGeometry(6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
+  vabRoof.position.set(-15, 10, 5);
+  vabRoof.scale.set(1, 0.4, 0.67);
+  vabRoof.castShadow = true;
+  group.add(vabRoof);
+  const doorMat = new MeshStandardMaterial({ color: 6710903, roughness: 0.5, metalness: 0.5 });
+  for (let i = 0; i < 2; i++) {
+    const door = new Mesh(new BoxGeometry(3, 7, 0.2), doorMat);
+    door.position.set(-15 + (i === 0 ? -2 : 2), 3.5, 9.1);
+    door.castShadow = true;
+    group.add(door);
   }
-  const doorFrameL = new Mesh(new BoxGeometry(0.2, 7.5, 0.35), metalMat);
-  doorFrameL.position.set(-1.6, 3.5, 5.3);
-  vabGroup.add(doorFrameL);
-  const doorFrameR = new Mesh(new BoxGeometry(0.2, 7.5, 0.35), metalMat);
-  doorFrameR.position.set(1.6, 3.5, 5.3);
-  vabGroup.add(doorFrameR);
-  const doorFrameT = new Mesh(new BoxGeometry(3.4, 0.2, 0.35), metalMat);
-  doorFrameT.position.set(0, 7, 5.3);
-  vabGroup.add(doorFrameT);
-  for (let row = 0; row < 2; row++) {
-    for (let i = 0; i < 6; i++) {
-      const angle = i / 6 * Math.PI * 2;
-      if (Math.abs(angle) < 0.5 || Math.abs(angle - Math.PI * 2) < 0.5) continue;
-      const win = new Mesh(new BoxGeometry(1.2, 1.5, 0.1), windowMat);
-      win.position.set(Math.cos(angle) * 5.1, 6 + row * 4, Math.sin(angle) * 5.1);
-      win.lookAt(0, 6 + row * 4, 0);
-      vabGroup.add(win);
-      const winFrame = new Mesh(new BoxGeometry(1.4, 1.7, 0.08), metalMat);
-      winFrame.position.copy(win.position);
-      winFrame.position.multiplyScalar(0.98);
-      winFrame.lookAt(0, 6 + row * 4, 0);
-      vabGroup.add(winFrame);
-    }
+  for (let i = 0; i < 6; i++) {
+    const win = new Mesh(
+      new BoxGeometry(1, 0.8, 0.1),
+      new MeshStandardMaterial({ color: 4491519, emissive: 2245734, roughness: 0.2, metalness: 0.8 })
+    );
+    win.position.set(-12 + i * 1.5, 8, 9.1);
+    group.add(win);
   }
-  const vabSign = createTextSprite("KSP", "#ffdd44", 48);
-  vabSign.scale.set(4, 1, 1);
-  vabSign.position.set(0, 11, 5.4);
-  vabGroup.add(vabSign);
-  const vabLabel = createTextSprite("\u822A\u5929\u5668\u88C5\u914D\u5927\u697C", "#ffdd44");
-  vabLabel.position.set(0, 22, 0);
-  vabGroup.add(vabLabel);
-  vabGroup.position.set(0, 0, 0);
-  group.add(vabGroup);
-  const padGroup = new Group();
-  padGroup.name = "LaunchPad";
-  const padBase = new Mesh(new CylinderGeometry(7, 7.5, 0.8, 32), concreteMat);
-  padBase.position.y = 0.4;
-  padBase.castShadow = true;
-  padBase.receiveShadow = true;
-  padGroup.add(padBase);
-  const trench = new Mesh(new CylinderGeometry(3, 2.5, 1.5, 16), darkBuildingMat);
-  trench.position.y = -0.5;
-  padGroup.add(trench);
-  const padMark = new Mesh(new RingGeometry(4, 4.5, 32), new MeshBasicMaterial({ color: 11184810, side: DoubleSide }));
-  padMark.rotation.x = -Math.PI / 2;
-  padMark.position.y = 0.82;
-  padGroup.add(padMark);
-  const padCross1 = new Mesh(new PlaneGeometry(9, 0.2), new MeshBasicMaterial({ color: 11184810, side: DoubleSide }));
-  padCross1.rotation.x = -Math.PI / 2;
-  padCross1.position.y = 0.82;
-  padGroup.add(padCross1);
-  const padCross2 = new Mesh(new PlaneGeometry(0.2, 9), new MeshBasicMaterial({ color: 11184810, side: DoubleSide }));
-  padCross2.rotation.x = -Math.PI / 2;
-  padCross2.position.y = 0.82;
-  padGroup.add(padCross2);
+  const vabAnt = new Mesh(new CylinderGeometry(0.05, 0.05, 2, 8), metalMat);
+  vabAnt.position.set(-15, 12, 5);
+  group.add(vabAnt);
+  const padMat = new MeshStandardMaterial({ color: 5592405, roughness: 0.8, metalness: 0.2 });
+  const pad = new Mesh(new CylinderGeometry(5, 5.5, 0.5, 32), padMat);
+  pad.position.set(15, 0.25, 5);
+  pad.castShadow = true;
+  pad.receiveShadow = true;
+  group.add(pad);
+  const trench = new Mesh(new BoxGeometry(3, 0.3, 3), darkMat);
+  trench.position.set(15, 0.6, 5);
+  group.add(trench);
   for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2 + Math.PI / 4;
-    const clamp2 = new Mesh(new BoxGeometry(0.4, 0.5, 0.4), metalMat);
-    clamp2.position.set(Math.cos(angle) * 1.5, 0.9, Math.sin(angle) * 1.5);
-    padGroup.add(clamp2);
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const leg = new Mesh(new CylinderGeometry(0.08, 0.08, 12, 8), metalMat);
+    leg.position.set(15 + Math.cos(angle) * 2, 6, 5 + Math.sin(angle) * 2);
+    leg.castShadow = true;
+    group.add(leg);
   }
   for (let i = 0; i < 4; i++) {
-    const angle = i * Math.PI / 2;
-    const legX = Math.cos(angle) * 1.5;
-    const legZ = Math.sin(angle) * 1.5;
-    for (let h = 0; h < 5; h++) {
-      const segment = new Mesh(new BoxGeometry(0.2, 3, 0.2), metalMat);
-      segment.position.set(legX, 2 + h * 3, legZ);
-      segment.castShadow = true;
-      padGroup.add(segment);
-    }
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const angle2 = (i + 1) / 4 * Math.PI * 2 + Math.PI / 4;
+    const support = new Mesh(new CylinderGeometry(0.04, 0.04, 3, 6), metalMat);
+    const mx = 15 + Math.cos((angle + angle2) / 2) * 2;
+    const mz = 5 + Math.sin((angle + angle2) / 2) * 2;
+    support.position.set(mx, 4, mz);
+    support.lookAt(15, 4, 5);
+    support.rotation.x = Math.PI / 2;
+    group.add(support);
   }
-  for (let h = 0; h < 5; h++) {
-    const y = 2 + h * 3;
-    for (let i = 0; i < 2; i++) {
-      const brace = new Mesh(new BoxGeometry(3.2, 0.1, 0.1), metalMat);
-      brace.position.set(0, y, 0);
-      brace.rotation.y = i * Math.PI / 2;
-      padGroup.add(brace);
-    }
-    for (let i = 0; i < 4; i++) {
-      const angle = i * Math.PI / 2;
-      const diag = new Mesh(new BoxGeometry(0.08, 3.2, 0.08), metalMat);
-      diag.position.set(Math.cos(angle) * 1.5, y + 1.5, Math.sin(angle) * 1.5);
-      diag.rotation.y = angle + Math.PI / 4;
-      diag.rotation.z = Math.PI / 4;
-      padGroup.add(diag);
-    }
-  }
-  for (let h = 0; h < 5; h++) {
-    const platform = new Mesh(new BoxGeometry(2.5, 0.1, 0.8), metalMat);
-    platform.position.set(1.5, 2 + h * 3, 0);
-    padGroup.add(platform);
-    const railing = new Mesh(new BoxGeometry(2.5, 0.4, 0.05), metalMat);
-    railing.position.set(1.5, 2.25 + h * 3, 0.4);
-    padGroup.add(railing);
-  }
-  const towerTop = new Mesh(new BoxGeometry(2, 0.3, 2), metalMat);
-  towerTop.position.set(0, 17, 0);
-  padGroup.add(towerTop);
-  const lightningRod = new Mesh(new CylinderGeometry(0.05, 0.05, 5, 6), metalMat);
-  lightningRod.position.set(0, 19.5, 0);
-  padGroup.add(lightningRod);
-  const rodBall = new Mesh(new SphereGeometry(0.15, 8, 6), redMat);
-  rodBall.position.set(0, 22, 0);
-  padGroup.add(rodBall);
-  const padLight = new Mesh(new SphereGeometry(0.12, 8, 6), new MeshBasicMaterial({ color: 16711680 }));
-  padLight.position.set(0, 17.5, 0);
-  padGroup.add(padLight);
-  const padLabel = createTextSprite("\u53D1\u5C04\u53F0", "#ffaa44");
-  padLabel.position.set(0, 25, 0);
-  padGroup.add(padLabel);
-  padGroup.position.set(30, 0, 0);
-  group.add(padGroup);
-  const trackGroup = new Group();
-  trackGroup.name = "TrackingStation";
-  const trackDome = new Mesh(new SphereGeometry(4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
-  trackDome.position.y = 2;
+  const rod = new Mesh(new CylinderGeometry(0.03, 0.03, 3, 8), metalMat);
+  rod.position.set(15, 13.5, 5);
+  group.add(rod);
+  const warnLight = new Mesh(
+    new SphereGeometry(0.15, 8, 6),
+    new MeshStandardMaterial({ color: 16711680, emissive: 16711680, emissiveIntensity: 1 })
+  );
+  warnLight.position.set(15, 12.5, 5);
+  group.add(warnLight);
+  const trackBody = new Mesh(new CylinderGeometry(2, 2.5, 3, 16), buildingMat);
+  trackBody.position.set(-25, 1.5, -15);
+  trackBody.castShadow = true;
+  group.add(trackBody);
+  const trackDome = new Mesh(new SphereGeometry(2.2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
+  trackDome.position.set(-25, 3, -15);
   trackDome.castShadow = true;
-  trackGroup.add(trackDome);
-  const trackBase = new Mesh(new CylinderGeometry(4, 4, 2, 24), buildingMat);
-  trackBase.position.y = 1;
-  trackGroup.add(trackBase);
-  const trackBaseRing = new Mesh(new TorusGeometry(4.05, 0.1, 8, 24), metalMat);
-  trackBaseRing.position.y = 2;
-  trackBaseRing.rotation.x = Math.PI / 2;
-  trackGroup.add(trackBaseRing);
-  const trackPole = new Mesh(new CylinderGeometry(0.15, 0.15, 4, 8), metalMat);
-  trackPole.position.y = 6;
-  trackGroup.add(trackPole);
-  const trackDish = new Mesh(new SphereGeometry(1.8, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
-  trackDish.position.set(0, 8, 0);
-  trackDish.rotation.x = -Math.PI / 3;
-  trackGroup.add(trackDish);
-  for (let r = 0.4; r < 1.8; r += 0.35) {
-    const rib = new Mesh(new TorusGeometry(r, 0.02, 4, 24), darkBuildingMat);
-    rib.position.set(0, 8, 0);
-    rib.rotation.x = -Math.PI / 3;
-    trackGroup.add(rib);
-  }
-  for (let i = 0; i < 8; i++) {
-    const angle = i / 8 * Math.PI * 2;
-    const rib = new Mesh(new BoxGeometry(1.8, 0.02, 0.02), darkBuildingMat);
-    rib.position.set(Math.cos(angle) * 0.7, 8 + Math.sin(angle) * 0.2, Math.sin(angle) * 0.7 - 0.5);
-    rib.rotation.x = -Math.PI / 3;
-    rib.rotation.y = angle;
-    trackGroup.add(rib);
-  }
-  const trackReceiver = new Mesh(new SphereGeometry(0.15, 8, 6), redMat);
-  trackReceiver.position.set(0, 7.5, 0.8);
-  trackGroup.add(trackReceiver);
-  const smallDish = new Mesh(new SphereGeometry(0.5, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), metalMat);
-  smallDish.position.set(3, 3, 0);
-  smallDish.rotation.x = -Math.PI / 4;
-  trackGroup.add(smallDish);
-  const smallPole = new Mesh(new CylinderGeometry(0.05, 0.05, 1.5, 6), metalMat);
-  smallPole.position.set(3, 2.5, 0);
-  trackGroup.add(smallPole);
-  const trackLabel = createTextSprite("\u8DDF\u8E2A\u7AD9", "#44ddff");
-  trackLabel.position.set(0, 12, 0);
-  trackGroup.add(trackLabel);
-  trackGroup.position.set(0, 0, -30);
-  group.add(trackGroup);
-  const astroGroup = new Group();
-  astroGroup.name = "AstronautComplex";
-  const astroDome = new Mesh(new SphereGeometry(3.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
-  astroDome.position.y = 2;
+  group.add(trackDome);
+  const dishPole = new Mesh(new CylinderGeometry(0.08, 0.08, 4, 8), metalMat);
+  dishPole.position.set(-25, 5, -15);
+  group.add(dishPole);
+  const dishGeo = new SphereGeometry(1.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  const dish = new Mesh(dishGeo, new MeshStandardMaterial({ color: 14540270, roughness: 0.3, metalness: 0.6, side: DoubleSide }));
+  dish.position.set(-25, 7, -15);
+  dish.rotation.x = -0.5;
+  dish.castShadow = true;
+  group.add(dish);
+  const astroBody = new Mesh(new CylinderGeometry(1.5, 1.8, 2.5, 16), buildingMat);
+  astroBody.position.set(10, 1.25, -15);
+  astroBody.castShadow = true;
+  group.add(astroBody);
+  const astroDome = new Mesh(new SphereGeometry(1.7, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
+  astroDome.position.set(10, 2.5, -15);
   astroDome.castShadow = true;
-  astroGroup.add(astroDome);
-  const astroBase = new Mesh(new CylinderGeometry(3.5, 3.5, 2, 24), buildingMat);
-  astroBase.position.y = 1;
-  astroGroup.add(astroBase);
-  const astroDoor = new Mesh(new BoxGeometry(1.5, 2, 0.3), darkBuildingMat);
-  astroDoor.position.set(0, 1, 3.4);
-  astroGroup.add(astroDoor);
-  const canopy = new Mesh(new BoxGeometry(2.5, 0.1, 1), metalMat);
-  canopy.position.set(0, 2.2, 3.8);
-  astroGroup.add(canopy);
-  for (let i = 0; i < 5; i++) {
-    const angle = i / 5 * Math.PI * 1.5 + 0.3;
-    const win = new Mesh(new BoxGeometry(0.8, 1, 0.1), windowMat);
-    win.position.set(Math.cos(angle) * 3.4, 2, Math.sin(angle) * 3.4);
-    win.lookAt(0, 2, 0);
-    astroGroup.add(win);
-    const winFrame = new Mesh(new BoxGeometry(0.95, 1.15, 0.08), metalMat);
-    winFrame.position.copy(win.position);
-    winFrame.position.multiplyScalar(0.98);
-    winFrame.lookAt(0, 2, 0);
-    astroGroup.add(winFrame);
-  }
-  const astroLabel = createTextSprite("\u822A\u5929\u5458\u4E2D\u5FC3", "#44ff88");
-  astroLabel.position.set(0, 8, 0);
-  astroGroup.add(astroLabel);
-  astroGroup.position.set(0, 0, 22);
-  group.add(astroGroup);
-  const rdGroup = new Group();
-  rdGroup.name = "RnD";
-  const rdMain = new Mesh(new BoxGeometry(14, 5, 7), buildingMat);
-  rdMain.position.y = 2.5;
-  rdMain.castShadow = true;
-  rdMain.receiveShadow = true;
-  rdGroup.add(rdMain);
-  const rdRoof = new Mesh(new BoxGeometry(14.5, 1.5, 7.5), darkBuildingMat);
-  rdRoof.position.y = 5.5;
-  rdGroup.add(rdRoof);
-  const rdUpper = new Mesh(new BoxGeometry(8, 3, 5), darkBuildingMat);
-  rdUpper.position.y = 7.5;
-  rdUpper.castShadow = true;
-  rdGroup.add(rdUpper);
-  const rdAnt = new Mesh(new CylinderGeometry(0.1, 0.1, 3, 6), metalMat);
-  rdAnt.position.set(5, 11, 0);
-  rdGroup.add(rdAnt);
-  const rdAntBall = new Mesh(new SphereGeometry(0.3, 8, 6), redMat);
-  rdAntBall.position.set(5, 12.5, 0);
-  rdGroup.add(rdAntBall);
-  for (let row = 0; row < 2; row++) {
-    for (let i = -2; i <= 2; i++) {
-      const win = new Mesh(new BoxGeometry(1.5, 1.5, 0.1), windowMat);
-      win.position.set(i * 2.5, 2 + row * 1.8, 3.55);
-      rdGroup.add(win);
-    }
-  }
-  const rdDoor = new Mesh(new BoxGeometry(2, 2.5, 0.3), darkBuildingMat);
-  rdDoor.position.set(0, 1.25, 3.55);
-  rdGroup.add(rdDoor);
-  const steps = new Mesh(new BoxGeometry(3, 0.15, 0.8), concreteMat);
-  steps.position.set(0, 0.075, 3.9);
-  rdGroup.add(steps);
-  const rdLabel = createTextSprite("\u7814\u53D1\u4E2D\u5FC3", "#aa88ff");
-  rdLabel.position.set(0, 13, 0);
-  rdGroup.add(rdLabel);
-  rdGroup.position.set(-30, 0, 0);
-  group.add(rdGroup);
-  const flagGroup = new Group();
-  flagGroup.name = "FlagPole";
-  const pole = new Mesh(new CylinderGeometry(0.08, 0.1, 8, 8), metalMat);
-  pole.position.y = 4;
-  pole.castShadow = true;
-  flagGroup.add(pole);
-  const flag = new Mesh(new PlaneGeometry(2, 1.2), redMat);
-  flag.position.set(1, 7, 0);
-  flag.castShadow = true;
-  flagGroup.add(flag);
-  const poleTop = new Mesh(new SphereGeometry(0.2, 12, 8), metalMat);
-  poleTop.position.y = 8;
-  flagGroup.add(poleTop);
-  const flagLabel = createTextSprite("\u65D7\u6746", "#ffffff", 28);
-  flagLabel.scale.set(5, 1.25, 1);
-  flagLabel.position.set(0, 10, 0);
-  flagGroup.add(flagLabel);
-  flagGroup.position.set(0, 0, 12);
-  group.add(flagGroup);
-  const runwayGroup = new Group();
-  runwayGroup.name = "Runway";
-  const runway = new Mesh(new PlaneGeometry(8, 40), concreteMat);
-  runway.rotation.x = -Math.PI / 2;
-  runway.position.set(50, 0.02, 0);
-  runway.receiveShadow = true;
-  runwayGroup.add(runway);
-  for (let m = 0; m < 20; m++) {
-    const mark = new Mesh(new PlaneGeometry(0.3, 1.5), yellowMat);
-    mark.rotation.x = -Math.PI / 2;
-    mark.position.set(50, 0.03, -19 + m * 2);
-    runwayGroup.add(mark);
-  }
+  group.add(astroDome);
+  const canopy = new Mesh(new BoxGeometry(3, 0.1, 1.5), roofMat);
+  canopy.position.set(10, 0.5, -13.5);
+  group.add(canopy);
+  const rndBase = new Mesh(new BoxGeometry(6, 2, 5), buildingMat);
+  rndBase.position.set(-10, 1, -15);
+  rndBase.castShadow = true;
+  rndBase.receiveShadow = true;
+  group.add(rndBase);
+  const rndUpper = new Mesh(new BoxGeometry(5, 1.5, 4), buildingMat);
+  rndUpper.position.set(-10, 2.75, -15);
+  rndUpper.castShadow = true;
+  group.add(rndUpper);
   for (let i = 0; i < 4; i++) {
-    const thresh = new Mesh(new PlaneGeometry(0.3, 3), yellowMat);
-    thresh.rotation.x = -Math.PI / 2;
-    thresh.position.set(48 + i * 0.8, 0.03, -18);
-    runwayGroup.add(thresh);
-    const thresh2 = new Mesh(new PlaneGeometry(0.3, 3), yellowMat);
-    thresh2.rotation.x = -Math.PI / 2;
-    thresh2.position.set(48 + i * 0.8, 0.03, 18);
-    runwayGroup.add(thresh2);
+    const win = new Mesh(
+      new BoxGeometry(0.8, 0.6, 0.1),
+      new MeshStandardMaterial({ color: 4491519, emissive: 2245734, roughness: 0.2, metalness: 0.8 })
+    );
+    win.position.set(-11.5 + i * 1, 1, -12.5);
+    group.add(win);
   }
-  group.add(runwayGroup);
+  const flagPole = new Mesh(new CylinderGeometry(0.04, 0.04, 5, 8), metalMat);
+  flagPole.position.set(0, 2.5, 0);
+  group.add(flagPole);
+  const flag = new Mesh(
+    new PlaneGeometry(1, 0.6),
+    new MeshBasicMaterial({ color: 2245802, side: DoubleSide })
+  );
+  flag.position.set(0.5, 4, 0);
+  group.add(flag);
+  const roadMat = new MeshStandardMaterial({ color: 3355443, roughness: 0.9 });
+  const roadH = new Mesh(new PlaneGeometry(50, 2), roadMat);
+  roadH.rotation.x = -Math.PI / 2;
+  roadH.position.set(0, 0.02, 5);
+  group.add(roadH);
+  for (let i = -20; i < 20; i += 3) {
+    const mark = new Mesh(new PlaneGeometry(1, 0.1), new MeshBasicMaterial({ color: 16763904 }));
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.set(i, 0.03, 5);
+    group.add(mark);
+  }
+  const treeMat = new MeshStandardMaterial({ color: 2771498, roughness: 0.9 });
+  const trunkMat = new MeshStandardMaterial({ color: 4863264, roughness: 0.9 });
+  for (let i = 0; i < 20; i++) {
+    const angle = i / 20 * Math.PI * 2;
+    const r = 50 + Math.random() * 25;
+    const tx = Math.cos(angle) * r;
+    const tz = Math.sin(angle) * r;
+    const trunk = new Mesh(new CylinderGeometry(0.15, 0.2, 1.5, 6), trunkMat);
+    trunk.position.set(tx, 0.75, tz);
+    trunk.castShadow = true;
+    group.add(trunk);
+    const leaves = new Mesh(new ConeGeometry(0.8 + Math.random() * 0.5, 2.5 + Math.random() * 1.5, 6), treeMat);
+    leaves.position.set(tx, 2.5, tz);
+    leaves.castShadow = true;
+    group.add(leaves);
+  }
   return group;
 }
 
@@ -28311,6 +26877,13 @@ var VAB3DPreview = class {
     // 1, 2, 3, 4, 6
     this.pointerDownPos = null;
     this.isPlacementMode = false;
+    this.angleSnap = 15;
+    // angle snap in degrees (0 = off)
+    this.angleSnapEnabled = true;
+    // Undo/Redo history
+    this.undoStack = [];
+    this.redoStack = [];
+    this.maxHistory = 50;
     // Callback when parts change
     this.onPartsChanged = null;
     // ============================================
@@ -28345,6 +26918,20 @@ var VAB3DPreview = class {
     };
     this.onKeyDown = (e) => {
       if (!this.vabPanel) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (this.undo()) {
+          this.onPartsChanged?.();
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "y" || e.key.toLowerCase() === "z" && e.shiftKey)) {
+        e.preventDefault();
+        if (this.redo()) {
+          this.onPartsChanged?.();
+        }
+        return;
+      }
       if (e.key === "Escape") {
         if (this.isPlacementMode) {
           this.cancelPickup();
@@ -28736,18 +27323,32 @@ var VAB3DPreview = class {
     } else {
       const isMk3 = part.id.includes("mk3") || part.mass > 3e3;
       const isMk2 = part.id.includes("mk2") || part.mass > 1500;
-      const cone = new Mesh(
-        new ConeGeometry(cmdRadius, cmdHeight, 28),
-        this.mats.command
-      );
+      const lathePoints = [];
+      const lSegs = 16;
+      for (let i = 0; i <= lSegs; i++) {
+        const t = i / lSegs;
+        const r = cmdRadius * (1 - 0.4 * t) + cmdRadius * 0.1 * Math.sin(t * Math.PI);
+        const y = -cmdHeight / 2 + t * cmdHeight;
+        lathePoints.push(new Vector2(Math.max(0.01, r), y));
+      }
+      lathePoints.push(new Vector2(cmdRadius * 0.1, cmdHeight / 2 + 0.05));
+      lathePoints.push(new Vector2(0.01, cmdHeight / 2 + 0.08));
+      const coneGeo = new LatheGeometry(lathePoints, 32);
+      const cone = new Mesh(coneGeo, this.mats.command);
       cone.castShadow = true;
       cone.receiveShadow = true;
       group.add(cone);
+      const shieldPoints = [];
+      for (let i = 0; i <= 6; i++) {
+        const t = i / 6;
+        const r = cmdRadius * 1.15 - t * cmdRadius * 0.25;
+        const y = -cmdHeight / 2 - t * 0.12;
+        shieldPoints.push(new Vector2(Math.max(0.01, r), y));
+      }
       const heatShield = new Mesh(
-        new CylinderGeometry(cmdRadius * 1.15, cmdRadius * 0.95, 0.15, 28),
+        new LatheGeometry(shieldPoints, 28),
         this.mats.dark
       );
-      heatShield.position.y = -cmdHeight / 2 + 0.05;
       heatShield.castShadow = true;
       group.add(heatShield);
       const stripeMat = isMk3 ? this.mats.copper : isMk2 ? this.mats.accent : this.mats.dark;
@@ -28763,27 +27364,47 @@ var VAB3DPreview = class {
       );
       stripe2.position.y = -cmdHeight * 0.15;
       group.add(stripe2);
-      const winCount = isMk3 ? 3 : isMk2 ? 2 : 1;
+      const winCount = isMk3 ? 4 : isMk2 ? 3 : 1;
       for (let i = 0; i < winCount; i++) {
         const angle = i / winCount * Math.PI * 2 - Math.PI / 2;
         const win = new Mesh(
-          new SphereGeometry(cmdRadius * 0.16, 14, 10),
+          new CylinderGeometry(cmdRadius * 0.12, cmdRadius * 0.14, 0.04, 12),
           this.mats.glass
         );
         win.position.set(
-          Math.cos(angle) * cmdRadius * 0.7,
+          Math.cos(angle) * cmdRadius * 0.75,
           cmdHeight * 0.1,
-          Math.sin(angle) * cmdRadius * 0.7
+          Math.sin(angle) * cmdRadius * 0.75
         );
-        win.scale.set(1, 0.7, 0.5);
+        win.rotation.x = Math.PI / 2;
+        win.rotation.y = -angle;
         group.add(win);
         const frame = new Mesh(
-          new TorusGeometry(cmdRadius * 0.16, 0.02, 6, 16),
+          new BoxGeometry(cmdRadius * 0.32, cmdRadius * 0.28, 0.02),
           this.mats.dark
         );
-        frame.position.copy(win.position);
-        frame.lookAt(new Vector3(win.position.x * 3, win.position.y, win.position.z * 3));
+        frame.position.set(
+          Math.cos(angle) * cmdRadius * 0.72,
+          cmdHeight * 0.1,
+          Math.sin(angle) * cmdRadius * 0.72
+        );
+        frame.rotation.y = -angle;
         group.add(frame);
+      }
+      const panelLineCount = 4;
+      for (let i = 0; i < panelLineCount; i++) {
+        const angle = i / panelLineCount * Math.PI * 2 + Math.PI / panelLineCount;
+        const panel = new Mesh(
+          new BoxGeometry(0.015, cmdHeight * 0.7, 0.01),
+          this.mats.dark
+        );
+        panel.position.set(
+          Math.cos(angle) * cmdRadius * 0.85,
+          0,
+          Math.sin(angle) * cmdRadius * 0.85
+        );
+        panel.rotation.y = -angle;
+        group.add(panel);
       }
       const ant = new Mesh(
         new CylinderGeometry(0.015, 0.015, 0.35, 6),
@@ -28799,31 +27420,32 @@ var VAB3DPreview = class {
       antBall.position.y = cmdHeight / 2 + 0.35;
       group.add(antBall);
       if (isMk2 || isMk3) {
-        const rcsCount = isMk3 ? 4 : 2;
+        const rcsCount = isMk3 ? 4 : 4;
         for (let i = 0; i < rcsCount; i++) {
           const angle = i / rcsCount * Math.PI * 2 + Math.PI / 4;
           const rcsBlock = new Mesh(
-            new BoxGeometry(0.1, 0.1, 0.08),
+            new BoxGeometry(0.08, 0.08, 0.06),
             this.mats.rcs
           );
           rcsBlock.position.set(
-            Math.cos(angle) * cmdRadius * 0.95,
+            Math.cos(angle) * cmdRadius * 0.98,
             cmdHeight * 0.25,
-            Math.sin(angle) * cmdRadius * 0.95
+            Math.sin(angle) * cmdRadius * 0.98
           );
           rcsBlock.rotation.y = -angle;
           rcsBlock.castShadow = true;
           group.add(rcsBlock);
           const rcsNoz = new Mesh(
-            new ConeGeometry(0.025, 0.06, 6),
+            new ConeGeometry(0.025, 0.07, 6),
             this.mats.dark
           );
           rcsNoz.position.set(
-            Math.cos(angle) * (cmdRadius * 0.95 + 0.06),
+            Math.cos(angle) * (cmdRadius * 0.98 + 0.06),
             cmdHeight * 0.25,
-            Math.sin(angle) * (cmdRadius * 0.95 + 0.06)
+            Math.sin(angle) * (cmdRadius * 0.98 + 0.06)
           );
           rcsNoz.rotation.y = -angle;
+          rcsNoz.rotation.z = Math.PI / 2;
           group.add(rcsNoz);
         }
       }
@@ -28872,27 +27494,43 @@ var VAB3DPreview = class {
       tankRadius = 0.45;
       tankMat = this.mats.fuelGray;
     }
+    const tankPoints = [];
+    const hemiSegs = 6;
+    for (let i = 0; i <= hemiSegs; i++) {
+      const t = i / hemiSegs;
+      const angle = (1 - t) * Math.PI / 2;
+      const r = tankRadius * Math.sin(angle);
+      const y = -tankHeight / 2 - tankRadius * 0.15 * Math.cos(angle);
+      tankPoints.push(new Vector2(Math.max(0.01, r), y));
+    }
+    tankPoints.push(new Vector2(tankRadius, -tankHeight / 2));
+    tankPoints.push(new Vector2(tankRadius, tankHeight / 2));
+    for (let i = 0; i <= hemiSegs; i++) {
+      const t = i / hemiSegs;
+      const angle = t * Math.PI / 2;
+      const r = tankRadius * Math.cos(angle);
+      const y = tankHeight / 2 + tankRadius * 0.15 * Math.sin(angle);
+      tankPoints.push(new Vector2(Math.max(0.01, r), y));
+    }
     const tank = new Mesh(
-      new CylinderGeometry(tankRadius, tankRadius, tankHeight, 36),
+      new LatheGeometry(tankPoints, 36),
       tankMat
     );
     tank.castShadow = true;
     tank.receiveShadow = true;
     group.add(tank);
-    const topRing = new Mesh(
-      new CylinderGeometry(tankRadius * 1.04, tankRadius * 1.04, 0.14, 36),
-      this.mats.dark
-    );
-    topRing.position.y = tankHeight / 2 - 0.07;
-    topRing.castShadow = true;
-    group.add(topRing);
-    const botRing = new Mesh(
-      new CylinderGeometry(tankRadius * 1.04, tankRadius * 1.04, 0.14, 36),
-      this.mats.dark
-    );
-    botRing.position.y = -tankHeight / 2 + 0.07;
-    botRing.castShadow = true;
-    group.add(botRing);
+    const ringCount = tankHeight > 2.5 ? 3 : 2;
+    for (let i = 0; i < ringCount; i++) {
+      const yOff = -tankHeight / 2 + (i + 1) * (tankHeight / (ringCount + 1));
+      const stiffRing = new Mesh(
+        new TorusGeometry(tankRadius * 1.01, 0.025, 6, 28),
+        this.mats.dark
+      );
+      stiffRing.rotation.x = Math.PI / 2;
+      stiffRing.position.y = yOff;
+      stiffRing.castShadow = true;
+      group.add(stiffRing);
+    }
     const bandColor = part.fuelMass > 2e4 ? this.mats.copper : part.fuelMass > 5e3 ? this.mats.accent : this.mats.structural;
     const accentBand = new Mesh(
       new CylinderGeometry(tankRadius * 1.01, tankRadius * 1.01, 0.08, 36),
@@ -28930,6 +27568,23 @@ var VAB3DPreview = class {
         );
         rivet.position.set(Math.cos(angle) * tankRadius * 1.04, yOff, Math.sin(angle) * tankRadius * 1.04);
         group.add(rivet);
+      }
+    }
+    if (tankHeight > 2) {
+      const stiffCount = 6;
+      for (let s = 0; s < stiffCount; s++) {
+        const angle = s / stiffCount * Math.PI * 2 + Math.PI / (stiffCount * 2);
+        const stiff = new Mesh(
+          new BoxGeometry(0.03, tankHeight * 0.9, 0.03),
+          this.mats.dark
+        );
+        stiff.position.set(
+          Math.cos(angle) * (tankRadius + 0.01),
+          0,
+          Math.sin(angle) * (tankRadius + 0.01)
+        );
+        stiff.rotation.y = -angle + Math.PI / 2;
+        group.add(stiff);
       }
     }
     return { group, height: tankHeight, radius: tankRadius };
@@ -29046,24 +27701,56 @@ var VAB3DPreview = class {
         group.add(pipe);
       }
       const nozzlePoints = [];
-      const segs = 12;
-      for (let i = 0; i <= segs; i++) {
-        const t = i / segs;
-        const y = -t * nozzleH;
-        const r = bodyR * 0.7 + (nozzleR - bodyR * 0.7) * Math.pow(t, 0.55);
-        nozzlePoints.push(new Vector2(r, y));
+      const segs = 16;
+      const throatR = bodyR * 0.45;
+      const convergH = nozzleH * 0.3;
+      for (let i = 0; i <= segs / 2; i++) {
+        const t = i / (segs / 2);
+        const y = -t * convergH;
+        const r = bodyR * 0.7 + (throatR - bodyR * 0.7) * (1 - Math.cos(t * Math.PI)) / 2;
+        nozzlePoints.push(new Vector2(Math.max(0.01, r), y));
       }
-      const nozzleGeo = new LatheGeometry(nozzlePoints, 28);
+      const divergH = nozzleH * 0.7;
+      for (let i = 1; i <= segs / 2; i++) {
+        const t = i / (segs / 2);
+        const y = -convergH - t * divergH;
+        const r = throatR + (nozzleR - throatR) * Math.pow(t, 0.6);
+        nozzlePoints.push(new Vector2(Math.max(0.01, r), y));
+      }
+      const nozzleGeo = new LatheGeometry(nozzlePoints, 32);
       const nozzle = new Mesh(nozzleGeo, this.mats.nozzle);
       nozzle.position.y = nozzleH / 2 - 0.02;
       nozzle.castShadow = true;
       group.add(nozzle);
+      const ribCount = 12;
+      for (let i = 0; i < ribCount; i++) {
+        const angle = i / ribCount * Math.PI * 2;
+        const rib = new Mesh(
+          new BoxGeometry(8e-3, nozzleH * 0.6, 8e-3),
+          this.mats.dark
+        );
+        rib.position.set(
+          Math.cos(angle) * throatR * 0.9,
+          nozzleH / 2 - 0.02 - nozzleH * 0.3,
+          Math.sin(angle) * throatR * 0.9
+        );
+        rib.rotation.y = -angle;
+        group.add(rib);
+      }
+      const turbopump = new Mesh(
+        new CylinderGeometry(bodyR * 0.2, bodyR * 0.22, bodyH * 0.5, 12),
+        this.mats.engineBody
+      );
+      turbopump.position.set(bodyR * 0.9, nozzleH / 2 + bodyH * 0.2, 0);
+      turbopump.rotation.z = Math.PI / 2;
+      turbopump.castShadow = true;
+      group.add(turbopump);
       const throatRing = new Mesh(
-        new TorusGeometry(bodyR * 0.7, 0.03, 6, 20),
+        new TorusGeometry(throatR, 0.025, 6, 24),
         this.mats.dark
       );
       throatRing.rotation.x = Math.PI / 2;
-      throatRing.position.y = nozzleH / 2 - 0.02;
+      throatRing.position.y = nozzleH / 2 - 0.02 - convergH;
       group.add(throatRing);
     } else {
       const mainBody = new Mesh(
@@ -29151,11 +27838,18 @@ var VAB3DPreview = class {
       band.castShadow = true;
       group.add(band);
     }
-    const nose = new Mesh(
-      new ConeGeometry(bRadius, 0.6, 20),
-      this.mats.booster
-    );
-    nose.position.y = bHeight / 2 + 0.3;
+    const nosePoints = [];
+    const noseSegs = 10;
+    const noseH = 0.6;
+    for (let i = 0; i <= noseSegs; i++) {
+      const t = i / noseSegs;
+      const r = bRadius * Math.sqrt(1 - t * t);
+      const y = t * noseH;
+      nosePoints.push(new Vector2(Math.max(0.01, r), y));
+    }
+    const noseGeo = new LatheGeometry(nosePoints, 20);
+    const nose = new Mesh(noseGeo, this.mats.booster);
+    nose.position.y = bHeight / 2;
     nose.castShadow = true;
     group.add(nose);
     const noseRing = new Mesh(
@@ -29164,6 +27858,21 @@ var VAB3DPreview = class {
     );
     noseRing.position.y = bHeight / 2 + 0.04;
     group.add(noseRing);
+    for (let i = 0; i < 2; i++) {
+      const angle = i === 0 ? 0 : Math.PI;
+      const sepNoz = new Mesh(
+        new ConeGeometry(0.04, 0.1, 8),
+        this.mats.dark
+      );
+      sepNoz.position.set(
+        Math.cos(angle) * (bRadius + 0.03),
+        bHeight / 2 + noseH * 0.6,
+        Math.sin(angle) * (bRadius + 0.03)
+      );
+      sepNoz.rotation.z = Math.PI / 2;
+      sepNoz.rotation.y = -angle;
+      group.add(sepNoz);
+    }
     const nozzlePoints = [];
     const segs = 8;
     for (let i = 0; i <= segs; i++) {
@@ -29193,7 +27902,7 @@ var VAB3DPreview = class {
       strut.castShadow = true;
       group.add(strut);
     }
-    const totalH = bHeight + 0.6 + 0.4;
+    const totalH = bHeight + noseH + 0.4;
     return { group, height: totalH, radius: bRadius };
   }
   // ============================================
@@ -29306,14 +28015,15 @@ var VAB3DPreview = class {
       const finShape = new Shape();
       finShape.moveTo(0, -finH / 2);
       finShape.lineTo(0, finH / 2);
-      finShape.lineTo(finW, -finH / 2 + 0.1);
-      finShape.lineTo(finW * 0.8, -finH / 2);
+      finShape.lineTo(finW * 0.7, finH / 2 - finH * 0.15);
+      finShape.lineTo(finW, -finH / 2 + 0.15);
+      finShape.lineTo(finW * 0.85, -finH / 2);
       finShape.closePath();
       const finGeo = new ExtrudeGeometry(finShape, {
         depth: finThick,
         bevelEnabled: true,
-        bevelThickness: 0.01,
-        bevelSize: 0.01,
+        bevelThickness: 8e-3,
+        bevelSize: 8e-3,
         bevelSegments: 1
       });
       finGeo.translate(0, 0, -finThick / 2);
@@ -29321,17 +28031,31 @@ var VAB3DPreview = class {
       fin.castShadow = true;
       fin.receiveShadow = true;
       group.add(fin);
+      const gapShape = new Shape();
+      gapShape.moveTo(finW * 0.45, -finH / 2);
+      gapShape.lineTo(finW * 0.7, -finH / 2 + 0.15);
+      gapShape.lineTo(finW, -finH / 2 + 0.15);
+      gapShape.lineTo(finW * 0.85, -finH / 2);
+      gapShape.closePath();
+      const gapGeo = new ExtrudeGeometry(gapShape, {
+        depth: finThick * 1.2,
+        bevelEnabled: false
+      });
+      gapGeo.translate(0, 0, -finThick * 0.6);
+      const gap = new Mesh(gapGeo, this.mats.dark);
+      group.add(gap);
       const ctrlShape = new Shape();
-      ctrlShape.moveTo(finW * 0.5, -finH / 2);
-      ctrlShape.lineTo(finW, -finH / 2 + 0.1);
-      ctrlShape.lineTo(finW * 0.8, -finH / 2);
+      ctrlShape.moveTo(finW * 0.46, -finH / 2);
+      ctrlShape.lineTo(finW * 0.71, -finH / 2 + 0.15);
+      ctrlShape.lineTo(finW, -finH / 2 + 0.15);
+      ctrlShape.lineTo(finW * 0.86, -finH / 2);
       ctrlShape.closePath();
       const ctrlGeo = new ExtrudeGeometry(ctrlShape, {
         depth: finThick * 1.1,
         bevelEnabled: false
       });
-      ctrlGeo.translate(0, 0, -finThick * 0.55);
-      const ctrl = new Mesh(ctrlGeo, this.mats.dark);
+      ctrlGeo.translate(0, -0.01, -finThick * 0.55);
+      const ctrl = new Mesh(ctrlGeo, this.mats.accent);
       group.add(ctrl);
       const rootStrip = new Mesh(
         new BoxGeometry(0.04, finH, finThick * 1.2),
@@ -29469,6 +28193,12 @@ var VAB3DPreview = class {
     );
     base.castShadow = true;
     group.add(base);
+    const mountPlate = new Mesh(
+      new BoxGeometry(0.12, 0.02, 0.12),
+      this.mats.dark
+    );
+    mountPlate.position.y = -0.06;
+    group.add(mountPlate);
     const arm = new Mesh(
       new CylinderGeometry(0.025, 0.025, 0.3, 8),
       this.mats.solarFrame
@@ -29491,6 +28221,12 @@ var VAB3DPreview = class {
     panel.position.x = 0.3 + panelW / 2 + 0.02;
     panel.castShadow = true;
     group.add(panel);
+    const backplate = new Mesh(
+      new BoxGeometry(panelW, 0.015, panelD),
+      this.mats.solarFrame
+    );
+    backplate.position.set(0.3 + panelW / 2 + 0.02, -0.018, 0);
+    group.add(backplate);
     const gridLines = isGigantor ? 6 : 3;
     for (let i = 0; i < gridLines; i++) {
       const line = new Mesh(
@@ -29500,12 +28236,33 @@ var VAB3DPreview = class {
       line.position.set(0.3 + panelW / 2 + 0.02, 0, -panelD / 2 + (i + 1) * panelD / (gridLines + 1));
       group.add(line);
     }
+    const vGridLines = isGigantor ? 4 : 2;
+    for (let i = 0; i < vGridLines; i++) {
+      const vline = new Mesh(
+        new BoxGeometry(5e-3, 0.022, panelD * 0.98),
+        this.mats.solarFrame
+      );
+      vline.position.set(
+        0.3 + panelW / 2 + 0.02 - panelW / 2 + (i + 1) * panelW / (vGridLines + 1),
+        0,
+        0
+      );
+      group.add(vline);
+    }
     for (const zOff of [-panelD / 2, panelD / 2]) {
       const edge = new Mesh(
         new BoxGeometry(panelW, 0.03, 0.02),
         this.mats.solarFrame
       );
       edge.position.set(0.3 + panelW / 2 + 0.02, 0, zOff);
+      group.add(edge);
+    }
+    for (const xOff of [0.3 + 0.02, 0.3 + panelW + 0.02]) {
+      const edge = new Mesh(
+        new BoxGeometry(0.02, 0.03, panelD),
+        this.mats.solarFrame
+      );
+      edge.position.set(xOff, 0, 0);
       group.add(edge);
     }
     return { group, height: 0.1, radius: 0.3 + panelW / 2 };
@@ -29522,42 +28279,73 @@ var VAB3DPreview = class {
     base.castShadow = true;
     group.add(base);
     if (part.id.includes("whip") || !part.id.includes("dish") && !part.id.includes("ra") && !part.id.includes("88")) {
-      const mast = new Mesh(
-        new CylinderGeometry(0.015, 0.02, 0.7, 8),
-        this.mats.antenna
-      );
-      mast.position.y = 0.39;
-      mast.castShadow = true;
-      group.add(mast);
+      const segHeights = [0.25, 0.22, 0.2];
+      const segRadii = [0.02, 0.016, 0.012];
+      let curY = 0.04;
+      for (let i = 0; i < 3; i++) {
+        const seg = new Mesh(
+          new CylinderGeometry(segRadii[i], segRadii[i] + 2e-3, segHeights[i], 8),
+          this.mats.antenna
+        );
+        seg.position.y = curY + segHeights[i] / 2;
+        seg.castShadow = true;
+        group.add(seg);
+        if (i < 2) {
+          const joint = new Mesh(
+            new CylinderGeometry(segRadii[i] + 4e-3, segRadii[i] + 4e-3, 0.02, 8),
+            this.mats.dark
+          );
+          joint.position.y = curY + segHeights[i];
+          group.add(joint);
+        }
+        curY += segHeights[i];
+      }
       const tip = new Mesh(
         new SphereGeometry(0.025, 8, 6),
         this.mats.accent
       );
-      tip.position.y = 0.74;
+      tip.position.y = curY + 0.01;
       group.add(tip);
-      return { group, height: 0.8, radius: 0.05 };
+      return { group, height: curY + 0.02, radius: 0.05 };
     } else {
       const dishSize = part.id.includes("ra100") ? 0.4 : part.id.includes("ra15") ? 0.3 : part.id.includes("ra2") ? 0.2 : 0.25;
       const mastH = part.id.includes("ra100") ? 0.8 : 0.6;
-      const mast = new Mesh(
-        new CylinderGeometry(0.02, 0.025, mastH, 8),
+      const mast1 = new Mesh(
+        new CylinderGeometry(0.025, 0.03, mastH * 0.55, 8),
         this.mats.antenna
       );
-      mast.position.y = mastH / 2 + 0.04;
-      mast.castShadow = true;
-      group.add(mast);
-      const dishGeo = new SphereGeometry(dishSize, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+      mast1.position.y = mastH * 0.275 + 0.04;
+      mast1.castShadow = true;
+      group.add(mast1);
+      const mastJoint = new Mesh(
+        new CylinderGeometry(0.028, 0.028, 0.02, 8),
+        this.mats.dark
+      );
+      mastJoint.position.y = mastH * 0.55 + 0.04;
+      group.add(mastJoint);
+      const mast2 = new Mesh(
+        new CylinderGeometry(0.018, 0.022, mastH * 0.45, 8),
+        this.mats.antenna
+      );
+      mast2.position.y = mastH * 0.55 + 0.04 + mastH * 0.225;
+      mast2.castShadow = true;
+      group.add(mast2);
+      const dishPoints = [];
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        const r = dishSize * t;
+        const y = dishSize * 0.15 * t * t;
+        dishPoints.push(new Vector2(Math.max(0.01, r), y));
+      }
+      const dishGeo = new LatheGeometry(dishPoints, 24);
       const dish = new Mesh(dishGeo, this.mats.antenna);
       dish.position.y = mastH + 0.04;
       dish.rotation.x = Math.PI;
       dish.castShadow = true;
       group.add(dish);
-      const dishBack = new Mesh(
-        new SphereGeometry(dishSize * 0.95, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2),
-        this.mats.dark
-      );
+      const dishBackGeo = new LatheGeometry(dishPoints.map((p) => new Vector2(p.x * 0.92, p.y * 0.85)), 20);
+      const dishBack = new Mesh(dishBackGeo, this.mats.dark);
       dishBack.position.y = mastH + 0.04;
-      dishBack.rotation.x = 0;
       group.add(dishBack);
       const feed = new Mesh(
         new ConeGeometry(0.04, 0.1, 8),
@@ -29678,9 +28466,12 @@ var VAB3DPreview = class {
   // ============================================
   createLandingPart(part) {
     const group = new Group();
-    const upperLen = 0.5;
+    const isLarge = part.id.includes("lt2");
+    const scale = isLarge ? 1.3 : 1;
+    const upperLen = 0.5 * scale;
+    const upperR = 0.035 * scale;
     const upperLeg = new Mesh(
-      new CylinderGeometry(0.035, 0.03, upperLen, 8),
+      new CylinderGeometry(upperR, upperR * 0.85, upperLen, 8),
       this.mats.landing
     );
     upperLeg.position.set(upperLen * 0.3, -upperLen * 0.3, 0);
@@ -29688,43 +28479,64 @@ var VAB3DPreview = class {
     upperLeg.castShadow = true;
     group.add(upperLeg);
     const knee = new Mesh(
-      new SphereGeometry(0.04, 8, 6),
+      new SphereGeometry(upperR * 1.2, 8, 6),
       this.mats.dark
     );
     knee.position.set(upperLen * 0.6, -upperLen * 0.6, 0);
     group.add(knee);
-    const lowerLen = 0.45;
+    const lowerLen = 0.45 * scale;
+    const lowerR = 0.025 * scale;
     const lowerLeg = new Mesh(
-      new CylinderGeometry(0.025, 0.02, lowerLen, 8),
+      new CylinderGeometry(lowerR, lowerR * 0.8, lowerLen, 8),
       this.mats.landing
     );
     lowerLeg.position.set(upperLen * 0.6 + lowerLen * 0.35, -upperLen * 0.6 - lowerLen * 0.35, 0);
     lowerLeg.rotation.z = -Math.PI / 4;
     lowerLeg.castShadow = true;
     group.add(lowerLeg);
+    const shockLen = upperLen * 0.6;
     const shock = new Mesh(
-      new CylinderGeometry(0.015, 0.015, upperLen * 0.7, 6),
+      new CylinderGeometry(lowerR * 0.6, lowerR * 0.6, shockLen, 6),
       this.mats.accent
     );
     shock.position.set(upperLen * 0.25, -upperLen * 0.4, 0.05);
     shock.rotation.z = -Math.PI / 4;
     group.add(shock);
-    const footR = part.id.includes("lt2") ? 0.12 : part.id.includes("lt5") ? 0.06 : 0.09;
-    const foot = new Mesh(
-      new CylinderGeometry(footR, footR * 0.8, 0.04, 12),
+    const shockHousing = new Mesh(
+      new CylinderGeometry(lowerR * 0.9, lowerR * 0.9, shockLen * 0.5, 8),
       this.mats.dark
     );
+    shockHousing.position.set(upperLen * 0.18, -upperLen * 0.32, 0.05);
+    shockHousing.rotation.z = -Math.PI / 4;
+    group.add(shockHousing);
+    const footR = isLarge ? 0.14 : 0.09;
+    const footPoints = [];
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      const r = footR * (1 - t * 0.3);
+      const y = t * 0.04;
+      footPoints.push(new Vector2(Math.max(0.01, r), y));
+    }
+    const footGeo = new LatheGeometry(footPoints, 16);
+    const foot = new Mesh(footGeo, this.mats.dark);
     foot.position.set(upperLen * 0.6 + lowerLen * 0.7 + 0.02, -upperLen * 0.6 - lowerLen * 0.7 - 0.04, 0);
     foot.castShadow = true;
     group.add(foot);
     const mount = new Mesh(
-      new BoxGeometry(0.08, 0.1, 0.08),
+      new BoxGeometry(0.08 * scale, 0.1 * scale, 0.08 * scale),
       this.mats.structural
     );
-    mount.position.set(0, 0.1, 0);
+    mount.position.set(0, 0.1 * scale, 0);
     group.add(mount);
+    const hinge = new Mesh(
+      new CylinderGeometry(0.02 * scale, 0.02 * scale, 0.1 * scale, 8),
+      this.mats.dark
+    );
+    hinge.position.set(0, 0.05 * scale, 0);
+    hinge.rotation.z = Math.PI / 2;
+    group.add(hinge);
     const totalH = upperLen * 0.6 + lowerLen * 0.7 + 0.1;
-    const totalR = upperLen * 0.6 + lowerLen * 0.7 + 0.1;
+    const totalR = upperLen * 0.6 + lowerLen * 0.7 + footR;
     return { group, height: totalH, radius: totalR };
   }
   // ============================================
@@ -29736,40 +28548,67 @@ var VAB3DPreview = class {
     const decH = isHeavy ? 0.5 : 0.4;
     const decR = isHeavy ? 0.65 : 0.55;
     const body = new Mesh(
-      new CylinderGeometry(decR, decR, decH, 28),
+      new CylinderGeometry(decR, decR, decH, 28, 1, true),
       this.mats.decoupler
     );
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
+    const innerRing = new Mesh(
+      new CylinderGeometry(decR * 0.7, decR * 0.7, decH, 28, 1, true),
+      this.mats.dark
+    );
+    group.add(innerRing);
+    const topCap = new Mesh(
+      new RingGeometry(decR * 0.7, decR, 28),
+      this.mats.decoupler
+    );
+    topCap.rotation.x = -Math.PI / 2;
+    topCap.position.y = decH / 2;
+    group.add(topCap);
+    const botCap = new Mesh(
+      new RingGeometry(decR * 0.7, decR, 28),
+      this.mats.decoupler
+    );
+    botCap.rotation.x = Math.PI / 2;
+    botCap.position.y = -decH / 2;
+    group.add(botCap);
     const sepLine = new Mesh(
-      new CylinderGeometry(decR * 1.01, decR * 1.01, 0.04, 28),
+      new TorusGeometry(decR * 0.85, 0.02, 6, 28),
       this.mats.dark
     );
+    sepLine.rotation.x = Math.PI / 2;
     group.add(sepLine);
+    const colorBand = new Mesh(
+      new TorusGeometry(decR * 1.01, 0.03, 6, 28),
+      this.mats.accent
+    );
+    colorBand.rotation.x = Math.PI / 2;
+    colorBand.position.y = 0.02;
+    group.add(colorBand);
     const topRing = new Mesh(
-      new CylinderGeometry(decR * 1.03, decR * 1.03, 0.06, 28),
+      new TorusGeometry(decR * 1.01, 0.03, 6, 28),
       this.mats.dark
     );
-    topRing.position.y = decH / 2 - 0.03;
+    topRing.rotation.x = Math.PI / 2;
+    topRing.position.y = decH / 2 - 0.04;
     group.add(topRing);
     const botRing = new Mesh(
-      new CylinderGeometry(decR * 1.03, decR * 1.03, 0.06, 28),
+      new TorusGeometry(decR * 1.01, 0.03, 6, 28),
       this.mats.dark
     );
-    botRing.position.y = -decH / 2 + 0.03;
+    botRing.rotation.x = Math.PI / 2;
+    botRing.position.y = -decH / 2 + 0.04;
     group.add(botRing);
-    const boltCount = 8;
+    const boltCount = isHeavy ? 12 : 8;
     for (let i = 0; i < boltCount; i++) {
       const angle = i / boltCount * Math.PI * 2;
-      for (const yOff of [decH / 2 - 0.03, -decH / 2 + 0.03]) {
-        const bolt = new Mesh(
-          new SphereGeometry(0.025, 6, 4),
-          this.mats.dark
-        );
-        bolt.position.set(Math.cos(angle) * decR * 1.03, yOff, Math.sin(angle) * decR * 1.03);
-        group.add(bolt);
-      }
+      const bolt = new Mesh(
+        new SphereGeometry(0.03, 6, 4),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * decR * 0.9, 0, Math.sin(angle) * decR * 0.9);
+      group.add(bolt);
     }
     return { group, height: decH, radius: decR };
   }
@@ -29811,17 +28650,25 @@ var VAB3DPreview = class {
       body.castShadow = true;
       group.add(body);
       const topRing = new Mesh(
-        new CylinderGeometry(adR * 0.57, adR * 0.55, 0.06, 28),
+        new TorusGeometry(adR * 0.57, 0.03, 6, 24),
         this.mats.dark
       );
-      topRing.position.y = adH / 2 - 0.03;
+      topRing.rotation.x = Math.PI / 2;
+      topRing.position.y = adH / 2 - 0.02;
       group.add(topRing);
       const botRing = new Mesh(
-        new CylinderGeometry(adR * 1.02, adR, 0.06, 28),
+        new TorusGeometry(adR * 1.01, 0.03, 6, 24),
         this.mats.dark
       );
-      botRing.position.y = -adH / 2 + 0.03;
+      botRing.rotation.x = Math.PI / 2;
+      botRing.position.y = -adH / 2 + 0.02;
       group.add(botRing);
+      const midRing = new Mesh(
+        new TorusGeometry(adR * 0.78, 0.025, 6, 24),
+        this.mats.dark
+      );
+      midRing.rotation.x = Math.PI / 2;
+      group.add(midRing);
     }
     return { group, height: adH, radius: adR };
   }
@@ -29835,17 +28682,31 @@ var VAB3DPreview = class {
       const tubeH = isLong ? 1.5 : 0.7;
       const tubeR = 0.45;
       const tube = new Mesh(
-        new CylinderGeometry(tubeR, tubeR, tubeH, 24),
+        new CylinderGeometry(tubeR, tubeR, tubeH, 24, 1, true),
         this.mats.structural
       );
       tube.castShadow = true;
       tube.receiveShadow = true;
       group.add(tube);
-      for (const yOff of [tubeH / 2 - 0.05, -tubeH / 2 + 0.05]) {
+      const trussCount = Math.floor(tubeH / 0.3);
+      for (let t = 0; t < trussCount; t++) {
+        const y = -tubeH / 2 + (t + 0.5) * (tubeH / trussCount);
+        for (let d = 0; d < 2; d++) {
+          const bar = new Mesh(
+            new BoxGeometry(tubeR * 1.8, 0.02, 0.02),
+            this.mats.dark
+          );
+          bar.position.y = y;
+          bar.rotation.y = d === 0 ? Math.PI / 4 : -Math.PI / 4;
+          group.add(bar);
+        }
+      }
+      for (const yOff of [tubeH / 2 - 0.03, -tubeH / 2 + 0.03]) {
         const ring = new Mesh(
-          new CylinderGeometry(tubeR * 1.03, tubeR * 1.03, 0.06, 24),
+          new TorusGeometry(tubeR * 1.01, 0.03, 6, 24),
           this.mats.dark
         );
+        ring.rotation.x = Math.PI / 2;
         ring.position.y = yOff;
         group.add(ring);
       }
@@ -30057,6 +28918,7 @@ var VAB3DPreview = class {
   // ============================================
   // 放置零件 (核心方法)
   placePart(part, position) {
+    this.pushUndoState();
     const { group, height, radius } = this.createPartMesh(part);
     group.position.copy(position);
     group.traverse((child) => {
@@ -30082,11 +28944,12 @@ var VAB3DPreview = class {
   }
   // 放置径向零件 (带对称)
   placeRadialPart(part, basePoint, baseAngle, stackRadius) {
-    const dims = this.getPartDimensions(part);
+    this.pushUndoState();
+    const snappedAngle = this.snapAngle(baseAngle);
     const count = this.symmetryMode;
     const placedArr = [];
     for (let i = 0; i < count; i++) {
-      const angle = baseAngle + i / count * Math.PI * 2;
+      const angle = snappedAngle + i / count * Math.PI * 2;
       const pos = new Vector3(
         Math.cos(angle) * (stackRadius + 0.02),
         basePoint.y,
@@ -30133,6 +28996,7 @@ var VAB3DPreview = class {
   }
   // 删除零件
   removePart(placedPart) {
+    this.pushUndoState();
     const toRemove = [placedPart, ...placedPart.symmetryParts];
     for (const p of toRemove) {
       this.rocketGroup.remove(p.mesh);
@@ -30420,6 +29284,181 @@ var VAB3DPreview = class {
   getPlacedParts() {
     return this.placedParts;
   }
+  // ============================================
+  // 角度捕捉 (Angle Snap)
+  // ============================================
+  setAngleSnap(degrees) {
+    this.angleSnap = Math.max(0, degrees);
+    this.angleSnapEnabled = degrees > 0;
+  }
+  getAngleSnap() {
+    return this.angleSnap;
+  }
+  isAngleSnapEnabled() {
+    return this.angleSnapEnabled;
+  }
+  // 将角度捕捉到最近的 angleSnap 刻度
+  snapAngle(angle) {
+    if (!this.angleSnapEnabled || this.angleSnap <= 0) return angle;
+    const snapRad = this.angleSnap * Math.PI / 180;
+    return Math.round(angle / snapRad) * snapRad;
+  }
+  // ============================================
+  // 撤销/重做 (Undo/Redo)
+  // ============================================
+  // 序列化当前状态为 JSON 字符串
+  serializeState() {
+    const data = this.placedParts.map((p) => ({
+      partId: p.part.id,
+      position: { x: p.position.x, y: p.position.y, z: p.position.z },
+      isStack: p.isStack,
+      height: p.height,
+      radius: p.radius,
+      rotY: p.mesh.rotation.y,
+      symmetryCount: p.symmetryParts.length
+    }));
+    return JSON.stringify(data);
+  }
+  // 保存当前状态到撤销栈
+  pushUndoState() {
+    this.undoStack.push(this.serializeState());
+    if (this.undoStack.length > this.maxHistory) {
+      this.undoStack.shift();
+    }
+    this.redoStack = [];
+  }
+  // 从 JSON 状态恢复
+  restoreState(json) {
+    const data = JSON.parse(json);
+    this.selectPart(null);
+    for (const p of [...this.placedParts]) {
+      this.rocketGroup.remove(p.mesh);
+      this.disposeObject3D(p.mesh);
+    }
+    this.placedParts = [];
+    for (const item of data) {
+      const part = ROCKET_PARTS.find((p) => p.id === item.partId);
+      if (!part) continue;
+      const { group, height, radius } = this.createPartMesh(part);
+      const pos = new Vector3(item.position.x, item.position.y, item.position.z);
+      group.position.copy(pos);
+      group.rotation.y = item.rotY;
+      group.traverse((child) => {
+        if (child instanceof Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.rocketGroup.add(group);
+      const placed = {
+        part,
+        mesh: group,
+        position: pos,
+        isStack: item.isStack,
+        symmetryParts: [],
+        height,
+        radius
+      };
+      this.placedParts.push(placed);
+    }
+    const radialParts = this.placedParts.filter((p) => !p.isStack);
+    const yGroups = /* @__PURE__ */ new Map();
+    for (const p of radialParts) {
+      const key = Math.round(p.position.y * 100);
+      if (!yGroups.has(key)) yGroups.set(key, []);
+      yGroups.get(key).push(p);
+    }
+    for (const group of yGroups.values()) {
+      if (group.length > 1) {
+        for (const p of group) {
+          p.symmetryParts = group.filter((other) => other !== p);
+        }
+      }
+    }
+    this.adjustCamera();
+    this.onPartsChanged?.();
+  }
+  undo() {
+    if (this.undoStack.length === 0) return false;
+    this.redoStack.push(this.serializeState());
+    const state = this.undoStack.pop();
+    this.restoreState(state);
+    return true;
+  }
+  redo() {
+    if (this.redoStack.length === 0) return false;
+    this.undoStack.push(this.serializeState());
+    const state = this.redoStack.pop();
+    this.restoreState(state);
+    return true;
+  }
+  canUndo() {
+    return this.undoStack.length > 0;
+  }
+  canRedo() {
+    return this.redoStack.length > 0;
+  }
+  // ============================================
+  // 保存/加载建造方案 (Save/Load Craft)
+  // ============================================
+  // Save craft as JSON string (no args = quick save to default key)
+  saveCraft(craftName) {
+    const data = {
+      parts: this.placedParts.map((p) => ({
+        partId: p.part.id,
+        position: { x: p.position.x, y: p.position.y, z: p.position.z },
+        isStack: p.isStack,
+        height: p.height,
+        radius: p.radius,
+        rotY: p.mesh.rotation.y,
+        symmetryCount: p.symmetryParts.length
+      })),
+      savedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const json = JSON.stringify(data);
+    if (craftName) {
+      try {
+        localStorage.setItem("ksp_craft_" + craftName, json);
+      } catch (e) {
+      }
+    }
+    return json;
+  }
+  // Load craft from JSON string or by name
+  loadCraft(craftNameOrJson) {
+    try {
+      let json;
+      if (craftNameOrJson.trim().startsWith("{")) {
+        json = craftNameOrJson;
+      } else {
+        json = localStorage.getItem("ksp_craft_" + craftNameOrJson) || "";
+        if (!json) return false;
+      }
+      const data = JSON.parse(json);
+      this.pushUndoState();
+      this.restoreState(JSON.stringify(data.parts));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  getSavedCrafts() {
+    const crafts = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("ksp_craft_")) {
+        crafts.push(key.substring("ksp_craft_".length));
+      }
+    }
+    return crafts;
+  }
+  deleteCraft(craftName) {
+    localStorage.removeItem("ksp_craft_" + craftName);
+  }
+  // 导出当前建造方案为 JSON 字符串
+  exportCraft() {
+    return this.serializeState();
+  }
   // 删除选中的零件
   removeSelectedPart() {
     if (this.selectedPart) {
@@ -30428,6 +29467,7 @@ var VAB3DPreview = class {
   }
   // 清空所有零件
   clearAll() {
+    if (this.placedParts.length > 0) this.pushUndoState();
     this.selectPart(null);
     for (const p of [...this.placedParts]) {
       this.rocketGroup.remove(p.mesh);
@@ -30880,7 +29920,13 @@ var SpaceCenter = class {
         icon: "\u{1F6F0}\uFE0F",
         name: "\u53D1\u5C04\u53F0",
         desc: "\u524D\u5F80\u53D1\u5C04\u53F0\uFF0C\u53D1\u5C04\u706B\u7BAD\u5347\u7A7A",
-        action: () => this.callbacks.onLaunch()
+        action: () => {
+          if (this.selectedParts.length === 0) {
+            this.showComingSoon("\u8BF7\u5148\u5728VAB\u4E2D\u5EFA\u9020\u706B\u7BAD");
+          } else {
+            this.callbacks.onLaunch();
+          }
+        }
       },
       {
         icon: "\u{1F4E1}",
@@ -31010,6 +30056,13 @@ var SpaceCenter = class {
       this.showVABToast("\u8BFB\u53D6\u529F\u80FD\u5F00\u53D1\u4E2D");
     }));
     const launchBtn = makeTopBtn("\u{1F680} \u53D1\u5C04", "#1a6b1a", "#2a8b2a", () => {
+      if (this.vabPreview) {
+        this.selectedParts = this.vabPreview.getPlacedParts().map((p) => p.part);
+      }
+      if (this.selectedParts.length === 0) {
+        this.showVABToast("\u8BF7\u5148\u653E\u7F6E\u81F3\u5C11\u4E00\u4E2A\u96F6\u4EF6\uFF01");
+        return;
+      }
       this.closeVAB();
       this.callbacks.onLaunch();
     });
@@ -31162,6 +30215,121 @@ var SpaceCenter = class {
       if (this.vabPreview) this.vabPreview.removeSelectedPart();
     });
     viewportBottom.appendChild(deleteBtn);
+    const angleBtn = document.createElement("div");
+    angleBtn.id = "vab-angle-btn";
+    angleBtn.style.cssText = `
+      background: rgba(20,30,40,0.85); border: 1px solid #345; color: #8ac;
+      padding: 4px 12px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s;
+    `;
+    angleBtn.textContent = "\u89D2\u5EA6: 15\xB0";
+    angleBtn.addEventListener("mouseenter", () => {
+      angleBtn.style.borderColor = "#579";
+      angleBtn.style.color = "#adf";
+    });
+    angleBtn.addEventListener("mouseleave", () => {
+      angleBtn.style.borderColor = "#345";
+      angleBtn.style.color = "#8ac";
+    });
+    angleBtn.addEventListener("click", () => {
+      const angles = [5, 15, 22.5, 45, 90];
+      const cur = this.vabPreview ? this.vabPreview.angleSnap : 15;
+      const idx = angles.indexOf(cur);
+      const next = angles[(idx + 1) % angles.length];
+      if (this.vabPreview) this.vabPreview.setAngleSnap(next);
+      angleBtn.textContent = `\u89D2\u5EA6: ${next}\xB0`;
+      const bottomAngle = document.getElementById("vab-bottom-angle");
+      if (bottomAngle) bottomAngle.textContent = `${next}\xB0`;
+    });
+    viewportBottom.appendChild(angleBtn);
+    const undoBtn = document.createElement("div");
+    undoBtn.id = "vab-undo-btn";
+    undoBtn.style.cssText = `
+      background: rgba(30,30,30,0.85); border: 1px solid #444; color: #aaa;
+      padding: 4px 10px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s;
+    `;
+    undoBtn.textContent = "\u21B6 \u64A4\u9500";
+    undoBtn.addEventListener("mouseenter", () => {
+      undoBtn.style.borderColor = "#666";
+      undoBtn.style.color = "#fff";
+    });
+    undoBtn.addEventListener("mouseleave", () => {
+      undoBtn.style.borderColor = "#444";
+      undoBtn.style.color = "#aaa";
+    });
+    undoBtn.addEventListener("click", () => {
+      if (this.vabPreview) this.vabPreview.undo();
+    });
+    viewportBottom.appendChild(undoBtn);
+    const redoBtn = document.createElement("div");
+    redoBtn.id = "vab-redo-btn";
+    redoBtn.style.cssText = `
+      background: rgba(30,30,30,0.85); border: 1px solid #444; color: #aaa;
+      padding: 4px 10px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s;
+    `;
+    redoBtn.textContent = "\u21B7 \u91CD\u505A";
+    redoBtn.addEventListener("mouseenter", () => {
+      redoBtn.style.borderColor = "#666";
+      redoBtn.style.color = "#fff";
+    });
+    redoBtn.addEventListener("mouseleave", () => {
+      redoBtn.style.borderColor = "#444";
+      redoBtn.style.color = "#aaa";
+    });
+    redoBtn.addEventListener("click", () => {
+      if (this.vabPreview) this.vabPreview.redo();
+    });
+    viewportBottom.appendChild(redoBtn);
+    const saveBtn = document.createElement("div");
+    saveBtn.style.cssText = `
+      background: rgba(20,40,20,0.85); border: 1px solid #353; color: #8b8;
+      padding: 4px 10px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s;
+    `;
+    saveBtn.textContent = "\u{1F4BE} \u4FDD\u5B58";
+    saveBtn.addEventListener("mouseenter", () => {
+      saveBtn.style.borderColor = "#575";
+      saveBtn.style.color = "#bfb";
+    });
+    saveBtn.addEventListener("mouseleave", () => {
+      saveBtn.style.borderColor = "#353";
+      saveBtn.style.color = "#8b8";
+    });
+    saveBtn.addEventListener("click", () => {
+      if (this.vabPreview) {
+        const json = this.vabPreview.saveCraft();
+        localStorage.setItem("ksp_saved_craft", json);
+        alert("\u98DE\u884C\u5668\u65B9\u6848\u5DF2\u4FDD\u5B58\uFF01");
+      }
+    });
+    viewportBottom.appendChild(saveBtn);
+    const loadBtn = document.createElement("div");
+    loadBtn.style.cssText = `
+      background: rgba(40,35,20,0.85); border: 1px solid #543; color: #ba8;
+      padding: 4px 10px; border-radius: 3px; font-size: 0.75rem; cursor: pointer;
+      transition: all 0.15s;
+    `;
+    loadBtn.textContent = "\u{1F4C2} \u52A0\u8F7D";
+    loadBtn.addEventListener("mouseenter", () => {
+      loadBtn.style.borderColor = "#765";
+      loadBtn.style.color = "#dba";
+    });
+    loadBtn.addEventListener("mouseleave", () => {
+      loadBtn.style.borderColor = "#543";
+      loadBtn.style.color = "#ba8";
+    });
+    loadBtn.addEventListener("click", () => {
+      const json = localStorage.getItem("ksp_saved_craft");
+      if (json && this.vabPreview) {
+        this.vabPreview.loadCraft(json);
+        alert("\u98DE\u884C\u5668\u65B9\u6848\u5DF2\u52A0\u8F7D\uFF01");
+      } else {
+        alert("\u6CA1\u6709\u627E\u5230\u5DF2\u4FDD\u5B58\u7684\u98DE\u884C\u5668\u65B9\u6848\u3002");
+      }
+    });
+    viewportBottom.appendChild(loadBtn);
     const cancelBtn = document.createElement("div");
     cancelBtn.id = "vab-cancel-btn";
     cancelBtn.style.cssText = `
@@ -31221,9 +30389,11 @@ var SpaceCenter = class {
     `;
     bottomBar.innerHTML = `
       <div>\u5BF9\u79F0: <span id="vab-bottom-sym" style="color:#aaa;">1\xD7</span></div>
+      <div>\u89D2\u5EA6: <span id="vab-bottom-angle" style="color:#aaa;">15\xB0</span></div>
       <div>\u90E8\u4EF6: <span id="vab-bottom-parts" style="color:#aaa;">0</span></div>
       <div>\u8D28\u91CF: <span id="vab-bottom-mass" style="color:#aaa;">0 kg</span></div>
       <div style="flex:1;"></div>
+      <div style="color:#666;">Ctrl+Z \u64A4\u9500 \xB7 Ctrl+Y \u91CD\u505A</div>
       <div id="vab-bottom-status" style="color:#fa4;">\u672A\u5C31\u7EEA</div>
     `;
     panel.appendChild(bottomBar);
@@ -31521,23 +30691,43 @@ var container = document.getElementById("app");
 if (!container) {
   throw new Error("\u672A\u627E\u5230\u5E94\u7528\u5BB9\u5668");
 }
-var menu = new StartMenu((quality) => {
+var currentGame = null;
+var currentQuality = "high";
+function startGame(parts) {
+  if (currentGame) {
+    currentGame.dispose();
+    currentGame = null;
+  }
+  currentGame = new Game(container, currentQuality, parts);
+  currentGame.showHUD();
+  currentGame.onExit = () => {
+    if (currentGame) {
+      currentGame.dispose();
+      currentGame = null;
+    }
+    enterSpaceCenter();
+  };
+}
+function enterSpaceCenter() {
   const sc = new SpaceCenter({
     onLaunch: () => {
       const parts = sc.getSelectedParts();
       sc.destroy();
-      const game = new Game(container, quality, parts.length > 0 ? parts : void 0);
-      game.showHUD();
-      game.onExit = () => {
-        game.dispose();
-        location.reload();
-      };
+      if (parts.length === 0) {
+        startGame();
+      } else {
+        startGame(parts);
+      }
     },
     onBack: () => {
       sc.destroy();
       location.reload();
     }
   });
+}
+var menu = new StartMenu((quality) => {
+  currentQuality = quality;
+  enterSpaceCenter();
 });
 /**
  * @license
