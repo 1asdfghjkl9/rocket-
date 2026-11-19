@@ -18178,6 +18178,172 @@ var Scene = class extends Object3D {
     return data;
   }
 };
+var DataTexture = class extends Texture {
+  constructor(data = null, width = 1, height = 1, format, type, mapping, wrapS, wrapT, magFilter = NearestFilter, minFilter = NearestFilter, anisotropy, colorSpace) {
+    super(null, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy, colorSpace);
+    this.isDataTexture = true;
+    this.image = { data, width, height };
+    this.generateMipmaps = false;
+    this.flipY = false;
+    this.unpackAlignment = 1;
+  }
+};
+var InstancedBufferAttribute = class extends BufferAttribute {
+  constructor(array, itemSize, normalized, meshPerAttribute = 1) {
+    super(array, itemSize, normalized);
+    this.isInstancedBufferAttribute = true;
+    this.meshPerAttribute = meshPerAttribute;
+  }
+  copy(source) {
+    super.copy(source);
+    this.meshPerAttribute = source.meshPerAttribute;
+    return this;
+  }
+  toJSON() {
+    const data = super.toJSON();
+    data.meshPerAttribute = this.meshPerAttribute;
+    data.isInstancedBufferAttribute = true;
+    return data;
+  }
+};
+var _instanceLocalMatrix = /* @__PURE__ */ new Matrix4();
+var _instanceWorldMatrix = /* @__PURE__ */ new Matrix4();
+var _instanceIntersects = [];
+var _box3 = /* @__PURE__ */ new Box3();
+var _identity = /* @__PURE__ */ new Matrix4();
+var _mesh$1 = /* @__PURE__ */ new Mesh();
+var _sphere$3 = /* @__PURE__ */ new Sphere();
+var InstancedMesh = class extends Mesh {
+  constructor(geometry, material, count) {
+    super(geometry, material);
+    this.isInstancedMesh = true;
+    this.instanceMatrix = new InstancedBufferAttribute(new Float32Array(count * 16), 16);
+    this.instanceColor = null;
+    this.morphTexture = null;
+    this.count = count;
+    this.boundingBox = null;
+    this.boundingSphere = null;
+    for (let i = 0; i < count; i++) {
+      this.setMatrixAt(i, _identity);
+    }
+  }
+  computeBoundingBox() {
+    const geometry = this.geometry;
+    const count = this.count;
+    if (this.boundingBox === null) {
+      this.boundingBox = new Box3();
+    }
+    if (geometry.boundingBox === null) {
+      geometry.computeBoundingBox();
+    }
+    this.boundingBox.makeEmpty();
+    for (let i = 0; i < count; i++) {
+      this.getMatrixAt(i, _instanceLocalMatrix);
+      _box3.copy(geometry.boundingBox).applyMatrix4(_instanceLocalMatrix);
+      this.boundingBox.union(_box3);
+    }
+  }
+  computeBoundingSphere() {
+    const geometry = this.geometry;
+    const count = this.count;
+    if (this.boundingSphere === null) {
+      this.boundingSphere = new Sphere();
+    }
+    if (geometry.boundingSphere === null) {
+      geometry.computeBoundingSphere();
+    }
+    this.boundingSphere.makeEmpty();
+    for (let i = 0; i < count; i++) {
+      this.getMatrixAt(i, _instanceLocalMatrix);
+      _sphere$3.copy(geometry.boundingSphere).applyMatrix4(_instanceLocalMatrix);
+      this.boundingSphere.union(_sphere$3);
+    }
+  }
+  copy(source, recursive) {
+    super.copy(source, recursive);
+    this.instanceMatrix.copy(source.instanceMatrix);
+    if (source.morphTexture !== null) this.morphTexture = source.morphTexture.clone();
+    if (source.instanceColor !== null) this.instanceColor = source.instanceColor.clone();
+    this.count = source.count;
+    if (source.boundingBox !== null) this.boundingBox = source.boundingBox.clone();
+    if (source.boundingSphere !== null) this.boundingSphere = source.boundingSphere.clone();
+    return this;
+  }
+  getColorAt(index, color) {
+    color.fromArray(this.instanceColor.array, index * 3);
+  }
+  getMatrixAt(index, matrix) {
+    matrix.fromArray(this.instanceMatrix.array, index * 16);
+  }
+  getMorphAt(index, object) {
+    const objectInfluences = object.morphTargetInfluences;
+    const array = this.morphTexture.source.data.data;
+    const len = objectInfluences.length + 1;
+    const dataIndex = index * len + 1;
+    for (let i = 0; i < objectInfluences.length; i++) {
+      objectInfluences[i] = array[dataIndex + i];
+    }
+  }
+  raycast(raycaster, intersects2) {
+    const matrixWorld = this.matrixWorld;
+    const raycastTimes = this.count;
+    _mesh$1.geometry = this.geometry;
+    _mesh$1.material = this.material;
+    if (_mesh$1.material === void 0) return;
+    if (this.boundingSphere === null) this.computeBoundingSphere();
+    _sphere$3.copy(this.boundingSphere);
+    _sphere$3.applyMatrix4(matrixWorld);
+    if (raycaster.ray.intersectsSphere(_sphere$3) === false) return;
+    for (let instanceId = 0; instanceId < raycastTimes; instanceId++) {
+      this.getMatrixAt(instanceId, _instanceLocalMatrix);
+      _instanceWorldMatrix.multiplyMatrices(matrixWorld, _instanceLocalMatrix);
+      _mesh$1.matrixWorld = _instanceWorldMatrix;
+      _mesh$1.raycast(raycaster, _instanceIntersects);
+      for (let i = 0, l = _instanceIntersects.length; i < l; i++) {
+        const intersect2 = _instanceIntersects[i];
+        intersect2.instanceId = instanceId;
+        intersect2.object = this;
+        intersects2.push(intersect2);
+      }
+      _instanceIntersects.length = 0;
+    }
+  }
+  setColorAt(index, color) {
+    if (this.instanceColor === null) {
+      this.instanceColor = new InstancedBufferAttribute(new Float32Array(this.instanceMatrix.count * 3).fill(1), 3);
+    }
+    color.toArray(this.instanceColor.array, index * 3);
+  }
+  setMatrixAt(index, matrix) {
+    matrix.toArray(this.instanceMatrix.array, index * 16);
+  }
+  setMorphAt(index, object) {
+    const objectInfluences = object.morphTargetInfluences;
+    const len = objectInfluences.length + 1;
+    if (this.morphTexture === null) {
+      this.morphTexture = new DataTexture(new Float32Array(len * this.count), len, this.count, RedFormat, FloatType);
+    }
+    const array = this.morphTexture.source.data.data;
+    let morphInfluencesSum = 0;
+    for (let i = 0; i < objectInfluences.length; i++) {
+      morphInfluencesSum += objectInfluences[i];
+    }
+    const morphBaseInfluence = this.geometry.morphTargetsRelative ? 1 : 1 - morphInfluencesSum;
+    const dataIndex = len * index;
+    array[dataIndex] = morphBaseInfluence;
+    array.set(objectInfluences, dataIndex + 1);
+  }
+  updateMorphTargets() {
+  }
+  dispose() {
+    this.dispatchEvent({ type: "dispose" });
+    if (this.morphTexture !== null) {
+      this.morphTexture.dispose();
+      this.morphTexture = null;
+    }
+    return this;
+  }
+};
 var LineBasicMaterial = class extends Material {
   static get type() {
     return "LineBasicMaterial";
@@ -23463,10 +23629,39 @@ var ROCKET_PARTS = [
 ];
 
 // src/game/physics.ts
-var NBodySystem = class {
+var NBodySystem = class _NBodySystem {
   constructor() {
     this.bodies = [];
     this.accelerations = /* @__PURE__ */ new Map();
+    // ── Atmospheric model ──────────────────────────────────────────────
+    /** Atmosphere registry: body name → atmosphere data. */
+    this.atmospheres = /* @__PURE__ */ new Map();
+    // ── J2 oblateness perturbation ─────────────────────────────────────
+    /**
+     * J2 oblateness data for a body. J2 is the dominant zonal harmonic and
+     * models the equatorial bulge of rotating planets. It causes:
+     *   - regression of the ascending node (RAAN precession)
+     *   - precession of the argument of periapsis
+     *
+     * Earth J2 ≈ 1.08263e-3. The perturbing acceleration is:
+     *
+     *   a_J2 = -(3/2) * J2 * μ * R² / r⁴ *
+     *          [ (1 - 5*z²/r²) x, (1 - 5*z²/r²) y, (3 - 5*z²/r²) z ]
+     *
+     * where z is measured along the body's rotation (spin) axis.
+     */
+    this.j2Data = /* @__PURE__ */ new Map();
+    // ── Sphere of Influence (patched-conic) ────────────────────────────
+    /**
+     * SOI radius registry: body name → SOI radius (m).
+     *
+     * KSP uses the Laplace sphere of influence:
+     *   R_soi = a * (m / M)^(2/5)
+     * where a is the body's semi-major axis about its parent, m is the body's
+     * mass and M is the parent's mass. Within R_soi a craft is "dominated" by
+     * that body; outside it the parent takes over (patched conics).
+     */
+    this.soiRadii = /* @__PURE__ */ new Map();
   }
   addBody(body) {
     this.bodies.push(body);
@@ -23478,6 +23673,240 @@ var NBodySystem = class {
   }
   getBody(name) {
     return this.bodies.find((b) => b.name === name);
+  }
+  /** Register an atmosphere for a body (KSP-style exponential model). */
+  setAtmosphere(name, data) {
+    this.atmospheres.set(name, data);
+  }
+  /** Get atmosphere data for a body, if any. */
+  getAtmosphere(name) {
+    return this.atmospheres.get(name);
+  }
+  /** Register J2 oblateness for a body. spinAxis should be a unit vector. */
+  setJ2(name, j2, spinAxis) {
+    const axis = spinAxis.lengthSq() > 0 ? spinAxis.clone().normalize() : new Vector3(0, 1, 0);
+    this.j2Data.set(name, { j2, spinAxis: axis });
+  }
+  /** Get J2 data for a body, if any. */
+  getJ2(name) {
+    return this.j2Data.get(name);
+  }
+  /** Register (or recompute) the SOI radius for a body. */
+  setSOI(name, radius) {
+    this.soiRadii.set(name, radius);
+  }
+  /** Get the stored SOI radius for a body (m). Returns 0 if unset. */
+  getSOI(name) {
+    return this.soiRadii.get(name) ?? 0;
+  }
+  /**
+   * Compute and store the SOI radius for a body given its mass, parent mass,
+   * and semi-major axis. Mirrors the static computeSOI but also caches it.
+   */
+  registerSOI(name, mass, parentMass, semiMajorAxis) {
+    const r = _NBodySystem.computeSOI(mass, parentMass, semiMajorAxis);
+    this.soiRadii.set(name, r);
+    return r;
+  }
+  /**
+   * Determine which body's sphere of influence a given position currently
+   * lies in. KSP uses this for patched-conic SOI switching: the craft's
+   * "current parent" is the deepest body whose SOI contains the position.
+   *
+   * Returns the body name, or null if the position is outside every SOI
+   * (i.e. only inside the star's, which has no finite SOI).
+   *
+   * @param pos        Position to test (world space).
+   * @param candidates Optional list of body names to consider (default: all).
+   */
+  findSOI(pos, candidates) {
+    const names = candidates ?? Array.from(this.soiRadii.keys());
+    let best = null;
+    let bestDepth = -1;
+    for (const name of names) {
+      const body = this.getBody(name);
+      const r = this.soiRadii.get(name);
+      if (!body || r === void 0 || r <= 0) continue;
+      const d = body.position.distanceTo(pos);
+      if (d <= r) {
+        if (best === null || r < bestDepth) {
+          best = name;
+          bestDepth = r;
+        }
+      }
+    }
+    return best;
+  }
+  /**
+   * Compute the J2 perturbation acceleration on a satellite from a rotating,
+   * oblate parent body. Returns a zero vector if the parent has no J2 data.
+   *
+   * @param satellitePos  Satellite position in the same frame as parentPos.
+   * @param parent        The oblate parent body.
+   */
+  computeJ2Acceleration(satellitePos, parent) {
+    const data = this.j2Data.get(parent.name);
+    if (!data || data.j2 === 0) return new Vector3();
+    const rx = satellitePos.x - parent.position.x;
+    const ry = satellitePos.y - parent.position.y;
+    const rz_world = satellitePos.z - parent.position.z;
+    const rSq = rx * rx + ry * ry + rz_world * rz_world;
+    if (rSq < 1) return new Vector3();
+    const r = Math.sqrt(rSq);
+    const r4 = rSq * rSq;
+    const zAlongAxis = rx * data.spinAxis.x + ry * data.spinAxis.y + rz_world * data.spinAxis.z;
+    const zSqOverRSq = zAlongAxis * zAlongAxis / rSq;
+    const mu = G * parent.mass;
+    const k = -1.5 * data.j2 * mu * parent.radius * parent.radius / r4;
+    const xyFactor = 1 - 5 * zSqOverRSq;
+    const zFactor = 3 - 5 * zSqOverRSq;
+    const perp = new Vector3(rx, ry, rz_world);
+    const along = data.spinAxis.clone().multiplyScalar(zAlongAxis);
+    const horiz = perp.clone().sub(along);
+    const acc = horiz.multiplyScalar(k * xyFactor).add(along.clone().multiplyScalar(k * zFactor));
+    return acc;
+  }
+  /**
+   * Atmospheric density at a given altitude above a body's surface.
+   * Returns 0 if the body has no atmosphere or altitude is above the
+   * atmosphere's ceiling.
+   *
+   * ρ(h) = ρ₀ * e^(-h / H)
+   */
+  atmosphericDensity(bodyName, altitude) {
+    const atm = this.atmospheres.get(bodyName);
+    if (!atm) return 0;
+    if (altitude < 0) return atm.seaLevelDensity;
+    if (altitude > atm.atmosphereHeight) return 0;
+    return atm.seaLevelDensity * Math.exp(-altitude / atm.scaleHeight);
+  }
+  /**
+   * Compute the aerodynamic drag force on a body and apply it to its
+   * acceleration (velocity-Verlet friendly: caller integrates velocity).
+   *
+   * F_drag = 0.5 * ρ * v² * Cd * A, opposite to velocity.
+   *
+   * Returns the drag acceleration vector (m/s²) so the caller can fold it
+   * into the integration step. Also returns 0 vector when out of atmosphere.
+   *
+   * @param body        The body experiencing drag.
+   * @param parentName  Name of the body whose atmosphere we are in.
+   * @param aero        Drag/lift coefficients.
+   * @param parentPos   Position of the atmosphere's body (to compute altitude).
+   */
+  computeDragAcceleration(body, parentName, aero, parentPos) {
+    const parent = this.getBody(parentName);
+    if (!parent) return new Vector3();
+    const dx = body.position.x - parentPos.x;
+    const dy = body.position.y - parentPos.y;
+    const dz = body.position.z - parentPos.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const altitude = dist - parent.radius;
+    const rho = this.atmosphericDensity(parentName, altitude);
+    if (rho <= 0) return new Vector3();
+    const vSq = body.velocity.lengthSq();
+    if (vSq < 1e-6) return new Vector3();
+    const v = Math.sqrt(vSq);
+    const dragMag = 0.5 * rho * vSq * aero.dragCoefficient * aero.referenceArea / Math.max(body.mass, 1);
+    return body.velocity.clone().multiplyScalar(-dragMag / v);
+  }
+  static {
+    // ── Reentry heating ─────────────────────────────────────────────────
+    /** Stefan–Boltzmann constant (W/(m²·K⁴)). */
+    this.STEFAN_BOLTZMANN = 5670374419e-17;
+  }
+  /**
+   * Update a body's skin temperature from atmospheric heating and radiative
+   * cooling. KSP-style: convective heating rises with ρ·v³, radiation rises
+   * with T⁴.
+   *
+   * Mutates `thermal.temperature` in place. Returns the new temperature so
+   * the renderer can read it for a heat-glow effect.
+   *
+   * @param thermal     Thermal state to update.
+   * @param aero        Reference area used for both heating and radiation.
+   * @param body        Body whose velocity/altitude determine heating.
+   * @param parentName  Body whose atmosphere we fly through.
+   * @param parentPos   Position of the atmosphere body (for altitude).
+   * @param dt          Time step (s).
+   */
+  updateTemperature(thermal, aero, body, parentName, parentPos, dt) {
+    const parent = this.getBody(parentName);
+    if (!parent) return thermal.temperature;
+    const dx = body.position.x - parentPos.x;
+    const dy = body.position.y - parentPos.y;
+    const dz = body.position.z - parentPos.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const altitude = dist - parent.radius;
+    const rho = this.atmosphericDensity(parentName, altitude);
+    const v = body.velocity.length();
+    const qIn = 0.5 * rho * v * v * v * thermal.heatingCoeff;
+    const t4 = thermal.temperature * thermal.temperature * thermal.temperature * thermal.temperature;
+    const qOut = thermal.emissivity * _NBodySystem.STEFAN_BOLTZMANN * t4;
+    const netFlux = qIn - qOut;
+    const dT = netFlux * dt / Math.max(thermal.heatCapacity, 1);
+    const ambient = 250;
+    thermal.temperature = Math.max(ambient, thermal.temperature + dT);
+    return thermal.temperature;
+  }
+  /** True if the body is currently overheating beyond its limit. */
+  static isOverheating(thermal) {
+    return thermal.temperature >= thermal.maxTemperature;
+  }
+  // ── Aerodynamic lift ────────────────────────────────────────────────
+  /**
+   * Compute lift acceleration on a body from lifting surfaces (wings/fins).
+   *
+   * KSP models lift as:
+   *   L = 0.5 * ρ * v² * Cl * A
+   * where Cl depends on the angle of attack α between the body's nose and
+   * the freestream velocity. We use a linear lift slope up to a stall angle,
+   * then a post-stall falloff — the standard thin-airfoil approximation.
+   *
+   * The lift vector is perpendicular to velocity, in the plane spanned by the
+   * nose direction and velocity (so the rocket "pulls" toward its nose).
+   *
+   * @param body        The body.
+   * @param aero        Aero coefficients (uses liftCoefficient & referenceArea).
+   * @param noseDir     Body's nose direction in world space (unit vector).
+   * @param parentName  Atmosphere body name.
+   * @param parentPos   Atmosphere body position (for altitude).
+   * @returns Lift acceleration vector (m/s²).
+   */
+  computeLiftAcceleration(body, aero, noseDir, parentName, parentPos) {
+    if (aero.liftCoefficient <= 0) return new Vector3();
+    const parent = this.getBody(parentName);
+    if (!parent) return new Vector3();
+    const dx = body.position.x - parentPos.x;
+    const dy = body.position.y - parentPos.y;
+    const dz = body.position.z - parentPos.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const altitude = dist - parent.radius;
+    const rho = this.atmosphericDensity(parentName, altitude);
+    if (rho <= 0) return new Vector3();
+    const vSq = body.velocity.lengthSq();
+    if (vSq < 1) return new Vector3();
+    const v = Math.sqrt(vSq);
+    const velDir = body.velocity.clone().multiplyScalar(1 / v);
+    let cosAlpha = noseDir.dot(velDir);
+    cosAlpha = Math.max(-1, Math.min(1, cosAlpha));
+    const alpha = Math.acos(cosAlpha) - Math.PI / 2;
+    const stallAngle = 15 * Math.PI / 180;
+    let clFactor;
+    const absA = Math.abs(alpha);
+    if (absA <= stallAngle) {
+      clFactor = alpha / stallAngle;
+    } else {
+      const over = absA - stallAngle;
+      clFactor = Math.sign(alpha) * Math.max(0, 1 - over / stallAngle);
+    }
+    const cl = aero.liftCoefficient * clFactor;
+    const liftMag = 0.5 * rho * vSq * cl * aero.referenceArea / Math.max(body.mass, 1);
+    if (Math.abs(liftMag) < 1e-9) return new Vector3();
+    const liftDir = noseDir.clone().addScaledVector(velDir, -cosAlpha);
+    if (liftDir.lengthSq() < 1e-12) return new Vector3();
+    liftDir.normalize();
+    return liftDir.multiplyScalar(liftMag);
   }
   /** Compute gravitational acceleration on each body from all others */
   computeAccelerations() {
@@ -23581,6 +24010,81 @@ var NBodySystem = class {
   static computeSOI(mass, parentMass, semiMajorAxis) {
     return semiMajorAxis * Math.pow(mass / parentMass, 2 / 5);
   }
+  // ── Trajectory prediction ──────────────────────────────────────────
+  /**
+   * Predict the position of a body at a future time t using its Keplerian
+   * elements (two-body approximation around a single parent). This is the
+   * analytic Keplerian propagation used by KSP's map view for patched-conic
+   * trajectory prediction.
+   *
+   * Solves Kepler's equation M = E - e·sin(E) by Newton iteration, then
+   * converts the eccentric anomaly E into a true position in 3D space.
+   *
+   * @param elements   Orbital elements of the body.
+   * @param parentPos  Position of the parent body (focus of the ellipse).
+   * @param mu         Standard gravitational parameter G*M of the parent.
+   * @param t          Time since the epoch of `elements.trueAnomaly` (s).
+   * @returns Predicted world-space position.
+   */
+  static predictPositionAtTime(elements, parentPos, mu, t) {
+    const {
+      semiMajorAxis: a,
+      eccentricity: e,
+      inclination: inc,
+      longitudeOfAscendingNode: lan,
+      argumentOfPeriapsis: aop,
+      trueAnomaly: ta0,
+      orbitalPeriod: period
+    } = elements;
+    if (e >= 1 || period <= 0 || a <= 0) {
+      return _NBodySystem._positionFromTrueAnomaly(a, e, ta0, inc, lan, aop).add(parentPos);
+    }
+    const n = 2 * Math.PI / period;
+    const E0 = 2 * Math.atan2(
+      Math.sqrt(1 - e) * Math.sin(ta0 / 2),
+      Math.sqrt(1 + e) * Math.cos(ta0 / 2)
+    );
+    const M0 = E0 - e * Math.sin(E0);
+    const M = M0 + n * t;
+    let E = M;
+    for (let i = 0; i < 12; i++) {
+      const f = E - e * Math.sin(E) - M;
+      const fp = 1 - e * Math.cos(E);
+      const dE = f / fp;
+      E -= dE;
+      if (Math.abs(dE) < 1e-10) break;
+    }
+    const ta = 2 * Math.atan2(
+      Math.sqrt(1 + e) * Math.sin(E / 2),
+      Math.sqrt(1 - e) * Math.cos(E / 2)
+    );
+    return _NBodySystem._positionFromTrueAnomaly(a, e, ta, inc, lan, aop).add(parentPos);
+  }
+  /**
+   * Convert orbital elements (a, e, true anomaly, orientation angles) into a
+   * 3D position relative to the focus (parent). This is the standard
+   * perifocal→inertial rotation used in orbital mechanics.
+   */
+  static _positionFromTrueAnomaly(a, e, ta, inc, lan, aop) {
+    const p = a * (1 - e * e);
+    const r = p / (1 + e * Math.cos(ta));
+    const x_pf = r * Math.cos(ta);
+    const y_pf = r * Math.sin(ta);
+    const cosO = Math.cos(lan), sinO = Math.sin(lan);
+    const cosI = Math.cos(inc), sinI = Math.sin(inc);
+    const cosW = Math.cos(aop), sinW = Math.sin(aop);
+    const r11 = cosO * cosW - sinO * sinW * cosI;
+    const r12 = -cosO * sinW - sinO * cosW * cosI;
+    const r21 = sinO * cosW + cosO * sinW * cosI;
+    const r22 = -sinO * sinW + cosO * cosW * cosI;
+    const r31 = sinW * sinI;
+    const r32 = cosW * sinI;
+    return new Vector3(
+      r11 * x_pf + r12 * y_pf,
+      r31 * x_pf + r32 * y_pf,
+      r21 * x_pf + r22 * y_pf
+    );
+  }
   /** Predict trajectory points for rendering */
   static predictTrajectory(startPos, startVel, bodies, parentName, steps, dt) {
     const points = [];
@@ -23630,6 +24134,17 @@ var NBodySystem = class {
     const mu = G * parentMass;
     return Math.sqrt(mu * (2 / radius - 1 / semiMajorAxis));
   }
+};
+var J2_PRESETS = {
+  Earth: { j2: 108263e-8, spinAxis: new Vector3(0, 1, 0) },
+  Sun: { j2: 2e-7, spinAxis: new Vector3(0, 1, 0) },
+  Jupiter: { j2: 0.014696, spinAxis: new Vector3(0, 1, 0) },
+  Saturn: { j2: 0.016298, spinAxis: new Vector3(0, 1, 0) },
+  Uranus: { j2: 33434e-7, spinAxis: new Vector3(0.176, 0.984, 0) },
+  // tilted ~98°
+  Neptune: { j2: 3408e-6, spinAxis: new Vector3(0, 1, 0) },
+  Venus: { j2: 4456e-9, spinAxis: new Vector3(0, -1, 0) },
+  Mars: { j2: 196e-5, spinAxis: new Vector3(0, 1, 0) }
 };
 
 // src/game/render.ts
@@ -23832,13 +24347,65 @@ var TextureFactory = class _TextureFactory {
               canyon = canyonDepth;
             }
           }
-          if (data.textureType === "ocean" && height < 0.45) {
-            const depth = (0.45 - height) / 0.45;
-            r = palette.sea[0] * (1 - depth * 0.3);
-            g = palette.sea[1] * (1 - depth * 0.3);
-            b = palette.sea[2] * (1 - depth * 0.2);
-            metal = 120;
-            bump = 15 + regolith * 10;
+          if (data.textureType === "ocean") {
+            const ss = (x2) => {
+              x2 = Math.max(0, Math.min(1, x2));
+              return x2 * x2 * (3 - 2 * x2);
+            };
+            const coastNoise = _TextureFactory.fbm(sx * 28, sy * 28, 4, 0.5, 2);
+            const h2 = height + (coastNoise - 0.5) * 0.06;
+            const deepSea = [palette.sea[0] * 0.7, palette.sea[1] * 0.7, palette.sea[2] * 0.85];
+            const shallow = [palette.sea[0] * 1.05, palette.sea[1] * 1.05, palette.sea[2] * 0.95];
+            const beach = [0.76, 0.69, 0.46];
+            const grass = [palette.land[0], palette.land[1], palette.land[2]];
+            const forest = [palette.land[0] * 0.65, palette.land[1] * 0.8, palette.land[2] * 0.55];
+            const mtn = [palette.mountain[0], palette.mountain[1], palette.mountain[2]];
+            const snow = [palette.polar[0], palette.polar[1], palette.polar[2]];
+            const blend = (a, b2, t) => [a[0] + (b2[0] - a[0]) * t, a[1] + (b2[1] - a[1]) * t, a[2] + (b2[2] - a[2]) * t];
+            let col;
+            if (h2 < 0.4) {
+              const t = ss((0.4 - h2) / 0.4);
+              col = blend(shallow, deepSea, t);
+              metal = 120;
+              bump = 15 + regolith * 10;
+            } else if (h2 < 0.475) {
+              const t = ss((h2 - 0.4) / 0.075);
+              col = blend(shallow, beach, t);
+              metal = 120 - t * 110;
+              bump = 15 + t * 25 + regolith * 10;
+            } else if (h2 < 0.52) {
+              const t = ss((h2 - 0.475) / 0.045);
+              col = blend(beach, grass, t);
+              metal = 10;
+              bump = 30 + t * 40 + regolith * 20;
+            } else if (h2 < 0.62) {
+              const t = ss((h2 - 0.52) / 0.1);
+              col = blend(grass, forest, t);
+              metal = 8;
+              bump = 70 + t * 60 + regolith * 25;
+            } else if (h2 < 0.74) {
+              const t = ss((h2 - 0.62) / 0.12);
+              col = blend(forest, mtn, t);
+              metal = 8;
+              bump = 130 + t * 90 + regolith * 30;
+            } else {
+              const t = ss((h2 - 0.74) / 0.1);
+              col = blend(mtn, snow, t);
+              metal = 6;
+              bump = 220 + regolith * 30 - t * 60;
+            }
+            r = col[0];
+            g = col[1];
+            b = col[2];
+            if (h2 >= 0.475) {
+              const latSnow = ss((Math.abs(sz) - 0.78) / 0.18);
+              if (latSnow > 0) {
+                r = r + (snow[0] - r) * latSnow;
+                g = g + (snow[1] - g) * latSnow;
+                b = b + (snow[2] - b) * latSnow;
+                bump = bump + (120 - bump) * latSnow * 0.5;
+              }
+            }
           } else if (data.textureType === "lava" && height < 0.35) {
             r = palette.sea[0] + (1 - height) * 0.3;
             g = palette.sea[1] * 0.5;
@@ -23981,12 +24548,115 @@ var TextureFactory = class _TextureFactory {
     tex.wrapS = RepeatWrapping;
     return tex;
   }
+  // ★ Iteration 4 — Night-side city lights emissive texture for Earth-like worlds.
+  //   Bright warm dots cluster on landmasses, biased toward coasts & temperate zones.
+  static generateCityLightsTexture(data) {
+    const size = _TextureFactory.getResolution();
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size / 2;
+    const ctx = canvas.getContext("2d");
+    const img = ctx.createImageData(canvas.width, canvas.height);
+    const d = img.data;
+    const w = canvas.width, h = canvas.height;
+    const octaves = _TextureFactory.quality === "high" ? 12 : 8;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const lon = x / w * Math.PI * 2, lat = (y / h - 0.5) * Math.PI;
+        const sx = Math.cos(lat) * Math.cos(lon), sy = Math.cos(lat) * Math.sin(lon), sz = Math.sin(lat);
+        const elevation = _TextureFactory.fbm(sx * 3, sy * 3, octaves, 0.5, 2);
+        const detail = _TextureFactory.fbm(sx * 20, sy * 20, 5, 0.4, 2.5);
+        const height = elevation + detail * 0.15;
+        const idx = (y * w + x) * 4;
+        d[idx] = d[idx + 1] = d[idx + 2] = 0;
+        d[idx + 3] = 0;
+        if (height > 0.5) {
+          const cityNoise = _TextureFactory.fbm(sx * 60, sy * 60, 3, 0.5, 2);
+          const coastal = _TextureFactory.fbm(sx * 12, sy * 12, 4, 0.5, 2);
+          const temperate = 1 - Math.min(1, Math.abs(sz) * 2.2);
+          const cityVal = cityNoise * 0.6 + coastal * 0.4;
+          if (cityVal > 0.62 && temperate > 0.1) {
+            const intensity = Math.min(1, (cityVal - 0.62) / 0.2) * temperate;
+            d[idx] = Math.floor(255 * intensity);
+            d[idx + 1] = Math.floor(220 * intensity);
+            d[idx + 2] = Math.floor(140 * intensity);
+            d[idx + 3] = Math.floor(255 * intensity);
+          }
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = new CanvasTexture(canvas);
+    tex.colorSpace = SRGBColorSpace;
+    return tex;
+  }
+  // ★ Iteration 5 — Ocean mask: white where water, black where land (for specular glint)
+  static generateOceanMaskTexture(data) {
+    const size = _TextureFactory.getResolution();
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size / 2;
+    const ctx = canvas.getContext("2d");
+    const img = ctx.createImageData(canvas.width, canvas.height);
+    const d = img.data;
+    const w = canvas.width, h = canvas.height;
+    const octaves = _TextureFactory.quality === "high" ? 12 : 8;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const lon = x / w * Math.PI * 2, lat = (y / h - 0.5) * Math.PI;
+        const sx = Math.cos(lat) * Math.cos(lon), sy = Math.cos(lat) * Math.sin(lon), sz = Math.sin(lat);
+        const elevation = _TextureFactory.fbm(sx * 3, sy * 3, octaves, 0.5, 2);
+        const detail = _TextureFactory.fbm(sx * 20, sy * 20, 5, 0.4, 2.5);
+        const height = elevation + detail * 0.15;
+        const idx = (y * w + x) * 4;
+        const water = height <= 0.5 ? 255 : 0;
+        d[idx] = d[idx + 1] = d[idx + 2] = water;
+        d[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new CanvasTexture(canvas);
+  }
+  // ★ Iteration 10 — Cloud shadow alpha map (density in green channel) so clouds
+  //   cast correctly-shaped soft shadows on the surface via a custom depth material.
+  static generateCloudShadowTexture(data) {
+    const size = _TextureFactory.getResolution();
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size / 2;
+    const ctx = canvas.getContext("2d");
+    const img = ctx.createImageData(canvas.width, canvas.height);
+    const d = img.data;
+    const w = canvas.width, h = canvas.height;
+    const octaves = _TextureFactory.quality === "high" ? 14 : 8;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const lon = x / w * Math.PI * 2, lat = (y / h - 0.5) * Math.PI;
+        const sx = Math.cos(lat) * Math.cos(lon), sy = Math.cos(lat) * Math.sin(lon), sz = Math.sin(lat);
+        const cloud = _TextureFactory.fbm(sx * 5, sy * 5, octaves, 0.5, 2.2);
+        const swirl = _TextureFactory.fbm(sx * 15 + sz * 3, sy * 10, 7, 0.4, 2);
+        const fineCloud = _TextureFactory.fbm(sx * 30, sy * 30, 5, 0.4, 2.5);
+        const stormBand = Math.sin(lat * 8 + swirl * 4) * 0.15;
+        let density = Math.max(0, cloud - 0.4 + swirl * 0.15 + fineCloud * 0.08 + stormBand);
+        const polarFactor = Math.pow(Math.abs(sz), 2);
+        if (polarFactor > 0.5) density += (polarFactor - 0.5) * 0.3;
+        const idx = (y * w + x) * 4;
+        d[idx] = 0;
+        d[idx + 1] = Math.min(255, density * 400);
+        d[idx + 2] = 0;
+        d[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new CanvasTexture(canvas);
+  }
 };
 function createStarField(count = 15e3) {
   const geometry = new BufferGeometry();
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
+  const phases = new Float32Array(count);
   for (let i = 0; i < count; i++) {
     const r = 8e3 + Math.random() * 2e3;
     const theta = Math.random() * Math.PI * 2;
@@ -24026,40 +24696,467 @@ function createStarField(count = 15e3) {
       colors[i * 3 + 2] = 0.3;
       sizes[i] = 0.5 + Math.random() * 0.6;
     }
+    phases[i] = Math.random() * Math.PI * 2;
   }
   geometry.setAttribute("position", new BufferAttribute(positions, 3));
   geometry.setAttribute("color", new BufferAttribute(colors, 3));
   geometry.setAttribute("size", new BufferAttribute(sizes, 1));
+  geometry.setAttribute("phase", new BufferAttribute(phases, 1));
   const material = new ShaderMaterial({
-    uniforms: { time: { value: 0 } },
+    uniforms: { time: { value: 0 }, scint: { value: 0 } },
     vertexShader: `
       attribute float size;
       attribute vec3 color;
+      attribute float phase;
       varying vec3 vColor;
+      varying float vTwinkle;
       uniform float time;
       void main() {
         vColor = color;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        float twinkle = 0.85 + 0.15 * sin(time * 0.5 + position.x * 0.01 + position.y * 0.01);
-        gl_PointSize = size * twinkle * (300.0 / -mvPosition.z);
+        // \u2605 Iteration 12 \u2014 per-star twinkle (size pulsing)
+        float tw = 0.82 + 0.18 * sin(time * 1.7 + phase);
+        vTwinkle = tw;
+        gl_PointSize = size * tw * (300.0 / -mvPosition.z);
         gl_Position = projectionMatrix * mvPosition;
       }
     `,
     fragmentShader: `
       varying vec3 vColor;
+      varying float vTwinkle;
+      uniform float scint;
+      uniform float time;
       void main() {
         float d = length(gl_PointCoord - vec2(0.5));
         if (d > 0.5) discard;
         float alpha = 1.0 - smoothstep(0.0, 0.5, d);
         alpha *= alpha;
-        gl_FragColor = vec4(vColor, alpha);
+        // \u2605 Iteration 12 \u2014 atmospheric scintillation: rapid colour/brightness
+        //   flicker that strengthens when the camera is inside an atmosphere.
+        float sci = 1.0 + scint * (sin(time * 9.0 + vTwinkle * 40.0) * 0.5);
+        vec3 col = vColor * sci * vTwinkle;
+        gl_FragColor = vec4(col, alpha);
       }
     `,
     transparent: true,
     depthWrite: false,
     blending: AdditiveBlending
   });
-  return new Points(geometry, material);
+  const points = new Points(geometry, material);
+  {
+    const camDir = new Vector3();
+    const overlayPos = new Vector3();
+    let grainMesh = null;
+    let vignetteMesh = null;
+    let grainMat;
+    const ensure = (scene) => {
+      if (grainMesh) return;
+      const geo = new PlaneGeometry(1, 1);
+      grainMat = new ShaderMaterial({
+        uniforms: { time: { value: 0 }, opacity: { value: 0.05 } },
+        vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `
+          uniform float time; uniform float opacity; varying vec2 vUv;
+          float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453); }
+          void main(){
+            float n = rand(vUv * vec2(1920.0, 1080.0) + fract(time));
+            gl_FragColor = vec4(vec3(n), opacity);
+          }`,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false,
+        depthTest: false
+      });
+      grainMesh = new Mesh(geo, grainMat);
+      grainMesh.renderOrder = 9998;
+      grainMesh.frustumCulled = false;
+      scene.add(grainMesh);
+      const vignetteMat = new ShaderMaterial({
+        uniforms: { strength: { value: 0.35 } },
+        vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: `
+          uniform float strength; varying vec2 vUv;
+          void main(){
+            float r = length(vUv - 0.5) * 1.4142;
+            float v = smoothstep(0.45, 0.98, r);
+            gl_FragColor = vec4(vec3(1.0 - v * strength), 1.0);
+          }`,
+        transparent: true,
+        blending: MultiplyBlending,
+        depthWrite: false,
+        depthTest: false
+      });
+      vignetteMesh = new Mesh(geo, vignetteMat);
+      vignetteMesh.renderOrder = 9997;
+      vignetteMesh.frustumCulled = false;
+      scene.add(vignetteMesh);
+    };
+    points.onBeforeRender = (_renderer, scene, camera) => {
+      ensure(scene);
+      const cam = camera;
+      cam.getWorldDirection(camDir);
+      const dist = Math.max((cam.near || 0.1) * 2, 0.5);
+      const vFov = (cam.fov || 60) * Math.PI / 180;
+      const h = Math.tan(vFov / 2) * dist * 2 * 1.05;
+      const w = h * (cam.aspect || 1.6) * 1.05;
+      overlayPos.copy(cam.position).addScaledVector(camDir, dist);
+      for (const m of [grainMesh, vignetteMesh]) {
+        m.position.copy(overlayPos);
+        m.quaternion.copy(cam.quaternion);
+        m.scale.set(w, h, 1);
+      }
+      grainMat.uniforms.time.value = performance.now() / 1e3;
+      const now2 = performance.now() / 1e3;
+      material.uniforms.time.value = now2;
+      let density = 0, bestD = Infinity;
+      for (const c of scene.children) {
+        const ud = c.userData;
+        if (ud && ud.isCelestialBody) {
+          const sr = ud.surfaceRadius;
+          const d = cam.position.distanceTo(c.position) - sr;
+          if (d < bestD) {
+            bestD = d;
+            density = Math.exp(-Math.max(0, d) / (sr * 0.12));
+          }
+        }
+      }
+      material.uniforms.scint.value = Math.min(1, density * 1.2);
+    };
+  }
+  return points;
+}
+var _cachedSun = null;
+var _shadowTuned = false;
+function getSunLight(scene) {
+  if (_cachedSun && _cachedSun.parent === scene) return _cachedSun;
+  for (const c of scene.children) {
+    if (c instanceof PointLight && c.castShadow) {
+      _cachedSun = c;
+      return _cachedSun;
+    }
+  }
+  _cachedSun = null;
+  return null;
+}
+function addCloudSpin(mesh, speed) {
+  let last = 0;
+  mesh.onBeforeRender = () => {
+    const now2 = performance.now() / 1e3;
+    if (last) mesh.rotation.y += speed * (now2 - last);
+    last = now2;
+  };
+}
+function setupPlumePhysics(flameGroup, layers, light, machDiamonds, smokeTrail) {
+  const wp = new Vector3();
+  let lastT = 0;
+  flameGroup.onBeforeRender = (_r, scene) => {
+    const now2 = performance.now() / 1e3;
+    lastT = now2;
+    flameGroup.getWorldPosition(wp);
+    let pressure = 0;
+    let bestD = Infinity;
+    for (const c of scene.children) {
+      const ud = c.userData;
+      if (ud && ud.isCelestialBody) {
+        const surfR = ud.surfaceRadius;
+        const d = wp.distanceTo(c.position) - surfR;
+        if (d < bestD) {
+          bestD = d;
+          pressure = Math.exp(-Math.max(0, d) / (surfR * 0.12));
+        }
+      }
+    }
+    const vac = 1 - pressure;
+    const widthScale = 1 + vac * 1.8;
+    const lenScale = 1 + vac * 1.5;
+    flameGroup.scale.set(widthScale, lenScale, widthScale);
+    const flicker = 0.9 + Math.sin(now2 * 30) * 0.05 + Math.sin(now2 * 47) * 0.05;
+    for (const l of layers) {
+      l.mesh.material.opacity = l.baseOpacity * (0.7 + pressure * 0.3) * flicker;
+    }
+    light.intensity = (2 + pressure * 2) * flicker;
+    if (machDiamonds && machDiamonds.length) {
+      const mdStrength = Math.pow(pressure, 1.5);
+      for (const md of machDiamonds) {
+        const mat = md.mesh.material;
+        const pulse = 0.7 + Math.sin(now2 * 18 + md.yFrac * 12) * 0.3;
+        mat.opacity = mdStrength * 0.85 * pulse * flicker;
+        md.mesh.visible = mdStrength > 0.02;
+        const pinch = 1 - mdStrength * 0.35;
+        md.mesh.scale.x = pinch;
+        md.mesh.scale.z = pinch;
+      }
+    }
+    if (smokeTrail) {
+      const sm = smokeTrail.material;
+      const smStr = Math.pow(pressure, 0.8);
+      sm.opacity = smStr * 0.35;
+      smokeTrail.visible = smStr > 0.02;
+      const billow = 1 + Math.sin(now2 * 4) * 0.08;
+      smokeTrail.scale.set(billow, 1 + Math.sin(now2 * 2.3) * 0.05, billow);
+    }
+  };
+}
+function setupReentryEffects(group, rocketHeight) {
+  const wp = new Vector3();
+  const lastPos = new Vector3();
+  const delta = new Vector3();
+  const worldQuat = new Quaternion();
+  const invQuat = new Quaternion();
+  const fwdLocal = new Vector3();
+  const yAxis = new Vector3(0, 1, 0);
+  let lastT = 0;
+  let initialised = false;
+  const sheathR = Math.max(0.6, rocketHeight * 0.22);
+  const sheath = new Mesh(
+    new SphereGeometry(sheathR, 24, 24),
+    new MeshBasicMaterial({
+      color: 16737826,
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      side: BackSide
+    })
+  );
+  sheath.scale.y = Math.max(1.5, rocketHeight / (sheathR * 2));
+  sheath.position.y = rocketHeight * 0.5;
+  sheath.visible = false;
+  group.add(sheath);
+  const shock = new Mesh(
+    new ConeGeometry(Math.max(0.3, sheathR * 1.4), Math.max(1, rocketHeight * 1.2), 20, 1, true),
+    new MeshBasicMaterial({
+      color: 16768426,
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      side: DoubleSide
+    })
+  );
+  shock.visible = false;
+  group.add(shock);
+  const trail = new Mesh(
+    new ConeGeometry(Math.max(0.2, sheathR * 0.8), Math.max(2, rocketHeight * 2), 16, 1, true),
+    new MeshBasicMaterial({
+      color: 16733457,
+      transparent: true,
+      opacity: 0,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      side: DoubleSide
+    })
+  );
+  trail.visible = false;
+  group.add(trail);
+  sheath.onBeforeRender = (_r, scene) => {
+    const now2 = performance.now() / 1e3;
+    const dt = lastT && initialised ? Math.min(0.1, now2 - lastT) : 0.016;
+    lastT = now2;
+    group.getWorldPosition(wp);
+    if (!initialised) {
+      lastPos.copy(wp);
+      initialised = true;
+    }
+    delta.subVectors(wp, lastPos);
+    const speed = delta.length() / Math.max(dt, 1e-4);
+    const moving = delta.lengthSq() > 1e-12;
+    if (moving) delta.normalize();
+    lastPos.copy(wp);
+    let density = 0, bestD = Infinity, surfR = 1;
+    for (const c of scene.children) {
+      const ud = c.userData;
+      if (ud && ud.isCelestialBody) {
+        const r = ud.surfaceRadius;
+        const d = wp.distanceTo(c.position) - r;
+        if (d < bestD) {
+          bestD = d;
+          surfR = r;
+          density = Math.exp(-Math.max(0, d) / (r * 0.12));
+        }
+      }
+    }
+    const speedFactor = Math.min(1, speed / (surfR * 2e-5));
+    const heat = Math.min(1, density * speedFactor * 1.3);
+    const show = heat > 0.03 && speedFactor > 0.05;
+    sheath.visible = show;
+    shock.visible = show;
+    trail.visible = show;
+    const sheathMat = sheath.material;
+    const shockMat = shock.material;
+    const trailMat = trail.material;
+    if (!show) {
+      sheathMat.opacity = 0;
+      shockMat.opacity = 0;
+      trailMat.opacity = 0;
+      return;
+    }
+    sheathMat.opacity = heat * 0.5 * (0.85 + Math.sin(now2 * 20) * 0.1);
+    shockMat.opacity = heat * 0.4;
+    trailMat.opacity = heat * 0.45;
+    if (moving) {
+      group.getWorldQuaternion(worldQuat);
+      invQuat.copy(worldQuat).invert();
+      fwdLocal.copy(delta).applyQuaternion(invQuat);
+      shock.quaternion.setFromUnitVectors(yAxis, fwdLocal);
+      shock.position.copy(fwdLocal).multiplyScalar(rocketHeight * 0.6);
+      fwdLocal.multiplyScalar(-1);
+      trail.quaternion.setFromUnitVectors(yAxis, fwdLocal);
+      trail.position.copy(fwdLocal).multiplyScalar(rocketHeight * 1);
+    }
+  };
+}
+function addSurfaceScatter(group, data, renderRadius, quality) {
+  if (quality === "low") return;
+  const dummy = new Object3D();
+  const yAxis = new Vector3(0, 1, 0);
+  const dir = new Vector3();
+  const euler = new Euler();
+  if (data.textureType === "rock" || data.textureType === "lava") {
+    const count = quality === "high" ? 700 : 300;
+    const rockGeo = new IcosahedronGeometry(1, 0);
+    const rockMat = new MeshStandardMaterial({ color: 5589052, roughness: 0.95, metalness: 0.1, flatShading: true });
+    const inst = new InstancedMesh(rockGeo, rockMat, count);
+    let placed = 0, attempts = 0;
+    while (placed < count && attempts < count * 4) {
+      attempts++;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      dir.set(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
+      if (Math.abs(dir.y) > 0.85) continue;
+      dummy.position.copy(dir).multiplyScalar(renderRadius * 1.004);
+      euler.set(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
+      dummy.quaternion.setFromEuler(euler);
+      const s = renderRadius * (4e-3 + Math.random() * 0.012);
+      dummy.scale.set(s, s * (0.6 + Math.random() * 0.5), s);
+      dummy.updateMatrix();
+      inst.setMatrixAt(placed, dummy.matrix);
+      placed++;
+    }
+    inst.count = placed;
+    inst.instanceMatrix.needsUpdate = true;
+    inst.castShadow = false;
+    inst.receiveShadow = true;
+    group.add(inst);
+  }
+  if (data.name === "Earth") {
+    const count = quality === "high" ? 600 : 250;
+    const trunkGeo = new CylinderGeometry(0.04, 0.06, 0.4, 5);
+    const trunkMat = new MeshStandardMaterial({ color: 5913114, roughness: 1 });
+    const foliageGeo = new ConeGeometry(0.22, 0.7, 6);
+    const foliageMat = new MeshStandardMaterial({ color: 2779690, roughness: 0.9 });
+    const trunkInst = new InstancedMesh(trunkGeo, trunkMat, count);
+    const folInst = new InstancedMesh(foliageGeo, foliageMat, count);
+    let placed = 0, attempts = 0;
+    while (placed < count && attempts < count * 6) {
+      attempts++;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      dir.set(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta));
+      if (Math.abs(dir.y) > 0.9) continue;
+      const elev = TextureFactory.fbm(dir.x * 3, dir.z * 3, 10, 0.5, 2) + TextureFactory.fbm(dir.x * 20, dir.z * 20, 5, 0.4, 2.5) * 0.15;
+      if (elev <= 0.5 || elev > 0.72) continue;
+      const temperate = 1 - Math.min(1, Math.abs(dir.y) * 2.2);
+      if (Math.random() > temperate) continue;
+      const h = renderRadius * (0.012 + Math.random() * 0.01);
+      dummy.quaternion.setFromUnitVectors(yAxis, dir);
+      dummy.scale.set(h, h, h);
+      dummy.position.copy(dir).multiplyScalar(renderRadius * 1.004);
+      dummy.updateMatrix();
+      trunkInst.setMatrixAt(placed, dummy.matrix);
+      dummy.position.copy(dir).multiplyScalar(renderRadius * 1.004 + h * 0.35);
+      dummy.updateMatrix();
+      folInst.setMatrixAt(placed, dummy.matrix);
+      placed++;
+    }
+    trunkInst.count = placed;
+    folInst.count = placed;
+    trunkInst.instanceMatrix.needsUpdate = true;
+    folInst.instanceMatrix.needsUpdate = true;
+    trunkInst.castShadow = false;
+    folInst.castShadow = false;
+    trunkInst.receiveShadow = true;
+    folInst.receiveShadow = true;
+    group.add(trunkInst);
+    group.add(folInst);
+  }
+}
+function setupEclipseShadow(mesh, data, renderRadius) {
+  const disc = new Mesh(
+    new CircleGeometry(renderRadius * 0.06, 32),
+    new MeshBasicMaterial({
+      color: 0,
+      transparent: true,
+      opacity: 0,
+      blending: MultiplyBlending,
+      depthWrite: false,
+      side: DoubleSide
+    })
+  );
+  disc.visible = false;
+  mesh.add(disc);
+  const planetPos = new Vector3();
+  const sunDir = new Vector3();
+  const moonDir = new Vector3();
+  const localDir = new Vector3();
+  const wq = new Quaternion();
+  const zAxis = new Vector3(0, 0, 1);
+  disc.onBeforeRender = (_r, scene) => {
+    const sun = getSunLight(scene);
+    if (!sun) {
+      disc.visible = false;
+      return;
+    }
+    mesh.getWorldPosition(planetPos);
+    const sunDist = sun.position.distanceTo(planetPos);
+    if (sunDist < 1e-3) {
+      disc.visible = false;
+      return;
+    }
+    sunDir.subVectors(sun.position, planetPos).normalize();
+    const sunAng = (sun.userData ? 0 : 0) + renderRadius * 0;
+    let sunRadius = 3482;
+    for (const c of scene.children) {
+      const ud = c.userData;
+      if (ud && ud.isCelestialBody && ud.bodyName === "Sun") {
+        sunRadius = ud.surfaceRadius;
+        break;
+      }
+    }
+    const sunAngSize = sunRadius / sunDist;
+    let bestAlign = Infinity, moonAngSize = 0;
+    for (const c of scene.children) {
+      const ud = c.userData;
+      if (ud && ud.isCelestialBody && ud.parentName === data.name) {
+        moonDir.subVectors(c.position, planetPos);
+        const md = moonDir.length();
+        if (md < 1e-3) continue;
+        moonDir.normalize();
+        const align = Math.acos(Math.min(1, Math.max(-1, moonDir.dot(sunDir))));
+        const mAng = ud.surfaceRadius / md;
+        if (align < bestAlign) {
+          bestAlign = align;
+          moonAngSize = mAng;
+        }
+      }
+    }
+    const threshold = (sunAngSize + moonAngSize) * 1.4;
+    if (!isFinite(bestAlign) || bestAlign > threshold || moonAngSize <= 0) {
+      disc.visible = false;
+      return;
+    }
+    const umbra = Math.max(0, sunAngSize + moonAngSize - bestAlign);
+    const opacity = Math.min(0.85, umbra / (2 * sunAngSize) * 0.9 + 0.2);
+    disc.visible = true;
+    disc.material.opacity = opacity;
+    mesh.getWorldQuaternion(wq);
+    wq.invert();
+    localDir.copy(sunDir).applyQuaternion(wq);
+    disc.position.copy(localDir).multiplyScalar(renderRadius * 1.003);
+    disc.quaternion.setFromUnitVectors(zAxis, localDir);
+    const s = Math.max(0.4, Math.min(2.5, moonAngSize / Math.max(sunAngSize, 1e-3)));
+    disc.scale.setScalar(s);
+  };
 }
 function createCelestialMesh(data, quality = "high") {
   const renderRadius = Math.max(data.radius * BODY_SIZE_SCALE * SIZE_BOOST, MIN_RENDER_SIZE);
@@ -24135,8 +25232,14 @@ function createCelestialMesh(data, quality = "high") {
         metalness: 0
       });
       const lowCloudMesh = new Mesh(lowCloudGeo, lowCloudMat);
-      lowCloudMesh.castShadow = false;
+      lowCloudMesh.castShadow = true;
       lowCloudMesh.receiveShadow = true;
+      addCloudSpin(lowCloudMesh, 6e-3);
+      lowCloudMesh.customDepthMaterial = new MeshDepthMaterial({
+        depthPacking: RGBADepthPacking,
+        alphaMap: TextureFactory.generateCloudShadowTexture(data),
+        alphaTest: 0.35
+      });
       group.add(lowCloudMesh);
       if (quality === "high") {
         const shadowCanvas = document.createElement("canvas");
@@ -24218,6 +25321,7 @@ function createCelestialMesh(data, quality = "high") {
         const highCloudMesh = new Mesh(highCloudGeo, highCloudMat);
         highCloudMesh.castShadow = false;
         highCloudMesh.receiveShadow = true;
+        addCloudSpin(highCloudMesh, 0.011);
         group.add(highCloudMesh);
       }
     }
@@ -24270,9 +25374,105 @@ function createCelestialMesh(data, quality = "high") {
       coastMesh.receiveShadow = true;
       group.add(coastMesh);
     }
+    if (data.name === "Earth" && quality !== "low") {
+      const cityTex = TextureFactory.generateCityLightsTexture(data);
+      const cityGeo = new SphereGeometry(renderRadius * 1.0006, segments, segments);
+      const cityMat = new ShaderMaterial({
+        uniforms: {
+          cityMap: { value: cityTex },
+          sunPos: { value: new Vector3(1, 0, 0) }
+        },
+        vertexShader: `
+          varying vec3 vNormal;
+          varying vec3 vWorldPos;
+          varying vec2 vUv;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D cityMap;
+          uniform vec3 sunPos;
+          varying vec3 vNormal;
+          varying vec3 vWorldPos;
+          varying vec2 vUv;
+          void main() {
+            vec3 lightDir = normalize(sunPos - vWorldPos);
+            float ndl = dot(normalize(vNormal), lightDir);
+            float night = 1.0 - smoothstep(-0.12, 0.20, ndl); // 1 dark side, 0 lit side
+            vec4 city = texture2D(cityMap, vUv);
+            vec3 col = city.rgb * night * 2.2;
+            gl_FragColor = vec4(col, city.a * night);
+          }
+        `,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false
+      });
+      const cityMesh = new Mesh(cityGeo, cityMat);
+      cityMesh.onBeforeRender = (_r, scene) => {
+        const sun = getSunLight(scene);
+        if (sun) cityMat.uniforms.sunPos.value.copy(sun.position);
+      };
+      group.add(cityMesh);
+    }
+    if (data.textureType === "ocean" && quality !== "low") {
+      const oceanMask = TextureFactory.generateOceanMaskTexture(data);
+      const specGeo = new SphereGeometry(renderRadius * 1.0009, segments, segments);
+      const specMat = new ShaderMaterial({
+        uniforms: {
+          oceanMask: { value: oceanMask },
+          sunPos: { value: new Vector3(1, 0, 0) },
+          shininess: { value: 90 }
+        },
+        vertexShader: `
+          varying vec3 vNormal;
+          varying vec3 vWorldPos;
+          varying vec2 vUv;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D oceanMask;
+          uniform vec3 sunPos;
+          uniform float shininess;
+          varying vec3 vNormal;
+          varying vec3 vWorldPos;
+          varying vec2 vUv;
+          void main() {
+            vec3 N = normalize(vNormal);
+            vec3 L = normalize(sunPos - vWorldPos);
+            vec3 V = normalize(cameraPosition - vWorldPos);
+            vec3 H = normalize(L + V);
+            float spec = pow(max(dot(N, H), 0.0), shininess);
+            float water = texture2D(oceanMask, vUv).r;
+            float above = clamp(dot(N, L) * 2.0, 0.0, 1.0);
+            float glint = spec * water * above;
+            vec3 col = vec3(1.0, 0.97, 0.92) * glint * 1.6;
+            gl_FragColor = vec4(col, glint);
+          }
+        `,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false
+      });
+      const specMesh = new Mesh(specGeo, specMat);
+      specMesh.onBeforeRender = (_r, scene) => {
+        const sun = getSunLight(scene);
+        if (sun) specMat.uniforms.sunPos.value.copy(sun.position);
+      };
+      group.add(specMesh);
+    }
   }
   const mesh = new Mesh(geometry, material);
-  mesh.castShadow = false;
+  mesh.castShadow = data.type === "moon";
   mesh.receiveShadow = true;
   group.add(mesh);
   if ((data.textureType === "rock" || data.textureType === "lava") && quality !== "low") {
@@ -24433,9 +25633,19 @@ function createCelestialMesh(data, quality = "high") {
           float miePhase = hgPhase(cosTheta, mieG);
           vec3 mieScatter = vec3(mieIntensity) * miePhase * rim;
 
+          // \u2605 Sun-side weighting \u2014 atmosphere glows where lit, faint airglow on dark side
+          float sunFacing = clamp(dot(normalize(vNormal), lightDir) * 0.5 + 0.5, 0.0, 1.0);
+          sunFacing = mix(0.12, 1.0, sunFacing);
+
           vec3 col = atmoColor * extinction * intensity + mieScatter * atmoColor;
-          float glow = pow(rim, power) * intensity;
-          gl_FragColor = vec4(col, glow * 0.8);
+          // \u2605 Sharp atmospheric limb \u2014 bright thin rim at the very edge (viewed from space)
+          float limb = pow(rim, 6.0);
+          vec3 limbCol = atmoColor * (0.6 + rayleighCoeff / 2.5);
+          col += limbCol * limb * 1.7 * sunFacing;
+
+          float glow = pow(rim, power) * intensity * sunFacing;
+          glow = max(glow, limb * 0.9 * sunFacing);
+          gl_FragColor = vec4(col, glow * 0.85);
         }
       `,
       transparent: true,
@@ -24444,6 +25654,19 @@ function createCelestialMesh(data, quality = "high") {
       depthWrite: false
     });
     const atmoMesh = new Mesh(atmoGeo, atmoMat);
+    atmoMesh.onBeforeRender = (renderer, scene) => {
+      const sun = getSunLight(scene);
+      if (sun) {
+        atmoMat.uniforms.sunDir.value.copy(sun.position);
+        if (!_shadowTuned) {
+          _shadowTuned = true;
+          sun.shadow.radius = 4;
+          sun.shadow.bias = -3e-4;
+          sun.shadow.normalBias = 0.03;
+          renderer.shadowMap.needsUpdate = true;
+        }
+      }
+    };
     group.add(atmoMesh);
     const hazeGeo = new SphereGeometry(renderRadius * 1.08, segments, segments);
     const hazeMat = new ShaderMaterial({
@@ -24521,24 +25744,159 @@ function createCelestialMesh(data, quality = "high") {
       });
       group.add(new Mesh(sssGeo, sssMat));
     }
+    const auroraBodies = {
+      Earth: [3407752, 6741503],
+      // green-cyan
+      Jupiter: [6732799, 11167487],
+      // blue-purple
+      Saturn: [8969727, 13404415],
+      Uranus: [6750156, 8956671],
+      Neptune: [4500223, 8939263]
+    };
+    const auroraCols = auroraBodies[data.name];
+    if (auroraCols && quality !== "low") {
+      const auroraRadius = renderRadius * 1.035;
+      const makeAuroraBand = (thetaStart, thetaLen) => {
+        const geo = new SphereGeometry(auroraRadius, 128, 24, 0, Math.PI * 2, thetaStart, thetaLen);
+        const mat = new ShaderMaterial({
+          uniforms: {
+            time: { value: 0 },
+            auroraColor: { value: new Color(auroraCols[0]) },
+            auroraColor2: { value: new Color(auroraCols[1]) }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform float time;
+            uniform vec3 auroraColor;
+            uniform vec3 auroraColor2;
+            varying vec2 vUv;
+            void main() {
+              float lat = vUv.y;
+              float vfade = pow(lat, 1.4);              // brighter toward equator-ward edge
+              float wave = sin(vUv.x * 46.0 + time * 1.6) * 0.5 + 0.5;
+              wave *= sin(vUv.x * 19.0 - time * 0.9) * 0.5 + 0.5;
+              float ripple = sin(vUv.x * 120.0 + time * 3.0) * 0.15 + 0.85;
+              float curtain = vfade * (0.35 + wave * 0.85) * ripple;
+              vec3 col = mix(auroraColor, auroraColor2, lat);
+              gl_FragColor = vec4(col * curtain * 1.9, curtain * 0.65);
+            }
+          `,
+          transparent: true,
+          blending: AdditiveBlending,
+          depthWrite: false,
+          side: DoubleSide
+        });
+        const m = new Mesh(geo, mat);
+        m.onBeforeRender = () => {
+          mat.uniforms.time.value = performance.now() / 1e3;
+        };
+        return m;
+      };
+      group.add(makeAuroraBand(0.1, 0.34));
+      group.add(makeAuroraBand(Math.PI - 0.44, 0.34));
+    }
   }
   if (data.axialTilt) {
     group.rotation.z = data.axialTilt * Math.PI / 180;
   }
-  if (data.hasRings) {
-    const ringGeo = new RingGeometry(renderRadius * 1.3, renderRadius * 2.2, 128);
+  const isRingedGiant = data.hasRings || data.type === "gas-giant" || data.type === "ice-giant";
+  if (isRingedGiant) {
+    const prominent = data.hasRings;
+    const ringInner = renderRadius * (prominent ? 1.3 : 1.4);
+    const ringOuter = renderRadius * (prominent ? 2.3 : 1.7);
+    const ringTilt = data.axialTilt != null ? data.axialTilt : 0.05;
+    const ringPlaneRotX = Math.PI / 2 - ringTilt * 0.5;
+    const ringCanvas = document.createElement("canvas");
+    ringCanvas.width = 1024;
+    ringCanvas.height = 8;
+    const rctx = ringCanvas.getContext("2d");
+    const ringImg = rctx.createImageData(1024, 8);
+    const rid = ringImg.data;
+    const baseR = data.color >> 16 & 255, baseG = data.color >> 8 & 255, baseB = data.color & 255;
+    for (let x = 0; x < 1024; x++) {
+      const t = x / 1024;
+      const band = 0.5 + 0.5 * Math.sin(t * 90 + Math.sin(t * 17) * 3);
+      const fine = 0.5 + 0.5 * Math.sin(t * 400);
+      let gap = 1;
+      if (prominent) {
+        if (t > 0.55 && t < 0.6) gap = 0.05;
+        else if (t > 0.3 && t < 0.315) gap = 0.2;
+        else if (t > 0.82 && t < 0.84) gap = 0.15;
+      }
+      const density = Math.max(0, band * 0.7 + fine * 0.3) * gap;
+      const shade = 0.6 + density * 0.5;
+      const r8 = Math.min(255, Math.floor(baseR * shade * 0.9));
+      const g8 = Math.min(255, Math.floor(baseG * shade * 0.85));
+      const b8 = Math.min(255, Math.floor(baseB * shade * 0.8));
+      const a8 = Math.floor((prominent ? 235 : 95) * density);
+      for (let y = 0; y < 8; y++) {
+        const idx = (y * 1024 + x) * 4;
+        rid[idx] = r8;
+        rid[idx + 1] = g8;
+        rid[idx + 2] = b8;
+        rid[idx + 3] = a8;
+      }
+    }
+    rctx.putImageData(ringImg, 0, 0);
+    const ringTex = new CanvasTexture(ringCanvas);
+    ringTex.colorSpace = SRGBColorSpace;
+    const ringGeo = new RingGeometry(ringInner, ringOuter, 128, 1);
+    const rPos = ringGeo.attributes.position;
+    const rUv = ringGeo.attributes.uv;
+    for (let i = 0; i < rPos.count; i++) {
+      const px2 = rPos.getX(i), py2 = rPos.getY(i);
+      const r = Math.sqrt(px2 * px2 + py2 * py2);
+      rUv.setXY(i, (r - ringInner) / (ringOuter - ringInner), 0.5);
+    }
     const ringMat = new MeshStandardMaterial({
-      color: 9075306,
+      map: ringTex,
       side: DoubleSide,
       transparent: true,
-      opacity: 0.7,
-      roughness: 0.8
+      opacity: prominent ? 0.95 : 0.45,
+      roughness: 0.85,
+      metalness: 0,
+      depthWrite: false
     });
     const ring = new Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2 - 0.1;
+    ring.rotation.x = ringPlaneRotX;
+    ring.castShadow = true;
+    ring.receiveShadow = true;
     group.add(ring);
+    const shadowBandHalf = Math.min(0.22, Math.max(0.04, (ringOuter - ringInner) / renderRadius * 0.25));
+    const shadowGeo = new SphereGeometry(
+      renderRadius * 1.0015,
+      96,
+      48,
+      0,
+      Math.PI * 2,
+      Math.PI / 2 - shadowBandHalf,
+      shadowBandHalf * 2
+    );
+    const shadowMat = new MeshBasicMaterial({
+      color: 0,
+      transparent: true,
+      opacity: prominent ? 0.42 : 0.16,
+      blending: MultiplyBlending,
+      depthWrite: false,
+      side: FrontSide
+    });
+    group.add(new Mesh(shadowGeo, shadowMat));
   }
+  addSurfaceScatter(group, data, renderRadius, quality);
   mesh.add(...group.children.filter((c) => c !== mesh));
+  mesh.userData.isCelestialBody = true;
+  mesh.userData.surfaceRadius = renderRadius;
+  mesh.userData.bodyName = data.name;
+  mesh.userData.parentName = data.parent;
+  if (data.type !== "star" && data.name !== "Sun") {
+    setupEclipseShadow(mesh, data, renderRadius);
+  }
   return mesh;
 }
 function createStarGlow(color, size) {
@@ -24632,6 +25990,22 @@ function createStarGlow(color, size) {
   });
   const anamorph = new Mesh(new PlaneGeometry(r * 6, r * 0.02), anamorphMat);
   group.add(anamorph);
+  const fringeColors = [16720418, 2293572, 2245887];
+  for (let i = 0; i < 3; i++) {
+    const fc = new Color(fringeColors[i]);
+    const fMat = new MeshBasicMaterial({
+      color: fc,
+      transparent: true,
+      opacity: 0.1,
+      side: DoubleSide,
+      depthWrite: false,
+      blending: AdditiveBlending
+    });
+    const off = r * 0.08 * (i + 1);
+    const fringe = new Mesh(new RingGeometry(r * 1.05, r * 1.35, 48), fMat);
+    fringe.position.set((i - 1) * off, (i - 1) * off * 0.5, 0);
+    group.add(fringe);
+  }
   return group;
 }
 function createRocketModel() {
@@ -24668,25 +26042,78 @@ function createRocketModel() {
   flameGroup.name = "engineFlame";
   flameGroup.position.y = -3.2;
   flameGroup.visible = false;
-  const flameGeo = new ConeGeometry(0.3, 2, 8);
-  const flameMat = new MeshBasicMaterial({ color: 16737792, transparent: true, opacity: 0.8 });
-  const flame = new Mesh(flameGeo, flameMat);
-  flame.rotation.x = Math.PI;
-  flameGroup.add(flame);
+  const fOuter = new Mesh(
+    new ConeGeometry(0.55, 3.6, 14),
+    new MeshBasicMaterial({ color: 16724736, transparent: true, opacity: 0.2, blending: AdditiveBlending, depthWrite: false })
+  );
+  fOuter.rotation.x = Math.PI;
+  fOuter.position.y = -1.6;
+  flameGroup.add(fOuter);
+  const fMid = new Mesh(
+    new ConeGeometry(0.38, 2.8, 14),
+    new MeshBasicMaterial({ color: 16742144, transparent: true, opacity: 0.5, blending: AdditiveBlending, depthWrite: false })
+  );
+  fMid.rotation.x = Math.PI;
+  fMid.position.y = -1.1;
+  flameGroup.add(fMid);
+  const fCore = new Mesh(
+    new ConeGeometry(0.22, 1.9, 14),
+    new MeshBasicMaterial({ color: 5614335, transparent: true, opacity: 0.8, blending: AdditiveBlending, depthWrite: false })
+  );
+  fCore.rotation.x = Math.PI;
+  fCore.position.y = -0.75;
+  flameGroup.add(fCore);
+  const fHot = new Mesh(
+    new ConeGeometry(0.12, 1, 10),
+    new MeshBasicMaterial({ color: 15660543, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false })
+  );
+  fHot.rotation.x = Math.PI;
+  fHot.position.y = -0.4;
+  flameGroup.add(fHot);
+  const flameLight = new PointLight(16737792, 3, 10);
+  flameLight.position.y = -0.6;
+  flameGroup.add(flameLight);
+  const machDiamonds = [];
+  for (let i = 0; i < 4; i++) {
+    const yFrac = (i + 1) / 5;
+    const d = new Mesh(
+      new SphereGeometry(0.14, 10, 8),
+      new MeshBasicMaterial({ color: 16773836, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false })
+    );
+    d.position.y = -0.4 - yFrac * 2.8;
+    d.visible = false;
+    flameGroup.add(d);
+    machDiamonds.push({ mesh: d, yFrac });
+  }
+  const smokeTrail = new Mesh(
+    new ConeGeometry(0.6, 4.2, 12, 3, true),
+    new MeshBasicMaterial({ color: 9079434, transparent: true, opacity: 0, blending: NormalBlending, depthWrite: false, side: DoubleSide })
+  );
+  smokeTrail.rotation.x = Math.PI;
+  smokeTrail.position.y = -2.8;
+  smokeTrail.visible = false;
+  flameGroup.add(smokeTrail);
+  setupPlumePhysics(flameGroup, [
+    { mesh: fOuter, baseOpacity: 0.2 },
+    { mesh: fMid, baseOpacity: 0.5 },
+    { mesh: fCore, baseOpacity: 0.8 },
+    { mesh: fHot, baseOpacity: 0.9 }
+  ], flameLight, machDiamonds, smokeTrail);
   group.add(flameGroup);
+  setupReentryEffects(group, Math.max(1, currentY));
   return group;
 }
 function createRocketModelFromParts(parts) {
   const group = new Group();
   if (parts.length === 0) return group;
-  let currentY = 0;
+  let currentY2 = 0;
   const partSpacing = 0.03;
   for (let i = 0; i < parts.length; i++) {
     const part = parts[parts.length - 1 - i];
     const partGroup = createPartVisual(part);
     const height = partGroup.userData.height || 1;
-    partGroup.position.y = currentY + height / 2;
-    currentY += height + partSpacing;
+    partGroup.position.y = currentY2 + height / 2;
+    currentY2 += height + partSpacing;
     group.add(partGroup);
   }
   const flameGroup = new Group();
@@ -24724,6 +26151,47 @@ function createRocketModelFromParts(parts) {
   const flameLight = new PointLight(16737792, 3, 10);
   flameLight.position.y = -0.6;
   flameGroup.add(flameLight);
+  const machDiamonds = [];
+  const diamondCount = 5;
+  for (let i = 0; i < diamondCount; i++) {
+    const yFrac = (i + 1) / (diamondCount + 1);
+    const yPos = -0.5 - yFrac * 3.4;
+    const d = new Mesh(
+      new SphereGeometry(0.16, 12, 8),
+      new MeshBasicMaterial({
+        color: 16773836,
+        transparent: true,
+        opacity: 0,
+        blending: AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    d.position.y = yPos;
+    d.visible = false;
+    flameGroup.add(d);
+    machDiamonds.push({ mesh: d, yFrac });
+  }
+  const smokeTrail = new Mesh(
+    new ConeGeometry(0.7, 5, 14, 4, true),
+    new MeshBasicMaterial({
+      color: 9079434,
+      transparent: true,
+      opacity: 0,
+      blending: NormalBlending,
+      depthWrite: false,
+      side: DoubleSide
+    })
+  );
+  smokeTrail.rotation.x = Math.PI;
+  smokeTrail.position.y = -3.2;
+  smokeTrail.visible = false;
+  flameGroup.add(smokeTrail);
+  setupPlumePhysics(flameGroup, [
+    { mesh: outerFlame, baseOpacity: 0.2 },
+    { mesh: midFlame, baseOpacity: 0.5 },
+    { mesh: coreFlame, baseOpacity: 0.8 },
+    { mesh: hotFlame, baseOpacity: 0.9 }
+  ], flameLight, machDiamonds, smokeTrail);
   group.add(flameGroup);
   return group;
 }
@@ -27886,8 +29354,39 @@ var Rocket = class _Rocket {
     this.rcsEnabled = false;
     this.gearDown = true;
     this.lightsOn = false;
+    // ── Resources (electric charge, monoprop, intake air, ...) ─────────
+    /** Per-resource current/max/flow state. Keyed by ResourceType. */
+    this.resources = /* @__PURE__ */ new Map();
+    // ── Engines (mode, gimbal, propellant) ─────────────────────────────
+    /** Engine configs derived from the active stage's engine parts. */
+    this.engines = [];
+    /** Current thrust-vector (gimbal) angle for TVC, in radians. */
+    this.thrustVectorAngle = 0;
+    /** Max thrust-vector angle across all gimballing engines (rad). */
+    this.maxThrustVectorAngle = 0;
+    // ── Thermal & aero state ───────────────────────────────────────────
+    /** Rocket skin temperature (K). Updated by physics heating model. */
+    this.skinTemperature = 300;
+    /** Per-part heat state for ablation tracking. */
+    this.partHeat = /* @__PURE__ */ new Map();
+    /** Drag coefficient (set by parts; default capsule-like). */
+    this.dragCoefficient = 0.2;
+    /** Reference cross-sectional area (m²). */
+    this.referenceArea = 10;
+    /** Lift coefficient for wings/fins. */
+    this.liftCoefficient = 0;
+    // ── Parachutes ─────────────────────────────────────────────────────
+    this.parachutes = [];
+    // ── Landing gear ───────────────────────────────────────────────────
+    this.landingGear = [];
+    // ── Debris from stage separation ───────────────────────────────────
+    /** Debris bodies spawned by staging. Game loop integrates these. */
+    this.debris = [];
     // Engine flame reference
     this.flameGroup = null;
+    this._chutesArmed = false;
+    /** Cached part-id → RocketPart map, populated in the constructor. */
+    this._partLookup = /* @__PURE__ */ new Map();
     this.dryMass = startMass;
     this.fuelMass = fuel;
     this.maxFuel = fuel;
@@ -27904,6 +29403,23 @@ var Rocket = class _Rocket {
       acceleration: new Vector3(),
       isStatic: false
     };
+    if (parts && parts.length > 0) {
+      for (const p of parts) this._partLookup.set(p.id, p);
+      this.buildStagesFromParts(parts);
+    } else {
+      this.stages = [{
+        name: "Core",
+        dryMass: startMass,
+        fuel,
+        maxFuel: fuel,
+        thrust,
+        isp,
+        hasEngine: thrust > 0,
+        partIds: []
+      }];
+    }
+    this.initResources(parts);
+    this.initEngines(parts);
   }
   static {
     // ── Rotation tuning (KSP-style) ──────────────────────────────────
@@ -27927,6 +29443,183 @@ var Rocket = class _Rocket {
     /** Throttle change rate for Shift / Ctrl (per second). Full range = 2 s, like KSP. */
     this.THROTTLE_RATE = 0.5;
   }
+  /**
+   * Split the parts list into stages at every decoupler. KSP orders stages so
+   * that the last-decoupled group is the top (payload) and the first is the
+   * booster. We walk the parts in VAB order (bottom→top) and start a new
+   * stage at each decoupler, accumulating each group's mass/fuel/thrust/isp.
+   */
+  buildStagesFromParts(parts) {
+    const groups = [[]];
+    for (const p of parts) {
+      if (p.type === "decoupler") {
+        groups.push([]);
+      } else {
+        groups[groups.length - 1].push(p);
+      }
+    }
+    this.stages = groups.map((grp, i) => {
+      let dryMass = 0, fuel = 0, thrust = 0, ispSum = 0, engineCount = 0;
+      const ids = [];
+      for (const p of grp) {
+        dryMass += p.mass;
+        fuel += p.fuelMass || 0;
+        if (p.thrust && p.thrust > 0) {
+          thrust += p.thrust;
+          ispSum += p.isp || 350;
+          engineCount++;
+        }
+        ids.push(p.id);
+      }
+      return {
+        name: `Stage ${i + 1}`,
+        dryMass,
+        fuel,
+        maxFuel: fuel,
+        thrust,
+        isp: engineCount > 0 ? ispSum / engineCount : 0,
+        hasEngine: engineCount > 0,
+        partIds: ids
+      };
+    });
+    this.currentStage = 0;
+    const s0 = this.stages[0];
+    if (s0) {
+      let allDry = 0, allFuel = 0, allThrust = 0, ispW = 0, eng = 0;
+      for (const st of this.stages) {
+        allDry += st.dryMass;
+        allFuel += st.fuel;
+        if (st.hasEngine && st === s0) {
+          allThrust += st.thrust;
+          ispW += st.isp;
+          eng++;
+        }
+      }
+      this.dryMass = allDry > 0 ? allDry : this.dryMass;
+      this.fuelMass = allFuel;
+      this.maxFuel = allFuel;
+      this.thrust = allThrust > 0 ? allThrust : this.thrust;
+      this.isp = eng > 0 ? ispW / eng : this.isp;
+      this.updateMass();
+    }
+  }
+  /**
+   * Initialise resource tanks from parts. Fuel tanks contribute
+   * liquidFuel/oxidizer (split 45/55 like KSP's LF/OX mix), command pods and
+   * RCS parts carry monopropellant + electric charge, solar panels produce
+   * electric charge. This iteration just sets up the tanks; consumption is
+   * wired in the resource-tracking iteration.
+   */
+  initResources(parts) {
+    let liquidFuel = 0, oxidizer = 0, monoprop = 0, electric = 0, xenon = 0, solid = 0;
+    if (parts) {
+      for (const p of parts) {
+        const fm = p.fuelMass || 0;
+        if (p.type === "fuel" || p.type === "booster") {
+          liquidFuel += fm * 0.45;
+          oxidizer += fm * 0.55;
+        }
+        if (p.type === "command") {
+          monoprop += 30;
+          electric += 50;
+        }
+        if (p.type === "rcs") {
+          monoprop += 20;
+        }
+        if (p.type === "solar") {
+          electric += 200;
+        }
+        if (p.type === "utility" && p.id.includes("battery")) {
+          electric += 400;
+        }
+        if (p.isp >= 2e3 && p.type === "engine") {
+          xenon += fm;
+        }
+        if (p.type === "booster" && p.id.includes("solid")) {
+          solid += fm;
+        }
+      }
+    }
+    if (liquidFuel === 0) liquidFuel = this.fuelMass * 0.45;
+    if (oxidizer === 0) oxidizer = this.fuelMass * 0.55;
+    this.resources.set("liquidFuel", { current: liquidFuel, max: liquidFuel, flow: 0 });
+    this.resources.set("oxidizer", { current: oxidizer, max: oxidizer, flow: 0 });
+    this.resources.set("electricCharge", { current: Math.max(electric, 100), max: Math.max(electric, 100), flow: 0 });
+    this.resources.set("monopropellant", { current: monoprop, max: Math.max(monoprop, 0), flow: 0 });
+    this.resources.set("intakeAir", { current: 0, max: 100, flow: 0 });
+    this.resources.set("xenon", { current: xenon, max: xenon, flow: 0 });
+    this.resources.set("solidFuel", { current: solid, max: solid, flow: 0 });
+  }
+  /**
+   * Build engine configs from the active stage's engine parts. Determines
+   * engine mode (rocket/jet/ion/nuclear/solid), propellant, and gimbal
+   * capability. Detailed thrust-vectoring and air-breathing logic are added
+   * in later iterations.
+   */
+  initEngines(parts) {
+    this.engines = [];
+    this.maxThrustVectorAngle = 0;
+    if (!parts) {
+      this.engines.push({
+        mode: "rocket",
+        thrust: this.thrust,
+        isp: this.isp,
+        ispSL: this.isp * 0.8,
+        canGimbal: false,
+        maxGimbalAngle: 0,
+        propellant: "liquidFuel"
+      });
+      return;
+    }
+    for (const p of parts) {
+      if (p.type !== "engine" && p.type !== "booster") continue;
+      if (!(p.thrust > 0)) continue;
+      let mode = "rocket";
+      let propellant = "liquidFuel";
+      if (p.id.includes("jet") || p.id.includes("airbreath")) {
+        mode = "jet";
+        propellant = "intakeAir";
+      } else if (p.isp >= 2e3) {
+        mode = "ion";
+        propellant = "xenon";
+      } else if (p.id.includes("nuclear") || p.id.includes("nerva")) {
+        mode = "nuclear";
+        propellant = "liquidFuel";
+      } else if (p.id.includes("solid") || p.type === "booster") {
+        mode = "solid";
+        propellant = "solidFuel";
+      }
+      const canGimbal = /vector|swivel|twin.?boar|gimbal/i.test(p.id + p.name);
+      const maxGimbal = canGimbal ? 5 * Math.PI / 180 : 0;
+      this.engines.push({
+        mode,
+        thrust: p.thrust,
+        isp: p.isp,
+        ispSL: p.isp * 0.8,
+        canGimbal,
+        maxGimbalAngle: maxGimbal,
+        propellant,
+        powerConsumption: mode === "ion" ? 12 : void 0
+      });
+      if (maxGimbal > this.maxThrustVectorAngle) this.maxThrustVectorAngle = maxGimbal;
+    }
+    this.partHeat.clear();
+    this.parachutes = [];
+    for (const p of parts) {
+      let maxTemp = 1200;
+      if (p.type === "command") maxTemp = 1500;
+      else if (p.type === "engine") maxTemp = 2e3;
+      else if (p.type === "fuel") maxTemp = 900;
+      this.partHeat.set(p.id, { temperature: 300, ablation: 0, maxTemp });
+      if (p.type === "parachute") {
+        this.parachutes.push(new Parachute(200 + p.mass * 0.5));
+      }
+      if (p.type === "landing") {
+        const offset = new Vector3(0, -2 - p.mass * 1e-3, 0);
+        this.landingGear.push(new LandingGear(offset));
+      }
+    }
+  }
   /** Total mass including fuel */
   get totalMass() {
     return this.dryMass + this.fuelMass;
@@ -27935,20 +29628,229 @@ var Rocket = class _Rocket {
   updateMass() {
     this.body.mass = this.totalMass;
   }
-  /** Apply thrust based on throttle and orientation */
+  /**
+   * Advance all resource flows over a time step.
+   *
+   * KSP-style resource management:
+   *   - Solar panels produce electric charge when in sunlight (proxy: always
+   *     when not in shadow — we use a simple "in atmosphere at night" check
+   *     later; here we just produce a baseline).
+   *   - SAS / RCS consume electric charge and monopropellant.
+   *   - Intake air accumulates when air-breathing engines have intakes and
+   *     are in atmosphere.
+   *
+   * @param dt              Time step (s).
+   * @param inAtmosphere    True if the rocket is currently in an atmosphere.
+   * @param sunlightFactor  0..1 fraction of sunlight (1 = full sun).
+   */
+  updateResources(dt, inAtmosphere = false, sunlightFactor = 1) {
+    const ec = this.resources.get("electricCharge");
+    const monoprop = this.resources.get("monopropellant");
+    const air = this.resources.get("intakeAir");
+    for (const r of this.resources.values()) r.flow = 0;
+    if (ec) {
+      const solarProd = 2 * sunlightFactor * dt;
+      ec.current = Math.min(ec.max, ec.current + solarProd);
+      ec.flow += solarProd / Math.max(dt, 1e-4);
+    }
+    if (ec && this.sasEnabled) {
+      const sasDraw = 0.5 * dt;
+      const used = Math.min(ec.current, sasDraw);
+      ec.current -= used;
+      ec.flow -= used / Math.max(dt, 1e-4);
+    }
+    if (monoprop && this.rcsEnabled) {
+      const rcsDraw = 0.05 * dt;
+      const used = Math.min(monoprop.current, rcsDraw);
+      monoprop.current -= used;
+      monoprop.flow -= used / Math.max(dt, 1e-4);
+    }
+    if (air) {
+      if (inAtmosphere) {
+        const intake = 5 * dt;
+        air.current = Math.min(air.max, air.current + intake);
+        air.flow += intake / Math.max(dt, 1e-4);
+      } else {
+        air.current = Math.max(0, air.current - 10 * dt);
+      }
+    }
+    const lf = this.resources.get("liquidFuel");
+    const ox = this.resources.get("oxidizer");
+    const xen = this.resources.get("xenon");
+    const sol = this.resources.get("solidFuel");
+    let totalFuel = 0;
+    if (lf) totalFuel += lf.current;
+    if (ox) totalFuel += ox.current;
+    if (xen) totalFuel += xen.current;
+    if (sol) totalFuel += sol.current;
+    if (this.fuelMass !== totalFuel && totalFuel >= 0) {
+      this.fuelMass = totalFuel;
+      this.updateMass();
+    }
+  }
+  // ── Heat shielding & ablation ─────────────────────────────────────
+  /**
+   * Update per-part heat state from the rocket's bulk skin temperature and
+   * apply ablation for heat-shield parts.
+   *
+   * KSP model: each part has a max temperature; exceeding it destroys the
+   * part. Heat-shield parts (command pods with ablator) ablate — consuming
+   * ablator mass to dump heat — keeping the part below its limit.
+   *
+   * @param dt            Time step (s).
+   * @param skinTemp      Bulk skin temperature from the physics heating model (K).
+   * @param heatShieldIds Part ids that count as ablative heat shields.
+   * @returns Array of part ids that have overheated (for the game to destroy).
+   */
+  updatePartHeat(dt, skinTemp, heatShieldIds = /* @__PURE__ */ new Set()) {
+    const overheated = [];
+    const conductionTau = 2;
+    const k = 1 - Math.exp(-dt / conductionTau);
+    for (const [id, state] of this.partHeat) {
+      state.temperature += (skinTemp - state.temperature) * k;
+      const isShield = heatShieldIds.has(id) || /shield|heat.?shield|ablat/i.test(id);
+      if (isShield) {
+        const ablatorRemaining = 100 - state.ablation;
+        if (state.temperature > state.maxTemp * 0.8 && ablatorRemaining > 0) {
+          const overheat = (state.temperature - state.maxTemp * 0.8) / (state.maxTemp * 0.2);
+          const ablateRate = Math.min(ablatorRemaining, overheat * 20 * dt);
+          state.ablation += ablateRate;
+          state.temperature -= ablateRate * 15;
+        }
+      }
+      if (state.temperature >= state.maxTemp) {
+        overheated.push(id);
+      }
+      state.temperature = Math.max(250, state.temperature);
+    }
+    this.skinTemperature = skinTemp;
+    return overheated;
+  }
+  /** Get the current temperature of a specific part (K), or -1 if unknown. */
+  getPartTemperature(partId) {
+    return this.partHeat.get(partId)?.temperature ?? -1;
+  }
+  /** Get the ablation consumed on a heat-shield part (0..100), or -1 if unknown. */
+  getPartAblation(partId) {
+    return this.partHeat.get(partId)?.ablation ?? -1;
+  }
+  /**
+   * Apply thrust based on throttle and orientation.
+   *
+   * Fuel is consumed from the resource tanks (liquidFuel+oxidizer for chemical
+   * rockets, xenon for ion, etc.) and the rocket's aggregate fuelMass is kept
+   * in sync for the legacy delta-V / mass calculations. Engine mode gating
+   * (jets need intake air) is enforced here.
+   */
   applyThrust(dt) {
-    if (this.fuelMass <= 0 || this.throttle <= 0) return;
-    const effectiveThrust = this.thrust * this.throttle;
-    const fuelFlow = effectiveThrust / (this.isp * 9.81);
-    const fuelConsumed = Math.min(fuelFlow * dt, this.fuelMass);
-    this.fuelMass -= fuelConsumed;
+    if (this.throttle <= 0) {
+      this.updateFlame();
+      return;
+    }
+    const lf = this.resources.get("liquidFuel");
+    const ox = this.resources.get("oxidizer");
+    const xenon = this.resources.get("xenon");
+    const ec = this.resources.get("electricCharge");
+    const air = this.resources.get("intakeAir");
+    const solid = this.resources.get("solidFuel");
+    let totalThrust = 0;
+    let totalIspW = 0;
+    let lfUse = 0, oxUse = 0, xenonUse = 0, ecUse = 0, airUse = 0, solidUse = 0;
+    for (const eng of this.engines) {
+      if (eng.thrust <= 0) continue;
+      const eThrust = eng.thrust * this.throttle;
+      let canFire = true;
+      switch (eng.mode) {
+        case "rocket":
+          canFire = !!(lf && lf.current > 0) && !!(ox && ox.current > 0);
+          break;
+        case "jet":
+          canFire = !!(lf && lf.current > 0) && !!(air && air.current > 0.01);
+          break;
+        case "ion":
+          canFire = !!(xenon && xenon.current > 0) && !!(ec && ec.current > 0);
+          break;
+        case "nuclear":
+          canFire = !!(lf && lf.current > 0);
+          break;
+        case "solid":
+          canFire = !!(solid && solid.current > 0);
+          break;
+      }
+      if (!canFire) continue;
+      totalThrust += eThrust;
+      totalIspW += eThrust * eng.isp;
+      const mdot = eThrust / (eng.isp * 9.81);
+      switch (eng.propellant) {
+        case "liquidFuel":
+          if (eng.mode === "jet") {
+            lfUse += mdot;
+            airUse += mdot * 15;
+          } else if (eng.mode === "nuclear") {
+            lfUse += mdot;
+          } else {
+            lfUse += mdot * 0.45;
+            oxUse += mdot * 0.55;
+          }
+          break;
+        case "xenon":
+          xenonUse += mdot;
+          if (eng.powerConsumption) ecUse += eng.powerConsumption * this.throttle * dt;
+          break;
+        case "intakeAir":
+          break;
+        case "solidFuel":
+          solidUse += mdot;
+          break;
+      }
+    }
+    if (totalThrust <= 0) {
+      this.updateFlame();
+      return;
+    }
+    const drain = (r, amt) => {
+      if (!r || amt <= 0) return 0;
+      const used = Math.min(amt, r.current);
+      r.current -= used;
+      r.flow = -used / Math.max(dt, 1e-4);
+      return used;
+    };
+    const lfUsed = drain(lf, lfUse * dt);
+    const oxUsed = drain(ox, oxUse * dt);
+    const xenonUsed = drain(xenon, xenonUse * dt);
+    drain(ec, ecUse);
+    drain(air, airUse * dt);
+    const solidUsed = drain(solid, solidUse * dt);
+    const fuelConsumed = lfUsed + oxUsed + xenonUsed + solidUsed;
+    if (fuelConsumed <= 0 && this.engines.every((e) => e.mode !== "jet")) {
+      this.updateFlame();
+      return;
+    }
+    this.fuelMass = Math.max(0, this.fuelMass - fuelConsumed);
     this.updateMass();
-    const thrustDir = new Vector3(0, 1, 0).applyQuaternion(this.orientation);
-    const accelMag = effectiveThrust / this.totalMass;
+    const effectiveIsp = totalThrust > 0 ? totalIspW / totalThrust : this.isp;
+    const accelMag = totalThrust / this.totalMass;
+    const thrustDir = this._gimballedThrustDir();
     this.body.velocity.x += thrustDir.x * accelMag * dt;
     this.body.velocity.y += thrustDir.y * accelMag * dt;
     this.body.velocity.z += thrustDir.z * accelMag * dt;
     this.updateFlame();
+  }
+  /**
+   * Compute the thrust direction in world space, applying the current
+   * thrust-vector (gimbal) angle. The gimbal rotates the thrust vector in
+   * the pitch plane (local X) by thrustVectorAngle, clamped to the engine's
+   * max gimbal. Returns a unit vector.
+   */
+  _gimballedThrustDir() {
+    const maxG = this.maxThrustVectorAngle;
+    const angle = Math.max(-maxG, Math.min(maxG, this.thrustVectorAngle));
+    const dir = new Vector3(0, 1, 0);
+    if (Math.abs(angle) > 1e-6) {
+      const c = Math.cos(angle), s = Math.sin(angle);
+      dir.set(0, c, s);
+    }
+    return dir.applyQuaternion(this.orientation).normalize();
   }
   /** Update engine flame visibility and scale */
   updateFlame() {
@@ -27995,6 +29897,27 @@ var Rocket = class _Rocket {
    */
   setThrottle(t) {
     this.throttle = Math.max(0, Math.min(1, t));
+  }
+  // ── Thrust vectoring (gimbal / TVC) ────────────────────────────────
+  /**
+   * Set the thrust-vector (gimbal) angle directly, in radians. Clamped to the
+   * engine's maximum gimbal range. Positive = pitch down (thust offsets +Z),
+   * negative = pitch up. The autopilot / RCS uses this to steer during burn.
+   */
+  setThrustVector(angle) {
+    this.thrustVectorAngle = Math.max(
+      -this.maxThrustVectorAngle,
+      Math.min(this.maxThrustVectorAngle, angle)
+    );
+  }
+  /** Smoothly adjust the thrust-vector angle (for analog input). */
+  adjustThrustVector(delta, dt) {
+    const rate = 2;
+    this.setThrustVector(this.thrustVectorAngle + delta * rate * dt);
+  }
+  /** Whether any active engine can gimbal (for UI / autopilot gating). */
+  get hasThrustVectoring() {
+    return this.maxThrustVectorAngle > 0 && this.engines.some((e) => e.canGimbal);
   }
   // ── Attitude control (KSP-style) ─────────────────────────────────
   /**
@@ -28079,6 +30002,109 @@ var Rocket = class _Rocket {
   toggleLights() {
     this.lightsOn = !this.lightsOn;
   }
+  // ── Parachutes ────────────────────────────────────────────────────
+  /**
+   * Arm all parachutes (move from stowed → ready to deploy when pressure is
+   * sufficient). KSP "stage" or "deploy" action.
+   */
+  deployParachutes() {
+    for (const ch of this.parachutes) {
+      if (!ch.cut && ch.state === "stowed") ch.state = "stowed";
+    }
+    this._chutesArmed = true;
+  }
+  /** Cut all deployed parachutes (KSP cut). */
+  cutParachutes() {
+    for (const ch of this.parachutes) ch.cutChute();
+    this._chutesArmed = false;
+  }
+  /**
+   * Update all parachutes given the local atmospheric pressure, then return
+   * the total parachute drag acceleration to apply this tick.
+   *
+   * Parachute drag: F = 0.5 * ρ * v² * Cd * A, opposite to velocity.
+   * Cd for a parachute ≈ 1.0 ( bluff body).
+   *
+   * @param dt        Time step (s).
+   * @param pressure  Local atmospheric pressure (Pa).
+   * @param density   Local atmospheric density (kg/m³).
+   * @returns Drag acceleration vector (m/s²); zero if no chutes deployed.
+   */
+  updateParachutes(dt, pressure, density) {
+    let totalArea = 0;
+    for (const ch of this.parachutes) {
+      if (this._chutesArmed) ch.update(pressure, dt);
+      totalArea += ch.effectiveDragArea;
+    }
+    if (totalArea <= 0 || density <= 0) return new Vector3();
+    const vSq = this.body.velocity.lengthSq();
+    if (vSq < 1) return new Vector3();
+    const v = Math.sqrt(vSq);
+    const dragMag = 0.5 * density * vSq * 1 * totalArea / Math.max(this.totalMass, 1);
+    return this.body.velocity.clone().multiplyScalar(-dragMag / v);
+  }
+  /** Are any parachutes currently deployed (semi or full)? */
+  get parachutesDeployed() {
+    return this.parachutes.some((c) => c.state === "semi" || c.state === "full");
+  }
+  // ── Landing gear / wheel physics ──────────────────────────────────
+  /**
+   * Resolve ground contact for all landing gear and return the net contact
+   * force (world space) to apply to the rocket, plus set the landed flag.
+   *
+   * KSP model: each wheel is a spring-damper. When the wheel's rest point is
+   * below the ground plane, it pushes back along the body's up direction.
+   * Braking adds a horizontal friction force opposing the surface velocity.
+   *
+   * @param dt           Time step (s).
+   * @param groundHeight Altitude of the local ground above the body centre (m),
+   *                     measured along the body-up direction. The rocket is
+   *                     "on the ground" when its wheels reach this height.
+   * @param bodyUp       Unit vector from the parent body centre to the rocket
+   *                     (defines "up" for suspension and ground normal).
+   * @param surfaceVel   Rocket velocity projected onto the ground plane (for
+   *                     braking friction). If omitted, braking is skipped.
+   * @returns Net contact force (N) to add to the rocket this tick.
+   */
+  resolveLandingGear(dt, groundHeight, bodyUp, surfaceVel) {
+    const force = new Vector3();
+    let anyContact = false;
+    for (const gear of this.landingGear) {
+      const worldOffset = gear.contactOffset.clone().applyQuaternion(this.orientation);
+      const wheelPos = this.body.position.clone().add(worldOffset);
+      const distToGround = wheelPos.dot(bodyUp) - groundHeight + gear.restLength;
+      const suspensionForce = gear.resolveContact(distToGround, bodyUp, dt);
+      if (suspensionForce.lengthSq() > 0) {
+        anyContact = true;
+        force.add(suspensionForce);
+        if (surfaceVel && gear.brake > 0) {
+          const horizVel = surfaceVel.clone().addScaledVector(bodyUp, -surfaceVel.dot(bodyUp));
+          const speed = horizVel.length();
+          if (speed > 1e-3) {
+            const normalMag = suspensionForce.length();
+            const frictionMag = Math.min(
+              speed / Math.max(dt, 1e-4),
+              normalMag * 0.8 * gear.brake
+            );
+            force.add(horizVel.multiplyScalar(-frictionMag / speed));
+          }
+        }
+      }
+    }
+    this.gearDown = this.landingGear.length === 0 ? this.gearDown : this.landingGear.every((g) => g.deployed);
+    this.isLanded = anyContact;
+    return force;
+  }
+  /** Set brake level on all landing gear (0..1). */
+  setBrake(level) {
+    const b = Math.max(0, Math.min(1, level));
+    for (const g of this.landingGear) g.brake = b;
+  }
+  /** Toggle deployment of all landing gear. */
+  toggleGearDeployment() {
+    for (const g of this.landingGear) g.deployed = !g.deployed;
+    this.gearDown = this.landingGear.length > 0 && this.landingGear.every((g) => g.deployed);
+  }
   // ── Navigation helpers ───────────────────────────────────────────
   /** Get the prograde direction (velocity direction) in world space */
   getProgradeDir() {
@@ -28102,18 +30128,169 @@ var Rocket = class _Rocket {
     this.group.position.copy(this.body.position);
     this.group.quaternion.copy(this.orientation);
   }
-  /** Stage separation */
+  /**
+   * Stage separation (KSP-style).
+   *
+   * Sheds the current (bottom-most) stage: its dry mass + remaining fuel are
+   * removed from the rocket and spawned as a DebrisBody that inherits the
+   * rocket's position and a slightly separated velocity (a small retrograde
+   * push, like real separation springs). The next stage up becomes active and
+   * its engine parameters take over.
+   *
+   * If there is no next stage, this is a no-op (last stage cannot be shed).
+   */
   stage() {
-    if (this.currentStage < this.stages.length - 1) {
-      this.currentStage++;
-      const s = this.stages[this.currentStage];
-      this.dryMass = s.dryMass;
-      this.fuelMass = s.fuel;
-      this.thrust = s.thrust;
-      this.isp = s.isp;
-      this.maxFuel = s.fuel;
-      this.updateMass();
+    if (this.currentStage >= this.stages.length - 1) return;
+    const shed = this.stages[this.currentStage];
+    const prograde = this.getProgradeDir();
+    const sepDV = 1.5;
+    const debrisVel = this.body.velocity.clone().addScaledVector(prograde, -sepDV);
+    const debris = new DebrisBody(
+      `${shed.name} debris`,
+      shed.dryMass + shed.fuel,
+      2,
+      this.body.position.clone(),
+      debrisVel,
+      shed.fuel
+    );
+    debris.dragCoefficient = 1;
+    debris.referenceArea = 8;
+    debris.lifetime = 600;
+    this.debris.push(debris);
+    this.currentStage++;
+    const next = this.stages[this.currentStage];
+    let stackDry = 0, stackFuel = 0;
+    for (let i = this.currentStage; i < this.stages.length; i++) {
+      stackDry += this.stages[i].dryMass;
+      stackFuel += this.stages[i].fuel;
     }
+    this.dryMass = stackDry;
+    this.fuelMass = stackFuel;
+    this.maxFuel = stackFuel;
+    this.thrust = next.thrust;
+    this.isp = next.isp;
+    this.updateMass();
+    this.rebuildActiveEngines();
+  }
+  /**
+   * Rebuild the engine config list from the active stage's part ids.
+   * Called after staging so thrust-vectoring / mode data reflects the new
+   * stage's engines.
+   */
+  rebuildActiveEngines() {
+    const active = this.stages[this.currentStage];
+    if (!active) {
+      this.engines = [];
+      return;
+    }
+    const parts = active.partIds.map((id) => this._partLookup.get(id)).filter((p) => !!p);
+    this.initEngines(parts);
+  }
+};
+var Parachute = class {
+  constructor(dragArea = 330) {
+    this.state = "stowed";
+    /** Deployed orientation lerp (0..1) for animation. */
+    this.deployAnim = 0;
+    /** Has been cut (cannot redeploy). */
+    this.cut = false;
+    this.dragArea = dragArea;
+    this.semiArea = dragArea * 0.1;
+    this.semiDeployPressure = 1e3;
+    this.fullDeployPressure = 4e3;
+  }
+  /**
+   * Update parachute state from local atmospheric pressure.
+   * @param pressure Local atmospheric pressure (Pa).
+   * @param dt       Time step (s).
+   */
+  update(pressure, dt) {
+    if (this.cut || this.state === "cut") return;
+    if (this.state === "stowed" && pressure >= this.semiDeployPressure) {
+      this.state = "semi";
+    } else if (this.state === "semi" && pressure >= this.fullDeployPressure) {
+      this.state = "full";
+    }
+    const target = this.state === "full" ? 1 : this.state === "semi" ? 0.3 : 0;
+    this.deployAnim += (target - this.deployAnim) * Math.min(1, dt * 3);
+  }
+  /** Effective drag area given current deployment (m²). */
+  get effectiveDragArea() {
+    if (this.state === "cut" || this.state === "stowed") return 0;
+    const base = this.state === "full" ? this.dragArea : this.semiArea;
+    return base * this.deployAnim;
+  }
+  /** Permanently cut the chute (KSP cut). */
+  cutChute() {
+    this.cut = true;
+    this.state = "cut";
+  }
+};
+var LandingGear = class {
+  constructor(offset, restLength = 1.5, wheelRadius = 0.6) {
+    /** Gear deployed (down) or retracted. */
+    this.deployed = true;
+    /** Brake applied (0..1). */
+    this.brake = 0;
+    /** Current compression (m); >0 means in contact. */
+    this.compression = 0;
+    this.contactOffset = offset.clone();
+    this.restLength = restLength;
+    this.stiffness = 5e4;
+    this.damping = 3e3;
+    this.wheelRadius = wheelRadius;
+  }
+  /**
+   * Resolve ground contact for this wheel. Returns the suspension force to
+   * apply (world space, already oriented), or zero if not in contact.
+   *
+   * @param groundDist  Signed distance from the wheel rest point to the
+   *                    ground plane (negative = penetrating).
+   * @param upDir       Body up direction in world space (for force direction).
+   * @param dt          Time step (s).
+   */
+  resolveContact(groundDist, upDir, dt) {
+    if (!this.deployed) {
+      this.compression = 0;
+      return new Vector3();
+    }
+    const compression = Math.max(0, -groundDist);
+    this.compression = compression;
+    if (compression <= 0) return new Vector3();
+    const springForce = this.stiffness * compression;
+    const dampingForce = this.damping * (compression / Math.max(dt, 1e-4));
+    const mag = springForce + dampingForce;
+    return upDir.clone().multiplyScalar(mag);
+  }
+};
+var DebrisBody = class {
+  constructor(name, mass, radius, pos, vel, fuel = 0) {
+    /** Aerodynamic drag coefficient. */
+    this.dragCoefficient = 1;
+    /** Reference area (m²). */
+    this.referenceArea = 8;
+    /** Skin temperature (K) for reentry heating. */
+    this.temperature = 300;
+    /** Lifetime in seconds before automatic cleanup (0 = never). */
+    this.lifetime = 0;
+    /** Age in seconds. */
+    this.age = 0;
+    this.fuelMass = fuel;
+    this.label = name;
+    this.body = {
+      name,
+      mass,
+      radius,
+      position: pos.clone(),
+      velocity: vel.clone(),
+      acceleration: new Vector3(),
+      isStatic: false
+    };
+  }
+  /** Advance debris age; returns true if it should be culled. */
+  update(dt) {
+    this.age += dt;
+    return this.lifetime > 0 && this.age >= this.lifetime;
   }
 };
 var ResearchBase = class {
@@ -28224,137 +30401,182 @@ var Astronaut = class {
 // src/game/ui.ts
 var GameUI = class {
   constructor(game) {
-    this.game = game || null;
-    this.container = document.createElement("div");
-    this.container.id = "hud";
-    this.container.style.display = "none";
-    this.container.innerHTML = `
-      <!-- \u9876\u90E8\u4E2D\u592E - \u4EFB\u52A1\u65F6\u95F4 (MET) + \u4E16\u754C\u65F6 -->
-      <div id="hud-top-center">
-        <div class="timer-panel">
-          <div class="timer-label">\u4EFB\u52A1\u65F6\u95F4</div>
-          <div id="hud-met" class="timer-value">T+00:00:00</div>
-        </div>
-        <div class="timer-panel">
-          <div class="timer-label">\u4E16\u754C\u65F6</div>
-          <div id="hud-ut" class="timer-value">Y0 D0 00:00</div>
-        </div>
-      </div>
-
-      <!-- \u5DE6\u4E0A - \u8D44\u6E90\u9762\u677F -->
-      <div id="hud-top-left">
-        <div class="hud-panel"><div class="hud-label">\u9AD8\u5EA6</div><div id="hud-alt" class="hud-value">0 km</div></div>
-        <div class="hud-panel"><div class="hud-label">\u901F\u5EA6</div><div id="hud-speed" class="hud-value">0 m/s</div></div>
-        <div class="hud-panel"><div class="hud-label">\u8F68\u9053\u901F\u5EA6</div><div id="hud-orb-speed" class="hud-value">0 m/s</div></div>
-        <div class="hud-panel"><div class="hud-label">\u71C3\u6599</div><div id="hud-fuel-pct" class="hud-value">100%</div></div>
-        <div class="hud-panel"><div class="hud-label">\u79D1\u5B66\u70B9\u6570</div><div id="hud-science" class="hud-value">0</div></div>
-        <div class="hud-panel"><div class="hud-label">\u63A8\u91CD\u6BD4</div><div id="hud-twr" class="hud-value">0.0</div></div>
-        <div class="hud-panel"><div class="hud-label">\u901F\u5EA6\u589E\u91CF</div><div id="hud-dv" class="hud-value">0 m/s</div></div>
-      </div>
-
-      <!-- \u53F3\u4E0A - \u65F6\u95F4\u52A0\u901F + \u5206\u7EA7\u4FE1\u606F -->
-      <div id="hud-top-right">
-        <div id="time-warp-display">
-          <span id="warp-level">1x</span>
-          <div class="warp-hint">[,]/[.] \u65F6\u95F4\u52A0\u901F</div>
-        </div>
-        <div class="hud-panel"><div class="hud-label">\u5206\u7EA7</div><div id="hud-stage" class="hud-value">1 / 1</div></div>
-        <div class="hud-panel"><div class="hud-label">\u5929\u4F53</div><div id="hud-body" class="hud-value">--</div></div>
-        <div class="hud-panel"><div class="hud-label">\u66F2\u901F\u5F15\u64CE</div><div id="hud-warp" class="hud-value">\u672A\u89E3\u9501</div></div>
-        <div class="hud-panel"><div class="hud-label">\u6210\u5C31</div><div id="hud-achievements" class="hud-value">\u{1F3C6} 0/${ACHIEVEMENTS.length}</div></div>
-      </div>
-
-      <!-- \u5DE6\u4FA7 - \u5206\u7EA7\u5217\u8868 -->
-      <div id="staging-list"></div>
-
-      <!-- \u5DE6\u4E0B - \u6CB9\u95E8\u6761 + \u71C3\u6599\u6761 -->
-      <div id="hud-bottom-left">
-        <div class="bar-container">
-          <div class="bar-label">\u6CB9\u95E8</div>
-          <div class="bar-bg"><div id="throttle-bar-fill"></div></div>
-          <div id="throttle-text" class="bar-value">0%</div>
-        </div>
-        <div class="bar-container">
-          <div class="bar-label">\u71C3\u6599</div>
-          <div class="bar-bg"><div id="fuel-bar-fill"></div></div>
-          <div id="fuel-text" class="bar-value">100%</div>
-        </div>
-      </div>
-
-      <!-- \u5E95\u90E8\u4E2D\u592E - \u5BFC\u822A\u7403 -->
-      <div id="hud-bottom-center">
-        <canvas id="navball" width="180" height="180"></canvas>
-        <div class="navball-labels">
-          <span style="color:#00ff44;">\u987A\u5411</span>
-          <span style="color:#ff4444;">\u9006\u5411</span>
-          <span id="navball-sas-label" style="color:#888;">SAS</span>
-        </div>
-      </div>
-
-      <!-- \u53F3\u4E0B - \u76F8\u673A\u6A21\u5F0F + G\u529B -->
-      <div id="hud-bottom-right">
-        <div class="hud-panel"><div class="hud-label">\u76F8\u673A</div><div id="hud-camera" class="hud-value">\u8DDF\u968F</div></div>
-        <div class="hud-panel"><div class="hud-label">G\u529B</div><div id="hud-gforce" class="hud-value">1.0G</div></div>
-        <div class="hud-panel"><div class="hud-label">\u8D28\u91CF</div><div id="hud-mass" class="hud-value">0 t</div></div>
-        <div class="hud-panel"><div class="hud-label">\u63A8\u529B</div><div id="hud-thrust" class="hud-value">0 kN</div></div>
-      </div>
-
-      <!-- \u53F3\u4FA7 - \u5FEB\u6377\u6309\u94AE -->
-      <div id="quick-buttons">
-        <div class="quick-btn" id="btn-sas" title="SAS \u7A33\u5B9A\u8F85\u52A9 (T)">SAS</div>
-        <div class="quick-btn" id="btn-rcs" title="RCS \u59FF\u6001\u63A7\u5236 (R)">RCS</div>
-        <div class="quick-btn" id="btn-gear" title="\u8D77\u843D\u67B6 (G)">\u8D77\u843D\u67B6</div>
-        <div class="quick-btn" id="btn-lights" title="\u706F\u5149">\u706F\u5149</div>
-        <div class="quick-btn" id="btn-brakes" title="\u5239\u8F66">\u5239\u8F66</div>
-        <div class="quick-btn" id="btn-map" title="\u5730\u56FE (M)">\u5730\u56FE</div>
-      </div>
-
-      <!-- \u8F68\u9053\u4FE1\u606F\u6D6E\u7A97 -->
-      <div id="hud-orbit-panel" style="position:absolute;bottom:200px;left:8px;display:none;">
-        <div class="hud-panel" style="min-width:130px;">
-          <div class="hud-label">\u8F68\u9053 - <span id="hud-parent">--</span></div>
-          <div id="hud-orbit" class="hud-orbit-info">\u65E0\u8F68\u9053\u6570\u636E</div>
-        </div>
-      </div>
-
-      <!-- \u5E2E\u52A9\u8986\u76D6\u5C42 -->
-      <div id="help-overlay" style="display:none">
-        <div class="help-content">
-          <h2>\u64CD\u4F5C\u6307\u5357</h2>
-          <div class="help-grid">
-            <div><kbd>W</kbd>/<kbd>S</kbd></div><div>\u4FEF\u4EF0\uFF08\u673A\u5934\u4E0B/\u4E0A\uFF09</div>
-            <div><kbd>A</kbd>/<kbd>D</kbd></div><div>\u504F\u822A\uFF08\u5DE6/\u53F3\uFF09</div>
-            <div><kbd>Q</kbd>/<kbd>E</kbd></div><div>\u6EDA\u8F6C\uFF08\u5DE6/\u53F3\uFF09</div>
-            <div><kbd>Shift</kbd></div><div>\u6CB9\u95E8\u52A0\u5927</div>
-            <div><kbd>Ctrl</kbd></div><div>\u6CB9\u95E8\u51CF\u5C0F</div>
-            <div><kbd>Z</kbd></div><div>\u6EE1\u6CB9\u95E8</div>
-            <div><kbd>X</kbd></div><div>\u5207\u65AD\u6CB9\u95E8</div>
-            <div><kbd>T</kbd></div><div>\u5207\u6362SAS\u7A33\u5B9A\u8F85\u52A9</div>
-            <div><kbd>R</kbd></div><div>\u5207\u6362RCS\u59FF\u6001\u63A7\u5236</div>
-            <div><kbd>G</kbd></div><div>\u8D77\u843D\u67B6</div>
-            <div><kbd>\u7A7A\u683C</kbd></div><div>\u5206\u7EA7\u5206\u79BB</div>
-            <div><kbd>M</kbd></div><div>\u5730\u56FE\u89C6\u56FE</div>
-            <div><kbd>.</kbd></div><div>\u65F6\u95F4\u52A0\u901F+</div>
-            <div><kbd>,</kbd></div><div>\u65F6\u95F4\u52A0\u901F-</div>
-            <div><kbd>F</kbd></div><div>\u8DDF\u968F/\u805A\u7126</div>
-            <div><kbd>C</kbd></div><div>\u5207\u6362\u76F8\u673A</div>
-            <div><kbd>B</kbd></div><div>\u90E8\u7F72\u79D1\u7814\u57FA\u5730</div>
-            <div><kbd>J</kbd></div><div>\u66F2\u901F\u5F15\u64CE</div>
-            <div><kbd>H</kbd></div><div>\u5E2E\u52A9</div>
-            <div><kbd>F2</kbd></div><div>\u9690\u85CF/\u663E\u793A\u754C\u9762</div>
-          </div>
-          <p style="margin-top:15px;font-size:0.8rem;color:#88aacc;text-align:center;">\u7EFF\u8272\u6807\u8BB0 = \u987A\u5411 | \u7EA2\u8272\u6807\u8BB0 = \u9006\u5411</p>
-          <button id="close-help">\u5173\u95ED</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(this.container);
+    // 平滑导航球
+    this.smoothPitch = 0;
+    this.smoothRoll = 0;
+    this.smoothYaw = 0;
+    // 机动节点和目标标记
+    this.maneuverNode = null;
+    this.targetMarker = null;
+    // 资源面板
+    this.resources = {
+      liquidFuel: 0,
+      oxidizer: 0,
+      electricCharge: 0,
+      monoPropellant: 0,
+      intakeAir: 0,
+      solidFuel: 0,
+      warpFuel: 0,
+      maxLF: 100,
+      maxOX: 100,
+      maxEC: 100,
+      maxMP: 100,
+      maxIA: 100,
+      maxSF: 100,
+      maxWF: 100
+    };
+    // 动作组
+    this.actionGroups = {
+      gear: false,
+      lights: false,
+      rcs: false,
+      sas: false,
+      brakes: false,
+      solar: false,
+      antenna: false,
+      cargo: false,
+      abort: false
+    };
+    this.game = game;
+    this.container = document.getElementById("hud-container") || document.createElement("div");
+    this.container.id = "hud-container";
+    this.container.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;font-family:monospace;z-index:100;";
+    if (!this.container.parentElement) document.body.appendChild(this.container);
+    const existing = document.getElementById("ksp-hud-styles");
+    if (!existing) {
+      const style = document.createElement("style");
+      style.id = "ksp-hud-styles";
+      style.textContent = `
+        #hud-resource-panel { position: absolute; top: 8px; right: 8px; font-family: monospace; }
+        .resource-bar { display: flex; align-items: center; gap: 4px; padding: 2px 4px; margin: 1px 0; background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.7); border-radius: 3px; }
+        .resource-icon { font-size: 11px; width: 14px; text-align: center; }
+        .resource-bar-track { width: 60px; height: 6px; background: rgba(30,40,55,0.8); border-radius: 3px; overflow: hidden; }
+        .resource-bar-fill { height: 100%; transition: width 0.3s; }
+        .resource-val { font-size: 9px; color: #aabbcc; min-width: 50px; text-align: right; }
+        #hud-staging { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-family: monospace; }
+        .stage-item { display: flex; align-items: center; gap: 4px; padding: 3px 6px; margin: 2px 0; background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.5); border-radius: 4px; font-size: 9px; }
+        .stage-current { border-color: #ffaa44 !important; box-shadow: 0 0 6px rgba(255,170,68,0.3); }
+        .stage-icon { font-size: 11px; }
+        .stage-fuel { width: 40px; height: 4px; background: rgba(30,40,55,0.8); border-radius: 2px; overflow: hidden; }
+        .stage-fuel-fill { height: 100%; background: #44dd88; }
+        #hud-action-groups { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 3px; font-family: monospace; }
+        .ag-btn { display: flex; flex-direction: column; align-items: center; padding: 3px 6px; background: rgba(20,28,42,0.85); border: 1px solid rgba(50,70,100,0.5); border-radius: 4px; cursor: pointer; font-size: 9px; transition: all 0.15s; }
+        .ag-btn:hover { background: rgba(35,50,75,0.9); }
+        .ag-active { border-color: #44ff88 !important; background: rgba(20,40,25,0.9) !important; }
+        .ag-icon { font-size: 11px; }
+        .ag-num { font-size: 7px; color: #556677; }
+        #hud-orbit-info { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-family: monospace; }
+        .orbit-info-panel { background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.7); border-radius: 6px; padding: 4px 8px; text-align: center; }
+        .orbit-row { display: flex; justify-content: space-between; gap: 8px; font-size: 9px; padding: 1px 0; }
+        .orbit-label { color: #778899; }
+        .orbit-val { color: #aaccff; }
+        #hud-manoeuvre-editor { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); font-family: monospace; min-width: 200px; }
+        .map-me-title { font-size: 10px; font-weight: bold; color: #ffdd44; margin-bottom: 4px; }
+        .map-me-grid { display: flex; gap: 4px; }
+        .map-me-col { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+        .map-me-direction { font-size: 8px; color: #778899; margin-bottom: 2px; }
+        .map-me-row { display: flex; align-items: center; gap: 3px; }
+        .map-me-section { display: flex; align-items: center; gap: 4px; margin: 4px 0; font-size: 9px; }
+        .map-me-label { width: 50px; }
+        .map-me-btn { width: 22px; height: 18px; background: rgba(30,45,70,0.8); border: 1px solid rgba(60,90,130,0.6); color: #aaccff; border-radius: 3px; cursor: pointer; font-size: 11px; }
+        .map-me-btn:hover { background: rgba(50,80,120,0.9); }
+        .map-me-dv { flex: 1; text-align: center; color: #c0d0e0; font-size: 9px; }
+        .map-me-total { margin-top: 4px; font-size: 9px; color: #ffdd44; border-top: 1px solid rgba(50,70,100,0.4); padding-top: 4px; }
+        .map-me-clear { width: 100%; margin-top: 4px; padding: 4px; background: rgba(60,30,30,0.6); border: 1px solid rgba(120,50,50,0.6); color: #ff8866; border-radius: 3px; cursor: pointer; font-size: 9px; }
+        .map-approach { background: rgba(8,14,24,0.9); border: 1px solid rgba(42,64,96,0.7); border-radius: 6px; padding: 6px 8px; margin-top: 6px; min-width: 180px; }
+        .map-ap-title { color: #44ff88; font-size: 9px; font-weight: bold; margin-bottom: 3px; }
+        .map-ap-row { display: flex; justify-content: space-between; font-size: 9px; color: #8899aa; }
+        .map-soi { background: rgba(40,20,10,0.9); border: 1px solid rgba(180,100,40,0.6); border-radius: 6px; padding: 6px 8px; margin-top: 6px; min-width: 180px; }
+        .map-soi-title { color: #ffaa44; font-size: 9px; font-weight: bold; margin-bottom: 3px; }
+        .map-soi-row { display: flex; justify-content: space-between; font-size: 9px; color: #ccaa88; }
+50,70,100,0.4); padding-bottom: 3px; }
+        .map-me-section { display: flex; align-items: center; gap: 4px; margin: 4px 0; font-size: 9px; }
+        .map-me-label { width: 50px; }
+        .map-me-btn { width: 22px; height: 18px; background: rgba(30,45,70,0.8); border: 1px solid rgba(60,90,130,0.6); color: #aaccff; border-radius: 3px; cursor: pointer; font-size: 11px; }
+        .map-me-btn:hover { background: rgba(50,80,120,0.9); }
+        .map-me-dv { flex: 1; text-align: center; color: #c0d0e0; font-size: 9px; }
+        .map-me-total { margin-top: 4px; font-size: 9px; color: #ffdd44; border-top: 1px solid rgba(50,70,100,0.4); padding-top: 4px; }
+        .map-me-clear { width: 100%; margin-top: 4px; padding: 4px; background: rgba(60,30,30,0.6); border: 1px solid rgba(120,50,50,0.6); color: #ff8866; border-radius: 3px; cursor: pointer; font-size: 9px; }
+        .map-approach { background: rgba(8,14,24,0.9); border: 1px solid rgba(42,64,96,0.7); border-radius: 6px; padding: 6px 8px; margin-top: 6px; min-width: 180px; }
+        .map-ap-title { color: #44ff88; font-size: 9px; font-weight: bold; margin-bottom: 3px; }
+        .map-ap-row { display: flex; justify-content: space-between; font-size: 9px; color: #8899aa; }
+        .map-soi { background: rgba(40,20,10,0.9); border: 1px solid rgba(180,100,40,0.6); border-radius: 6px; padding: 6px 8px; margin-top: 6px; min-width: 180px; }
+        .map-soi-title { color: #ffaa44; font-size: 9px; font-weight: bold; margin-bottom: 3px; }
+        .map-soi-row { display: flex; justify-content: space-between; font-size: 9px; color: #ccaa88; }
+        #hud-warp-controls { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); font-family: monospace; }
+        .warp-ctrl-panel { background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.7); border-radius: 6px; padding: 4px 12px; text-align: center; min-width: 120px; }
+        .warp-ctrl-rate { font-size: 16px; font-weight: bold; }
+        .warp-ctrl-mode { font-size: 9px; margin-bottom: 3px; }
+        .warp-ctrl-bar { display: flex; gap: 2px; justify-content: center; }
+        .warp-pip { font-size: 8px; padding: 1px 4px; background: rgba(30,40,55,0.6); border-radius: 2px; color: #556677; }
+        .warp-pip.active { color: #ffaa44; }
+        .warp-limit { font-size: 9px; color: #ff6644; margin-top: 3px; font-weight: bold; }
+        #hud-vessel-info { position: absolute; top: 8px; left: 8px; font-family: monospace; }
+        .vessel-info-panel { background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.7); border-radius: 6px; padding: 4px 8px; }
+        .vessel-name { font-size: 11px; font-weight: bold; color: #aaccff; }
+        .vessel-stats { display: flex; gap: 8px; font-size: 9px; color: #778899; margin-top: 2px; }
+        #hud-camera-modes { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; font-family: monospace; }
+        .cam-btn { display: flex; align-items: center; gap: 3px; padding: 4px 8px; background: rgba(20,28,42,0.85); border: 1px solid rgba(50,70,100,0.5); border-radius: 4px; cursor: pointer; font-size: 9px; transition: all 0.15s; }
+        .cam-btn:hover { background: rgba(35,50,75,0.9); }
+        .cam-active { border-color: #44aaff !important; box-shadow: 0 0 6px rgba(68,170,255,0.4); background: rgba(20,35,55,0.9) !important; }
+        .cam-icon { font-size: 11px; }
+        .cam-label { color: #8899aa; }
+        #hud-alerts { position: absolute; top: 110px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; z-index: 100; font-family: monospace; }
+        .alert-item { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid; border-radius: 4px; font-size: 10px; font-weight: bold; animation: alertPulse 1.5s ease-in-out infinite; }
+        @keyframes alertPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .alert-icon { font-size: 10px; }
+        .alert-msg { flex: 1; }
+        .alert-close { cursor: pointer; font-size: 9px; opacity: 0.7; }
+        .alert-close:hover { opacity: 1; }
+        #hud-missions { position: absolute; bottom: 200px; right: 130px; font-family: monospace; max-width: 180px; }
+        .mission-item { background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.7); border-radius: 5px; padding: 5px 7px; margin-bottom: 4px; }
+        .mission-done { border-color: rgba(68,255,136,0.5) !important; }
+        .mission-header { display: flex; justify-content: space-between; align-items: center; }
+        .mission-title { font-size: 9px; font-weight: bold; color: #aaccff; }
+        .mission-reward { font-size: 8px; color: #44dd88; }
+        .mission-obj { font-size: 8px; color: #778899; margin: 2px 0; }
+        .mission-bar-bg { height: 4px; background: rgba(30,40,55,0.8); border-radius: 2px; overflow: hidden; }
+        .mission-bar-fill { height: 100%; transition: width 0.3s; }
+        #hud-crew { position: absolute; bottom: 50px; right: 8px; display: flex; gap: 4px; font-family: monospace; }
+        .crew-portrait { display: flex; flex-direction: column; align-items: center; padding: 3px; background: rgba(8,14,24,0.85); border: 1px solid; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+        .crew-portrait:hover { background: rgba(20,35,55,0.9); transform: scale(1.05); }
+        .crew-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .crew-name { font-size: 7px; color: #aabbcc; margin-top: 2px; max-width: 36px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #hud-science-panel { position: absolute; top: 130px; left: 8px; font-family: monospace; }
+        .science-header { background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.7); border-radius: 5px; padding: 4px 10px; font-size: 10px; color: #44dd88; cursor: pointer; }
+        .science-header:hover { background: rgba(15,35,20,0.9); }
+        .science-body { background: rgba(8,14,24,0.9); border: 1px solid rgba(42,64,96,0.7); border-radius: 5px; padding: 4px; margin-top: 2px; min-width: 140px; }
+        .science-exp { display: flex; justify-content: space-between; padding: 3px 6px; font-size: 9px; cursor: pointer; border-radius: 3px; transition: background 0.15s; }
+        .science-exp:hover { background: rgba(30,50,75,0.6); }
+        .exp-done { opacity: 0.5; }
+        .exp-name { color: #aabbcc; }
+        .exp-points { color: #44dd88; }
+        #hud-throttle-indicator { position: absolute; left: 8px; bottom: 50px; font-family: monospace; }
+        .throttle-indicator-panel { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .throttle-label { font-size: 14px; font-weight: bold; }
+        .throttle-bar { display: flex; flex-direction: column-reverse; gap: 1px; width: 16px; }
+        .throttle-tick { height: 10px; border-radius: 1px; transition: background 0.15s; }
+        .tick-active { box-shadow: 0 0 3px currentColor; }
+        .throttle-hint { font-size: 7px; color: #556677; }
+        .throttle-hint2 { font-size: 7px; color: #556677; }
+        #hud-compass-strip { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 540px; height: 36px; font-family: monospace; overflow: hidden; }
+        .compass-strip-inner { position: relative; width: 100%; height: 22px; background: rgba(8,14,24,0.85); border: 1px solid rgba(42,64,96,0.7); border-radius: 4px; }
+        .compass-tick { position: absolute; top: 0; width: 1px; background: rgba(120,150,180,0.5); display: flex; justify-content: center; }
+        .compass-tick-label { position: absolute; top: 12px; font-size: 7px; white-space: nowrap; transform: translateX(-50%); }
+        .compass-pointer { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #ffff00; z-index: 5; }
+        .compass-readout { text-align: center; font-size: 10px; font-weight: bold; color: #ffff00; margin-top: 2px; }
+      `;
+      document.head.appendChild(style);
+    }
     this.navballCanvas = document.getElementById("navball");
     this.navballCtx = this.navballCanvas.getContext("2d");
     document.getElementById("close-help").addEventListener("click", () => {
       document.getElementById("help-overlay").style.display = "none";
     });
     this.setupQuickButtons();
+    this.initActionGroups();
+    this.initCameraModes();
+    this.initSciencePanel();
   }
   /** 设置快捷按钮交互 */
   setupQuickButtons() {
@@ -28502,6 +30724,7 @@ var GameUI = class {
   updateStageInfo(data) {
     const stageEl = document.getElementById("hud-stage");
     const stagingList = document.getElementById("staging-list");
+    const stackEl = document.getElementById("hud-staging-stack");
     let stages = [];
     let currentStage = 0;
     if (this.game && this.game.rocket && this.game.rocket.stages) {
@@ -28524,10 +30747,40 @@ var GameUI = class {
           stagingList.appendChild(item);
         }
       }
+      if (stackEl) {
+        let html = "";
+        for (let i = stages.length - 1; i >= 0; i--) {
+          const s = stages[i];
+          const isCurrent = i === currentStage;
+          const hasFuel = s.fuel > 0;
+          const hasEngine = s.thrust > 0;
+          const fuelPct = hasFuel ? 100 : 0;
+          html += `<div class="ksp-stage ${isCurrent ? "ksp-stage-current" : ""}">
+            <div class="ksp-stage-num">${i + 1}</div>
+            <div class="ksp-stage-content">
+              <div class="ksp-stage-icons">
+                ${hasEngine ? '<span class="ksp-stage-icon ksp-icon-engine" title="\u53D1\u52A8\u673A">\u{1F527}</span>' : ""}
+                <span class="ksp-stage-icon ksp-icon-decoupler" title="\u5206\u79BB\u5668">\u{1F517}</span>
+              </div>
+              <div class="ksp-stage-fuelbar-bg"><div class="ksp-stage-fuelbar-fill" style="width:${fuelPct}%;background:${hasFuel ? "#dd9933" : "#443322"};"></div></div>
+            </div>
+          </div>`;
+        }
+        stackEl.innerHTML = html;
+      }
     } else {
       stageEl.textContent = `1 / 1`;
       if (stagingList) {
         stagingList.innerHTML = `<div class="stage-item current">\u5206\u7EA7 1</div>`;
+      }
+      if (stackEl) {
+        stackEl.innerHTML = `<div class="ksp-stage ksp-stage-current">
+          <div class="ksp-stage-num">1</div>
+          <div class="ksp-stage-content">
+            <div class="ksp-stage-icons"><span class="ksp-stage-icon ksp-icon-engine">\u{1F527}</span></div>
+            <div class="ksp-stage-fuelbar-bg"><div class="ksp-stage-fuelbar-fill" style="width:100%;background:#dd9933;"></div></div>
+          </div>
+        </div>`;
       }
     }
   }
@@ -28538,19 +30791,24 @@ var GameUI = class {
       bodyEl.title = `\u5DF2\u52A0\u8F7D\u661F\u4F53: ${count.toLocaleString()}`;
     }
   }
-  /** 更新导航球 — 绘制姿态仪表、顺向/逆向标记 */
+  /** 更新导航球 — 绘制姿态仪表、顺向/逆向/机动/目标标记 */
   updateNavball(orientation, velocity) {
     const ctx = this.navballCtx;
     const w = this.navballCanvas.width, h = this.navballCanvas.height;
     const cx = w / 2, cy = h / 2, r = w / 2 - 5;
     const euler = new Euler().setFromQuaternion(orientation, "YXZ");
     const pitch = euler.x, roll = euler.z, yaw = euler.y;
+    const lerp2 = 0.25;
+    this.smoothPitch += (pitch - this.smoothPitch) * lerp2;
+    this.smoothRoll += (roll - this.smoothRoll) * lerp2;
+    this.smoothYaw += (yaw - this.smoothYaw) * lerp2;
+    const sPitch = this.smoothPitch, sRoll = this.smoothRoll, sYaw = this.smoothYaw;
     ctx.clearRect(0, 0, w, h);
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.clip();
-    const pitchOffset = pitch * r * 1.5;
+    const pitchOffset = sPitch * r * 1.5;
     const skyGrad = ctx.createLinearGradient(0, 0, 0, cy + pitchOffset);
     skyGrad.addColorStop(0, "#1a3a6a");
     skyGrad.addColorStop(1, "#3366cc");
@@ -28583,7 +30841,7 @@ var GameUI = class {
       }
     }
     ctx.translate(cx, cy);
-    ctx.rotate(roll);
+    ctx.rotate(sRoll);
     ctx.translate(-cx, -cy);
     if (velocity && velocity.length() > 1) {
       const velDir = velocity.clone().normalize();
@@ -28619,6 +30877,39 @@ var GameUI = class {
       ctx.fillStyle = "#ff4444";
       ctx.font = "8px sans-serif";
       ctx.fillText("\u9006\u5411", retroX, retroY - 12);
+      if (this.maneuverNode) {
+        const mX = cx + velDir.x * 20 + 15;
+        const mY = cy - velDir.y * 20 + pitchOffset * 0.2 - 15;
+        ctx.strokeStyle = "#4488ff";
+        ctx.fillStyle = "rgba(68,136,255,0.25)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(mX, mY - 9);
+        ctx.lineTo(mX + 8, mY);
+        ctx.lineTo(mX, mY + 9);
+        ctx.lineTo(mX - 8, mY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#4488ff";
+        ctx.font = "7px sans-serif";
+        ctx.fillText("\u673A\u52A8", mX, mY - 12);
+      }
+      if (this.targetMarker) {
+        const tX = cx + this.targetMarker.x * 35;
+        const tY = cy - this.targetMarker.y * 35 + pitchOffset * 0.25;
+        ctx.strokeStyle = "#ff44dd";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(tX, tY, 7, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(tX, tY, 3, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "#ff44dd";
+        ctx.font = "7px sans-serif";
+        ctx.fillText("\u76EE\u6807", tX, tY - 11);
+      }
     }
     ctx.restore();
     ctx.strokeStyle = "#ffff00";
@@ -28636,11 +30927,39 @@ var GameUI = class {
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.stroke();
-    const yawDeg = (yaw * 180 / Math.PI % 360 + 360) % 360;
-    ctx.fillStyle = "#ffff00";
-    ctx.font = "10px monospace";
+    const yawDeg = (sYaw * 180 / Math.PI % 360 + 360) % 360;
+    ctx.fillStyle = "rgba(10,20,35,0.7)";
+    ctx.fillRect(cx - 45, 0, 90, 16);
+    ctx.strokeStyle = "rgba(90,154,191,0.6)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(cx - 45, 0, 90, 16);
+    ctx.fillStyle = "#778899";
+    ctx.font = "7px monospace";
     ctx.textAlign = "center";
-    ctx.fillText(`\u822A\u5411 ${yawDeg.toFixed(0)}\xB0`, cx, 12);
+    const compassMarks = [
+      { deg: 0, label: "N" },
+      { deg: 90, label: "E" },
+      { deg: 180, label: "S" },
+      { deg: 270, label: "W" }
+    ];
+    for (const cm of compassMarks) {
+      let diff = (yawDeg - cm.deg + 540) % 360 - 180;
+      if (Math.abs(diff) <= 45) {
+        const x = cx + diff * 1;
+        ctx.fillStyle = cm.label === "N" ? "#ff4444" : "#778899";
+        ctx.fillText(cm.label, x, 10);
+      }
+    }
+    ctx.fillStyle = "#ffff00";
+    ctx.font = "bold 10px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`${yawDeg.toFixed(0)}\xB0`, cx, 12);
+    ctx.beginPath();
+    ctx.moveTo(cx, 16);
+    ctx.lineTo(cx - 4, 18);
+    ctx.lineTo(cx + 4, 18);
+    ctx.closePath();
+    ctx.fill();
     if (this.game && this.game.rocket && this.game.rocket.sasEnabled) {
       ctx.fillStyle = "#00ff88";
       ctx.font = "bold 9px sans-serif";
@@ -28651,6 +30970,570 @@ var GameUI = class {
   showHelp() {
     const el = document.getElementById("help-overlay");
     el.style.display = el.style.display === "none" ? "flex" : "none";
+  }
+  /** 设置机动节点标记（prograde/normal/radial delta-v） */
+  setManeuverMarker(prograde, normal, radial) {
+    this.maneuverNode = { prograde, normal, radial };
+  }
+  /** 清除机动节点标记 */
+  clearManeuverMarker() {
+    this.maneuverNode = null;
+  }
+  /** 设置目标标记方向（归一化 x,y） */
+  setTargetMarker(x, y) {
+    this.targetMarker = { x, y };
+  }
+  /** 清除目标标记 */
+  clearTargetMarker() {
+    this.targetMarker = null;
+  }
+  /** 更新资源面板 — KSP风格资源条 */
+  updateResources(res) {
+    Object.assign(this.resources, res);
+    const panel = document.getElementById("hud-resource-panel");
+    if (!panel) return;
+    const defs = [
+      { valKey: "liquidFuel", maxKey: "liquidFuelMax", label: "\u6DB2\u4F53\u71C3\u6599", icon: "\u26FD", color: "#dd9933" },
+      { valKey: "oxidizer", maxKey: "oxidizerMax", label: "\u6C27\u5316\u5242", icon: "\u{1F535}", color: "#3399dd" },
+      { valKey: "electric", maxKey: "electricMax", label: "\u7535\u529B", icon: "\u26A1", color: "#ffdd33" },
+      { valKey: "monoprop", maxKey: "monopropMax", label: "\u5355\u7EC4\u5143", icon: "\u{1F7E1}", color: "#ddaa33" },
+      { valKey: "intakeAir", maxKey: "intakeAirMax", label: "\u8FDB\u6C14", icon: "\u{1F4A8}", color: "#88ccff" },
+      { valKey: "solidFuel", maxKey: "solidFuelMax", label: "\u56FA\u4F53\u71C3\u6599", icon: "\u{1F7E4}", color: "#aa6633" },
+      { valKey: "warpFuel", maxKey: "warpFuelMax", label: "\u66F2\u901F\u71C3\u6599", icon: "\u2728", color: "#aa44ff" }
+    ];
+    panel.innerHTML = defs.map((d) => {
+      const val = this.resources[d.valKey];
+      const max = this.resources[d.maxKey];
+      const pct = max > 0 ? val / max * 100 : 0;
+      const lowColor = pct < 20 ? "#ff4444" : pct < 50 ? "#ffaa44" : d.color;
+      return `<div class="resource-row" title="${d.label}: ${val.toFixed(1)}/${max.toFixed(0)}">
+        <span class="resource-icon">${d.icon}</span>
+        <div class="resource-bar-bg"><div class="resource-bar-fill" style="width:${pct}%;background:${lowColor};"></div></div>
+        <span class="resource-val" style="color:${lowColor};">${val.toFixed(0)}</span>
+      </div>`;
+    }).join("");
+  }
+  /** 初始化动作组面板 */
+  initActionGroups() {
+    const panel = document.getElementById("hud-action-groups");
+    if (!panel) return;
+    const groups = [
+      { key: "solar", num: "1", label: "\u592A\u9633\u80FD\u677F", icon: "\u2600\uFE0F" },
+      { key: "gear", num: "2", label: "\u8D77\u843D\u67B6", icon: "\u{1F6EC}" },
+      { key: "lights", num: "3", label: "\u706F\u5149", icon: "\u{1F4A1}" },
+      { key: "antennas", num: "4", label: "\u5929\u7EBF", icon: "\u{1F4E1}" },
+      { key: "cargo", num: "5", label: "\u8D27\u8231", icon: "\u{1F4E6}" },
+      { key: "rcs", num: "6", label: "RCS", icon: "\u{1F504}" },
+      { key: "brakes", num: "7", label: "\u5239\u8F66", icon: "\u{1F6D1}" },
+      { key: "abort", num: "0", label: "\u4E2D\u6B62", icon: "\u26A0\uFE0F" }
+    ];
+    panel.innerHTML = groups.map(
+      (g) => `<div class="ag-btn ${this.actionGroups[g.key] ? "ag-active" : ""}" data-ag="${g.key}" title="${g.label} (${g.num})">
+        <span class="ag-num">${g.num}</span><span class="ag-icon">${g.icon}</span>
+      </div>`
+    ).join("");
+    panel.querySelectorAll(".ag-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.ag;
+        this.toggleActionGroup(key);
+      });
+    });
+  }
+  /** 切换动作组 */
+  toggleActionGroup(key) {
+    this.actionGroups[key] = !this.actionGroups[key];
+    const labels = {
+      solar: "\u592A\u9633\u80FD\u677F",
+      gear: "\u8D77\u843D\u67B6",
+      lights: "\u706F\u5149",
+      antennas: "\u5929\u7EBF",
+      cargo: "\u8D27\u8231",
+      rcs: "RCS",
+      brakes: "\u5239\u8F66",
+      abort: "\u4E2D\u6B62"
+    };
+    this.showNotification(`${labels[key] || key} ${this.actionGroups[key] ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+    this.initActionGroups();
+    if (key === "gear") this.syncQuickBtn("btn-gear", this.actionGroups.gear);
+    if (key === "lights") this.syncQuickBtn("btn-lights", this.actionGroups.lights);
+    if (key === "brakes") this.syncQuickBtn("btn-brakes", this.actionGroups.brakes);
+    if (key === "rcs") this.syncQuickBtn("btn-rcs", this.actionGroups.rcs);
+    return this.actionGroups[key];
+  }
+  /** 同步快捷按钮状态 */
+  syncQuickBtn(btnId, active) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (active) btn.classList.add("active");
+    else btn.classList.remove("active");
+  }
+  /** 通过数字键触发动作组 */
+  triggerActionGroupByKey(key) {
+    const keyMap = {
+      "1": "solar",
+      "2": "gear",
+      "3": "lights",
+      "4": "antennas",
+      "5": "cargo",
+      "6": "rcs",
+      "7": "brakes",
+      "0": "abort"
+    };
+    const group = keyMap[key];
+    if (group) this.toggleActionGroup(group);
+  }
+  /** 更新KSP风格轨道/弹道信息面板 */
+  updateTrajectoryInfo(orbit, gameTime) {
+    const panel = document.getElementById("hud-trajectory-panel");
+    if (!panel) return;
+    if (!orbit) {
+      panel.innerHTML = `<div class="traj-panel"><div class="traj-title">\u5F39\u9053</div><div class="traj-empty">\u4E9A\u8F68\u9053/\u5DF2\u7740\u9646</div></div>`;
+      return;
+    }
+    const apKm = (orbit.apoapsis / 1e3).toFixed(1);
+    const peKm = (orbit.periapsis / 1e3).toFixed(1);
+    const periodH = (orbit.orbitalPeriod / 3600).toFixed(2);
+    const incDeg = (orbit.inclination * 180 / Math.PI).toFixed(2);
+    const ecc = orbit.eccentricity.toFixed(4);
+    const smaKm = (orbit.semiMajorAxis / 1e3).toFixed(1);
+    const n = orbit.meanMotion;
+    const period = n > 0 ? 2 * Math.PI / n : 0;
+    const phase = period > 0 ? gameTime % period : 0;
+    const timeToAp = period > 0 ? (Math.PI - phase + period) % period : 0;
+    const timeToPe = period > 0 ? (period - phase) % period : 0;
+    panel.innerHTML = `<div class="traj-panel">
+      <div class="traj-title">\u8F68\u9053 - ${orbit.eccentricity < 1 ? "\u692D\u5706" : "\u53CC\u66F2\u7EBF"}</div>
+      <div class="traj-row"><span class="traj-label" style="color:#44aaff;">\u8FDC\u5730\u70B9</span><span class="traj-val">${apKm} km</span></div>
+      <div class="traj-row"><span class="traj-label" style="color:#ff8844;">\u8FD1\u5730\u70B9</span><span class="traj-val">${peKm} km</span></div>
+      <div class="traj-row"><span class="traj-label">\u5468\u671F</span><span class="traj-val">${periodH} h</span></div>
+      <div class="traj-row"><span class="traj-label">\u503E\u89D2</span><span class="traj-val">${incDeg}\xB0</span></div>
+      <div class="traj-row"><span class="traj-label">\u504F\u5FC3\u7387</span><span class="traj-val">${ecc}</span></div>
+      <div class="traj-row"><span class="traj-label">\u534A\u957F\u8F74</span><span class="traj-val">${smaKm} km</span></div>
+      <div class="traj-row"><span class="traj-label" style="color:#44aaff;">\u81F3\u8FDC\u5730\u70B9</span><span class="traj-val">${this.formatDuration(timeToAp)}</span></div>
+      <div class="traj-row"><span class="traj-label" style="color:#ff8844;">\u81F3\u8FD1\u5730\u70B9</span><span class="traj-val">${this.formatDuration(timeToPe)}</span></div>
+    </div>`;
+  }
+  /** 格式化时长 */
+  formatDuration(seconds) {
+    if (!isFinite(seconds) || seconds < 0) return "--";
+    const s = Math.floor(seconds);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor(s % 3600 / 60);
+    const sec = s % 60;
+    if (h > 0) return `${h}h${String(m).padStart(2, "0")}m`;
+    return `${m}m${String(sec).padStart(2, "0")}s`;
+  }
+  /** 显示/隐藏地图视图UI */
+  setMapMode(enabled) {
+    const mapUI = document.getElementById("hud-map-ui");
+    if (mapUI) {
+      mapUI.style.display = enabled ? "block" : "none";
+    }
+    if (enabled) this.buildMapUI();
+  }
+  /** 构建地图视图UI — 机动节点编辑器、最近接近、SOI变化 */
+  buildMapUI() {
+    const mapUI = document.getElementById("hud-map-ui");
+    if (!mapUI) return;
+    mapUI.innerHTML = `
+      <div class="map-maneuver-editor">
+        <div class="map-me-title">\u673A\u52A8\u8282\u70B9\u7F16\u8F91\u5668</div>
+        <div class="map-me-section">
+          <span class="map-me-label" style="color:#00ff44;">\u987A\u5411 \xB1</span>
+          <button class="map-me-btn" data-mn="prograde" data-dir="-1">\u2212</button>
+          <span class="map-me-dv" id="mn-prograde">0.0 m/s</span>
+          <button class="map-me-btn" data-mn="prograde" data-dir="1">+</button>
+        </div>
+        <div class="map-me-section">
+          <span class="map-me-label" style="color:#ff8844;">\u6CD5\u5411 \xB1</span>
+          <button class="map-me-btn" data-mn="normal" data-dir="-1">\u2212</button>
+          <span class="map-me-dv" id="mn-normal">0.0 m/s</span>
+          <button class="map-me-btn" data-mn="normal" data-dir="1">+</button>
+        </div>
+        <div class="map-me-section">
+          <span class="map-me-label" style="color:#aa44ff;">\u5F84\u5411 \xB1</span>
+          <button class="map-me-btn" data-mn="radial" data-dir="-1">\u2212</button>
+          <span class="map-me-dv" id="mn-radial">0.0 m/s</span>
+          <button class="map-me-btn" data-mn="radial" data-dir="1">+</button>
+        </div>
+        <div class="map-me-total">\u603B \u0394v: <span id="mn-total">0.0 m/s</span></div>
+        <button class="map-me-clear" id="mn-clear">\u6E05\u9664\u8282\u70B9</button>
+      </div>
+      <div class="map-approach" id="map-approach">
+        <div class="map-ap-title">\u6700\u8FD1\u63A5\u8FD1</div>
+        <div class="map-ap-row"><span>\u8DDD\u79BB:</span><span id="map-ap-dist">--</span></div>
+        <div class="map-ap-row"><span>\u65F6\u95F4:</span><span id="map-ap-time">--</span></div>
+      </div>
+      <div class="map-soi" id="map-soi" style="display:none;">
+        <div class="map-soi-title">\u26A0 SOI \u53D8\u5316</div>
+        <div class="map-soi-row"><span>\u8FDB\u5165:</span><span id="map-soi-body">--</span></div>
+        <div class="map-soi-row"><span>\u65F6\u95F4:</span><span id="map-soi-time">--</span></div>
+      </div>`;
+    mapUI.querySelectorAll(".map-me-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const mn = btn.dataset.mn;
+        const dir = parseInt(btn.dataset.dir);
+        const dv = dir * 10;
+        if (!this.maneuverNode) this.maneuverNode = { prograde: 0, normal: 0, radial: 0 };
+        this.maneuverNode[mn] += dv;
+        this.updateManeuverDisplay();
+      });
+    });
+    const clearBtn = mapUI.querySelector("#mn-clear");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        this.maneuverNode = null;
+        this.updateManeuverDisplay();
+      });
+    }
+  }
+  /** 更新机动节点显示 */
+  updateManeuverDisplay() {
+    const progradeEl = document.getElementById("mn-prograde");
+    const normalEl = document.getElementById("mn-normal");
+    const radialEl = document.getElementById("mn-radial");
+    const totalEl = document.getElementById("mn-total");
+    if (!progradeEl) return;
+    if (this.maneuverNode) {
+      const p = this.maneuverNode.prograde;
+      const n = this.maneuverNode.normal;
+      const r = this.maneuverNode.radial;
+      const total = Math.sqrt(p * p + n * n + r * r);
+      progradeEl.textContent = `${p.toFixed(1)} m/s`;
+      normalEl.textContent = `${n.toFixed(1)} m/s`;
+      radialEl.textContent = `${r.toFixed(1)} m/s`;
+      totalEl.textContent = `${total.toFixed(1)} m/s`;
+    } else {
+      progradeEl.textContent = "0.0 m/s";
+      normalEl.textContent = "0.0 m/s";
+      radialEl.textContent = "0.0 m/s";
+      totalEl.textContent = "0.0 m/s";
+    }
+  }
+  /** 更新最近接近和SOI信息 */
+  updateMapInfo(approachDist, approachTime, soiBody, soiTime) {
+    const apDist = document.getElementById("map-ap-dist");
+    const apTime = document.getElementById("map-ap-time");
+    if (apDist) apDist.textContent = approachDist != null ? `${(approachDist / 1e3).toFixed(1)} km` : "--";
+    if (apTime) apTime.textContent = approachTime != null ? this.formatDuration(approachTime) : "--";
+    const soiEl = document.getElementById("map-soi");
+    if (soiEl) {
+      soiEl.style.display = soiBody ? "block" : "none";
+      if (soiBody) {
+        const soiBodyEl = document.getElementById("map-soi-body");
+        const soiTimeEl = document.getElementById("map-soi-time");
+        if (soiBodyEl) soiBodyEl.textContent = soiBody;
+        if (soiTimeEl) soiTimeEl.textContent = soiTime != null ? this.formatDuration(soiTime) : "--";
+      }
+    }
+  }
+  /** 更新时间加速控制面板 — 物理加速 vs 轨道加速，自动限制 */
+  updateWarpControls(warp, inAtmosphere, nearSoi) {
+    const panel = document.getElementById("hud-warp-controls");
+    if (!panel) return;
+    this.warpMode = warp <= 4 ? "physical" : "rails";
+    if (inAtmosphere && warp > 4) {
+      this.warpLimited = true;
+      this.warpLimitReason = "\u5927\u6C14\u5C42\u5185\u9650\u5236\u7269\u7406\u52A0\u901F";
+    } else if (nearSoi && warp > 100) {
+      this.warpLimited = true;
+      this.warpLimitReason = "\u63A5\u8FD1SOI\u53D8\u5316";
+    } else {
+      this.warpLimited = false;
+      this.warpLimitReason = "";
+    }
+    const modeLabel = this.warpMode === "physical" ? "\u7269\u7406\u52A0\u901F" : "\u8F68\u9053\u52A0\u901F";
+    const modeColor = this.warpMode === "physical" ? "#ffaa44" : "#44aaff";
+    const limitHtml = this.warpLimited ? `<div class="warp-limit">\u26A0 ${this.warpLimitReason}</div>` : "";
+    panel.innerHTML = `<div class="warp-ctrl-panel">
+      <div class="warp-ctrl-rate" style="color:${modeColor};">${warp}x</div>
+      <div class="warp-ctrl-mode" style="color:${modeColor};">${modeLabel}</div>
+      <div class="warp-ctrl-bar">
+        ${this.warpMode === "physical" ? '<span class="warp-pip active">1</span><span class="warp-pip active">2</span><span class="warp-pip active">3</span><span class="warp-pip active">4</span>' : '<span class="warp-pip">1</span><span class="warp-pip">2</span><span class="warp-pip">3</span><span class="warp-pip">4</span>'}
+        ${warp > 4 ? `<span class="warp-pip" style="color:#44aaff;">${warp}x</span>` : ""}
+      </div>
+      ${limitHtml}
+    </div>`;
+  }
+  /** 更新飞行器信息面板 */
+  updateVesselInfo(name, totalMass, partCount, crewCount) {
+    this.vesselInfo = { name, partCount, crewCount };
+    const panel = document.getElementById("hud-vessel-info");
+    if (!panel) return;
+    panel.innerHTML = `<div class="vessel-info-panel">
+      <div class="vessel-name">${name}</div>
+      <div class="vessel-stats">
+        <span title="\u8D28\u91CF">${(totalMass / 1e3).toFixed(2)} t</span>
+        <span title="\u90E8\u4EF6\u6570">\u{1F527} ${partCount}</span>
+        <span title="\u4E58\u5458">\u{1F464} ${crewCount}</span>
+      </div>
+    </div>`;
+  }
+  /** 构建相机模式选择器 */
+  initCameraModes() {
+    const panel = document.getElementById("hud-camera-modes");
+    if (!panel) return;
+    panel.innerHTML = this.cameraModes.map(
+      (m) => `<div class="cam-btn ${m.key === this.cameraMode ? "cam-active" : ""}" data-cam="${m.key}" title="${m.label}">
+        <span class="cam-icon">${m.icon}</span><span class="cam-label">${m.label}</span>
+      </div>`
+    ).join("");
+    panel.querySelectorAll(".cam-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const mode = btn.dataset.cam;
+        this.setCameraMode(mode);
+      });
+    });
+  }
+  /** 设置相机模式 */
+  setCameraMode(mode) {
+    this.cameraMode = mode;
+    const modeObj = this.cameraModes.find((m) => m.key === mode);
+    if (modeObj) this.showNotification(`\u76F8\u673A: ${modeObj.label}`);
+    if (this.game) {
+      this.game.isMapMode = mode === "map";
+    }
+    this.initCameraModes();
+    const cameraEl = document.getElementById("hud-camera");
+    if (cameraEl && modeObj) cameraEl.textContent = modeObj.label;
+  }
+  /** 获取当前相机模式 */
+  getCameraMode() {
+    return this.cameraMode;
+  }
+  /** 触发警报 */
+  triggerAlert(id, message, severity = "warn") {
+    this.activeAlerts.set(id, { message, severity });
+    this.renderAlerts();
+  }
+  /** 清除警报 */
+  clearAlert(id) {
+    this.activeAlerts.delete(id);
+    this.renderAlerts();
+  }
+  /** 渲染警报堆叠 */
+  renderAlerts() {
+    const panel = document.getElementById("hud-alerts");
+    if (!panel) return;
+    if (this.activeAlerts.size === 0) {
+      panel.innerHTML = "";
+      return;
+    }
+    panel.innerHTML = Array.from(this.activeAlerts.entries()).map(([id, a]) => {
+      const color = a.severity === "danger" ? "#ff4444" : "#ffaa44";
+      const bg = a.severity === "danger" ? "rgba(60,15,15,0.92)" : "rgba(50,35,10,0.92)";
+      return `<div class="alert-item" style="border-color:${color};background:${bg};color:${color};">
+        <span class="alert-icon">${a.severity === "danger" ? "\u{1F534}" : "\u{1F7E1}"}</span>
+        <span class="alert-msg">${a.message}</span>
+        <span class="alert-close" data-alert="${id}">\u2715</span>
+      </div>`;
+    }).join("");
+    panel.querySelectorAll(".alert-close").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.alert;
+        this.clearAlert(id);
+      });
+    });
+  }
+  /** 检查并自动触发资源警报 */
+  checkAlerts(data) {
+    const fuelPct = data.maxFuel > 0 ? data.fuel / data.maxFuel : 0;
+    if (fuelPct < 0.15 && fuelPct > 0) {
+      this.triggerAlert("low-fuel", "\u71C3\u6599\u4E0D\u8DB3", "danger");
+    } else {
+      this.clearAlert("low-fuel");
+    }
+    if (this.resources.electric / this.resources.electricMax < 0.1) {
+      this.triggerAlert("low-ec", "\u7535\u529B\u4E0D\u8DB3", "warn");
+    } else {
+      this.clearAlert("low-ec");
+    }
+    if (data.twr > 3 && data.throttle > 0) {
+      this.triggerAlert("gforce", `G\u529B\u8B66\u544A: ${data.twr.toFixed(1)}G`, "danger");
+    } else {
+      this.clearAlert("gforce");
+    }
+    if (data.altitude < 7e4 && data.altitude > 3e4 && data.speed > 2e3) {
+      this.triggerAlert("reentry", "\u518D\u5165\u52A0\u70ED\u8B66\u544A", "warn");
+    } else {
+      this.clearAlert("reentry");
+    }
+  }
+  /** 更新任务追踪面板 */
+  updateMissions(progressMap) {
+    for (const m of this.missions) {
+      if (progressMap[m.id] !== void 0) {
+        m.progress = Math.max(0, Math.min(1, progressMap[m.id]));
+      }
+    }
+    this.renderMissions();
+  }
+  /** 设置单个任务进度 */
+  setMissionProgress(id, progress) {
+    const m = this.missions.find((x) => x.id === id);
+    if (m) {
+      m.progress = Math.max(0, Math.min(1, progress));
+      this.renderMissions();
+      if (m.progress >= 1) {
+        this.showNotification(`\u2705 \u4EFB\u52A1\u5B8C\u6210: ${m.title} (+${m.reward} \u79D1\u5B66\u70B9)`);
+      }
+    }
+  }
+  /** 渲染任务面板 */
+  renderMissions() {
+    const panel = document.getElementById("hud-missions");
+    if (!panel) return;
+    panel.innerHTML = this.missions.map((m) => {
+      const pct = Math.round(m.progress * 100);
+      const done = m.progress >= 1;
+      const barColor = done ? "#44ff88" : pct > 50 ? "#ffaa44" : "#4488cc";
+      return `<div class="mission-item ${done ? "mission-done" : ""}">
+        <div class="mission-header">
+          <span class="mission-title">${done ? "\u2705" : "\u{1F4CB}"} ${m.title}</span>
+          <span class="mission-reward">+${m.reward}\u{1F52C}</span>
+        </div>
+        <div class="mission-obj">${m.objective}</div>
+        <div class="mission-bar-bg"><div class="mission-bar-fill" style="width:${pct}%;background:${barColor};"></div></div>
+      </div>`;
+    }).join("");
+  }
+  /** 设置乘员列表 */
+  setCrew(crew) {
+    this.crew = crew;
+    this.renderCrew();
+  }
+  /** 渲染乘员肖像 */
+  renderCrew() {
+    const panel = document.getElementById("hud-crew");
+    if (!panel) return;
+    if (this.crew.length === 0) {
+      panel.innerHTML = "";
+      return;
+    }
+    panel.innerHTML = this.crew.map(
+      (c, i) => `<div class="crew-portrait" data-crew="${i}" title="${c.name} - ${c.role}" style="border-color:${c.color};">
+        <div class="crew-avatar" style="background:${c.color}33;">\u{1F464}</div>
+        <div class="crew-name">${c.name}</div>
+      </div>`
+    ).join("");
+    panel.querySelectorAll(".crew-portrait").forEach((p) => {
+      p.addEventListener("click", () => {
+        const idx = parseInt(p.dataset.crew);
+        const c = this.crew[idx];
+        if (c) this.showCrewDetails(c);
+      });
+    });
+  }
+  /** 显示乘员详情弹窗 */
+  showCrewDetails(c) {
+    const existing = document.getElementById("crew-detail-popup");
+    if (existing) existing.remove();
+    const popup = document.createElement("div");
+    popup.id = "crew-detail-popup";
+    popup.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0a0e1a;border:1px solid #2a4060;border-radius:10px;padding:20px;z-index:9999;min-width:250px;font-family:monospace;";
+    popup.innerHTML = `
+      <div style="text-align:center;margin-bottom:12px;">
+        <div style="width:60px;height:60px;border-radius:50%;background:${c.color}33;border:2px solid ${c.color};display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 8px;">\u{1F464}</div>
+        <div style="color:${c.color};font-size:14px;font-weight:bold;">${c.name}</div>
+        <div style="color:#8899aa;font-size:11px;">${c.role}</div>
+      </div>
+      <div style="font-size:10px;color:#aabbcc;line-height:1.8;">
+        <div>\u7B49\u7EA7: \u2B50 ${c.level}</div>
+        <div>\u72B6\u6001: \u{1F7E2} \u5065\u5EB7</div>
+        <div>\u52C7\u6C14: ${Math.floor(Math.random() * 100)}%</div>
+        <div>\u667A\u6167: ${Math.floor(Math.random() * 100)}%</div>
+      </div>
+      <button id="close-crew-detail" style="margin-top:12px;width:100%;padding:8px;background:#1a2540;border:1px solid #2a4060;color:#c0d0e0;border-radius:6px;cursor:pointer;">\u5173\u95ED</button>`;
+    document.body.appendChild(popup);
+    popup.querySelector("#close-crew-detail").addEventListener("click", () => popup.remove());
+  }
+  /** 构建科研实验面板 */
+  initSciencePanel() {
+    const panel = document.getElementById("hud-science-panel");
+    if (!panel) return;
+    panel.innerHTML = `<div class="science-header" id="science-toggle">\u{1F52C} \u79D1\u7814</div>
+      <div class="science-body" id="science-body" style="display:none;">
+        ${this.experiments.map(
+      (e) => `<div class="science-exp ${e.done ? "exp-done" : ""}" data-exp="${e.id}">
+            <span class="exp-name">${e.name}</span>
+            <span class="exp-points">${e.done ? "\u2705" : `+${e.points}\u{1F52C}`}</span>
+          </div>`
+    ).join("")}
+      </div>`;
+    const toggle = panel.querySelector("#science-toggle");
+    if (toggle) {
+      toggle.addEventListener("click", () => {
+        const body = panel.querySelector("#science-body");
+        if (body) body.style.display = body.style.display === "none" ? "block" : "none";
+      });
+    }
+    panel.querySelectorAll(".science-exp").forEach((exp) => {
+      exp.addEventListener("click", () => {
+        const id = exp.dataset.exp;
+        this.runExperiment(id);
+      });
+    });
+  }
+  /** 运行实验 */
+  runExperiment(id) {
+    const exp = this.experiments.find((e) => e.id === id);
+    if (!exp || exp.done) return 0;
+    exp.done = true;
+    this.initSciencePanel();
+    this.showNotification(`\u{1F52C} ${exp.name}\u5B8C\u6210! +${exp.points} \u79D1\u5B66\u70B9`);
+    return exp.points;
+  }
+  /** 重置实验（换生物群系时） */
+  resetExperiments() {
+    for (const e of this.experiments) e.done = false;
+    this.initSciencePanel();
+  }
+  /** 更新KSP风格油门指示器 */
+  updateThrottleIndicator(throttle) {
+    const panel = document.getElementById("hud-throttle-indicator");
+    if (!panel) return;
+    const pct = Math.round(throttle * 100);
+    const color = pct > 80 ? "#ff6644" : pct > 50 ? "#ffaa44" : "#44ff88";
+    const ticks = Array.from({ length: 10 }, (_, i) => {
+      const tickPct = (i + 1) * 10;
+      const active = pct >= tickPct;
+      return `<div class="throttle-tick ${active ? "tick-active" : ""}" style="background:${active ? color : "rgba(30,40,55,0.6)"};"></div>`;
+    }).join("");
+    panel.innerHTML = `<div class="throttle-indicator-panel">
+      <div class="throttle-label" style="color:${color};">${pct}%</div>
+      <div class="throttle-bar">${ticks}</div>
+      <div class="throttle-hint">Shift/Ctrl</div>
+      <div class="throttle-hint2">Z\u6EE1/X\u505C</div>
+    </div>`;
+  }
+  /** 更新水平航向罗盘条 */
+  updateCompassStrip(yaw) {
+    const panel = document.getElementById("hud-compass-strip");
+    if (!panel) return;
+    const yawDeg = (yaw * 180 / Math.PI % 360 + 360) % 360;
+    let html = '<div class="compass-strip-inner">';
+    for (let d = -90; d <= 90; d += 5) {
+      const actualDeg = (yawDeg + d + 360) % 360;
+      let label = "";
+      const isCardinal = actualDeg === 0 || actualDeg === 90 || actualDeg === 180 || actualDeg === 270;
+      const isIntercardinal = actualDeg === 45 || actualDeg === 135 || actualDeg === 225 || actualDeg === 315;
+      if (actualDeg === 0) label = "N";
+      else if (actualDeg === 90) label = "E";
+      else if (actualDeg === 180) label = "S";
+      else if (actualDeg === 270) label = "W";
+      else if (d % 30 === 0) label = `${actualDeg.toFixed(0)}`;
+      const offset = d * 3;
+      const isMajor = isCardinal || isIntercardinal || d % 30 === 0;
+      const tickH = isCardinal ? 14 : isMajor ? 10 : 6;
+      const tickColor = actualDeg === 0 ? "#ff4444" : isCardinal ? "#aaccff" : "#556677";
+      html += `<div class="compass-tick" style="left:calc(50% + ${offset}px);height:${tickH}px;color:${tickColor};">
+        ${label ? `<span class="compass-tick-label">${label}</span>` : ""}
+      </div>`;
+    }
+    html += "</div>";
+    html += '<div class="compass-pointer"></div>';
+    html += `<div class="compass-readout">${yawDeg.toFixed(0)}\xB0</div>`;
+    panel.innerHTML = html;
   }
   /** 显示星图覆盖层 — 选择曲速目标 */
   showStarMap(systems, onSelect) {
@@ -29296,6 +32179,26 @@ var Game = class {
     this.physics = new NBodySystem();
     this.researchBases = [];
     this.warpDrive = new WarpDrive();
+    /** Debris meshes spawned from staging, keyed by debris body name. */
+    this.debrisMeshes = /* @__PURE__ */ new Map();
+    /** Rocket thermal state for reentry heating calculations. */
+    this.rocketThermal = {
+      temperature: 300,
+      emissivity: 0.85,
+      heatingCoeff: 0.2,
+      heatCapacity: 8e3,
+      maxTemperature: 2e3
+    };
+    /** Whether the rocket is currently overheating. */
+    this.isOverheating = false;
+    /** Apoapsis marker for map mode. */
+    this.apoapsisMarker = null;
+    /** Periapsis marker for map mode. */
+    this.periapsisMarker = null;
+    /** Maneuver node delta-v vector { prograde, normal, radial } in m/s. */
+    this.maneuverNode = null;
+    /** Post-burn trajectory line for maneuver node preview. */
+    this.maneuverTrajectoryLine = null;
     this.astronaut = new Astronaut();
     this.bodyMeshes = /* @__PURE__ */ new Map();
     this.bodyGlows = /* @__PURE__ */ new Map();
@@ -29305,7 +32208,7 @@ var Game = class {
     // 游戏状态
     this.gameState = "flight";
     // 相机
-    this.cameraMode = "orbit";
+    this.cameraMode = "auto";
     this.focusName = "Rocket";
     this.cameraTheta = Math.PI / 4;
     this.cameraPhi = Math.PI / 3;
@@ -29412,6 +32315,10 @@ var Game = class {
     this.clock.start();
     this.gameLoop();
   }
+  /** Public flag so UI can read map-mode state (UI references game.isMapMode). */
+  get isMapMode() {
+    return this.cameraMode === "map" || this.gameState === "map";
+  }
   // === 公开API ===
   showHUD() {
     this.gameState = "flight";
@@ -29426,6 +32333,7 @@ var Game = class {
     this.updateGame(dt);
     this.updateMeshes();
     this.updateTrajectory();
+    this.updateManeuverTrajectory();
     this.updateCamera();
     if (this.rocket) {
       this.starChunkManager.update(this.rocket.body.position);
@@ -29601,6 +32509,25 @@ var Game = class {
     const material = new LineBasicMaterial({ color: 65416, transparent: true, opacity: 0.5 });
     this.trajectoryLine = new Line(geometry, material);
     this.scene.add(this.trajectoryLine);
+    const mGeom = new BufferGeometry();
+    const mPositions = new Float32Array(this.TRAJECTORY_STEPS * 3);
+    mGeom.setAttribute("position", new BufferAttribute(mPositions, 3));
+    const mMat = new LineBasicMaterial({ color: 13387007, transparent: true, opacity: 0.6 });
+    this.maneuverTrajectoryLine = new Line(mGeom, mMat);
+    this.maneuverTrajectoryLine.visible = false;
+    this.scene.add(this.maneuverTrajectoryLine);
+    this.apoapsisMarker = new Mesh(
+      new SphereGeometry(1, 8, 8),
+      new MeshBasicMaterial({ color: 4491519 })
+    );
+    this.apoapsisMarker.visible = false;
+    this.scene.add(this.apoapsisMarker);
+    this.periapsisMarker = new Mesh(
+      new SphereGeometry(1, 8, 8),
+      new MeshBasicMaterial({ color: 16746564 })
+    );
+    this.periapsisMarker.visible = false;
+    this.scene.add(this.periapsisMarker);
   }
   setupMarkers() {
     const progGeo = new RingGeometry(0.5, 0.7, 16);
@@ -29616,6 +32543,10 @@ var Game = class {
   }
   updateTrajectory() {
     if (!this.trajectoryLine || !this.rocket) return;
+    this.trajectoryLine.visible = this.isMapMode;
+    if (this.apoapsisMarker) this.apoapsisMarker.visible = false;
+    if (this.periapsisMarker) this.periapsisMarker.visible = false;
+    if (!this.isMapMode) return;
     const positions = this.trajectoryLine.geometry.attributes.position.array;
     const points = NBodySystem.predictTrajectory(
       this.rocket.body.position,
@@ -29626,12 +32557,103 @@ var Game = class {
       this.TRAJECTORY_DT
     );
     for (let i = 0; i < points.length && i < this.TRAJECTORY_STEPS; i++) {
-      positions[i * 3] = points[i].x * DIST_SCALE;
-      positions[i * 3 + 1] = points[i].y * DIST_SCALE;
-      positions[i * 3 + 2] = points[i].z * DIST_SCALE;
+      const rp = this.getSurfaceRenderPosition(points[i]);
+      positions[i * 3] = rp.x;
+      positions[i * 3 + 1] = rp.y;
+      positions[i * 3 + 2] = rp.z;
     }
     this.trajectoryLine.geometry.attributes.position.needsUpdate = true;
     this.trajectoryLine.geometry.setDrawRange(0, points.length);
+    const parent = this.getRocketParentBody();
+    if (parent) {
+      const relPos = this.rocket.body.position.clone().sub(parent.position);
+      const relVel = this.rocket.body.velocity.clone().sub(parent.velocity);
+      const orbit = NBodySystem.computeOrbitalElements(relPos, relVel, parent.mass);
+      if (orbit && orbit.semiMajorAxis > 0 && orbit.eccentricity < 1) {
+        if (this.apoapsisMarker && orbit.apoapsis > 0) {
+          const apPos = this.getSurfaceRenderPosition(
+            NBodySystem.predictPositionAtTime(orbit, parent.position, G * parent.mass, orbit.orbitalPeriod * 0.5)
+          );
+          this.apoapsisMarker.position.copy(apPos);
+          this.apoapsisMarker.visible = true;
+        }
+        if (this.periapsisMarker && orbit.periapsis > 0) {
+          const pePos = this.getSurfaceRenderPosition(
+            NBodySystem.predictPositionAtTime(orbit, parent.position, G * parent.mass, 0)
+          );
+          this.periapsisMarker.position.copy(pePos);
+          this.periapsisMarker.visible = true;
+        }
+      }
+    }
+  }
+  // === Maneuver nodes ===
+  /** Toggle maneuver node creation/clearing in map mode. */
+  toggleManeuverNode() {
+    if (!this.isMapMode || !this.rocket) {
+      this.hud.showNotification("\u673A\u52A8\u8282\u70B9\u9700\u8981\u5728\u5730\u56FE\u6A21\u5F0F\u4E0B\u4F7F\u7528");
+      return;
+    }
+    if (this.maneuverNode) {
+      this.maneuverNode = null;
+      this.hud.clearManeuverMarker();
+      if (this.maneuverTrajectoryLine) this.maneuverTrajectoryLine.visible = false;
+      this.hud.showNotification("\u673A\u52A8\u8282\u70B9\u5DF2\u6E05\u9664");
+    } else {
+      this.maneuverNode = { prograde: 0, normal: 0, radial: 0 };
+      this.hud.setManeuverMarker(0, 0, 0);
+      this.hud.showNotification("\u673A\u52A8\u8282\u70B9\u5DF2\u521B\u5EFA (\u4F7F\u7528UI\u8C03\u6574\u0394v)");
+    }
+  }
+  /** Compute post-burn velocity from maneuver node delta-v. */
+  getPostBurnVelocity() {
+    if (!this.rocket || !this.maneuverNode) return null;
+    const vel = this.rocket.body.velocity.clone();
+    const speed = vel.length();
+    if (speed < 1e-3) return null;
+    const prograde = vel.clone().normalize();
+    const parent = this.getRocketParentBody();
+    if (!parent) return null;
+    const relPos = this.rocket.body.position.clone().sub(parent.position);
+    const angularMomentum = new Vector3().crossVectors(relPos, vel);
+    if (angularMomentum.lengthSq() < 1e-6) return null;
+    const normal = angularMomentum.normalize();
+    const radial = new Vector3().crossVectors(normal, prograde).normalize();
+    vel.addScaledVector(prograde, this.maneuverNode.prograde);
+    vel.addScaledVector(normal, this.maneuverNode.normal);
+    vel.addScaledVector(radial, this.maneuverNode.radial);
+    return vel;
+  }
+  /** Update the post-burn trajectory line based on the maneuver node. */
+  updateManeuverTrajectory() {
+    if (!this.maneuverTrajectoryLine || !this.rocket) return;
+    if (!this.maneuverNode || !this.isMapMode) {
+      this.maneuverTrajectoryLine.visible = false;
+      return;
+    }
+    const postBurnVel = this.getPostBurnVelocity();
+    if (!postBurnVel) {
+      this.maneuverTrajectoryLine.visible = false;
+      return;
+    }
+    this.maneuverTrajectoryLine.visible = true;
+    const positions = this.maneuverTrajectoryLine.geometry.attributes.position.array;
+    const points = NBodySystem.predictTrajectory(
+      this.rocket.body.position.clone(),
+      postBurnVel,
+      this.physics.bodies,
+      this.rocket.parentBody,
+      this.TRAJECTORY_STEPS,
+      this.TRAJECTORY_DT
+    );
+    for (let i = 0; i < points.length && i < this.TRAJECTORY_STEPS; i++) {
+      const rp = this.getSurfaceRenderPosition(points[i]);
+      positions[i * 3] = rp.x;
+      positions[i * 3 + 1] = rp.y;
+      positions[i * 3 + 2] = rp.z;
+    }
+    this.maneuverTrajectoryLine.geometry.attributes.position.needsUpdate = true;
+    this.maneuverTrajectoryLine.geometry.setDrawRange(0, points.length);
   }
   // === 输入处理 ===
   setupInput() {
@@ -29675,33 +32697,57 @@ var Game = class {
         break;
       case " ":
         if (this.rocket) {
+          const prevStage = this.rocket.currentStage;
           this.rocket.stage();
-          this.hud.showNotification("\u5206\u7EA7\u5206\u79BB\uFF01");
+          if (this.rocket.currentStage !== prevStage) {
+            this.hud.showNotification(`\u5206\u7EA7\u5206\u79BB\uFF01 \u2192 \u7B2C ${this.rocket.currentStage + 1} \u7EA7`);
+            for (const d of this.rocket.debris) {
+              if (!this.debrisMeshes.has(d.label)) {
+                const mesh = new Mesh(
+                  new CylinderGeometry(0.3, 0.5, 1.5, 6),
+                  new MeshBasicMaterial({ color: 8947848 })
+                );
+                const rp = this.getSurfaceRenderPosition(d.body.position);
+                mesh.position.copy(rp);
+                this.scene.add(mesh);
+                this.debrisMeshes.set(d.label, mesh);
+              }
+            }
+          } else {
+            this.hud.showNotification("\u5DF2\u662F\u6700\u540E\u4E00\u7EA7");
+          }
         }
         break;
       case "t":
         if (this.rocket) {
           this.rocket.toggleSAS();
           this.hud.showNotification(`SAS ${this.rocket.sasEnabled ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+          this.hud.toggleActionGroup("sas");
         }
         break;
       case "r":
         if (this.rocket) {
           this.rocket.toggleRCS();
           this.hud.showNotification(`RCS ${this.rocket.rcsEnabled ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+          this.hud.toggleActionGroup("rcs");
         }
         break;
       case "g":
         if (this.rocket) {
           this.rocket.toggleGear();
           this.hud.showNotification(`\u8D77\u843D\u67B6 ${this.rocket.gearDown ? "\u653E\u4E0B" : "\u6536\u8D77"}`);
+          this.hud.toggleActionGroup("gear");
+        }
+        break;
+      case "u":
+        if (this.rocket) {
+          this.rocket.toggleLights();
+          this.hud.showNotification(`\u706F\u5149 ${this.rocket.lightsOn ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+          this.hud.toggleActionGroup("lights");
         }
         break;
       case "x":
-        if (this.rocket) {
-          this.rocket.setThrottle(0);
-          this.hud.showNotification("\u6CB9\u95E8\u5207\u65AD");
-        }
+        this.runScienceExperiment();
         break;
       case "z":
         if (this.rocket) {
@@ -29712,12 +32758,24 @@ var Game = class {
       case "m":
         this.toggleMapView();
         break;
+      case "n":
+        this.toggleManeuverNode();
+        break;
+      case "p":
+        this.toggleParachutes();
+        break;
+      case "e":
+        this.toggleEVA();
+        break;
       case "f":
         this.focusName = "Rocket";
         this.hud.showNotification("\u8DDF\u968F\u706B\u7BAD");
         break;
       case "c":
         this.cycleCameraMode();
+        break;
+      case "v":
+        this.toggleMapCameraMode();
         break;
       case "b":
         this.deployResearchBase();
@@ -29731,6 +32789,12 @@ var Game = class {
       case "f2":
         this.toggleHUD();
         break;
+      case "f5":
+        this.quickSave();
+        break;
+      case "f9":
+        this.quickLoad();
+        break;
       case "tab":
         this.hud.showNotification("\u5F53\u524D\u53EA\u6709\u4E00\u4E2A\u98DE\u884C\u5668");
         break;
@@ -29740,14 +32804,36 @@ var Game = class {
       case ".":
         this.increaseTimeWarp();
         break;
+      default:
+        if (key >= "0" && key <= "9") {
+          this.hud.triggerActionGroupByKey(key);
+        }
+        break;
     }
   }
   cycleCameraMode() {
-    const modes = ["orbit", "chase", "free"];
+    const modes = ["auto", "chase", "free", "locked", "map"];
     const idx = modes.indexOf(this.cameraMode);
     this.cameraMode = modes[(idx + 1) % modes.length];
-    const names = { orbit: "\u8F68\u9053", chase: "\u8DDF\u968F", free: "\u81EA\u7531" };
+    const names = { auto: "\u8DDF\u968F", chase: "\u8FFD\u51FB", free: "\u81EA\u7531", locked: "\u9501\u5B9A", map: "\u5730\u56FE" };
     this.hud.showNotification(`\u76F8\u673A\u6A21\u5F0F: ${names[this.cameraMode]}`);
+    if (this.cameraMode === "map") {
+      this.gameState = "map";
+    } else if (this.gameState === "map") {
+      this.gameState = "flight";
+    }
+  }
+  /** Toggle between map camera mode and the previous non-map mode. */
+  toggleMapCameraMode() {
+    if (this.cameraMode === "map") {
+      this.cameraMode = "auto";
+      if (this.gameState === "map") this.gameState = "flight";
+      this.hud.showNotification("\u98DE\u884C\u89C6\u56FE");
+    } else {
+      this.cameraMode = "map";
+      this.gameState = "map";
+      this.hud.showNotification("\u5730\u56FE\u89C6\u56FE");
+    }
   }
   toggleMapView() {
     if (this.gameState === "map") {
@@ -29768,30 +32854,45 @@ var Game = class {
     if (!this.rocket) return TIME_WARP_LEVELS.length - 1;
     let nearestBody = null;
     let nearestDist = Infinity;
+    let secondNearestDist = Infinity;
     for (const body of this.physics.bodies) {
       if (body.name === "\u706B\u7BAD" || body.name === "Rocket") continue;
       const bd = [...SOLAR_SYSTEM, ...TRISOLARIS_SYSTEM].find((d) => d.name === body.name);
       if (bd && bd.type === "star") continue;
       const dist = body.position.distanceTo(this.rocket.body.position);
       if (dist < nearestDist) {
+        secondNearestDist = nearestDist;
         nearestDist = dist;
         nearestBody = body;
+      } else if (dist < secondNearestDist) {
+        secondNearestDist = dist;
       }
     }
     if (!nearestBody) return TIME_WARP_LEVELS.length - 1;
     const altitude = nearestDist - nearestBody.radius;
     const bodyData = [...SOLAR_SYSTEM, ...TRISOLARIS_SYSTEM].find((d) => d.name === nearestBody.name);
     const hasAtmosphere = bodyData?.hasAtmosphere ?? false;
-    const atmosphereHeight = hasAtmosphere ? nearestBody.radius * 0.1 : 0;
+    const atmData = this.physics.getAtmosphere(nearestBody.name);
+    const atmosphereHeight = atmData ? atmData.atmosphereHeight : hasAtmosphere ? nearestBody.radius * 0.1 : 0;
     const inAtmosphere = altitude < atmosphereHeight;
     const engineFiring = this.rocket.throttle > 0 && this.rocket.fuelMass > 0;
     const relVel = this.rocket.body.velocity.clone().sub(nearestBody.velocity);
     const surfaceSpeed = relVel.length();
     const landedAndMoving = this.rocket.isLanded && surfaceSpeed > 50;
-    if (engineFiring || inAtmosphere || landedAndMoving) {
+    const soiBoundary = secondNearestDist < nearestDist * 1.5 && altitude < nearestBody.radius * 5;
+    const maneuverActive = this.maneuverNode !== null && (Math.abs(this.maneuverNode.prograde) > 0.1 || Math.abs(this.maneuverNode.normal) > 0.1 || Math.abs(this.maneuverNode.radial) > 0.1);
+    if (engineFiring || inAtmosphere || landedAndMoving || maneuverActive) {
       let maxIdx = 0;
       for (let i = 0; i < TIME_WARP_LEVELS.length; i++) {
         if (TIME_WARP_LEVELS[i] <= 4) maxIdx = i;
+        else break;
+      }
+      return maxIdx;
+    }
+    if (soiBoundary) {
+      let maxIdx = 0;
+      for (let i = 0; i < TIME_WARP_LEVELS.length; i++) {
+        if (TIME_WARP_LEVELS[i] <= 50) maxIdx = i;
         else break;
       }
       return maxIdx;
@@ -30122,6 +33223,16 @@ ${ach.description}`, 8e3);
   // === 连续输入处理（每帧调用）===
   handleContinuousInput(dt, simDt) {
     if (!this.rocket) return;
+    if (this.astronaut.isActive) {
+      const throttleRate2 = 0.5;
+      if (this.heldKeys.has("shift")) {
+        this.rocket.adjustThrottle(throttleRate2 * dt, dt);
+      }
+      if (this.heldKeys.has("control")) {
+        this.rocket.adjustThrottle(-throttleRate2 * dt, dt);
+      }
+      return;
+    }
     const throttleRate = 0.5;
     if (this.heldKeys.has("shift")) {
       this.rocket.adjustThrottle(throttleRate * dt, dt);
@@ -30251,9 +33362,15 @@ ${ach.description}`, 8e3);
     this.camera.updateProjectionMatrix();
   }
   updateCamera() {
-    if (this.gameState === "map") {
+    if (this.cameraMode === "map" || this.gameState === "map") {
       const sun = this.physics.getBody("Sun");
       const targetPos2 = sun ? new Vector3(sun.position.x * DIST_SCALE, sun.position.y * DIST_SCALE, sun.position.z * DIST_SCALE) : new Vector3();
+      if (this.rocket) {
+        const parent = this.getRocketParentBody();
+        if (parent) {
+          targetPos2.set(parent.position.x * DIST_SCALE, parent.position.y * DIST_SCALE, parent.position.z * DIST_SCALE);
+        }
+      }
       this.camera.position.lerp(new Vector3(targetPos2.x, targetPos2.y + 5e3, targetPos2.z + 1e3), 0.1);
       this.camera.up.set(0, 1, 0);
       this.camera.lookAt(targetPos2);
@@ -30272,7 +33389,7 @@ ${ach.description}`, 8e3);
       targetPos = new Vector3(body.position.x * DIST_SCALE, body.position.y * DIST_SCALE, body.position.z * DIST_SCALE);
     }
     switch (this.cameraMode) {
-      case "orbit":
+      case "auto":
         this.updateOrbitCamera(targetPos);
         break;
       case "chase":
@@ -30280,6 +33397,12 @@ ${ach.description}`, 8e3);
         break;
       case "free":
         this.updateFreeCamera(targetPos);
+        break;
+      case "locked":
+        this.updateLockedCamera(targetPos);
+        break;
+      case "map":
+        this.updateMapCamera(targetPos);
         break;
     }
     this.updateMarkers();
@@ -30326,6 +33449,51 @@ ${ach.description}`, 8e3);
     this.camera.lookAt(this.cameraTargetPos);
     this.updateCameraClip();
   }
+  /** Locked camera — first-person-ish, fixed to rocket orientation. */
+  updateLockedCamera(targetPos) {
+    if (!this.rocket) {
+      this.updateOrbitCamera(targetPos);
+      return;
+    }
+    this.cameraTargetPos.lerp(targetPos, 0.2);
+    this.camera.position.copy(this.cameraTargetPos);
+    const forward = new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation);
+    const up = new Vector3(0, 0, -1).applyQuaternion(this.rocket.orientation);
+    this.camera.up.copy(up);
+    this.camera.lookAt(this.cameraTargetPos.clone().add(forward));
+    this.camera.near = 0.01;
+    this.camera.far = 1e7;
+    this.camera.updateProjectionMatrix();
+  }
+  /** Map camera — top-down view showing orbits and trajectories. */
+  updateMapCamera(targetPos) {
+    this.cameraTargetPos.lerp(targetPos, 0.05);
+    const mapHeight = Math.max(this.cameraDistance * 3, 1e3);
+    const camPos = new Vector3(this.cameraTargetPos.x, this.cameraTargetPos.y + mapHeight, this.cameraTargetPos.z + mapHeight * 0.3);
+    this.camera.position.lerp(camPos, 0.1);
+    this.camera.up.set(0, 0, -1);
+    this.camera.lookAt(this.cameraTargetPos);
+    this.camera.near = 1;
+    this.camera.far = 1e7;
+    this.camera.updateProjectionMatrix();
+  }
+  /** Find the nearest non-star body to the rocket (its "parent" / SOI body). */
+  getRocketParentBody() {
+    if (!this.rocket) return null;
+    let nearest = null;
+    let nd = Infinity;
+    for (const b of this.physics.bodies) {
+      if (b.name === "\u706B\u7BAD" || b.name === "Rocket") continue;
+      const bodyData = [...SOLAR_SYSTEM, ...TRISOLARIS_SYSTEM].find((d2) => d2.name === b.name);
+      if (bodyData && bodyData.type === "star") continue;
+      const d = b.position.distanceTo(this.rocket.body.position);
+      if (d < nd) {
+        nd = d;
+        nearest = b;
+      }
+    }
+    return nearest;
+  }
   updateMarkers() {
     if (!this.rocket || !this.progradeMarker || !this.retrogradeMarker) return;
     const rocketPos = this.getSurfaceRenderPosition(this.rocket.body.position);
@@ -30344,6 +33512,337 @@ ${ach.description}`, 8e3);
       this.progradeMarker.visible = false;
       this.retrogradeMarker.visible = false;
     }
+  }
+  // === Atmospheric drag ===
+  /** Apply atmospheric drag to the rocket when inside a body's atmosphere. */
+  applyAtmosphericDrag(dt) {
+    if (!this.rocket) return;
+    const parent = this.getRocketParentBody();
+    if (!parent) return;
+    const atm = this.physics.getAtmosphere(parent.name);
+    if (!atm) return;
+    const aero = {
+      dragCoefficient: this.rocket.dragCoefficient,
+      referenceArea: this.rocket.referenceArea,
+      liftCoefficient: this.rocket.liftCoefficient
+    };
+    const dragAccel = this.physics.computeDragAcceleration(
+      this.rocket.body,
+      parent.name,
+      aero,
+      parent.position
+    );
+    if (dragAccel.lengthSq() > 0) {
+      this.rocket.body.velocity.addScaledVector(dragAccel, dt);
+    }
+    if (this.rocket.liftCoefficient > 0) {
+      const noseDir = new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation);
+      const liftAccel = this.physics.computeLiftAcceleration(
+        this.rocket.body,
+        aero,
+        noseDir,
+        parent.name,
+        parent.position
+      );
+      if (liftAccel.lengthSq() > 0) {
+        this.rocket.body.velocity.addScaledVector(liftAccel, dt);
+      }
+    }
+  }
+  // === Reentry heating ===
+  /** Update rocket skin temperature from atmospheric heating. */
+  updateReentryHeating(dt) {
+    if (!this.rocket) return;
+    const parent = this.getRocketParentBody();
+    if (!parent) return;
+    const atm = this.physics.getAtmosphere(parent.name);
+    if (!atm) {
+      if (this.rocketThermal.temperature > 300) {
+        this.rocketThermal.temperature = Math.max(300, this.rocketThermal.temperature - 50 * dt);
+      }
+      this.rocket.skinTemperature = this.rocketThermal.temperature;
+      this.isOverheating = false;
+      return;
+    }
+    const aero = {
+      dragCoefficient: this.rocket.dragCoefficient,
+      referenceArea: this.rocket.referenceArea,
+      liftCoefficient: this.rocket.liftCoefficient
+    };
+    this.physics.updateTemperature(this.rocketThermal, aero, this.rocket.body, parent.name, parent.position, dt);
+    this.rocket.skinTemperature = this.rocketThermal.temperature;
+    const wasOverheating = this.isOverheating;
+    this.isOverheating = NBodySystem.isOverheating(this.rocketThermal);
+    if (this.isOverheating && !wasOverheating) {
+      this.hud.showNotification("\u26A0\uFE0F \u8FC7\u70ED\u8B66\u544A\uFF01\u6E29\u5EA6\u8D85\u6807\uFF01", 4e3);
+    }
+  }
+  // === Parachutes ===
+  /** Toggle parachute arming. */
+  toggleParachutes() {
+    if (!this.rocket) return;
+    if (this.rocket.parachutes.length === 0) {
+      this.hud.showNotification("\u65E0\u964D\u843D\u4F1E\u53EF\u7528");
+      return;
+    }
+    if (this.rocket["_chutesArmed"]) {
+      this.rocket.cutParachutes();
+      this.hud.showNotification("\u964D\u843D\u4F1E\u5DF2\u5207\u65AD");
+    } else {
+      this.rocket.deployParachutes();
+      this.hud.showNotification("\u964D\u843D\u4F1E\u5DF2\u90E8\u7F72\uFF08\u7B49\u5F85\u5927\u6C14\u5C42\uFF09");
+    }
+  }
+  /** Update parachute physics when in atmosphere. */
+  updateParachutePhysics(dt) {
+    if (!this.rocket) return;
+    const parent = this.getRocketParentBody();
+    if (!parent) return;
+    const atm = this.physics.getAtmosphere(parent.name);
+    if (!atm) return;
+    const altitude = this.rocket.body.position.distanceTo(parent.position) - parent.radius;
+    if (altitude < 0 || altitude > atm.atmosphereHeight) return;
+    const rho = this.physics.atmosphericDensity(parent.name, altitude);
+    if (rho <= 0) return;
+    const pressure = rho * 287 * 250;
+    const chuteDrag = this.rocket.updateParachutes(dt, pressure, rho);
+    if (chuteDrag.lengthSq() > 0) {
+      this.rocket.body.velocity.addScaledVector(chuteDrag, dt);
+    }
+  }
+  // === Landing gear physics ===
+  /** Apply landing gear ground contact forces when near surface. */
+  updateLandingGearPhysics(dt) {
+    if (!this.rocket || !this.rocket.gearDown || this.rocket.landingGear.length === 0) return;
+    const parent = this.getRocketParentBody();
+    if (!parent) return;
+    const dist = this.rocket.body.position.distanceTo(parent.position);
+    const altitude = dist - parent.radius;
+    if (altitude > 100 || altitude < -10) return;
+    const bodyUp = this.rocket.body.position.clone().sub(parent.position).normalize();
+    const groundHeight = parent.radius;
+    const relVel = this.rocket.body.velocity.clone().sub(parent.velocity);
+    const contactForce = this.rocket.resolveLandingGear(dt, groundHeight, bodyUp, relVel);
+    if (contactForce.lengthSq() > 0) {
+      const accel = contactForce.multiplyScalar(1 / Math.max(this.rocket.totalMass, 1));
+      this.rocket.body.velocity.addScaledVector(accel, dt);
+    }
+  }
+  // === EVA ===
+  /** Toggle astronaut EVA deployment. */
+  toggleEVA() {
+    if (!this.rocket) return;
+    if (this.astronaut.isActive) {
+      this.astronaut.isActive = false;
+      this.scene.remove(this.astronaut.group);
+      this.hud.showNotification("EVA\u7ED3\u675F\uFF0C\u5B87\u822A\u5458\u5DF2\u8FD4\u56DE");
+    } else {
+      const offset = new Vector3(2, 0, 0).applyQuaternion(this.rocket.orientation);
+      const deployPos = this.rocket.body.position.clone().add(offset);
+      this.astronaut.deploy(deployPos);
+      this.astronaut.velocity.copy(this.rocket.body.velocity);
+      this.scene.add(this.astronaut.group);
+      this.hud.showNotification("EVA\u90E8\u7F72\uFF01\u4F7F\u7528WASD\u79FB\u52A8\uFF0CQ/E\u4E0A\u4E0B");
+      if (!this.unlockedAchievements.has("eva_spacewalk") && !this.rocket.isLanded) {
+        this.unlockAchievement("eva_spacewalk");
+      }
+    }
+  }
+  /** Update EVA astronaut physics and controls. */
+  updateEVA(dt) {
+    if (!this.astronaut.isActive) return;
+    const parent = this.getRocketParentBody();
+    if (parent) {
+      const dir = parent.position.clone().sub(this.astronaut.position);
+      const dist = dir.length();
+      if (dist > 1) {
+        const g = 6674e-14 * parent.mass / (dist * dist);
+        this.astronaut.velocity.addScaledVector(dir.normalize(), g * dt);
+      }
+    }
+    const rcsForce = 2;
+    const forward = new Vector3(0, 0, -1);
+    const right = new Vector3(1, 0, 0);
+    const up = new Vector3(0, 1, 0);
+    if (this.heldKeys.has("w")) this.astronaut.velocity.addScaledVector(forward, rcsForce * dt);
+    if (this.heldKeys.has("s")) this.astronaut.velocity.addScaledVector(forward, -rcsForce * dt);
+    if (this.heldKeys.has("d")) this.astronaut.velocity.addScaledVector(right, rcsForce * dt);
+    if (this.heldKeys.has("a")) this.astronaut.velocity.addScaledVector(right, -rcsForce * dt);
+    if (this.heldKeys.has("q")) this.astronaut.velocity.addScaledVector(up, -rcsForce * dt);
+    if (this.heldKeys.has("r")) this.astronaut.velocity.addScaledVector(up, rcsForce * dt);
+    this.astronaut.velocity.multiplyScalar(1 - 0.5 * dt);
+    this.astronaut.update(dt);
+    const rp = this.getSurfaceRenderPosition(this.astronaut.position);
+    this.astronaut.group.position.copy(rp);
+  }
+  // === Quick save/load ===
+  /** Save game state to localStorage. */
+  quickSave() {
+    if (!this.rocket) return;
+    try {
+      const state = {
+        position: { x: this.rocket.body.position.x, y: this.rocket.body.position.y, z: this.rocket.body.position.z },
+        velocity: { x: this.rocket.body.velocity.x, y: this.rocket.body.velocity.y, z: this.rocket.body.velocity.z },
+        orientation: { x: this.rocket.orientation.x, y: this.rocket.orientation.y, z: this.rocket.orientation.z, w: this.rocket.orientation.w },
+        fuelMass: this.rocket.fuelMass,
+        maxFuel: this.rocket.maxFuel,
+        throttle: this.rocket.throttle,
+        currentStage: this.rocket.currentStage,
+        gameTime: this.gameTime,
+        sciencePoints: this.sciencePoints,
+        achievements: Array.from(this.unlockedAchievements),
+        isLanded: this.rocket.isLanded,
+        parentBody: this.rocket.parentBody,
+        gearDown: this.rocket.gearDown,
+        sasEnabled: this.rocket.sasEnabled,
+        rcsEnabled: this.rocket.rcsEnabled,
+        lightsOn: this.rocket.lightsOn,
+        skinTemperature: this.rocket.skinTemperature
+      };
+      localStorage.setItem("ksp_quicksave", JSON.stringify(state));
+      this.hud.showNotification("\u2705 \u5FEB\u901F\u4FDD\u5B58\u6210\u529F", 2e3);
+    } catch (e) {
+      this.hud.showNotification("\u274C \u4FDD\u5B58\u5931\u8D25", 2e3);
+    }
+  }
+  /** Load game state from localStorage. */
+  quickLoad() {
+    if (!this.rocket) return;
+    try {
+      const raw = localStorage.getItem("ksp_quicksave");
+      if (!raw) {
+        this.hud.showNotification("\u274C \u65E0\u5B58\u6863", 2e3);
+        return;
+      }
+      const state = JSON.parse(raw);
+      this.rocket.body.position.set(state.position.x, state.position.y, state.position.z);
+      this.rocket.body.velocity.set(state.velocity.x, state.velocity.y, state.velocity.z);
+      this.rocket.orientation.set(state.orientation.x, state.orientation.y, state.orientation.z, state.orientation.w);
+      this.rocket.fuelMass = state.fuelMass;
+      this.rocket.maxFuel = state.maxFuel;
+      this.rocket.setThrottle(state.throttle);
+      this.rocket.currentStage = state.currentStage;
+      this.gameTime = state.gameTime;
+      this.sciencePoints = state.sciencePoints;
+      this.rocket.isLanded = state.isLanded;
+      this.rocket.parentBody = state.parentBody;
+      this.rocket.gearDown = state.gearDown;
+      this.rocket.sasEnabled = state.sasEnabled;
+      this.rocket.rcsEnabled = state.rcsEnabled;
+      this.rocket.lightsOn = state.lightsOn;
+      this.rocket.skinTemperature = state.skinTemperature || 300;
+      this.unlockedAchievements = new Set(state.achievements || []);
+      this.hud.showNotification("\u2705 \u5FEB\u901F\u8BFB\u53D6\u6210\u529F", 2e3);
+    } catch (e) {
+      this.hud.showNotification("\u274C \u8BFB\u53D6\u5931\u8D25", 2e3);
+    }
+  }
+  // === Science experiments ===
+  /** Run the next available science experiment, awarding points based on location. */
+  runScienceExperiment() {
+    if (!this.rocket) return;
+    const parent = this.getRocketParentBody();
+    let location2 = "\u592A\u7A7A";
+    let bonus = 1;
+    if (parent) {
+      const altitude = this.rocket.body.position.distanceTo(parent.position) - parent.radius;
+      const atm = this.physics.getAtmosphere(parent.name);
+      if (this.rocket.isLanded) {
+        location2 = `${parent.name}\u8868\u9762`;
+        bonus = 1.5;
+      } else if (atm && altitude < atm.atmosphereHeight) {
+        location2 = `${parent.name}\u5927\u6C14\u5C42`;
+        bonus = 1.2;
+      } else if (altitude < parent.radius * 0.5) {
+        location2 = `${parent.name}\u8FD1\u7A7A`;
+        bonus = 1.1;
+      } else {
+        location2 = `${parent.name}\u8F68\u9053`;
+        bonus = 1;
+      }
+    }
+    const experiments = this.hud.experiments;
+    if (experiments) {
+      const next = experiments.find((e) => !e.done);
+      if (next) {
+        const points = Math.round(next.points * bonus);
+        this.sciencePoints += points;
+        this.hud.runExperiment(next.id);
+        this.hud.showNotification(`\u{1F52C} ${next.name} @ ${location2} +${points}\u79D1\u5B66\u70B9`);
+      } else {
+        this.hud.showNotification("\u6240\u6709\u5B9E\u9A8C\u5DF2\u5B8C\u6210\uFF01");
+      }
+    } else {
+      const points = Math.round(10 * bonus);
+      this.sciencePoints += points;
+      this.hud.showNotification(`\u{1F52C} \u79D1\u5B66\u6570\u636E\u6536\u96C6 @ ${location2} +${points}\u79D1\u5B66\u70B9`);
+    }
+  }
+  // === Resource management ===
+  /** Update rocket resources each frame and alert when low. */
+  updateRocketResources(dt) {
+    if (!this.rocket) return;
+    const parent = this.getRocketParentBody();
+    const inAtm = parent ? this.physics.getAtmosphere(parent.name) !== void 0 : false;
+    const sun = this.physics.getBody("Sun");
+    let sunlightFactor = 1;
+    if (sun && parent) {
+      const rocketToSun = this.rocket.body.position.clone().sub(sun.position);
+      const parentToSun = parent.position.clone().sub(sun.position);
+      const distToSun = rocketToSun.length();
+      const parentRadius = parent.radius;
+      if (distToSun < parentToSun.length() && parentToSun.angleTo(rocketToSun) < 0.3) {
+        sunlightFactor = 0;
+      }
+    }
+    this.rocket.updateResources(dt, inAtm, sunlightFactor);
+    const ec = this.rocket.resources.get("electricCharge");
+    if (ec && ec.max > 0 && ec.current / ec.max < 0.1) {
+      this.hud.triggerAlert("low-ec", "\u7535\u529B\u4E0D\u8DB3", "warn");
+    } else {
+      this.hud.clearAlert("low-ec");
+    }
+    const monoprop = this.rocket.resources.get("monopropellant");
+    if (monoprop && monoprop.max > 0 && monoprop.current / monoprop.max < 0.15) {
+      this.hud.triggerAlert("low-monoprop", "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u4E0D\u8DB3", "warn");
+    } else {
+      this.hud.clearAlert("low-monoprop");
+    }
+  }
+  // === Debris management ===
+  /** Update debris positions and clean up expired debris bodies + meshes. */
+  updateDebris(dt) {
+    if (!this.rocket) return;
+    const surviving = [];
+    for (const d of this.rocket.debris) {
+      const shouldCull = d.update(dt);
+      if (shouldCull) {
+        const mesh = this.debrisMeshes.get(d.label);
+        if (mesh) {
+          this.scene.remove(mesh);
+          mesh.geometry.dispose();
+          mesh.material.dispose();
+          this.debrisMeshes.delete(d.label);
+        }
+      } else {
+        const parent = this.getRocketParentBody();
+        if (parent) {
+          const dir = parent.position.clone().sub(d.body.position);
+          const dist = dir.length();
+          if (dist > 1) {
+            const g = 6674e-14 * parent.mass / (dist * dist);
+            d.body.velocity.addScaledVector(dir.normalize(), g * dt);
+          }
+        }
+        d.body.position.addScaledVector(d.body.velocity, dt);
+        const mesh = this.debrisMeshes.get(d.label);
+        if (mesh) {
+          mesh.position.copy(this.getSurfaceRenderPosition(d.body.position));
+        }
+        surviving.push(d);
+      }
+    }
+    this.rocket.debris = surviving;
   }
   // === 着陆检测 ===
   checkLanding() {
@@ -30405,10 +33904,17 @@ ${ach.description}`, 8e3);
     if (this.rocket && this.rocket.throttle > 0 && this.rocket.fuelMass > 0) {
       this.rocket.applyThrust(simDt);
     }
+    this.applyAtmosphericDrag(simDt);
+    this.updateReentryHeating(simDt);
+    this.updateRocketResources(simDt);
+    this.updateParachutePhysics(simDt);
+    this.updateLandingGearPhysics(simDt);
+    this.updateEVA(simDt);
     this.physics.stepWithWarp(this.timeWarp.currentWarp);
     this.checkLanding();
     this.checkAchievements();
     this.enforceTimeWarpLimit();
+    this.updateDebris(simDt);
     if (this.warpDrive.isActive) {
       const arrived = this.warpDrive.update(simDt);
       if (this.warpDrive.isActive) {
@@ -30508,6 +34014,33 @@ ${ach.description}`, 8e3);
     this.hud.update(data);
     this.hud.updateNavball(this.rocket.orientation, this.rocket.body.velocity);
     this.hud.updateStarCount(this.starChunkManager.getLoadedStarCount());
+    this.hud.updateThrottleIndicator(this.rocket.throttle);
+    this.hud.checkAlerts(data);
+    if (this.isOverheating) {
+      this.hud.triggerAlert("overheating", `\u26A0\uFE0F \u8FC7\u70ED! ${this.rocket.skinTemperature.toFixed(0)}K`, "danger");
+    } else {
+      this.hud.clearAlert("overheating");
+    }
+    const ec = this.rocket.resources.get("electricCharge");
+    const mp = this.rocket.resources.get("monopropellant");
+    if (ec || mp) {
+      this.hud.updateResources({
+        liquidFuel: this.rocket.fuelMass / 2,
+        oxidizer: this.rocket.fuelMass / 2,
+        electricCharge: ec?.current || 0,
+        monoPropellant: mp?.current || 0,
+        intakeAir: this.rocket.resources.get("intakeAir")?.current || 0,
+        solidFuel: this.rocket.resources.get("solidFuel")?.current || 0,
+        warpFuel: this.warpDrive.fuel,
+        maxLF: this.rocket.maxFuel / 2,
+        maxOX: this.rocket.maxFuel / 2,
+        maxEC: ec?.max || 100,
+        maxMP: mp?.max || 0,
+        maxIA: this.rocket.resources.get("intakeAir")?.max || 100,
+        maxSF: this.rocket.resources.get("solidFuel")?.max || 0,
+        maxWF: this.warpDrive.maxFuel
+      });
+    }
   }
   // === Bloom 后处理 ===
   /** 初始化渲染目标、着色器材质与全屏 quad */
