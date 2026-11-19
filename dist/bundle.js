@@ -22587,9 +22587,8 @@ var SOLAR_SYSTEM = [
   { name: "Ceres", nameCN: "\u8C37\u795E\u661F", type: "dwarf", mass: 93835e16, radius: 473e3, parent: "Sun", semiMajorAxis: 41371e7, eccentricity: 0.0758, inclination: 0.1947, longitudeOfAscendingNode: 5.385, argumentOfPeriapsis: 1.386, meanAnomalyAtEpoch: 4.5, orbitalPeriod: 14556e4, rotationPeriod: 32663, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.09 }
 ];
 var STAR_SYSTEMS = [
-  { name: "Proxima Centauri", nameCN: "\u6BD4\u90BB\u661F", distance: 4.242, ra: 2.5084, dec: -0.8493, starType: "M5.5Ve", mass: 2446e26, radius: 1542e5, temperature: 3042, color: 16729122, planets: 3 },
-  { name: "Alpha Centauri A", nameCN: "\u534A\u4EBA\u9A6C\u5EA7\u03B1\u661FA", distance: 4.367, ra: 3.7462, dec: -1.0403, starType: "G2V", mass: 2145e27, radius: 8511e5, temperature: 5790, color: 16772812, planets: 1 },
-  { name: "Alpha Centauri B", nameCN: "\u534A\u4EBA\u9A6C\u5EA7\u03B1\u661FB", distance: 4.367, ra: 3.7462, dec: -1.0403, starType: "K1V", mass: 1808e27, radius: 6025e5, temperature: 5260, color: 16768426, planets: 0 },
+  // ★ 三体星系 — 致敬《三体》：三颗恒星的混沌系统
+  { name: "Trisolaris System", nameCN: "\u4E09\u4F53\u661F\u7CFB", distance: 4.242, ra: 3.7462, dec: -1.0403, starType: "G2V+K1V+M5.5", mass: 4198e27, radius: 8511e5, temperature: 5790, color: 16772812, planets: 1 },
   { name: "Barnard's Star", nameCN: "\u5DF4\u7EB3\u5FB7\u661F", distance: 5.963, ra: 2.7413, dec: 0.077, starType: "M4Ve", mass: 2864e26, radius: 1905e5, temperature: 3134, color: 16724770, planets: 4 },
   { name: "Wolf 359", nameCN: "\u6C83\u5C14\u592B359", distance: 7.86, ra: 2.882, dec: 0.1089, starType: "M6V", mass: 179e27, radius: 1443e5, temperature: 2800, color: 16720401, planets: 2 },
   { name: "Lalande 21185", nameCN: "\u62C9\u5170\u5FB721185", distance: 8.31, ra: 2.6305, dec: 0.6158, starType: "M2V", mass: 7757e26, radius: 3957e5, temperature: 3601, color: 16733491, planets: 2 },
@@ -22610,6 +22609,25 @@ var STAR_SYSTEMS = [
   { name: "Groombridge 34 A", nameCN: "\u683C\u9C81\u59C6\u5E03\u91CC\u594734 A", distance: 11.62, ra: 0.3545, dec: 0.7536, starType: "M1.5V", mass: 8155e26, radius: 4032e5, temperature: 3600, color: 16729139, planets: 1 },
   { name: "Tau Ceti", nameCN: "\u9CB8\u9C7C\u5EA7\u03C4\u661F", distance: 11.75, ra: 0.3664, dec: -0.2767, starType: "G8V", mass: 1511e27, radius: 6909e5, temperature: 5344, color: 16768426, planets: 4 },
   { name: "Epsilon Indi", nameCN: "\u5370\u7B2C\u5B89\u5EA7\u03B5\u661F", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 }
+];
+var TRISOLARIS_SYSTEM = [
+  // 三体星A — 主序G型恒星（类似太阳）
+  { name: "Trisolaris_A", nameCN: "\u4E09\u4F53\u661F\u7532", type: "star", mass: 2145e27, radius: 8511e5, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16772812, color2: 16768426, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126 },
+  // 三体星B — K型橙矮星，与甲星互绕
+  { name: "Trisolaris_B", nameCN: "\u4E09\u4F53\u661F\u4E59", type: "star", mass: 1808e27, radius: 6025e5, parent: "Trisolaris_A", semiMajorAxis: 35e9, eccentricity: 0.52, inclination: 0.12, longitudeOfAscendingNode: 0.8, argumentOfPeriapsis: 1.2, meanAnomalyAtEpoch: 0.5, orbitalPeriod: 215e5, rotationPeriod: 35e5, color: 16768426, color2: 16764040, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.08 },
+  // 三体星C — M型红矮星（比邻星），远轨道运行
+  { name: "Trisolaris_C", nameCN: "\u4E09\u4F53\u661F\u4E19", type: "star", mass: 2446e26, radius: 1542e5, parent: "Trisolaris_A", semiMajorAxis: 12e10, eccentricity: 0.68, inclination: 0.35, longitudeOfAscendingNode: 2.1, argumentOfPeriapsis: 3.5, meanAnomalyAtEpoch: 2, orbitalPeriod: 88e6, rotationPeriod: 1e7, color: 16729122, color2: 13378065, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.15 },
+  // 三体行星 — 致敬《三体》中的三体世界
+  // 极端环境：乱纪元高温炙烤，恒纪元勉强宜居；表面遍布荒漠与巨石
+  { name: "Trisolaris", nameCN: "\u4E09\u4F53\u884C\u661F", type: "planet", mass: 45e23, radius: 58e5, parent: "Trisolaris_A", semiMajorAxis: 11e9, eccentricity: 0.35, inclination: 0.08, longitudeOfAscendingNode: 1.5, argumentOfPeriapsis: 0.9, meanAnomalyAtEpoch: 1.8, orbitalPeriod: 12e6, rotationPeriod: 14e4, color: 11167283, color2: 8930338, hasAtmosphere: true, hasRings: false, textureType: "trisolaris", albedo: 0.18, axialTilt: 0.02 }
+];
+var ACHIEVEMENTS = [
+  { id: "reverse_colonization", name: "\u53CD\u5411\u6B96\u6C11", description: "\u5728\u4E09\u4F53\u884C\u661F\u4E0A\u6210\u529F\u7740\u9646\u2014\u2014\u4EBA\u7C7B\u5148\u4E8E\u4E09\u4F53\u4EBA\u5B8C\u6210\u4E86\u661F\u9645\u6B96\u6C11", icon: "\u{1FA90}" },
+  { id: "first_orbit", name: "\u9996\u6B21\u5165\u8F68", description: "\u5C06\u706B\u7BAD\u9001\u5165\u7A33\u5B9A\u8F68\u9053", icon: "\u{1F6F0}\uFE0F" },
+  { id: "mun_landing", name: "\u6708\u7403\u6F2B\u6B65", description: "\u5728\u6708\u7403\u4E0A\u7740\u9646", icon: "\u{1F315}" },
+  { id: "mars_landing", name: "\u7EA2\u8272\u661F\u7403", description: "\u5728\u706B\u661F\u4E0A\u7740\u9646", icon: "\u{1F534}" },
+  { id: "warp_unlocked", name: "\u66F2\u901F\u7A81\u7834", description: "\u89E3\u9501\u66F2\u901F\u5F15\u64CE", icon: "\u26A1" },
+  { id: "interstellar", name: "\u661F\u9645\u65C5\u884C\u8005", description: "\u9996\u6B21\u66F2\u901F\u8DC3\u8FC1\u81F3\u53E6\u4E00\u4E2A\u661F\u7CFB", icon: "\u{1F30C}" }
 ];
 var ROCKET_PARTS = [
   // ===== 指挥舱 (Command Pods) =====
@@ -22977,6 +22995,8 @@ var TextureFactory = class _TextureFactory {
         return { land: [0.4, 0.1, 0.05], sea: [0.8, 0.3, 0.05], mountain: [0.2, 0.05, 0.02], polar: [0.3, 0.1, 0.08] };
       case "ice":
         return { land: [0.7, 0.8, 0.85], sea: [0.2, 0.4, 0.6], mountain: [0.8, 0.85, 0.9], polar: [0.95, 0.97, 1] };
+      case "trisolaris":
+        return { land: [0.45, 0.25, 0.12], sea: [0.15, 0.08, 0.04], mountain: [0.3, 0.12, 0.06], polar: [0.5, 0.35, 0.2] };
       default:
         return { land: [0.5, 0.45, 0.35], sea: [0.15, 0.2, 0.25], mountain: [0.4, 0.3, 0.25], polar: [0.8, 0.8, 0.85] };
     }
@@ -23030,6 +23050,45 @@ var TextureFactory = class _TextureFactory {
           g = 0.45 + swirl * 0.2;
           b = 0.7 + swirl * 0.3;
           bump = swirl * 0.3;
+        } else if (data.textureType === "trisolaris") {
+          const elevation = _TextureFactory.fbm(sx * 3, sy * 3, octaves, 0.5, 2);
+          const detail = _TextureFactory.fbm(sx * 25, sy * 25, 6, 0.4, 2.5);
+          const height = elevation + detail * 0.2;
+          const crack = _TextureFactory.fbm(sx * 15, sy * 15, 4, 0.3, 3);
+          const boulder = _TextureFactory.fbm(sx * 50, sy * 50, 3, 0.5, 2);
+          const polarFactor = Math.pow(Math.abs(sz), 4);
+          r = palette.land[0] * (0.7 + height * 0.5);
+          g = palette.land[1] * (0.6 + height * 0.3);
+          b = palette.land[2] * (0.5 + height * 0.2);
+          if (crack < 0.3) {
+            const crackDepth = (0.3 - crack) / 0.3;
+            r *= 1 - crackDepth * 0.4;
+            g *= 1 - crackDepth * 0.5;
+            b *= 1 - crackDepth * 0.6;
+            bump = -crackDepth * 80;
+          } else {
+            bump = height * 180;
+          }
+          if (boulder > 0.72) {
+            const b2 = (boulder - 0.72) / 0.28;
+            r = Math.min(1, r + b2 * 0.2);
+            g = Math.min(1, g + b2 * 0.1);
+            bump += b2 * 100;
+          }
+          if (height > 0.65) {
+            const m = (height - 0.65) / 0.35;
+            r = r * (1 - m * 0.3) + palette.mountain[0] * m * 0.5;
+            g = g * (1 - m * 0.3) + palette.mountain[1] * m * 0.5;
+            b = b * (1 - m * 0.3) + palette.mountain[2] * m * 0.5;
+            bump += m * 80;
+          }
+          if (polarFactor > 0.85) {
+            const polarBlend = (polarFactor - 0.85) / 0.15;
+            r = r * (1 - polarBlend) + palette.polar[0] * 255 * polarBlend;
+            g = g * (1 - polarBlend) + palette.polar[1] * 255 * polarBlend;
+            b = b * (1 - polarBlend) + palette.polar[2] * 255 * polarBlend;
+          }
+          metal = 15;
         } else {
           const elevation = _TextureFactory.fbm(sx * 4, sy * 4, octaves, 0.5, 2);
           const detail = _TextureFactory.fbm(sx * 20, sy * 20, 5, 0.4, 2.5);
@@ -23292,7 +23351,9 @@ function createCelestialMesh(data, quality = "high") {
       rock: 11176038,
       lava: 16729122,
       ice: 8965375,
-      gas: 14535850
+      gas: 14535850,
+      // ★ 三体行星大气 — 致敬《三体》：浑浊的暗红色大气
+      trisolaris: 11158562
     };
     const atmoColor = atmoColors[data.textureType || "rock"] || 4491519;
     const atmoRadius = renderRadius * 1.025;
@@ -24935,6 +24996,7 @@ var GameUI = class {
         <div class="hud-panel"><div class="hud-label">\u5206\u7EA7</div><div id="hud-stage" class="hud-value">1 / 1</div></div>
         <div class="hud-panel"><div class="hud-label">\u5929\u4F53</div><div id="hud-body" class="hud-value">--</div></div>
         <div class="hud-panel"><div class="hud-label">\u66F2\u901F\u5F15\u64CE</div><div id="hud-warp" class="hud-value">\u672A\u89E3\u9501</div></div>
+        <div class="hud-panel"><div class="hud-label">\u6210\u5C31</div><div id="hud-achievements" class="hud-value">\u{1F3C6} 0/6</div></div>
       </div>
 
       <!-- \u5DE6\u4FA7 - \u5206\u7EA7\u5217\u8868 -->
@@ -25090,6 +25152,8 @@ var GameUI = class {
     throttleFill.style.height = `${data.throttle * 100}%`;
     document.getElementById("throttle-text").textContent = `${(data.throttle * 100).toFixed(0)}%`;
     document.getElementById("hud-science").textContent = `${Math.floor(data.sciencePoints)}`;
+    const achEl = document.getElementById("hud-achievements");
+    if (achEl) achEl.textContent = `\u{1F3C6} ${data.achievements ?? 0}/6`;
     document.getElementById("hud-twr").textContent = data.twr.toFixed(2);
     document.getElementById("hud-dv").textContent = `${data.deltaV.toFixed(0)} m/s`;
     document.getElementById("hud-mass").textContent = `${(data.totalMass / 1e3).toFixed(1)} t`;
@@ -25672,6 +25736,11 @@ var Game = class {
     this.sciencePoints = 0;
     this.isRunning = true;
     this.animationId = 0;
+    // ★ 三体星系 & 成就
+    this.trisolarisActive = false;
+    this.trisolarisOrigin = new Vector3();
+    this.unlockedAchievements = /* @__PURE__ */ new Set();
+    this.landedBodies = /* @__PURE__ */ new Set();
     // 输入
     this.heldKeys = /* @__PURE__ */ new Set();
     this.mouseDown = false;
@@ -25800,6 +25869,7 @@ var Game = class {
     window.removeEventListener("keydown", this.boundKeyDown);
     window.removeEventListener("keyup", this.boundKeyUp);
     window.removeEventListener("resize", this.boundResize);
+    this.cleanupTrisolarisSystem();
     this.scene.traverse((obj) => {
       if (obj instanceof Mesh) {
         obj.geometry?.dispose();
@@ -26221,6 +26291,109 @@ var Game = class {
     if (this.warpDrive.activate(target.name, startPos, targetPos)) {
       this.hud.showNotification(`\u6B63\u5728\u66F2\u901F\u8DC3\u8FC1\u81F3${target.nameCN || target.name}...`);
       this.timeWarp.setToMinimum();
+      if (target.name === "Trisolaris System") {
+        this.trisolarisOrigin.copy(targetPos);
+      }
+    }
+  }
+  // ★ 初始化三体星系 — 致敬《三体》
+  initTrisolarisSystem(origin) {
+    if (this.trisolarisActive) return;
+    this.trisolarisActive = true;
+    const bodyDataMap = /* @__PURE__ */ new Map();
+    for (const data of TRISOLARIS_SYSTEM) bodyDataMap.set(data.name, data);
+    for (const data of TRISOLARIS_SYSTEM) {
+      let pos = origin.clone();
+      let vel = new Vector3();
+      if (data.parent) {
+        const parent = this.physics.getBody(data.parent);
+        const parentData = bodyDataMap.get(data.parent);
+        if (parent) {
+          const state = this.orbitalElementsToState(data, parent.position, parent.velocity, parentData.mass);
+          pos = state.pos;
+          vel = state.vel;
+        }
+      } else {
+        pos = origin.clone();
+      }
+      const body = {
+        name: data.name,
+        mass: data.mass,
+        radius: data.radius,
+        position: pos,
+        velocity: vel,
+        acceleration: new Vector3(),
+        isStatic: data.type === "star" && !data.parent
+      };
+      this.physics.addBody(body);
+      const mesh = createCelestialMesh(data, this.quality);
+      mesh.name = data.name;
+      this.bodyMeshes.set(data.name, mesh);
+      this.scene.add(mesh);
+      if (data.type === "star") {
+        const renderRadius = Math.max(data.radius * BODY_SIZE_SCALE * SIZE_BOOST, MIN_RENDER_SIZE);
+        const glow = createStarGlow(data.color, renderRadius * 6);
+        this.bodyGlows.set(data.name, glow);
+        this.scene.add(glow);
+      }
+    }
+    this.hud.showNotification("\u26A0 \u4E09\u4F53\u661F\u7CFB\u5DF2\u5C55\u5F00 \u2014 \u4E09\u9897\u6052\u661F\u7684\u6DF7\u6C8C\u4E4B\u821E\uFF0C\u81F4\u656C\u300A\u4E09\u4F53\u300B", 8e3);
+  }
+  // ★ 清理三体星系
+  cleanupTrisolarisSystem() {
+    if (!this.trisolarisActive) return;
+    const names = TRISOLARIS_SYSTEM.map((d) => d.name);
+    for (const name of names) {
+      const body = this.physics.getBody(name);
+      if (body) this.physics.removeBody(name);
+      const mesh = this.bodyMeshes.get(name);
+      if (mesh) {
+        this.scene.remove(mesh);
+        this.bodyMeshes.delete(name);
+      }
+      const glow = this.bodyGlows.get(name);
+      if (glow) {
+        this.scene.remove(glow);
+        this.bodyGlows.delete(name);
+      }
+    }
+    this.trisolarisActive = false;
+  }
+  // ★ 成就检查
+  checkAchievements() {
+    if (!this.rocket) return;
+    if (!this.unlockedAchievements.has("reverse_colonization") && this.rocket.isLanded && this.rocket.parentBody === "Trisolaris") {
+      this.unlockAchievement("reverse_colonization");
+    }
+    if (!this.unlockedAchievements.has("mun_landing") && this.rocket.isLanded && this.rocket.parentBody === "Moon") {
+      this.unlockAchievement("mun_landing");
+    }
+    if (!this.unlockedAchievements.has("mars_landing") && this.rocket.isLanded && this.rocket.parentBody === "Mars") {
+      this.unlockAchievement("mars_landing");
+    }
+    if (this.rocket.isLanded && this.rocket.parentBody) {
+      this.landedBodies.add(this.rocket.parentBody);
+    }
+    if (!this.unlockedAchievements.has("warp_unlocked") && this.warpDrive.isUnlocked) {
+      this.unlockAchievement("warp_unlocked");
+    }
+    if (!this.unlockedAchievements.has("first_orbit") && !this.rocket.isLanded && this.rocket.parentBody === "Earth") {
+      const earth = this.physics.getBody("Earth");
+      if (earth) {
+        const alt = this.rocket.body.position.distanceTo(earth.position) - earth.radius;
+        if (alt > 1e5) {
+          this.unlockAchievement("first_orbit");
+        }
+      }
+    }
+  }
+  unlockAchievement(id) {
+    if (this.unlockedAchievements.has(id)) return;
+    this.unlockedAchievements.add(id);
+    const ach = ACHIEVEMENTS.find((a) => a.id === id);
+    if (ach) {
+      this.hud.showNotification(`\u{1F3C6} \u6210\u5C31\u89E3\u9501: ${ach.name}
+${ach.description}`, 8e3);
     }
   }
   // === 连续输入处理（每帧调用）===
@@ -26507,6 +26680,7 @@ var Game = class {
     }
     this.physics.stepWithWarp(this.timeWarp.currentWarp);
     this.checkLanding();
+    this.checkAchievements();
     this.enforceTimeWarpLimit();
     if (this.warpDrive.isActive) {
       const arrived = this.warpDrive.update(simDt);
@@ -26518,6 +26692,12 @@ var Game = class {
       if (arrived) {
         const target = STAR_SYSTEMS.find((s) => s.name === this.warpDrive.targetSystem);
         this.hud.showNotification(`\u5DF2\u62B5\u8FBE${target?.nameCN || this.warpDrive.targetSystem}\uFF01`);
+        if (this.warpDrive.targetSystem === "Trisolaris System") {
+          this.initTrisolarisSystem(this.trisolarisOrigin);
+          if (!this.unlockedAchievements.has("interstellar")) {
+            this.unlockAchievement("interstellar");
+          }
+        }
       }
     }
     for (const base of this.researchBases) {
@@ -26580,7 +26760,8 @@ var Game = class {
       warpUnlocked: this.warpDrive.isUnlocked,
       warpFuel: this.warpDrive.fuel,
       isLanded: this.rocket.isLanded,
-      sasEnabled: this.rocket.sasEnabled
+      sasEnabled: this.rocket.sasEnabled,
+      achievements: this.unlockedAchievements.size
     };
     this.hud.update(data);
     this.hud.updateNavball(this.rocket.orientation, this.rocket.body.velocity);
