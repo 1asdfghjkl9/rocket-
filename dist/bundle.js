@@ -21474,6 +21474,152 @@ var MeshStandardMaterial = class extends Material {
     return this;
   }
 };
+var MeshPhysicalMaterial = class extends MeshStandardMaterial {
+  static get type() {
+    return "MeshPhysicalMaterial";
+  }
+  constructor(parameters) {
+    super();
+    this.isMeshPhysicalMaterial = true;
+    this.defines = {
+      "STANDARD": "",
+      "PHYSICAL": ""
+    };
+    this.anisotropyRotation = 0;
+    this.anisotropyMap = null;
+    this.clearcoatMap = null;
+    this.clearcoatRoughness = 0;
+    this.clearcoatRoughnessMap = null;
+    this.clearcoatNormalScale = new Vector2(1, 1);
+    this.clearcoatNormalMap = null;
+    this.ior = 1.5;
+    Object.defineProperty(this, "reflectivity", {
+      get: function() {
+        return clamp(2.5 * (this.ior - 1) / (this.ior + 1), 0, 1);
+      },
+      set: function(reflectivity) {
+        this.ior = (1 + 0.4 * reflectivity) / (1 - 0.4 * reflectivity);
+      }
+    });
+    this.iridescenceMap = null;
+    this.iridescenceIOR = 1.3;
+    this.iridescenceThicknessRange = [100, 400];
+    this.iridescenceThicknessMap = null;
+    this.sheenColor = new Color(0);
+    this.sheenColorMap = null;
+    this.sheenRoughness = 1;
+    this.sheenRoughnessMap = null;
+    this.transmissionMap = null;
+    this.thickness = 0;
+    this.thicknessMap = null;
+    this.attenuationDistance = Infinity;
+    this.attenuationColor = new Color(1, 1, 1);
+    this.specularIntensity = 1;
+    this.specularIntensityMap = null;
+    this.specularColor = new Color(1, 1, 1);
+    this.specularColorMap = null;
+    this._anisotropy = 0;
+    this._clearcoat = 0;
+    this._dispersion = 0;
+    this._iridescence = 0;
+    this._sheen = 0;
+    this._transmission = 0;
+    this.setValues(parameters);
+  }
+  get anisotropy() {
+    return this._anisotropy;
+  }
+  set anisotropy(value) {
+    if (this._anisotropy > 0 !== value > 0) {
+      this.version++;
+    }
+    this._anisotropy = value;
+  }
+  get clearcoat() {
+    return this._clearcoat;
+  }
+  set clearcoat(value) {
+    if (this._clearcoat > 0 !== value > 0) {
+      this.version++;
+    }
+    this._clearcoat = value;
+  }
+  get iridescence() {
+    return this._iridescence;
+  }
+  set iridescence(value) {
+    if (this._iridescence > 0 !== value > 0) {
+      this.version++;
+    }
+    this._iridescence = value;
+  }
+  get dispersion() {
+    return this._dispersion;
+  }
+  set dispersion(value) {
+    if (this._dispersion > 0 !== value > 0) {
+      this.version++;
+    }
+    this._dispersion = value;
+  }
+  get sheen() {
+    return this._sheen;
+  }
+  set sheen(value) {
+    if (this._sheen > 0 !== value > 0) {
+      this.version++;
+    }
+    this._sheen = value;
+  }
+  get transmission() {
+    return this._transmission;
+  }
+  set transmission(value) {
+    if (this._transmission > 0 !== value > 0) {
+      this.version++;
+    }
+    this._transmission = value;
+  }
+  copy(source) {
+    super.copy(source);
+    this.defines = {
+      "STANDARD": "",
+      "PHYSICAL": ""
+    };
+    this.anisotropy = source.anisotropy;
+    this.anisotropyRotation = source.anisotropyRotation;
+    this.anisotropyMap = source.anisotropyMap;
+    this.clearcoat = source.clearcoat;
+    this.clearcoatMap = source.clearcoatMap;
+    this.clearcoatRoughness = source.clearcoatRoughness;
+    this.clearcoatRoughnessMap = source.clearcoatRoughnessMap;
+    this.clearcoatNormalMap = source.clearcoatNormalMap;
+    this.clearcoatNormalScale.copy(source.clearcoatNormalScale);
+    this.dispersion = source.dispersion;
+    this.ior = source.ior;
+    this.iridescence = source.iridescence;
+    this.iridescenceMap = source.iridescenceMap;
+    this.iridescenceIOR = source.iridescenceIOR;
+    this.iridescenceThicknessRange = [...source.iridescenceThicknessRange];
+    this.iridescenceThicknessMap = source.iridescenceThicknessMap;
+    this.sheen = source.sheen;
+    this.sheenColor.copy(source.sheenColor);
+    this.sheenColorMap = source.sheenColorMap;
+    this.sheenRoughness = source.sheenRoughness;
+    this.sheenRoughnessMap = source.sheenRoughnessMap;
+    this.transmission = source.transmission;
+    this.transmissionMap = source.transmissionMap;
+    this.thickness = source.thickness;
+    this.thicknessMap = source.thicknessMap;
+    this.attenuationDistance = source.attenuationDistance;
+    this.attenuationColor.copy(source.attenuationColor);
+    this.specularIntensity = source.specularIntensity;
+    this.specularIntensityMap = source.specularIntensityMap;
+    this.specularColor.copy(source.specularColor);
+    this.specularColorMap = source.specularColorMap;
+    return this;
+  }
+};
 function convertArray(array, type, forceClone) {
   if (!array || // let 'undefined' and 'null' pass
   !forceClone && array.constructor === type) return array;
@@ -22898,18 +23044,57 @@ var WARP_FUEL_PER_SEC = 0.5;
 var WARP_UNLOCK_COST = 1e3;
 var CHUNK_SIZE_LY = 5;
 var CHUNK_SIZE_M = CHUNK_SIZE_LY * LY;
-var MAX_LOADED_CHUNKS = 343;
+var MAX_LOADED_CHUNKS = 1e3;
 var STARS_PER_CHUNK_MIN = 3;
-var STARS_PER_CHUNK_MAX = 40;
+var STARS_PER_CHUNK_MAX = 200;
+var GALACTIC_RADIUS_LY = 5e4;
+var GALACTIC_BULGE_RADIUS_LY = 5e3;
+var SUN_DIST_FROM_GALACTIC_CENTER_LY = 26e3;
+var GALACTIC_DISK_THICKNESS_LY = 1e3;
+var GALACTIC_ARM_COUNT = 4;
+var GALACTIC_ARM_PITCH = 0.25;
+var GALACTIC_BACKGROUND_STARS = 5e5;
+var GALACTIC_BG_RENDER_RADIUS = 4e6;
+var GALACTIC_CENTER_RA = 4.6499;
+var GALACTIC_CENTER_DEC = -0.5063;
+var GALACTIC_ARMS = [
+  { name: "Perseus Arm", nameCN: "\u82F1\u4ED9\u81C2", offset: 0 },
+  { name: "Sagittarius Arm", nameCN: "\u4EBA\u9A6C\u81C2", offset: Math.PI / 2 },
+  { name: "Norma Arm", nameCN: "\u77E9\u5C3A\u81C2", offset: Math.PI },
+  { name: "Outer Arm", nameCN: "\u5916\u81C2", offset: 3 * Math.PI / 2 }
+];
+var GALACTIC_LANDMARKS = [
+  { name: "Galactic Center", nameCN: "\u94F6\u5FC3 (Sgr A*)", distance: 26e3, ra: 4.6499, dec: -0.5063, description: "\u94F6\u6CB3\u7CFB\u4E2D\u5FC3\uFF0C\u8D85\u5927\u8D28\u91CF\u9ED1\u6D1E Sagittarius A*", starType: "Black Hole" },
+  { name: "Galactic Halo", nameCN: "\u94F6\u6655", distance: 5e3, ra: 4.6499, dec: 1.2, description: "\u94F6\u76D8\u4E4B\u4E0A5000\u5149\u5E74\u7684\u7403\u72B6\u661F\u56E2\u533A\u57DF", starType: "Halo" },
+  { name: "Perseus Arm", nameCN: "\u82F1\u4ED9\u81C2", distance: 5e3, ra: 0.8, dec: 0.1, description: "\u592A\u9633\u5916\u4FA7\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm" },
+  { name: "Sagittarius Arm", nameCN: "\u4EBA\u9A6C\u81C2", distance: 1e4, ra: 4.6, dec: -0.3, description: "\u9760\u8FD1\u94F6\u5FC3\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm" },
+  { name: "Norma Arm", nameCN: "\u77E9\u5C3A\u81C2", distance: 15e3, ra: 3.5, dec: -0.6, description: "\u5185\u94F6\u6CB3\u7CFB\u65CB\u81C2", starType: "Spiral Arm" },
+  { name: "Outer Arm", nameCN: "\u5916\u81C2", distance: 2e4, ra: 2, dec: 0.3, description: "\u94F6\u6CB3\u7CFB\u6700\u5916\u4FA7\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm" },
+  { name: "LMC", nameCN: "\u5927\u9EA6\u54F2\u4F26\u4E91", distance: 163e3, ra: 1.35, dec: -1.28, description: "\u94F6\u6CB3\u7CFB\u6700\u5927\u536B\u661F\u661F\u7CFB", starType: "Dwarf Galaxy" },
+  { name: "SMC", nameCN: "\u5C0F\u9EA6\u54F2\u4F26\u4E91", distance: 2e5, ra: 1.2, dec: -1.22, description: "\u94F6\u6CB3\u7CFB\u536B\u661F\u661F\u7CFB", starType: "Dwarf Galaxy" }
+];
 var STAR_COLOR_TEMP = [
-  { temp: 3e4, color: 11190271 },
+  { temp: 1e5, color: 10075135 },
+  // 中子星 (极热)
+  { temp: 5e4, color: 11190271 },
+  // O型蓝星
+  { temp: 3e4, color: 12307711 },
+  // B型蓝白星
   { temp: 2e4, color: 13293823 },
   { temp: 1e4, color: 15397119 },
+  // A型白星
   { temp: 7500, color: 16777215 },
+  // F型黄白星
   { temp: 6e3, color: 16774378 },
+  // G型黄星 (太阳)
   { temp: 5200, color: 16765601 },
+  // K型橙星
   { temp: 3700, color: 16756058 },
-  { temp: 2400, color: 16741688 }
+  // K/M型红橙星
+  { temp: 2400, color: 16741688 },
+  // M型红矮星
+  { temp: 1e3, color: 8930338 }
+  // 棕矮星 (L/T/Y型)
 ];
 var SOLAR_SYSTEM = [
   { name: "Sun", nameCN: "\u592A\u9633", type: "star", mass: 1989e27, radius: 69634e4, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16768324, color2: 16746496, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126 },
@@ -22966,7 +23151,102 @@ var STAR_SYSTEMS = [
   { name: "LHS 1140", nameCN: "LHS 1140", distance: 40.7, ra: 0.1563, dec: -0.0997, starType: "M4.5V", mass: 1286e26, radius: 1854e5, temperature: 3134, color: 16729139, planets: 2 },
   { name: "Wolf 1061", nameCN: "\u6C83\u5C14\u592B1061", distance: 13.82, ra: 3.7729, dec: -0.1592, starType: "M3.5V", mass: 4765e26, radius: 2723e5, temperature: 3342, color: 16729139, planets: 3 },
   { name: "Kapteyn", nameCN: "\u5361\u666E\u5766\u661F", distance: 12.83, ra: 0.636, dec: -0.7645, starType: "M1V", mass: 7906e26, radius: 492e6, temperature: 3570, color: 16733491, planets: 2 },
-  { name: "GJ 1214", nameCN: "GJ 1214", distance: 47.5, ra: 4.9179, dec: 0.1844, starType: "M4.5V", mass: 2475e26, radius: 1862e5, temperature: 3026, color: 16729139, planets: 1 }
+  { name: "GJ 1214", nameCN: "GJ 1214", distance: 47.5, ra: 4.9179, dec: 0.1844, starType: "M4.5V", mass: 2475e26, radius: 1862e5, temperature: 3026, color: 16729139, planets: 1 },
+  // ====== ★★ 扩展: 银河系著名恒星系统 (60+ 真实恒星) ======
+  // --- 半人马座α三合星系统 (含比邻星/三体星丙原型) ---
+  { name: "Alpha Centauri A", nameCN: "\u5357\u95E8\u4E8CA", distance: 4.37, ra: 3.8379, dec: -1.0618, starType: "G2V", mass: 2188e27, radius: 8511e5, temperature: 5790, color: 16774378, planets: 1 },
+  { name: "Alpha Centauri B", nameCN: "\u5357\u95E8\u4E8CB", distance: 4.37, ra: 3.8379, dec: -1.0618, starType: "K1V", mass: 181e28, radius: 6685e5, temperature: 5260, color: 16765601, planets: 1 },
+  { name: "Proxima Centauri", nameCN: "\u6BD4\u90BB\u661F", distance: 4.242, ra: 3.7948, dec: -1.094, starType: "M5.5Ve", mass: 2446e26, radius: 1542e5, temperature: 3042, color: 16729122, planets: 3 },
+  // --- 夏季大三角 (Summer Triangle) ---
+  { name: "Vega", nameCN: "\u7EC7\u5973\u661F", distance: 25.04, ra: 4.8732, dec: 0.6771, starType: "A0V", mass: 4177e27, radius: 1671e6, temperature: 9602, color: 13293823, planets: 1 },
+  { name: "Altair", nameCN: "\u6CB3\u9F13\u4E8C", distance: 16.73, ra: 5.1948, dec: 0.1548, starType: "A7V", mass: 356e28, radius: 1247e6, temperature: 7550, color: 15397119, planets: 0 },
+  { name: "Deneb", nameCN: "\u5929\u6D25\u56DB", distance: 2615, ra: 5.4156, dec: 0.7904, starType: "A2Ia", mass: 3779e28, radius: 1414e8, temperature: 8525, color: 13293823, planets: 0 },
+  // --- 猎户座 (Orion) ---
+  { name: "Betelgeuse", nameCN: "\u53C2\u5BBF\u56DB", distance: 642.5, ra: 1.5497, dec: 0.1293, starType: "M1Ia", mass: 2307e28, radius: 618e9, temperature: 3590, color: 16741688, planets: 0 },
+  { name: "Rigel", nameCN: "\u53C2\u5BBF\u4E03", distance: 863, ra: 1.3729, dec: -0.1432, starType: "B8Ia", mass: 4177e28, radius: 5494e7, temperature: 12100, color: 13293823, planets: 0 },
+  { name: "Bellatrix", nameCN: "\u53C2\u5BBF\u4E94", distance: 252, ra: 1.4192, dec: 0.1108, starType: "B2III", mass: 1711e28, radius: 4003e6, temperature: 21800, color: 11190271, planets: 0 },
+  { name: "Mintaka", nameCN: "\u53C2\u5BBF\u4E09", distance: 1200, ra: 1.4491, dec: -51e-4, starType: "O9.5II", mass: 2586e28, radius: 1044e7, temperature: 29500, color: 11190271, planets: 0 },
+  { name: "Alnilam", nameCN: "\u53C2\u5BBF\u4E8C", distance: 1980, ra: 1.4675, dec: -0.021, starType: "B0Ia", mass: 4376e28, radius: 2853e7, temperature: 27500, color: 11190271, planets: 0 },
+  { name: "Alnitak", nameCN: "\u53C2\u5BBF\u4E00", distance: 1260, ra: 1.4873, dec: -0.0339, starType: "O9.5Ib", mass: 4177e28, radius: 1392e7, temperature: 29500, color: 11190271, planets: 0 },
+  { name: "Saiph", nameCN: "\u53C2\u5BBF\u516D", distance: 650, ra: 1.5179, dec: -0.1688, starType: "B0.5Ia", mass: 358e29, radius: 1671e7, temperature: 26500, color: 11190271, planets: 0 },
+  // --- 天蝎座/金牛座/牧夫座 ---
+  { name: "Antares", nameCN: "\u5FC3\u5BBF\u4E8C", distance: 550, ra: 4.3168, dec: -0.4614, starType: "M1Ib", mass: 2387e28, radius: 4735e8, temperature: 3660, color: 16741688, planets: 0 },
+  { name: "Aldebaran", nameCN: "\u6BD5\u5BBF\u4E94", distance: 65.3, ra: 1.2041, dec: 0.2881, starType: "K5III", mass: 2307e27, radius: 3141e7, temperature: 3910, color: 16756058, planets: 1 },
+  { name: "Arcturus", nameCN: "\u5927\u89D2\u661F", distance: 36.66, ra: 3.7334, dec: 0.3348, starType: "K1.5III", mass: 2148e27, radius: 1769e7, temperature: 4286, color: 16756058, planets: 0 },
+  // --- 小熊座/御夫座/狮子座/室女座 ---
+  { name: "Polaris", nameCN: "\u5317\u6781\u661F", distance: 433, ra: 0.6626, dec: 1.558, starType: "F7Ib", mass: 1073e28, radius: 2611e7, temperature: 6015, color: 16774378, planets: 0 },
+  { name: "Capella", nameCN: "\u4E94\u8F66\u4E8C", distance: 42.92, ra: 1.382, dec: 0.8028, starType: "G3III", mass: 4972e27, radius: 8506e6, temperature: 4970, color: 16765601, planets: 0 },
+  { name: "Regulus", nameCN: "\u8F69\u8F95\u5341\u56DB", distance: 79.3, ra: 2.655, dec: 0.2089, starType: "B8IV", mass: 7558e27, radius: 3028e6, temperature: 12460, color: 13293823, planets: 0 },
+  { name: "Spica", nameCN: "\u89D2\u5BBF\u4E00", distance: 250, ra: 3.5136, dec: -0.1948, starType: "B1III-IV", mass: 2273e28, radius: 5205e6, temperature: 22400, color: 11190271, planets: 0 },
+  // --- 双子座 ---
+  { name: "Castor", nameCN: "\u5317\u6CB3\u4E8C", distance: 51, ra: 1.984, dec: 0.5567, starType: "A1V", mass: 549e28, radius: 1462e6, temperature: 10286, color: 13293823, planets: 0 },
+  { name: "Pollux", nameCN: "\u5317\u6CB3\u4E09", distance: 33.78, ra: 2.0308, dec: 0.4892, starType: "K0III", mass: 3799e27, radius: 6309e6, temperature: 4666, color: 16756058, planets: 1 },
+  // --- 南鱼座/波江座/船底座 ---
+  { name: "Fomalhaut", nameCN: "\u5317\u843D\u5E08\u95E8", distance: 25.13, ra: 6.0115, dec: -0.5171, starType: "A3V", mass: 3819e27, radius: 1281e6, temperature: 8590, color: 15397119, planets: 1 },
+  { name: "Achernar", nameCN: "\u6C34\u59D4\u4E00", distance: 139, ra: 0.4265, dec: -0.9994, starType: "B6V", mass: 1452e28, radius: 7242e6, temperature: 15e3, color: 13293823, planets: 0 },
+  { name: "Canopus", nameCN: "\u8001\u4EBA\u661F", distance: 310, ra: 1.6755, dec: -0.9198, starType: "A9II", mass: 1591e28, radius: 4944e7, temperature: 7350, color: 16774378, planets: 0 },
+  // --- 英仙座 ---
+  { name: "Algol", nameCN: "\u5927\u9675\u4E94", distance: 90, ra: 0.8212, dec: 0.7149, starType: "B8V", mass: 7558e27, radius: 2437e6, temperature: 13e3, color: 13293823, planets: 0 },
+  { name: "Mirfak", nameCN: "\u5929\u8239\u4E09", distance: 510, ra: 0.8919, dec: 0.8706, starType: "F5Ib", mass: 159e29, radius: 5704e7, temperature: 6280, color: 16774378, planets: 0 },
+  // --- 狮子座 ---
+  { name: "Denebola", nameCN: "\u4E94\u5E1D\u5EA7\u4E00", distance: 35.9, ra: 3.0946, dec: 0.2544, starType: "A3V", mass: 3799e27, radius: 1532e6, temperature: 8500, color: 15397119, planets: 0 },
+  // --- 大熊座 ---
+  { name: "Mizar", nameCN: "\u5F00\u9633", distance: 82.9, ra: 3.5081, dec: 0.9589, starType: "A1V", mass: 4376e27, radius: 2437e6, temperature: 9e3, color: 13293823, planets: 0 },
+  { name: "Alcor", nameCN: "\u8F85", distance: 81.4, ra: 3.5138, dec: 0.9598, starType: "A5V", mass: 3581e27, radius: 1462e6, temperature: 8100, color: 15397119, planets: 0 },
+  // --- 长蛇座/白羊座/鲸鱼座 ---
+  { name: "Alphard", nameCN: "\u661F\u5BBF\u4E00", distance: 180, ra: 2.478, dec: -0.1511, starType: "K3II-III", mass: 7758e27, radius: 3929e6, temperature: 4120, color: 16756058, planets: 0 },
+  { name: "Hamal", nameCN: "\u5A04\u5BBF\u4E09", distance: 66, ra: 0.5553, dec: 0.4095, starType: "K1III", mass: 3182e27, radius: 9197e6, temperature: 4480, color: 16756058, planets: 1 },
+  { name: "Diphda", nameCN: "\u571F\u53F8\u7A7A", distance: 96.3, ra: 0.1903, dec: -0.3139, starType: "K0III", mass: 6364e27, radius: 1253e7, temperature: 4700, color: 16765601, planets: 0 },
+  { name: "Mira", nameCN: "\u84AD\u84BF\u589E\u4E8C", distance: 300, ra: 0.6082, dec: -0.052, starType: "M7IIIe", mass: 2983e27, radius: 3481e7, temperature: 2918, color: 16741688, planets: 0 },
+  // --- 船底座/南船座/三角形座/孔雀座/北冕座/天鹅座/天龙座/蛇夫座/武仙座 ---
+  { name: "Miaplacidus", nameCN: "\u5357\u8239\u4E94", distance: 113, ra: 2.4146, dec: -1.2172, starType: "A2IV", mass: 6565e27, radius: 2995e6, temperature: 9250, color: 15397119, planets: 0 },
+  { name: "Atria", nameCN: "\u4E09\u89D2\u5F62\u4E09", distance: 490, ra: 4.4006, dec: -1.2055, starType: "K1IIb", mass: 1511e28, radius: 4456e7, temperature: 4590, color: 16756058, planets: 0 },
+  { name: "Peacock", nameCN: "\u5B54\u96C0\u5341\u4E00", distance: 179, ra: 5.3492, dec: -0.9906, starType: "B2V", mass: 1193e28, radius: 5571e6, temperature: 18e3, color: 11190271, planets: 0 },
+  { name: "Alphecca", nameCN: "\u8D2F\u7D22\u56DB", distance: 75, ra: 4.0799, dec: 0.4663, starType: "A0V", mass: 5172e27, radius: 2437e6, temperature: 9420, color: 13293823, planets: 0 },
+  { name: "Menkalinan", nameCN: "\u4E94\u8F66\u4E09", distance: 81, ra: 1.5687, dec: 0.7845, starType: "A1IV", mass: 5371e27, radius: 2437e6, temperature: 9300, color: 13293823, planets: 0 },
+  { name: "Schedar", nameCN: "\u738B\u826F\u56DB", distance: 228, ra: 0.1768, dec: 0.9869, starType: "K0II", mass: 1113e28, radius: 3099e7, temperature: 4530, color: 16756058, planets: 0 },
+  { name: "Caph", nameCN: "\u738B\u826F\u4E00", distance: 54, ra: 0.0401, dec: 1.0325, starType: "F2III", mass: 3979e27, radius: 4414e6, temperature: 7079, color: 16774378, planets: 0 },
+  { name: "Sadr", nameCN: "\u5929\u6D25\u4E00", distance: 1800, ra: 5.3343, dec: 0.7026, starType: "F8Iab", mass: 2387e28, radius: 1602e8, temperature: 5790, color: 16774378, planets: 0 },
+  { name: "Eltanin", nameCN: "\u5929\u68D3\u56DB", distance: 154, ra: 4.6986, dec: 0.8986, starType: "K5III", mass: 3979e27, radius: 1671e7, temperature: 4210, color: 16756058, planets: 0 },
+  { name: "Rasalhague", nameCN: "\u5019", distance: 47, ra: 4.6041, dec: 0.2192, starType: "A5III", mass: 4376e27, radius: 3034e6, temperature: 8470, color: 15397119, planets: 0 },
+  { name: "Rasalgethi", nameCN: "\u5E1D\u5EA7", distance: 380, ra: 4.5156, dec: 0.2512, starType: "M5Ib-II", mass: 1313e28, radius: 5989e8, temperature: 3270, color: 16741688, planets: 0 },
+  { name: "Nunki", nameCN: "\u6597\u5BBF\u56DB", distance: 228, ra: 4.9548, dec: -0.459, starType: "B2.5V", mass: 1232e28, radius: 3314e6, temperature: 18500, color: 11190271, planets: 0 },
+  { name: "Kaus Australis", nameCN: "\u7B95\u5BBF\u4E09", distance: 143, ra: 4.8192, dec: -0.6002, starType: "B9.5III", mass: 1512e28, radius: 5771e6, temperature: 11900, color: 13293823, planets: 0 },
+  // --- 近距离 M型红矮星 (宜居带行星候选) ---
+  { name: "Gliese 667C", nameCN: "\u683C\u5229\u6CFD667C", distance: 23.6, ra: 4.5374, dec: -0.6109, starType: "M1.5V", mass: 5172e26, radius: 2716e5, temperature: 3350, color: 16733491, planets: 6 },
+  { name: "Gliese 876", nameCN: "\u683C\u5229\u6CFD876", distance: 15.25, ra: 5.9907, dec: -0.2489, starType: "M3.5V", mass: 5967e26, radius: 2716e5, temperature: 3129, color: 16729139, planets: 4 },
+  { name: "Gliese 832", nameCN: "\u683C\u5229\u6CFD832", distance: 16.1, ra: 5.501, dec: -0.8556, starType: "M1.5V", mass: 716e27, radius: 3663e5, temperature: 3472, color: 16733491, planets: 2 },
+  { name: "Gliese 229", nameCN: "\u683C\u5229\u6CFD229", distance: 18.8, ra: 1.6171, dec: -0.3816, starType: "M1.5V", mass: 716e27, radius: 3288e5, temperature: 3450, color: 16733491, planets: 0 },
+  { name: "Gliese 436", nameCN: "\u683C\u5229\u6CFD436", distance: 33, ra: 3.0651, dec: 0.4661, starType: "M2.5V", mass: 5569e26, radius: 2716e5, temperature: 3416, color: 16729139, planets: 1 },
+  { name: "Gliese 687", nameCN: "\u683C\u5229\u6CFD687", distance: 18.6, ra: 4.609, dec: 1.1928, starType: "M3V", mass: 706e27, radius: 2716e5, temperature: 3413, color: 16729139, planets: 2 },
+  { name: "Gliese 887", nameCN: "\u683C\u5229\u6CFD887", distance: 10.7, ra: 6.0761, dec: -0.7149, starType: "M2V", mass: 9945e26, radius: 3288e5, temperature: 3650, color: 16733491, planets: 2 },
+  { name: "Luyten Star", nameCN: "\u5362\u4F0A\u6ED5\u661F", distance: 12.4, ra: 1.9537, dec: 0.0911, starType: "M3.5V", mass: 5371e26, radius: 2716e5, temperature: 3322, color: 16729139, planets: 2 },
+  { name: "Gliese 674", nameCN: "\u683C\u5229\u6CFD674", distance: 14.8, ra: 4.5767, dec: -0.8178, starType: "M2.5V", mass: 6164e26, radius: 2437e5, temperature: 3600, color: 16733491, planets: 1 },
+  { name: "GJ 1061", nameCN: "GJ 1061", distance: 11.99, ra: 0.9425, dec: -0.7768, starType: "M5.5V", mass: 1968e26, radius: 1611e5, temperature: 2953, color: 16724770, planets: 3 },
+  { name: "GJ 1002", nameCN: "GJ 1002", distance: 15.8, ra: 0.1963, dec: -0.1378, starType: "M5.5V", mass: 1789e26, radius: 1542e5, temperature: 3024, color: 16724770, planets: 2 },
+  { name: "Teegarden Star", nameCN: "\u8482\u52A0\u767B\u661F", distance: 12.5, ra: 4.3751, dec: 0.2304, starType: "M6V", mass: 179e27, radius: 1542e5, temperature: 2900, color: 16720401, planets: 2 },
+  { name: "Luhman 16", nameCN: "\u9C81\u8D6B\u66FC16", distance: 6.5, ra: 4.5828, dec: -1.0053, starType: "L7.5+T0", mass: 5967e25, radius: 9818e4, temperature: 1400, color: 8930338, planets: 0 },
+  // --- 行星系统恒星 (系外行星候选) ---
+  { name: "70 Ophiuchi", nameCN: "\u5B97\u4EBA\u56DB", distance: 16.6, ra: 5.2521, dec: 0.1819, starType: "K0V", mass: 181e28, radius: 6685e5, temperature: 5300, color: 16764040, planets: 1 },
+  { name: "36 Ophiuchi", nameCN: "\u5B97\u4EBA\u4E8C", distance: 19.5, ra: 5.1843, dec: -0.4628, starType: "K1V", mass: 171e28, radius: 6685e5, temperature: 5120, color: 16755302, planets: 0 },
+  { name: "54 Piscium", nameCN: "\u53CC\u9C7C\u5EA754", distance: 36.1, ra: 0.0522, dec: 0.361, starType: "K0V", mass: 1511e27, radius: 5733e5, temperature: 5013, color: 16755302, planets: 1 },
+  { name: "55 Cancri", nameCN: "\u5DE8\u87F9\u5EA755", distance: 41, ra: 2.206, dec: 0.535, starType: "G8V", mass: 171e28, radius: 7437e5, temperature: 5196, color: 16768426, planets: 5 },
+  { name: "47 Ursae Majoris", nameCN: "\u5927\u718A\u5EA747", distance: 45.9, ra: 1.9574, dec: 0.808, starType: "G1V", mass: 2028e27, radius: 7161e5, temperature: 5887, color: 16774378, planets: 3 },
+  { name: "51 Pegasi", nameCN: "\u98DE\u9A6C\u5EA751", distance: 50.9, ra: 3.6962, dec: 0.495, starType: "G2IV", mass: 2028e27, radius: 8096e5, temperature: 5571, color: 16774378, planets: 1 },
+  { name: "Upsilon Andromedae", nameCN: "\u4ED9\u5973\u5EA7\u03C5", distance: 44, ra: 0.2478, dec: 0.672, starType: "F8V", mass: 2685e27, radius: 9749e5, temperature: 6212, color: 16777198, planets: 4 },
+  { name: "14 Herculis", nameCN: "\u6B66\u4ED9\u5EA714", distance: 59.5, ra: 4.347, dec: 0.7456, starType: "K0V", mass: 1611e27, radius: 5919e5, temperature: 5311, color: 16755302, planets: 2 },
+  { name: "HD 69830", nameCN: "HD 69830", distance: 41, ra: 1.8372, dec: -0.2271, starType: "K0V", mass: 181e28, radius: 7161e5, temperature: 5385, color: 16755302, planets: 3 },
+  { name: "HD 40307", nameCN: "HD 40307", distance: 42, ra: 1.6745, dec: -0.6654, starType: "K2.5V", mass: 1432e27, radius: 5234e5, temperature: 4977, color: 16755302, planets: 6 },
+  { name: "HD 85512", nameCN: "HD 85512", distance: 36.4, ra: 2.772, dec: -0.732, starType: "K5V", mass: 1352e27, radius: 5234e5, temperature: 4413, color: 16750933, planets: 1 },
+  { name: "HD 189733", nameCN: "HD 189733", distance: 64.5, ra: 4.9699, dec: 0.6776, starType: "K1.5V", mass: 1611e27, radius: 6685e5, temperature: 5050, color: 16755302, planets: 1 },
+  { name: "82 Eridani", nameCN: "\u6CE2\u6C5F\u5EA782", distance: 19.8, ra: 0.7064, dec: -0.7247, starType: "G8V", mass: 1511e27, radius: 6685e5, temperature: 5408, color: 16768426, planets: 3 },
+  { name: "Delta Pavonis", nameCN: "\u5B54\u96C0\u5EA7\u03B4", distance: 19.9, ra: 5.4839, dec: -0.6192, starType: "G8IV", mass: 1969e27, radius: 1044e6, temperature: 5248, color: 16768426, planets: 0 },
+  { name: "Beta Hydri", nameCN: "\u6C34\u86C7\u5EA7\u03B2", distance: 24.3, ra: 0.1815, dec: -1.306, starType: "G2IV", mass: 2028e27, radius: 1191e6, temperature: 5675, color: 16774378, planets: 0 },
+  { name: "Zeta Tucanae", nameCN: "\u675C\u9E43\u5EA7\u03B6", distance: 28, ra: 1.5339, dec: -1.2247, starType: "F9V", mass: 1969e27, radius: 7437e5, temperature: 6026, color: 16777198, planets: 0 },
+  { name: "Zeta Reticuli", nameCN: "\u7F51\u7F5F\u5EA7\u03B6", distance: 39.5, ra: 0.8299, dec: -1.0226, starType: "G2V", mass: 1969e27, radius: 7161e5, temperature: 5736, color: 16774378, planets: 0 },
+  { name: "61 Virginis", nameCN: "\u5BA4\u5973\u5EA761", distance: 27.8, ra: 3.9637, dec: 0.3057, starType: "G5V", mass: 181e28, radius: 7161e5, temperature: 5531, color: 16768426, planets: 3 },
+  { name: "HD 102365", nameCN: "HD 102365", distance: 30.7, ra: 2.8339, dec: -1.1258, starType: "G2V", mass: 181e28, radius: 7161e5, temperature: 5524, color: 16774378, planets: 1 },
+  { name: "Mu Herculis", nameCN: "\u6B66\u4ED9\u5EA7\u03BC", distance: 27.4, ra: 4.2926, dec: 0.6801, starType: "G5IV", mass: 1969e27, radius: 9749e5, temperature: 5410, color: 16768426, planets: 0 }
 ];
 var TRISOLARIS_SYSTEM = [
   // 三体星A — 主序G型恒星（类似太阳）
@@ -24497,6 +24777,351 @@ function createPartVisual(part) {
       return buildScienceInstrument(part);
   }
 }
+function texBrushedMetal(type, size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  const pal = {
+    aluminum: [198, 202, 208],
+    titanium: [152, 150, 147],
+    copper: [186, 118, 55],
+    inconel: [115, 118, 122],
+    steel: [135, 138, 142],
+    white: [238, 239, 241],
+    dark: [42, 44, 50]
+  };
+  const [br, bg, bb] = pal[type];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const streak = TextureFactory.fbm(x * 0.08, y * 4e-3, 5, 0.5, 2);
+      const grain = TextureFactory.fbm(x * 0.4, y * 0.4, 3, 0.4, 2.5);
+      const v = (streak * 0.4 + grain * 0.15 - 0.28) * 85;
+      d[i] = Math.max(0, Math.min(255, br + v));
+      d[i + 1] = Math.max(0, Math.min(255, bg + v));
+      d[i + 2] = Math.max(0, Math.min(255, bb + v));
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texFoamInsulation(size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const lumps = TextureFactory.fbm(x * 0.015, y * 0.015, 6, 0.55, 2.2);
+      const medium = TextureFactory.fbm(x * 0.06, y * 0.06, 4, 0.5, 2.3);
+      const fine = TextureFactory.fbm(x * 0.25, y * 0.25, 3, 0.4, 2.5);
+      const v = lumps * 0.5 + medium * 0.25 + fine * 0.1;
+      d[i] = Math.max(0, Math.min(255, 232 + v * 22 - 12));
+      d[i + 1] = Math.max(0, Math.min(255, 152 + v * 18 - 8));
+      d[i + 2] = Math.max(0, Math.min(255, 58 + v * 8 - 4));
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texAblationChar(size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const charBase = TextureFactory.fbm(x * 0.03, y * 0.03, 6, 0.5, 2.2);
+      const grooves = TextureFactory.fbm(x * 0.08, y * 0.08, 4, 0.4, 2.5);
+      const scorch = TextureFactory.fbm(x * 0.015, y * 0.015, 5, 0.5, 2);
+      const ash = TextureFactory.fbm(x * 0.3, y * 0.3, 3, 0.4, 2.5);
+      const v = charBase * 0.4 + grooves * 0.2 + scorch * 0.15 + ash * 0.05;
+      const base = 35 + v * 55;
+      d[i] = Math.max(0, Math.min(255, base + 18));
+      d[i + 1] = Math.max(0, Math.min(255, base * 0.65 + 8));
+      d[i + 2] = Math.max(0, Math.min(255, base * 0.45 + 4));
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texNozzleThermal(size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const yNorm = y / size;
+      const heatFactor = yNorm;
+      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 6, 0.5, 2.2);
+      const sootStreak = TextureFactory.fbm(x * 0.02, y * 0.12, 5, 0.5, 2);
+      const heatColor = TextureFactory.fbm(x * 0.03, y * 0.04, 4, 0.4, 2.5);
+      let r = 35 + n * 30;
+      let g = 32 + n * 25;
+      let b = 30 + n * 22;
+      r += heatFactor * 15 + heatColor * 10;
+      g += heatFactor * 10 + heatColor * 5;
+      b += heatFactor * 55 + heatColor * 25;
+      r -= (1 - heatFactor) * sootStreak * 25;
+      g -= (1 - heatFactor) * sootStreak * 22;
+      b -= (1 - heatFactor) * sootStreak * 18;
+      d[i] = Math.max(0, Math.min(255, Math.floor(r)));
+      d[i + 1] = Math.max(0, Math.min(255, Math.floor(g)));
+      d[i + 2] = Math.max(0, Math.min(255, Math.floor(b)));
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texSRBBody(size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const n = TextureFactory.fbm(x * 0.05, y * 0.04, 5, 0.45, 2.2);
+      const v = 0.88 + n * 0.22;
+      d[i] = Math.min(255, 232 * v);
+      d[i + 1] = Math.min(255, 232 * v);
+      d[i + 2] = Math.min(255, 235 * v);
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  ctx.strokeStyle = "rgba(160,160,165,0.5)";
+  ctx.lineWidth = 2;
+  for (let i = 1; i < 6; i++) {
+    const sy = i / 6 * size;
+    ctx.beginPath();
+    ctx.moveTo(0, sy);
+    ctx.lineTo(size, sy);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 4; i++) {
+    const sx = (i + 0.5) / 4 * size;
+    ctx.beginPath();
+    ctx.moveTo(sx, 0);
+    ctx.lineTo(sx, size);
+    ctx.stroke();
+  }
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texRoughnessMap(base, size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const n = TextureFactory.fbm(x * 0.08, y * 0.08, 4, 0.45, 2.3);
+      const v = Math.max(0, Math.min(255, (base + (n - 0.5) * 0.3) * 255));
+      d[i] = v;
+      d[i + 1] = v;
+      d[i + 2] = v;
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texNormalDetail(detail, size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = 128;
+    d[i + 1] = 128;
+    d[i + 2] = 255;
+    d[i + 3] = 255;
+  }
+  const setPx = (x, y, r, g, b) => {
+    if (x < 0 || x >= size || y < 0 || y >= size) return;
+    const i = (y * size + x) * 4;
+    d[i] = r;
+    d[i + 1] = g;
+    d[i + 2] = b;
+  };
+  if (detail === "rivets" || detail === "panels") {
+    const spacing = detail === "rivets" ? 48 : 64;
+    for (let p = spacing; p < size; p += spacing) {
+      for (let x = 0; x < size; x++) {
+        setPx(x, p, 80, 128, 255);
+        setPx(x, p + 1, 110, 128, 255);
+        setPx(x, p - 1, 110, 128, 255);
+      }
+      for (let y = 0; y < size; y++) {
+        setPx(p, y, 128, 80, 255);
+        setPx(p + 1, y, 128, 110, 255);
+        setPx(p - 1, y, 128, 110, 255);
+      }
+    }
+    if (detail === "rivets") {
+      for (let py2 = 0; py2 < size; py2 += spacing) {
+        for (let px2 = 0; px2 < size; px2 += spacing) {
+          for (let dy = -3; dy <= 3; dy++) {
+            for (let dx = -3; dx <= 3; dx++) {
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > 3) continue;
+              const bump = (1 - dist / 3) * 50;
+              setPx(px2 + dx, py2 + dy, Math.min(255, 128 + bump), 128, 255);
+            }
+          }
+        }
+      }
+    }
+  } else if (detail === "foam") {
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const n = TextureFactory.fbm(x * 0.1, y * 0.1, 4, 0.5, 2.3);
+        const dxv = (n - 0.5) * 60;
+        const dyv = (n - 0.5) * 60;
+        const i = (y * size + x) * 4;
+        d[i] = Math.max(0, Math.min(255, 128 + dxv));
+        d[i + 1] = Math.max(0, Math.min(255, 128 + dyv));
+      }
+    }
+  } else if (detail === "welds") {
+    for (let p = 64; p < size; p += 128) {
+      for (let y = 0; y < size; y++) {
+        const weld = Math.sin(y * 0.15) * 15 + 20;
+        for (let dx = -3; dx <= 3; dx++) {
+          setPx(p + dx, y, Math.min(255, 128 + weld - Math.abs(dx) * 8), 128, 255);
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texEmissiveGlow(type, size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const img = ctx.createImageData(size, size);
+  const d = img.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      if (type === "throat") {
+        const yNorm = y / size;
+        const heatFactor = yNorm;
+        const n = TextureFactory.fbm(x * 0.04, y * 0.06, 5, 0.5, 2.2);
+        const intensity = heatFactor * (0.6 + n * 0.4);
+        d[i] = Math.min(255, intensity * 180);
+        d[i + 1] = Math.min(255, intensity * 200);
+        d[i + 2] = Math.min(255, intensity * 255);
+      } else {
+        const n = TextureFactory.fbm(x * 0.1, y * 0.1, 4, 0.5, 2.3);
+        const led = n > 0.7 ? (n - 0.7) / 0.3 : 0;
+        d[i] = Math.min(255, led * 50);
+        d[i + 1] = Math.min(255, led * 255);
+        d[i + 2] = Math.min(255, led * 80);
+      }
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function texSolarCells(size = 1024) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const cellSize = size / 8;
+  ctx.fillStyle = "#1a2a5a";
+  ctx.fillRect(0, 0, size, size);
+  for (let cy = 0; cy < 8; cy++) {
+    for (let cx = 0; cx < 8; cx++) {
+      const n = TextureFactory.fbm(cx * 1.5, cy * 1.5, 3, 0.5, 2);
+      const v = 0.7 + n * 0.3;
+      ctx.fillStyle = `rgb(${Math.floor(30 * v)},${Math.floor(50 * v)},${Math.floor(100 * v)})`;
+      ctx.fillRect(cx * cellSize + 1, cy * cellSize + 1, cellSize - 2, cellSize - 2);
+      ctx.fillStyle = "#aaaab0";
+      ctx.fillRect(cx * cellSize + 1, cy * cellSize + cellSize * 0.45, cellSize - 2, 1);
+      ctx.fillRect(cx * cellSize + cellSize * 0.45, cy * cellSize + 1, 1, cellSize - 2);
+      ctx.strokeStyle = "rgba(120,140,180,0.4)";
+      ctx.lineWidth = 0.5;
+      for (let g = 1; g < 4; g++) {
+        ctx.beginPath();
+        ctx.moveTo(cx * cellSize + cellSize / 4 * g, cy * cellSize + 1);
+        ctx.lineTo(cx * cellSize + cellSize / 4 * g, cy * cellSize + cellSize - 1);
+        ctx.stroke();
+      }
+    }
+  }
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function addBoltRing(group, count, radius, y, mat, boltR = 0.018) {
+  for (let i = 0; i < count; i++) {
+    const a = i / count * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(boltR, 8, 6), mat);
+    bolt.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
+    group.add(bolt);
+  }
+}
 function buildCommandPod(part) {
   const group = new Group();
   const isProbe = part.mass <= 200;
@@ -24504,22 +25129,27 @@ function buildCommandPod(part) {
   const r = mk === 3 ? 1.875 : mk === 2 ? 1.25 : 0.625;
   const h = mk === 3 ? 2.6 : mk === 2 ? 2 : 1.4;
   if (isProbe) {
-    const probeR = 0.35;
-    const probeH = 0.5;
+    const probeR = 0.35, probeH = 0.5;
     const probeBody = new Mesh(
-      new CylinderGeometry(probeR, probeR, probeH, 8),
-      new MeshStandardMaterial({ color: 2763317, metalness: 0.5, roughness: 0.5 })
+      new CylinderGeometry(probeR, probeR, probeH, 16),
+      new MeshStandardMaterial({
+        map: texBrushedMetal("dark", 1024),
+        normalMap: texNormalDetail("rivets", 512),
+        color: 2763317,
+        metalness: 0.6,
+        roughness: 0.5
+      })
     );
     probeBody.castShadow = true;
     group.add(probeBody);
     const dome = new Mesh(
-      new SphereGeometry(probeR, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-      new MeshStandardMaterial({ color: 8947865, metalness: 0.6, roughness: 0.35 })
+      new SphereGeometry(probeR, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      new MeshStandardMaterial({ map: texBrushedMetal("titanium", 512), color: 8947865, metalness: 0.7, roughness: 0.3 })
     );
     dome.position.y = probeH / 2;
     dome.castShadow = true;
     group.add(dome);
-    const panelMat = new MeshStandardMaterial({ color: 1714778, metalness: 0.3, roughness: 0.3, emissive: 662074, emissiveIntensity: 0.3 });
+    const panelMat = new MeshStandardMaterial({ color: 1714778, metalness: 0.3, roughness: 0.3, emissive: 662074, emissiveIntensity: 0.4 });
     for (let i = 0; i < 4; i++) {
       const a = i / 4 * Math.PI * 2 + Math.PI / 8;
       const panel = new Mesh(new BoxGeometry(0.25, 0.15, 0.01), panelMat);
@@ -24550,23 +25180,25 @@ function buildCommandPod(part) {
   points.push(new Vector2(r * 0.99, -h / 2 + 0.02));
   points.push(new Vector2(r * 0.97, -h / 2 + 0.05));
   if (mk === 3) {
-    points.push(new Vector2(r * 0.93, -h / 2 + h * 0.12));
-    points.push(new Vector2(r * 0.85, -h / 2 + h * 0.25));
-    points.push(new Vector2(r * 0.72, -h / 2 + h * 0.42));
-    points.push(new Vector2(r * 0.58, -h / 2 + h * 0.6));
-    points.push(new Vector2(r * 0.45, -h / 2 + h * 0.78));
-    points.push(new Vector2(r * 0.35, -h / 2 + h * 0.9));
-    points.push(new Vector2(r * 0.3, h / 2 - 0.03));
+    points.push(new Vector2(r * 0.93, -h / 2 + h * 0.1));
+    points.push(new Vector2(r * 0.87, -h / 2 + h * 0.2));
+    points.push(new Vector2(r * 0.78, -h / 2 + h * 0.32));
+    points.push(new Vector2(r * 0.68, -h / 2 + h * 0.45));
+    points.push(new Vector2(r * 0.56, -h / 2 + h * 0.58));
+    points.push(new Vector2(r * 0.44, -h / 2 + h * 0.7));
+    points.push(new Vector2(r * 0.35, -h / 2 + h * 0.82));
+    points.push(new Vector2(r * 0.3, -h / 2 + h * 0.9));
+    points.push(new Vector2(r * 0.28, h / 2 - 0.04));
   } else if (mk === 2) {
-    points.push(new Vector2(r * 0.9, -h / 2 + h * 0.1));
-    points.push(new Vector2(r * 0.8, -h / 2 + h * 0.22));
-    points.push(new Vector2(r * 0.65, -h / 2 + h * 0.4));
-    points.push(new Vector2(r * 0.5, -h / 2 + h * 0.58));
-    points.push(new Vector2(r * 0.38, -h / 2 + h * 0.75));
-    points.push(new Vector2(r * 0.3, -h / 2 + h * 0.88));
-    points.push(new Vector2(r * 0.34, -h / 2 + h * 0.93));
+    points.push(new Vector2(r * 0.9, -h / 2 + h * 0.08));
+    points.push(new Vector2(r * 0.82, -h / 2 + h * 0.18));
+    points.push(new Vector2(r * 0.7, -h / 2 + h * 0.32));
+    points.push(new Vector2(r * 0.56, -h / 2 + h * 0.48));
+    points.push(new Vector2(r * 0.42, -h / 2 + h * 0.62));
+    points.push(new Vector2(r * 0.32, -h / 2 + h * 0.76));
+    points.push(new Vector2(r * 0.28, -h / 2 + h * 0.86));
+    points.push(new Vector2(r * 0.3, -h / 2 + h * 0.92));
     points.push(new Vector2(r * 0.26, h / 2 - 0.04));
-    points.push(new Vector2(r * 0.24, h / 2 - 0.01));
   } else {
     points.push(new Vector2(r * 0.88, -h / 2 + h * 0.08));
     points.push(new Vector2(r * 0.72, -h / 2 + h * 0.2));
@@ -24577,67 +25209,98 @@ function buildCommandPod(part) {
     points.push(new Vector2(r * 0.12, h / 2 - 0.03));
   }
   points.push(new Vector2(0, h / 2));
-  const podGeo = new LatheGeometry(points, 64);
+  const podGeo = new LatheGeometry(points, 72);
+  const aluTex = texBrushedMetal("aluminum", 1024);
+  const aluNormal = texNormalDetail("rivets", 1024);
+  const aluRough = texRoughnessMap(0.35, 1024);
   const podMat = new MeshStandardMaterial({
-    map: makeMetalTexture("aluminum", 256),
-    normalMap: makePanelNormalMap(256, 24),
+    map: aluTex,
+    normalMap: aluNormal,
+    roughnessMap: aluRough,
     color: 15263980,
-    metalness: 0.6,
-    roughness: 0.3
+    metalness: 0.65,
+    roughness: 0.35
   });
   const pod = new Mesh(podGeo, podMat);
   pod.castShadow = true;
   group.add(pod);
   const shieldProfile = [];
-  shieldProfile.push(new Vector2(0, -h / 2 - r * 0.22));
-  shieldProfile.push(new Vector2(r * 0.45, -h / 2 - r * 0.2));
-  shieldProfile.push(new Vector2(r * 0.7, -h / 2 - r * 0.14));
-  shieldProfile.push(new Vector2(r * 0.88, -h / 2 - r * 0.07));
-  shieldProfile.push(new Vector2(r * 0.97, -h / 2 - r * 0.02));
+  shieldProfile.push(new Vector2(0, -h / 2 - r * 0.25));
+  shieldProfile.push(new Vector2(r * 0.4, -h / 2 - r * 0.23));
+  shieldProfile.push(new Vector2(r * 0.65, -h / 2 - r * 0.17));
+  shieldProfile.push(new Vector2(r * 0.85, -h / 2 - r * 0.09));
+  shieldProfile.push(new Vector2(r * 0.96, -h / 2 - r * 0.03));
   shieldProfile.push(new Vector2(r, -h / 2));
-  const shieldGeo = new LatheGeometry(shieldProfile, 48);
-  const shieldTex = makeTPSTileTexture(256);
+  const shieldGeo = new LatheGeometry(shieldProfile, 64);
+  const abTex = texAblationChar(1024);
+  const abNormal = texNormalDetail("foam", 512);
   const shieldMat = new MeshStandardMaterial({
-    map: shieldTex,
-    normalMap: makePanelNormalMap(128, 16),
-    color: 6706500,
-    metalness: 0.15,
+    map: abTex,
+    normalMap: abNormal,
+    color: 4864552,
+    metalness: 0.1,
     roughness: 0.95
   });
   const shield = new Mesh(shieldGeo, shieldMat);
   shield.castShadow = true;
   group.add(shield);
   const grooveMat = new MeshStandardMaterial({ color: 1707524, metalness: 0.1, roughness: 1 });
-  for (let i = 0; i < 16; i++) {
-    const angle = i / 16 * Math.PI * 2;
-    const grooveGeo = new BoxGeometry(0.012, r * 0.16, r * 0.75);
+  for (let i = 0; i < 24; i++) {
+    const angle = i / 24 * Math.PI * 2;
+    const depth = 0.02 + i % 3 * 0.015;
+    const grooveGeo = new BoxGeometry(0.015, r * 0.2, r * 0.78);
     const groove = new Mesh(grooveGeo, grooveMat);
-    groove.position.set(Math.cos(angle) * r * 0.42, -h / 2 - r * 0.12, Math.sin(angle) * r * 0.42);
+    groove.position.set(Math.cos(angle) * r * 0.42, -h / 2 - r * 0.14, Math.sin(angle) * r * 0.42);
     groove.rotation.y = -angle;
     groove.rotation.x = Math.PI / 2;
+    groove.scale.y = 1 + depth * 5;
     group.add(groove);
   }
-  const winMat = new MeshStandardMaterial({ color: 4491519, metalness: 0.1, roughness: 0.05, emissive: 2245802, emissiveIntensity: 0.4 });
-  const frameMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.85, roughness: 0.25 });
+  const scorchMat = new MeshStandardMaterial({ color: 656900, metalness: 0.05, roughness: 1, transparent: true, opacity: 0.6 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + 0.3;
+    const scorch = new Mesh(new CircleGeometry(r * 0.15, 12), scorchMat);
+    scorch.position.set(Math.cos(a) * r * 0.55, -h / 2 - r * 0.16, Math.sin(a) * r * 0.55);
+    scorch.lookAt(Math.cos(a) * 3, -h / 2 - r * 0.16, Math.sin(a) * 3);
+    group.add(scorch);
+  }
+  const glassMat = new MeshPhysicalMaterial({
+    color: 2241348,
+    metalness: 0,
+    roughness: 0.05,
+    transmission: 0.92,
+    thickness: 0.5,
+    ior: 1.5,
+    clearcoat: 1,
+    clearcoatRoughness: 0.02,
+    emissive: 1122884,
+    emissiveIntensity: 0.2
+  });
+  const frameMat = new MeshStandardMaterial({
+    map: texBrushedMetal("titanium", 512),
+    color: 5592405,
+    metalness: 0.85,
+    roughness: 0.25
+  });
   const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
   const winR = r * 0.72;
   const winY = h * 0.15;
-  const winSize = mk === 3 ? 0.28 : mk === 2 ? 0.22 : 0.16;
+  const winSize = mk === 3 ? 0.3 : mk === 2 ? 0.24 : 0.18;
   for (const angle of [0, Math.PI]) {
-    const frameGeo = new BoxGeometry(winSize * 1.4, winSize * 1, 0.06);
+    const frameGeo = new BoxGeometry(winSize * 1.5, winSize * 1.1, 0.07);
     const frame = new Mesh(frameGeo, frameMat);
     frame.position.set(Math.cos(angle) * winR, winY, Math.sin(angle) * winR);
     frame.lookAt(0, winY, 0);
     frame.castShadow = true;
     group.add(frame);
-    const winGeo = new BoxGeometry(winSize, winSize * 0.7, 0.05);
-    const win = new Mesh(winGeo, winMat);
+    const winGeo = new BoxGeometry(winSize, winSize * 0.75, 0.05);
+    const win = new Mesh(winGeo, glassMat);
     win.position.copy(frame.position);
     win.lookAt(0, winY, 0);
     group.add(win);
     for (const bx of [-1, 1]) {
       for (const by of [-1, 1]) {
-        const bolt = new Mesh(new SphereGeometry(winSize * 0.08, 6, 4), boltMat);
+        const bolt = new Mesh(new SphereGeometry(winSize * 0.08, 8, 6), boltMat);
         bolt.position.copy(frame.position);
         bolt.position.x += Math.cos(angle) * bx * winSize * 0.6 - Math.sin(angle) * 0.03;
         bolt.position.y += by * winSize * 0.42;
@@ -24648,78 +25311,113 @@ function buildCommandPod(part) {
   }
   const smallWinSize = winSize * 0.6;
   for (const angle of [Math.PI / 2, -Math.PI / 2]) {
-    const frameGeo = new BoxGeometry(smallWinSize * 1.4, smallWinSize * 1, 0.05);
+    const frameGeo = new BoxGeometry(smallWinSize * 1.5, smallWinSize * 1.1, 0.06);
     const frame = new Mesh(frameGeo, frameMat);
     frame.position.set(Math.cos(angle) * winR, winY + winSize * 0.3, Math.sin(angle) * winR);
     frame.lookAt(0, winY + winSize * 0.3, 0);
     frame.castShadow = true;
     group.add(frame);
-    const winGeo = new BoxGeometry(smallWinSize, smallWinSize * 0.7, 0.04);
-    const win = new Mesh(winGeo, winMat);
+    const winGeo = new BoxGeometry(smallWinSize, smallWinSize * 0.75, 0.04);
+    const win = new Mesh(winGeo, glassMat);
     win.position.copy(frame.position);
     win.lookAt(0, winY + winSize * 0.3, 0);
     group.add(win);
   }
-  const rcsMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.75, roughness: 0.35 });
-  const rcsBaseMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.4 });
+  const rcsNozzlePts = [
+    new Vector2(0, 0),
+    new Vector2(0.04, 0),
+    new Vector2(0.045, 0.02),
+    new Vector2(0.035, 0.04),
+    new Vector2(0.025, 0.06),
+    new Vector2(0, 0.06)
+  ];
+  const rcsNozzleGeo = new LatheGeometry(rcsNozzlePts, 12);
+  const rcsCopperMat = new MeshStandardMaterial({
+    map: texBrushedMetal("copper", 256),
+    color: 12088115,
+    metalness: 0.8,
+    roughness: 0.3
+  });
+  const rcsBaseMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 7829367,
+    metalness: 0.75,
+    roughness: 0.35
+  });
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const rcsBase = new Mesh(new BoxGeometry(0.08, 0.08, 0.1), rcsBaseMat);
+    const rcsBase = new Mesh(new BoxGeometry(0.1, 0.1, 0.12), rcsBaseMat);
     rcsBase.position.set(Math.cos(angle) * r * 0.95, h * 0.3, Math.sin(angle) * r * 0.95);
     rcsBase.lookAt(Math.cos(angle) * 3, h * 0.3, Math.sin(angle) * 3);
     rcsBase.castShadow = true;
     group.add(rcsBase);
-    const rcsGeo = new ConeGeometry(0.04, 0.12, 8);
-    const rcs = new Mesh(rcsGeo, rcsMat);
-    rcs.position.set(Math.cos(angle) * (r * 0.95 + 0.07), h * 0.3, Math.sin(angle) * (r * 0.95 + 0.07));
-    rcs.rotation.z = Math.PI / 2;
-    rcs.rotation.y = -angle;
+    const rcs = new Mesh(rcsNozzleGeo, rcsCopperMat);
+    rcs.position.set(Math.cos(angle) * (r * 0.95 + 0.08), h * 0.3, Math.sin(angle) * (r * 0.95 + 0.08));
+    rcs.lookAt(Math.cos(angle) * 5, h * 0.3, Math.sin(angle) * 5);
+    rcs.rotation.x = Math.PI / 2;
     rcs.castShadow = true;
     group.add(rcs);
   }
+  const mortarMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 10066329,
+    metalness: 0.75,
+    roughness: 0.3
+  });
+  const mortar = new Mesh(new CylinderGeometry(r * 0.15, r * 0.18, 0.12, 24), mortarMat);
+  mortar.position.y = h / 2 + 0.06;
+  mortar.castShadow = true;
+  group.add(mortar);
+  addBoltRing(group, 12, r * 0.16, h / 2 + 0.12, boltMat, 0.012);
   const portBase = new Mesh(
-    new CylinderGeometry(r * 0.18, r * 0.22, 0.08, 24),
-    new MeshStandardMaterial({ color: 8947848, metalness: 0.75, roughness: 0.3 })
+    new CylinderGeometry(r * 0.18, r * 0.22, 0.08, 28),
+    new MeshStandardMaterial({ map: texBrushedMetal("titanium", 256), color: 8947848, metalness: 0.8, roughness: 0.25 })
   );
-  portBase.position.y = h / 2 + 0.04;
+  portBase.position.y = h / 2 + 0.18;
   portBase.castShadow = true;
   group.add(portBase);
   const portRing = new Mesh(
-    new TorusGeometry(r * 0.16, 0.025, 8, 24),
-    new MeshStandardMaterial({ color: 11184810, metalness: 0.85, roughness: 0.2 })
+    new TorusGeometry(r * 0.16, 0.025, 10, 28),
+    new MeshStandardMaterial({ color: 11184810, metalness: 0.9, roughness: 0.15 })
   );
-  portRing.position.y = h / 2 + 0.09;
+  portRing.position.y = h / 2 + 0.23;
   portRing.rotation.x = Math.PI / 2;
   portRing.castShadow = true;
   group.add(portRing);
   const dockCone = new Mesh(
-    new ConeGeometry(r * 0.08, 0.08, 16),
-    new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.25 })
+    new ConeGeometry(r * 0.08, 0.08, 20),
+    new MeshStandardMaterial({ color: 10066329, metalness: 0.85, roughness: 0.2 })
   );
-  dockCone.position.y = h / 2 + 0.13;
+  dockCone.position.y = h / 2 + 0.27;
   dockCone.castShadow = true;
   group.add(dockCone);
-  const lineMat = new MeshStandardMaterial({ color: 11184810, metalness: 0.5, roughness: 0.5 });
+  const lineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.5, roughness: 0.5 });
   for (let i = 0; i < 8; i++) {
     const angle = i / 8 * Math.PI * 2;
-    const lineGeo = new BoxGeometry(0.01, h * 0.78, 0.018);
+    const lineGeo = new BoxGeometry(8e-3, h * 0.78, 0.015);
     const line = new Mesh(lineGeo, lineMat);
     line.position.set(Math.cos(angle) * r * 0.83, 0, Math.sin(angle) * r * 0.83);
     line.lookAt(0, 0, 0);
     group.add(line);
   }
-  const seamGeo = new TorusGeometry(r * 0.86, 0.015, 6, 32);
+  const seamGeo = new TorusGeometry(r * 0.86, 0.012, 8, 40);
   const seam = new Mesh(seamGeo, lineMat);
   seam.position.y = 0;
   seam.rotation.x = Math.PI / 2;
   group.add(seam);
-  const hatchMat = new MeshStandardMaterial({ color: 12303291, metalness: 0.6, roughness: 0.4 });
-  const hatch = new Mesh(new BoxGeometry(0.22, 0.3, 0.03), hatchMat);
+  const hatchMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 256),
+    color: 12303291,
+    metalness: 0.6,
+    roughness: 0.4
+  });
+  const hatch = new Mesh(new BoxGeometry(0.24, 0.32, 0.03), hatchMat);
   hatch.position.set(r * 0.96, -h * 0.12, 0);
   hatch.lookAt(r * 3, -h * 0.12, 0);
   hatch.castShadow = true;
   group.add(hatch);
-  const handle = new Mesh(new TorusGeometry(0.035, 9e-3, 6, 12), rcsMat);
+  addBoltRing(group, 8, 0.1, -h * 0.12, boltMat, 8e-3);
+  const handle = new Mesh(new TorusGeometry(0.035, 9e-3, 8, 14), rcsBaseMat);
   handle.position.set(r * 1.04, -h * 0.12, 0);
   handle.rotation.y = Math.PI / 2;
   group.add(handle);
@@ -24727,13 +25425,13 @@ function buildCommandPod(part) {
     new CylinderGeometry(6e-3, 6e-3, 0.35, 6),
     new MeshStandardMaterial({ color: 3355443, metalness: 0.6, roughness: 0.4 })
   );
-  whip.position.set(r * 0.3, h / 2 + 0.22, 0);
+  whip.position.set(r * 0.3, h / 2 + 0.32, 0);
   whip.rotation.z = -0.3;
   group.add(whip);
   const whipBall = new Mesh(new SphereGeometry(0.015, 8, 6), new MeshStandardMaterial({ color: 13421772, metalness: 0.8, roughness: 0.2 }));
-  whipBall.position.set(r * 0.38, h / 2 + 0.38, 0);
+  whipBall.position.set(r * 0.38, h / 2 + 0.48, 0);
   group.add(whipBall);
-  group.userData.height = h + 0.3;
+  group.userData.height = h + 0.35;
   group.userData.radius = r;
   return group;
 }
@@ -24742,47 +25440,43 @@ function buildFuelTank(part) {
   const sizeClass = part.fuelMass > 2e4 ? 3 : part.fuelMass > 5e3 ? 2 : 1;
   const r = sizeClass === 3 ? 1.875 : sizeClass === 2 ? 1.25 : 0.625;
   const h = part.fuelMass > 2e4 ? 5.5 : part.fuelMass > 1e4 ? 4 : part.fuelMass > 5e3 ? 3 : part.fuelMass > 1e3 ? 2 : 1.2;
-  const tankCanvas = document.createElement("canvas");
-  tankCanvas.width = 512;
-  tankCanvas.height = 256;
-  const tCtx = tankCanvas.getContext("2d");
   const isOrange = part.fuelMass > 1e4;
-  const baseR = isOrange ? 240 : 245;
-  const baseG = isOrange ? 160 : 245;
-  const baseB = isOrange ? 64 : 245;
-  for (let y = 0; y < 256; y++) {
-    for (let x = 0; x < 512; x++) {
-      const n = TextureFactory.fbm(x * 0.06, y * 0.08, 5, 0.45, 2.3);
-      const v = 0.85 + n * 0.3;
-      tCtx.fillStyle = `rgb(${Math.min(255, baseR * v)},${Math.min(255, baseG * v)},${Math.min(255, baseB * v)})`;
-      tCtx.fillRect(x, y, 1, 1);
-    }
-  }
-  const seamCount = Math.floor(h / 0.6);
-  for (let i = 1; i < seamCount; i++) {
-    const sy = i / seamCount * 256;
-    tCtx.fillStyle = isOrange ? "rgba(180,120,40,0.6)" : "rgba(200,200,200,0.5)";
-    tCtx.fillRect(0, sy - 1, 512, 2);
-  }
-  const tankTex = new CanvasTexture(tankCanvas);
-  tankTex.colorSpace = SRGBColorSpace;
-  tankTex.wrapS = RepeatWrapping;
-  tankTex.wrapT = RepeatWrapping;
+  const tankTex = isOrange ? texFoamInsulation(1024) : texBrushedMetal("white", 1024);
   tankTex.repeat.set(3, Math.max(1, h / 2));
-  const bodyGeo = new CylinderGeometry(r, r, h, 64);
-  const bodyMat = new MeshStandardMaterial({ map: tankTex, color: 16777215, metalness: 0.3, roughness: 0.6 });
+  const tankNormal = isOrange ? texNormalDetail("foam", 1024) : texNormalDetail("panels", 1024);
+  tankNormal.repeat.set(3, Math.max(1, h / 2));
+  const tankRough = texRoughnessMap(isOrange ? 0.75 : 0.4, 1024);
+  tankRough.repeat.set(3, Math.max(1, h / 2));
+  const bodyGeo = new CylinderGeometry(r, r, h, 72);
+  const bodyMat = new MeshStandardMaterial({
+    map: tankTex,
+    normalMap: tankNormal,
+    roughnessMap: tankRough,
+    color: 16777215,
+    metalness: isOrange ? 0.1 : 0.3,
+    roughness: isOrange ? 0.75 : 0.4
+  });
   const body = new Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
   group.add(body);
   const capPts = [];
   capPts.push(new Vector2(0, 0));
-  capPts.push(new Vector2(r * 0.2, 0.01));
-  capPts.push(new Vector2(r * 0.5, 0.06));
-  capPts.push(new Vector2(r * 0.75, 0.18));
-  capPts.push(new Vector2(r * 0.92, 0.35));
-  capPts.push(new Vector2(r, 0.55));
-  const topCapGeo = new LatheGeometry(capPts, 48);
-  const capMat = new MeshStandardMaterial({ map: tankTex, color: 16777215, metalness: 0.35, roughness: 0.55 });
+  capPts.push(new Vector2(r * 0.15, 8e-3));
+  capPts.push(new Vector2(r * 0.35, 0.04));
+  capPts.push(new Vector2(r * 0.55, 0.12));
+  capPts.push(new Vector2(r * 0.75, 0.26));
+  capPts.push(new Vector2(r * 0.9, 0.44));
+  capPts.push(new Vector2(r * 0.98, 0.62));
+  capPts.push(new Vector2(r, 0.72));
+  const topCapGeo = new LatheGeometry(capPts, 56);
+  const capMat = new MeshStandardMaterial({
+    map: tankTex,
+    normalMap: tankNormal,
+    roughnessMap: tankRough,
+    color: 16777215,
+    metalness: isOrange ? 0.1 : 0.3,
+    roughness: isOrange ? 0.75 : 0.4
+  });
   const topCap = new Mesh(topCapGeo, capMat);
   topCap.position.y = h / 2;
   topCap.castShadow = true;
@@ -24792,49 +25486,36 @@ function buildFuelTank(part) {
   botCap.rotation.x = Math.PI;
   botCap.castShadow = true;
   group.add(botCap);
-  const ringCount = h > 4.5 ? 4 : h > 2.5 ? 3 : 2;
-  const ringMat = new MeshStandardMaterial({ color: 11579568, metalness: 0.75, roughness: 0.25 });
-  for (let i = 0; i < ringCount; i++) {
-    const ringGeo = new TorusGeometry(r * 1.02, 0.04, 10, 64);
-    const ring = new Mesh(ringGeo, ringMat);
-    ring.position.y = -h / 2 + h / (ringCount + 1) * (i + 1);
-    ring.rotation.x = Math.PI / 2;
-    ring.castShadow = true;
-    group.add(ring);
-    const boltMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.8, roughness: 0.3 });
-    for (let b = 0; b < 20; b++) {
-      const ba = b / 20 * Math.PI * 2;
-      const bolt = new Mesh(new SphereGeometry(0.015, 6, 4), boltMat);
-      bolt.position.set(Math.cos(ba) * r * 1.04, -h / 2 + h / (ringCount + 1) * (i + 1), Math.sin(ba) * r * 1.04);
-      group.add(bolt);
-    }
-  }
-  const weldMat = new MeshStandardMaterial({ color: 14211288, metalness: 0.6, roughness: 0.3 });
-  for (let i = 0; i < 8; i++) {
-    const angle = i / 8 * Math.PI * 2;
-    const weldGeo = new BoxGeometry(0.014, h * 0.94, 0.02);
-    const weld = new Mesh(weldGeo, weldMat);
-    weld.position.set(Math.cos(angle) * r * 0.99, 0, Math.sin(angle) * r * 0.99);
-    weld.lookAt(0, 0, 0);
-    group.add(weld);
-  }
-  const bandGeo = new CylinderGeometry(r * 1.01, r * 1.01, 0.15, 64);
-  const bandMat = new MeshStandardMaterial({ color: 13391138, metalness: 0.45, roughness: 0.4 });
-  const band = new Mesh(bandGeo, bandMat);
-  band.position.y = h * 0.18;
-  band.castShadow = true;
-  group.add(band);
-  const band2Geo = new CylinderGeometry(r * 1.01, r * 1.01, 0.08, 64);
-  const band2Mat = new MeshStandardMaterial({ color: 3359914, metalness: 0.45, roughness: 0.4 });
-  const band2 = new Mesh(band2Geo, band2Mat);
-  band2.position.y = h * 0.18 - 0.15;
-  band2.castShadow = true;
-  group.add(band2);
+  const flangeMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 10066329,
+    metalness: 0.85,
+    roughness: 0.2
+  });
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  const boltCount = sizeClass === 3 ? 32 : sizeClass === 2 ? 24 : 16;
+  const topFlange = new Mesh(new TorusGeometry(r * 1.04, 0.05, 12, 56), flangeMat);
+  topFlange.position.y = h / 2 + 0.58;
+  topFlange.rotation.x = Math.PI / 2;
+  topFlange.castShadow = true;
+  group.add(topFlange);
+  addBoltRing(group, boltCount, r * 1.04, h / 2 + 0.58, boltMat, 0.022);
+  const botFlange = new Mesh(new TorusGeometry(r * 1.04, 0.05, 12, 56), flangeMat);
+  botFlange.position.y = -h / 2 - 0.58;
+  botFlange.rotation.x = Math.PI / 2;
+  botFlange.castShadow = true;
+  group.add(botFlange);
+  addBoltRing(group, boltCount, r * 1.04, -h / 2 - 0.58, boltMat, 0.022);
   if (part.fuelMass > 2e4) {
-    const stiffMat = new MeshStandardMaterial({ color: 13158600, metalness: 0.7, roughness: 0.28 });
-    for (let i = 0; i < 6; i++) {
-      const angle = i / 6 * Math.PI * 2;
-      const stiffGeo = new BoxGeometry(0.04, h * 0.92, 0.06);
+    const stiffMat = new MeshStandardMaterial({
+      map: texBrushedMetal("aluminum", 512),
+      color: 13158600,
+      metalness: 0.75,
+      roughness: 0.25
+    });
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * Math.PI * 2;
+      const stiffGeo = new BoxGeometry(0.05, h * 0.92, 0.07);
       const stiff = new Mesh(stiffGeo, stiffMat);
       stiff.position.set(Math.cos(angle) * r * 1.01, 0, Math.sin(angle) * r * 1.01);
       stiff.lookAt(0, 0, 0);
@@ -24842,23 +25523,84 @@ function buildFuelTank(part) {
       group.add(stiff);
     }
   }
-  const flangeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.2 });
-  const topFlange = new Mesh(new TorusGeometry(r * 1.03, 0.045, 8, 48), flangeMat);
-  topFlange.position.y = h / 2 + 0.52;
-  topFlange.rotation.x = Math.PI / 2;
-  topFlange.castShadow = true;
-  group.add(topFlange);
-  const botFlange = new Mesh(new TorusGeometry(r * 1.03, 0.045, 8, 48), flangeMat);
-  botFlange.position.y = -h / 2 - 0.52;
-  botFlange.rotation.x = Math.PI / 2;
-  botFlange.castShadow = true;
-  group.add(botFlange);
-  const ventMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.3 });
-  const vent = new Mesh(new CylinderGeometry(0.05, 0.05, 0.12, 12), ventMat);
-  vent.position.set(r * 1.02, h * 0.38, 0);
-  vent.rotation.z = Math.PI / 2;
-  vent.castShadow = true;
-  group.add(vent);
+  const weldMat = new MeshStandardMaterial({
+    color: isOrange ? 12615744 : 14211288,
+    metalness: 0.5,
+    roughness: 0.4
+  });
+  const weldCount = 8;
+  for (let i = 0; i < weldCount; i++) {
+    const angle = i / weldCount * Math.PI * 2;
+    const weldGeo = new BoxGeometry(0.012, h * 0.94, 0.018);
+    const weld = new Mesh(weldGeo, weldMat);
+    weld.position.set(Math.cos(angle) * r * 0.99, 0, Math.sin(angle) * r * 0.99);
+    weld.lookAt(0, 0, 0);
+    group.add(weld);
+  }
+  const ringCount = h > 4.5 ? 4 : h > 2.5 ? 3 : 2;
+  const ringMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 11579568,
+    metalness: 0.8,
+    roughness: 0.22
+  });
+  for (let i = 0; i < ringCount; i++) {
+    const ringY = -h / 2 + h / (ringCount + 1) * (i + 1);
+    const ring = new Mesh(new TorusGeometry(r * 1.02, 0.04, 12, 64), ringMat);
+    ring.position.y = ringY;
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
+    addBoltRing(group, 20, r * 1.04, ringY, boltMat, 0.015);
+  }
+  const bandGeo = new CylinderGeometry(r * 1.01, r * 1.01, 0.15, 72);
+  const band = new Mesh(bandGeo, new MeshStandardMaterial({ color: 13391138, metalness: 0.45, roughness: 0.4 }));
+  band.position.y = h * 0.18;
+  band.castShadow = true;
+  group.add(band);
+  const band2 = new Mesh(
+    new CylinderGeometry(r * 1.01, r * 1.01, 0.08, 72),
+    new MeshStandardMaterial({ color: 3359914, metalness: 0.45, roughness: 0.4 })
+  );
+  band2.position.y = h * 0.18 - 0.15;
+  band2.castShadow = true;
+  group.add(band2);
+  const conduitMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 8947848,
+    metalness: 0.75,
+    roughness: 0.25
+  });
+  const conduitPts = [
+    new Vector3(r * 1.02, h * 0.4, 0),
+    new Vector3(r * 1.08, h * 0.3, 0),
+    new Vector3(r * 1.06, h * 0.1, 0),
+    new Vector3(r * 1.08, -h * 0.1, 0),
+    new Vector3(r * 1.06, -h * 0.3, 0),
+    new Vector3(r * 1.02, -h * 0.4, 0)
+  ];
+  const conduitCurve = new CatmullRomCurve3(conduitPts);
+  const conduitGeo = new TubeGeometry(conduitCurve, 32, 0.035, 10, false);
+  const conduit = new Mesh(conduitGeo, conduitMat);
+  conduit.castShadow = true;
+  group.add(conduit);
+  const valveMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 6710886,
+    metalness: 0.7,
+    roughness: 0.3
+  });
+  const valve = new Mesh(new CylinderGeometry(0.06, 0.06, 0.14, 16), valveMat);
+  valve.position.set(r * 1.02, h * 0.38, Math.PI * 0.5);
+  valve.position.z = r * 1.02;
+  valve.position.x = 0;
+  valve.rotation.z = Math.PI / 2;
+  valve.castShadow = true;
+  group.add(valve);
+  const handle = new Mesh(new TorusGeometry(0.05, 0.012, 8, 16), valveMat);
+  handle.position.set(r * 1.1, h * 0.38, 0);
+  handle.rotation.y = Math.PI / 2;
+  group.add(handle);
   group.userData.height = h + r;
   group.userData.radius = r;
   return group;
@@ -24872,180 +25614,206 @@ function buildEngine(part) {
   const points = [];
   points.push(new Vector2(0, -nozzleH / 2));
   points.push(new Vector2(nozzleR, -nozzleH / 2));
-  points.push(new Vector2(nozzleR * 0.98, -nozzleH / 2 + nozzleH * 0.03));
+  points.push(new Vector2(nozzleR * 0.99, -nozzleH / 2 + nozzleH * 0.02));
+  points.push(new Vector2(nozzleR * 0.97, -nozzleH / 2 + nozzleH * 0.04));
   points.push(new Vector2(nozzleR * 0.94, -nozzleH / 2 + nozzleH * 0.07));
-  points.push(new Vector2(nozzleR * 0.88, -nozzleH / 2 + nozzleH * 0.13));
-  points.push(new Vector2(nozzleR * 0.8, -nozzleH / 2 + nozzleH * 0.2));
-  points.push(new Vector2(nozzleR * 0.7, -nozzleH / 2 + nozzleH * 0.28));
-  points.push(new Vector2(nozzleR * 0.58, -nozzleH / 2 + nozzleH * 0.37));
-  points.push(new Vector2(nozzleR * 0.46, -nozzleH / 2 + nozzleH * 0.47));
-  points.push(new Vector2(nozzleR * 0.36, -nozzleH / 2 + nozzleH * 0.57));
-  points.push(new Vector2(nozzleR * 0.28, -nozzleH / 2 + nozzleH * 0.68));
-  points.push(new Vector2(nozzleR * 0.24, -nozzleH / 2 + nozzleH * 0.76));
-  points.push(new Vector2(nozzleR * 0.22, -nozzleH / 2 + nozzleH * 0.82));
+  points.push(new Vector2(nozzleR * 0.9, -nozzleH / 2 + nozzleH * 0.1));
+  points.push(new Vector2(nozzleR * 0.85, -nozzleH / 2 + nozzleH * 0.14));
+  points.push(new Vector2(nozzleR * 0.8, -nozzleH / 2 + nozzleH * 0.18));
+  points.push(new Vector2(nozzleR * 0.73, -nozzleH / 2 + nozzleH * 0.23));
+  points.push(new Vector2(nozzleR * 0.66, -nozzleH / 2 + nozzleH * 0.29));
+  points.push(new Vector2(nozzleR * 0.58, -nozzleH / 2 + nozzleH * 0.36));
+  points.push(new Vector2(nozzleR * 0.5, -nozzleH / 2 + nozzleH * 0.44));
+  points.push(new Vector2(nozzleR * 0.42, -nozzleH / 2 + nozzleH * 0.53));
+  points.push(new Vector2(nozzleR * 0.35, -nozzleH / 2 + nozzleH * 0.63));
+  points.push(new Vector2(nozzleR * 0.3, -nozzleH / 2 + nozzleH * 0.73));
+  points.push(new Vector2(nozzleR * 0.27, -nozzleH / 2 + nozzleH * 0.82));
   points.push(new Vector2(nozzleR * 0.26, -nozzleH / 2 + nozzleH * 0.88));
-  points.push(new Vector2(nozzleR * 0.32, -nozzleH / 2 + nozzleH * 0.93));
-  points.push(new Vector2(nozzleR * 0.36, nozzleH / 2 - nozzleH * 0.04));
+  points.push(new Vector2(nozzleR * 0.28, -nozzleH / 2 + nozzleH * 0.93));
+  points.push(new Vector2(nozzleR * 0.32, nozzleH / 2 - nozzleH * 0.04));
+  points.push(new Vector2(nozzleR * 0.35, nozzleH / 2 - nozzleH * 0.02));
   points.push(new Vector2(nozzleR * 0.34, nozzleH / 2));
   points.push(new Vector2(0, nozzleH / 2));
-  const nozzleGeo = new LatheGeometry(points, 64);
-  const nozCanvas = document.createElement("canvas");
-  nozCanvas.width = 512;
-  nozCanvas.height = 512;
-  const nCtx = nozCanvas.getContext("2d");
-  for (let y = 0; y < 512; y++) {
-    for (let x = 0; x < 512; x++) {
-      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 6, 0.5, 2.2);
-      const heatFactor = 1 - y / 512;
-      const sootStreak = TextureFactory.fbm(x * 0.02, y * 0.15, 5, 0.5, 2);
-      const heatColor = TextureFactory.fbm(x * 0.03, y * 0.04, 4, 0.4, 2.5);
-      const r8 = Math.floor(30 + n * 40 + heatFactor * 50 - sootStreak * 25 + heatColor * 15);
-      const g8 = Math.floor(25 + n * 30 + heatFactor * 20 - sootStreak * 20 + heatColor * 8);
-      const b8 = Math.floor(20 + n * 25 + heatFactor * 60 - sootStreak * 15 + heatColor * 20);
-      nCtx.fillStyle = `rgb(${Math.max(0, Math.min(255, r8))},${Math.max(0, Math.min(255, g8))},${Math.max(0, Math.min(255, b8))})`;
-      nCtx.fillRect(x, y, 1, 1);
-    }
-  }
-  const nozTex = new CanvasTexture(nozCanvas);
-  nozTex.colorSpace = SRGBColorSpace;
-  const nozSpecCanvas = document.createElement("canvas");
-  nozSpecCanvas.width = 256;
-  nozSpecCanvas.height = 256;
-  const nsCtx = nozSpecCanvas.getContext("2d");
-  for (let y = 0; y < 256; y++) {
-    for (let x = 0; x < 256; x++) {
-      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 5, 0.5, 2.2);
-      const soot = TextureFactory.fbm(x * 0.02, y * 0.15, 4, 0.5, 2);
-      const spec = Math.max(0, 200 - soot * 120 + n * 40);
-      nsCtx.fillStyle = `rgb(${Math.floor(spec)},${Math.floor(spec)},${Math.floor(spec)})`;
-      nsCtx.fillRect(x, y, 1, 1);
-    }
-  }
-  const nozSpecTex = new CanvasTexture(nozSpecCanvas);
+  const nozzleGeo = new LatheGeometry(points, 72);
+  const nozTex = texNozzleThermal(1024);
+  const nozRough = texRoughnessMap(0.5, 1024);
+  const nozEmissive = texEmissiveGlow("throat", 1024);
   const nozzleMat = new MeshStandardMaterial({
     map: nozTex,
-    roughnessMap: nozSpecTex,
+    roughnessMap: nozRough,
+    emissiveMap: nozEmissive,
+    emissive: 3368703,
+    emissiveIntensity: 0.4,
     color: 3815994,
-    metalness: 0.7,
-    roughness: 0.4
+    metalness: 0.75,
+    roughness: 0.45
   });
   const nozzle = new Mesh(nozzleGeo, nozzleMat);
   nozzle.position.y = -0.15;
   nozzle.castShadow = true;
   group.add(nozzle);
-  const ribCount = 12;
-  const ribMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.6, roughness: 0.6 });
+  const ribCount = big ? 24 : med ? 16 : 12;
+  const ribMat = new MeshStandardMaterial({
+    map: texBrushedMetal("inconel", 256),
+    color: 2763306,
+    metalness: 0.65,
+    roughness: 0.55
+  });
   for (let i = 0; i < ribCount; i++) {
     const angle = i / ribCount * Math.PI * 2;
-    const ribGeo = new BoxGeometry(0.02, nozzleH * 0.78, 0.04);
+    const ribGeo = new BoxGeometry(0.025, nozzleH * 0.82, 0.045);
     const rib = new Mesh(ribGeo, ribMat);
-    rib.position.set(Math.cos(angle) * nozzleR * 0.92, -0.18, Math.sin(angle) * nozzleR * 0.92);
+    rib.position.set(Math.cos(angle) * nozzleR * 0.9, -0.18, Math.sin(angle) * nozzleR * 0.9);
     rib.lookAt(0, -0.18, 0);
     rib.castShadow = true;
     group.add(rib);
   }
-  const exitRingMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.4 });
-  const exitRing = new Mesh(new TorusGeometry(nozzleR * 1.01, 0.03, 8, 64), exitRingMat);
-  exitRing.position.y = -nozzleH / 2 + nozzleH * 0.08;
+  const exitRingMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 5592405,
+    metalness: 0.75,
+    roughness: 0.35
+  });
+  const exitRing = new Mesh(new TorusGeometry(nozzleR * 1.01, 0.035, 10, 64), exitRingMat);
+  exitRing.position.y = -nozzleH / 2 + nozzleH * 0.06;
   exitRing.rotation.x = Math.PI / 2;
   exitRing.castShadow = true;
   group.add(exitRing);
-  const chamberGeo = new CylinderGeometry(nozzleR * 0.38, nozzleR * 0.28, 0.32, 32);
-  const chamberMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.85, roughness: 0.25 });
-  const chamber = new Mesh(chamberGeo, chamberMat);
+  const chamberMat = new MeshStandardMaterial({
+    map: texBrushedMetal("inconel", 512),
+    color: 10066329,
+    metalness: 0.85,
+    roughness: 0.25
+  });
+  const chamber = new Mesh(new CylinderGeometry(nozzleR * 0.38, nozzleR * 0.3, 0.34, 40), chamberMat);
   chamber.position.y = nozzleH / 2 + 0.06;
   chamber.castShadow = true;
   group.add(chamber);
-  const injectorMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 });
-  const injector = new Mesh(new CylinderGeometry(nozzleR * 0.36, nozzleR * 0.36, 0.05, 32), injectorMat);
-  injector.position.y = nozzleH / 2 + 0.24;
+  const injectorMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 8947848,
+    metalness: 0.8,
+    roughness: 0.2
+  });
+  const injector = new Mesh(new CylinderGeometry(nozzleR * 0.36, nozzleR * 0.36, 0.06, 40), injectorMat);
+  injector.position.y = nozzleH / 2 + 0.25;
   injector.castShadow = true;
   group.add(injector);
-  const holeMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.3, roughness: 0.8 });
-  for (let ring = 0; ring < 3; ring++) {
-    const holeR = nozzleR * (0.08 + ring * 0.08);
-    const holeCount = 6 + ring * 4;
+  const holeMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.3, roughness: 0.8 });
+  for (let ring = 0; ring < 5; ring++) {
+    const holeR = nozzleR * (0.06 + ring * 0.065);
+    const holeCount = 6 + ring * 6;
     for (let i = 0; i < holeCount; i++) {
       const a = i / holeCount * Math.PI * 2;
-      const hole = new Mesh(new CylinderGeometry(0.01, 0.01, 0.06, 6), holeMat);
-      hole.position.set(Math.cos(a) * holeR, nozzleH / 2 + 0.27, Math.sin(a) * holeR);
+      const hole = new Mesh(new CylinderGeometry(0.012, 0.012, 0.08, 8), holeMat);
+      hole.position.set(Math.cos(a) * holeR, nozzleH / 2 + 0.28, Math.sin(a) * holeR);
       group.add(hole);
     }
   }
-  const pumpBodyMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.75, roughness: 0.3 });
-  const pumpBody = new Mesh(new CylinderGeometry(0.11, 0.11, 0.26, 16), pumpBodyMat);
-  pumpBody.position.set(nozzleR * 0.4, nozzleH / 2 + 0.24, 0);
+  const pumpMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 512),
+    color: 5592405,
+    metalness: 0.78,
+    roughness: 0.28
+  });
+  const pumpBody = new Mesh(new CylinderGeometry(0.13, 0.13, 0.3, 20), pumpMat);
+  pumpBody.position.set(nozzleR * 0.42, nozzleH / 2 + 0.24, 0);
   pumpBody.rotation.z = Math.PI / 2;
   pumpBody.castShadow = true;
   group.add(pumpBody);
-  const turbCap = new Mesh(new SphereGeometry(0.11, 12, 8), pumpBodyMat);
-  turbCap.position.set(nozzleR * 0.4 + 0.13, nozzleH / 2 + 0.24, 0);
+  const turbCap = new Mesh(new SphereGeometry(0.13, 16, 12), pumpMat);
+  turbCap.position.set(nozzleR * 0.42 + 0.15, nozzleH / 2 + 0.24, 0);
   turbCap.castShadow = true;
   group.add(turbCap);
-  const bracketMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
-  const bracket = new Mesh(new BoxGeometry(0.07, 0.05, 0.12), bracketMat);
-  bracket.position.set(nozzleR * 0.24, nozzleH / 2 + 0.24, 0);
+  const pumpBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(0.014, 8, 6), pumpBoltMat);
+    bolt.position.set(nozzleR * 0.42 + 0.14, nozzleH / 2 + 0.24 + Math.cos(a) * 0.11, Math.sin(a) * 0.11);
+    group.add(bolt);
+  }
+  const bracketMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 7829367, metalness: 0.7, roughness: 0.3 });
+  const bracket = new Mesh(new BoxGeometry(0.08, 0.06, 0.14), bracketMat);
+  bracket.position.set(nozzleR * 0.25, nozzleH / 2 + 0.24, 0);
   bracket.castShadow = true;
   group.add(bracket);
-  const gimbalGeo = new TorusGeometry(nozzleR * 0.33, 0.05, 10, 32);
-  const gimbalMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.85, roughness: 0.2 });
-  const gimbal = new Mesh(gimbalGeo, gimbalMat);
-  gimbal.position.y = nozzleH / 2 + 0.04;
-  gimbal.rotation.x = Math.PI / 2;
-  gimbal.castShadow = true;
-  group.add(gimbal);
-  const tubeMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.75, roughness: 0.25 });
-  const curve1Pts = [
-    new Vector3(nozzleR * 0.4, nozzleH / 2 + 0.2, 0),
-    new Vector3(nozzleR * 0.55, nozzleH / 2 + 0.1, 0),
-    new Vector3(nozzleR * 0.5, nozzleH / 2 - 0.02, 0),
-    new Vector3(nozzleR * 0.38, nozzleH / 2 - 0.1, 0)
+  const ggPts = [
+    new Vector3(nozzleR * 0.42 + 0.15, nozzleH / 2 + 0.24, 0),
+    new Vector3(nozzleR * 0.55, nozzleH / 2 + 0.15, 0),
+    new Vector3(nozzleR * 0.6, nozzleH / 2 + 0.02, 0),
+    new Vector3(nozzleR * 0.52, nozzleH / 2 - 0.08, 0)
   ];
-  const curve1 = new CatmullRomCurve3(curve1Pts);
-  const tube1Geo = new TubeGeometry(curve1, 24, 0.025, 8, false);
-  const tube1 = new Mesh(tube1Geo, tubeMat);
+  const ggCurve = new CatmullRomCurve3(ggPts);
+  const ggGeo = new TubeGeometry(ggCurve, 20, 0.03, 8, false);
+  const gg = new Mesh(ggGeo, pumpMat);
+  gg.castShadow = true;
+  group.add(gg);
+  const gimbalMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 10066329,
+    metalness: 0.9,
+    roughness: 0.15
+  });
+  const gimbalBall = new Mesh(new SphereGeometry(nozzleR * 0.2, 20, 16), gimbalMat);
+  gimbalBall.position.y = nozzleH / 2 + 0.04;
+  gimbalBall.scale.y = 0.5;
+  gimbalBall.castShadow = true;
+  group.add(gimbalBall);
+  const gimbalRing = new Mesh(new TorusGeometry(nozzleR * 0.22, 0.04, 12, 32), gimbalMat);
+  gimbalRing.position.y = nozzleH / 2 + 0.04;
+  gimbalRing.rotation.x = Math.PI / 2;
+  gimbalRing.castShadow = true;
+  group.add(gimbalRing);
+  const tubeMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 8947848,
+    metalness: 0.75,
+    roughness: 0.25
+  });
+  const feed1Pts = [
+    new Vector3(nozzleR * 0.42, nozzleH / 2 + 0.22, 0),
+    new Vector3(nozzleR * 0.58, nozzleH / 2 + 0.12, 0),
+    new Vector3(nozzleR * 0.52, nozzleH / 2 - 0.02, 0),
+    new Vector3(nozzleR * 0.4, nozzleH / 2 - 0.12, 0)
+  ];
+  const feed1Curve = new CatmullRomCurve3(feed1Pts);
+  const tube1 = new Mesh(new TubeGeometry(feed1Curve, 24, 0.028, 10, false), tubeMat);
   tube1.castShadow = true;
   group.add(tube1);
-  const curve2Pts = [
-    new Vector3(-nozzleR * 0.4, nozzleH / 2 + 0.18, 0),
-    new Vector3(-nozzleR * 0.55, nozzleH / 2 + 0.06, 0),
-    new Vector3(-nozzleR * 0.5, nozzleH / 2 - 0.06, 0),
-    new Vector3(-nozzleR * 0.38, nozzleH / 2 - 0.14, 0)
+  const feed2Pts = [
+    new Vector3(-nozzleR * 0.42, nozzleH / 2 + 0.2, 0),
+    new Vector3(-nozzleR * 0.58, nozzleH / 2 + 0.08, 0),
+    new Vector3(-nozzleR * 0.52, nozzleH / 2 - 0.06, 0),
+    new Vector3(-nozzleR * 0.4, nozzleH / 2 - 0.16, 0)
   ];
-  const curve2 = new CatmullRomCurve3(curve2Pts);
-  const tube2Geo = new TubeGeometry(curve2, 24, 0.025, 8, false);
-  const tube2 = new Mesh(tube2Geo, tubeMat);
+  const feed2Curve = new CatmullRomCurve3(feed2Pts);
+  const tube2 = new Mesh(new TubeGeometry(feed2Curve, 24, 0.028, 10, false), tubeMat);
   tube2.castShadow = true;
   group.add(tube2);
+  const sparkPts = [
+    new Vector3(nozzleR * 0.2, nozzleH / 2 + 0.3, 0),
+    new Vector3(nozzleR * 0.25, nozzleH / 2 + 0.15, 0.05),
+    new Vector3(nozzleR * 0.15, nozzleH / 2 + 0.05, 0.08)
+  ];
+  const sparkCurve = new CatmullRomCurve3(sparkPts);
+  const spark = new Mesh(
+    new TubeGeometry(sparkCurve, 16, 8e-3, 6, false),
+    new MeshStandardMaterial({ color: 13404194, metalness: 0.6, roughness: 0.4 })
+  );
+  group.add(spark);
   const valveMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.3 });
   for (const sign2 of [-1, 1]) {
-    const valve = new Mesh(new CylinderGeometry(0.03, 0.03, 0.1, 10), valveMat);
-    valve.position.set(sign2 * nozzleR * 0.2, nozzleH / 2 + 0.3, 0);
+    const valve = new Mesh(new CylinderGeometry(0.035, 0.035, 0.12, 12), valveMat);
+    valve.position.set(sign2 * nozzleR * 0.22, nozzleH / 2 + 0.32, 0);
     valve.castShadow = true;
     group.add(valve);
   }
-  const maniMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.55, roughness: 0.5 });
-  for (let i = 0; i < 6; i++) {
-    const angle = i / 6 * Math.PI * 2;
-    const maniGeo = new ConeGeometry(0.04, 0.1, 6);
-    const mani = new Mesh(maniGeo, maniMat);
-    mani.position.set(Math.cos(angle) * nozzleR * 0.34, nozzleH / 2 + 0.08, Math.sin(angle) * nozzleR * 0.34);
-    mani.rotation.x = Math.PI;
-    mani.castShadow = true;
-    group.add(mani);
-  }
-  const flangeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.2 });
-  const flange = new Mesh(new CylinderGeometry(nozzleR * 0.38, nozzleR * 0.38, 0.06, 32), flangeMat);
-  flange.position.y = nozzleH / 2 + 0.34;
+  const flangeMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 512), color: 10066329, metalness: 0.85, roughness: 0.2 });
+  const flange = new Mesh(new CylinderGeometry(nozzleR * 0.4, nozzleR * 0.4, 0.07, 36), flangeMat);
+  flange.position.y = nozzleH / 2 + 0.36;
   flange.castShadow = true;
   group.add(flange);
-  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
-  for (let i = 0; i < 12; i++) {
-    const a = i / 12 * Math.PI * 2;
-    const bolt = new Mesh(new SphereGeometry(0.014, 6, 4), boltMat);
-    bolt.position.set(Math.cos(a) * nozzleR * 0.35, nozzleH / 2 + 0.34, Math.sin(a) * nozzleR * 0.35);
-    group.add(bolt);
-  }
+  addBoltRing(group, 16, nozzleR * 0.37, nozzleH / 2 + 0.36, pumpBoltMat, 0.014);
   group.userData.height = nozzleH + 0.6;
   group.userData.radius = nozzleR;
   return group;
@@ -25054,192 +25822,205 @@ function buildBooster(part) {
   const group = new Group();
   const r = part.fuelMass > 5e3 ? 1.25 : 0.625;
   const h = part.fuelMass > 5e3 ? 6 : 4;
-  const bodyCanvas = document.createElement("canvas");
-  bodyCanvas.width = 256;
-  bodyCanvas.height = 512;
-  const bCtx = bodyCanvas.getContext("2d");
-  for (let y = 0; y < 512; y++) {
-    for (let x = 0; x < 256; x++) {
-      const n = TextureFactory.fbm(x * 0.05, y * 0.04, 4, 0.4, 2.2);
-      const v = 0.88 + n * 0.24;
-      bCtx.fillStyle = `rgb(${Math.min(255, 235 * v)},${Math.min(255, 235 * v)},${Math.min(255, 235 * v)})`;
-      bCtx.fillRect(x, y, 1, 1);
-    }
-  }
-  for (let i = 0; i < 4; i++) {
-    const sx = (i + 0.5) * 64;
-    bCtx.fillStyle = "rgba(180,180,180,0.4)";
-    bCtx.fillRect(sx, 0, 1, 512);
-  }
-  for (let i = 1; i < 6; i++) {
-    const sy = i / 6 * 512;
-    bCtx.fillStyle = "rgba(200,200,200,0.5)";
-    bCtx.fillRect(0, sy, 256, 2);
-  }
-  const bodyTex = new CanvasTexture(bodyCanvas);
-  bodyTex.colorSpace = SRGBColorSpace;
-  bodyTex.wrapS = RepeatWrapping;
+  const bodyTex = texSRBBody(1024);
   bodyTex.repeat.set(2, 1);
-  const bodyGeo = new CylinderGeometry(r, r, h, 48);
-  const bodyMat = new MeshStandardMaterial({ map: bodyTex, color: 16777215, metalness: 0.55, roughness: 0.3 });
+  const bodyNormal = texNormalDetail("panels", 1024);
+  bodyNormal.repeat.set(2, 1);
+  const bodyRough = texRoughnessMap(0.35, 1024);
+  bodyRough.repeat.set(2, 1);
+  const bodyGeo = new CylinderGeometry(r, r, h, 56);
+  const bodyMat = new MeshStandardMaterial({
+    map: bodyTex,
+    normalMap: bodyNormal,
+    roughnessMap: bodyRough,
+    color: 16777215,
+    metalness: 0.55,
+    roughness: 0.3
+  });
   const body = new Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
   group.add(body);
   const nosePts = [];
-  nosePts.push(new Vector2(0, h / 2 + r * 1.8));
-  nosePts.push(new Vector2(r * 0.06, h / 2 + r * 1.75));
-  nosePts.push(new Vector2(r * 0.16, h / 2 + r * 1.65));
-  nosePts.push(new Vector2(r * 0.3, h / 2 + r * 1.5));
-  nosePts.push(new Vector2(r * 0.45, h / 2 + r * 1.3));
-  nosePts.push(new Vector2(r * 0.6, h / 2 + r * 1.05));
-  nosePts.push(new Vector2(r * 0.75, h / 2 + r * 0.75));
-  nosePts.push(new Vector2(r * 0.88, h / 2 + r * 0.42));
-  nosePts.push(new Vector2(r * 0.96, h / 2 + r * 0.14));
+  nosePts.push(new Vector2(0, h / 2 + r * 1.9));
+  nosePts.push(new Vector2(r * 0.04, h / 2 + r * 1.85));
+  nosePts.push(new Vector2(r * 0.1, h / 2 + r * 1.75));
+  nosePts.push(new Vector2(r * 0.18, h / 2 + r * 1.62));
+  nosePts.push(new Vector2(r * 0.28, h / 2 + r * 1.48));
+  nosePts.push(new Vector2(r * 0.38, h / 2 + r * 1.32));
+  nosePts.push(new Vector2(r * 0.48, h / 2 + r * 1.15));
+  nosePts.push(new Vector2(r * 0.58, h / 2 + r * 0.96));
+  nosePts.push(new Vector2(r * 0.68, h / 2 + r * 0.76));
+  nosePts.push(new Vector2(r * 0.78, h / 2 + r * 0.54));
+  nosePts.push(new Vector2(r * 0.86, h / 2 + r * 0.32));
+  nosePts.push(new Vector2(r * 0.92, h / 2 + r * 0.16));
+  nosePts.push(new Vector2(r * 0.97, h / 2 + r * 0.05));
   nosePts.push(new Vector2(r, h / 2));
-  const noseGeo = new LatheGeometry(nosePts, 48);
-  const noseMat = new MeshStandardMaterial({ color: 14737632, metalness: 0.6, roughness: 0.28 });
+  const noseGeo = new LatheGeometry(nosePts, 56);
+  const noseMat = new MeshStandardMaterial({
+    map: texBrushedMetal("white", 1024),
+    normalMap: texNormalDetail("panels", 512),
+    color: 14737632,
+    metalness: 0.6,
+    roughness: 0.28
+  });
   const nose = new Mesh(noseGeo, noseMat);
   nose.castShadow = true;
   group.add(nose);
-  const tipCap = new Mesh(new SphereGeometry(r * 0.06, 12, 8), new MeshStandardMaterial({ color: 4473924, metalness: 0.8, roughness: 0.3 }));
-  tipCap.position.y = h / 2 + r * 1.8;
+  const tipCap = new Mesh(new SphereGeometry(r * 0.05, 12, 8), new MeshStandardMaterial({ color: 4473924, metalness: 0.8, roughness: 0.3 }));
+  tipCap.position.y = h / 2 + r * 1.9;
   tipCap.castShadow = true;
   group.add(tipCap);
+  const chuteMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 8947848, metalness: 0.65, roughness: 0.35 });
+  const chutePack = new Mesh(new CylinderGeometry(r * 0.35, r * 0.45, 0.2, 24), chuteMat);
+  chutePack.position.y = h / 2 + r * 0.95;
+  chutePack.castShadow = true;
+  group.add(chutePack);
   const nozPts = [];
-  nozPts.push(new Vector2(0, -h / 2 - 0.45));
-  nozPts.push(new Vector2(r * 0.2, -h / 2 - 0.45));
-  nozPts.push(new Vector2(r * 0.38, -h / 2 - 0.42));
-  nozPts.push(new Vector2(r * 0.52, -h / 2 - 0.36));
-  nozPts.push(new Vector2(r * 0.62, -h / 2 - 0.27));
-  nozPts.push(new Vector2(r * 0.68, -h / 2 - 0.15));
-  nozPts.push(new Vector2(r * 0.65, -h / 2 - 0.05));
-  nozPts.push(new Vector2(r * 0.5, -h / 2 + 0.03));
-  nozPts.push(new Vector2(r * 0.32, -h / 2 + 0.05));
-  const nozGeo = new LatheGeometry(nozPts, 32);
-  const nozMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.5, roughness: 0.7 });
+  nozPts.push(new Vector2(0, -h / 2 - 0.5));
+  nozPts.push(new Vector2(r * 0.18, -h / 2 - 0.5));
+  nozPts.push(new Vector2(r * 0.36, -h / 2 - 0.46));
+  nozPts.push(new Vector2(r * 0.5, -h / 2 - 0.4));
+  nozPts.push(new Vector2(r * 0.6, -h / 2 - 0.31));
+  nozPts.push(new Vector2(r * 0.66, -h / 2 - 0.2));
+  nozPts.push(new Vector2(r * 0.63, -h / 2 - 0.08));
+  nozPts.push(new Vector2(r * 0.48, -h / 2 + 0.02));
+  nozPts.push(new Vector2(r * 0.3, -h / 2 + 0.06));
+  const nozGeo = new LatheGeometry(nozPts, 40);
+  const nozMat = new MeshStandardMaterial({
+    map: texNozzleThermal(512),
+    color: 2763306,
+    metalness: 0.55,
+    roughness: 0.65
+  });
   const noz = new Mesh(nozGeo, nozMat);
   noz.castShadow = true;
   group.add(noz);
-  const srbRibMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.6 });
-  for (let i = 0; i < 6; i++) {
-    const a = i / 6 * Math.PI * 2;
-    const rib = new Mesh(new BoxGeometry(0.018, 0.4, 0.03), srbRibMat);
-    rib.position.set(Math.cos(a) * r * 0.55, -h / 2 - 0.22, Math.sin(a) * r * 0.55);
-    rib.lookAt(0, -h / 2 - 0.22, 0);
+  const srbRibMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 3355443, metalness: 0.5, roughness: 0.6 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const rib = new Mesh(new BoxGeometry(0.02, 0.45, 0.035), srbRibMat);
+    rib.position.set(Math.cos(a) * r * 0.58, -h / 2 - 0.25, Math.sin(a) * r * 0.58);
+    rib.lookAt(0, -h / 2 - 0.25, 0);
     rib.castShadow = true;
     group.add(rib);
   }
-  const sepMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.65, roughness: 0.35 });
-  const sepNozMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.6, roughness: 0.5 });
+  const segMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 512), color: 6710886, metalness: 0.7, roughness: 0.3 });
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  const segCount = h > 5 ? 4 : 3;
+  for (let i = 0; i < segCount; i++) {
+    const segY = -h / 2 + h / (segCount + 1) * (i + 1);
+    const segRing = new Mesh(new TorusGeometry(r * 1.03, 0.05, 10, 48), segMat);
+    segRing.position.y = segY;
+    segRing.rotation.x = Math.PI / 2;
+    segRing.castShadow = true;
+    group.add(segRing);
+    addBoltRing(group, 24, r * 1.04, segY, boltMat, 0.018);
+  }
+  const tvcMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 7829367, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < 2; i++) {
     const sign2 = i === 0 ? 1 : -1;
-    const sepBody = new Mesh(new CylinderGeometry(0.07, 0.07, 0.25, 12), sepMat);
-    sepBody.position.set(sign2 * (r + 0.12), h * 0.3, 0);
-    sepBody.castShadow = true;
-    group.add(sepBody);
-    const sepCone = new Mesh(new ConeGeometry(0.06, 0.12, 10), sepNozMat);
-    sepCone.position.set(sign2 * (r + 0.12), h * 0.3 + 0.18, 0);
-    sepCone.castShadow = true;
-    group.add(sepCone);
-    const sepBracket = new Mesh(new BoxGeometry(0.05, 0.09, 0.12), sepMat);
-    sepBracket.position.set(sign2 * (r + 0.05), h * 0.3, 0);
-    sepBracket.castShadow = true;
-    group.add(sepBracket);
+    const actuator = new Mesh(new CylinderGeometry(0.05, 0.05, 0.3, 12), tvcMat);
+    actuator.position.set(sign2 * r * 0.65, -h / 2 - 0.15, 0);
+    actuator.rotation.z = sign2 * 0.5;
+    actuator.castShadow = true;
+    group.add(actuator);
   }
-  const strutMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  const sepNozMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.6, roughness: 0.5 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const sepPort = new Mesh(new ConeGeometry(0.05, 0.12, 10), sepNozMat);
+    sepPort.position.set(Math.cos(angle) * r * 1, h * 0.35, Math.sin(angle) * r * 1);
+    sepPort.lookAt(Math.cos(angle) * 5, h * 0.35 + 0.1, Math.sin(angle) * 5);
+    sepPort.rotation.x = Math.PI / 2;
+    sepPort.castShadow = true;
+    group.add(sepPort);
+  }
+  const strutMat = new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 8947848, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < 2; i++) {
     const y = i === 0 ? h * 0.2 : -h * 0.2;
-    const strut = new Mesh(new BoxGeometry(0.22, 0.07, 0.12), strutMat);
-    strut.position.set(r + 0.11, y, 0);
+    const strut = new Mesh(new BoxGeometry(0.24, 0.08, 0.14), strutMat);
+    strut.position.set(r + 0.12, y, 0);
     strut.castShadow = true;
     group.add(strut);
-    const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
     for (const bx of [-1, 1]) {
       for (const bz of [-1, 1]) {
         const bolt = new Mesh(new SphereGeometry(0.014, 6, 4), boltMat);
-        bolt.position.set(r + 0.11 + bx * 0.07, y, bz * 0.035);
+        bolt.position.set(r + 0.12 + bx * 0.08, y, bz * 0.035);
         group.add(bolt);
       }
     }
   }
-  const lineGeo = new CylinderGeometry(0.03, 0.03, h * 0.6, 10);
-  const lineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.65, roughness: 0.35 });
-  const line = new Mesh(lineGeo, lineMat);
-  line.position.set(r * 0.97, 0, 0);
-  line.castShadow = true;
-  group.add(line);
-  const clampMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
-  for (let i = -1; i <= 1; i++) {
-    const clamp2 = new Mesh(new BoxGeometry(0.06, 0.035, 0.06), clampMat);
-    clamp2.position.set(r * 0.97, i * h * 0.2, 0);
-    clamp2.castShadow = true;
-    group.add(clamp2);
-  }
-  const bandGeo = new CylinderGeometry(r * 1.02, r * 1.02, 0.18, 48);
-  const bandMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.5, roughness: 0.4 });
-  const band = new Mesh(bandGeo, bandMat);
+  const bandGeo = new CylinderGeometry(r * 1.02, r * 1.02, 0.18, 56);
+  const band = new Mesh(bandGeo, new MeshStandardMaterial({ color: 2236962, metalness: 0.5, roughness: 0.4 }));
   band.position.y = h * 0.25;
   band.castShadow = true;
   group.add(band);
-  const band2Geo = new CylinderGeometry(r * 1.02, r * 1.02, 0.07, 48);
-  const band2Mat = new MeshStandardMaterial({ color: 13382451, metalness: 0.5, roughness: 0.4 });
-  const band2 = new Mesh(band2Geo, band2Mat);
+  const band2 = new Mesh(
+    new CylinderGeometry(r * 1.02, r * 1.02, 0.07, 56),
+    new MeshStandardMaterial({ color: 13382451, metalness: 0.5, roughness: 0.4 })
+  );
   band2.position.y = h * 0.25 - 0.16;
   band2.castShadow = true;
   group.add(band2);
-  const ringCount = h > 5 ? 3 : 2;
-  for (let i = 0; i < ringCount; i++) {
-    const ringY = -h / 2 + h / (ringCount + 1) * (i + 1);
-    const ring = new Mesh(new TorusGeometry(r * 1.02, 0.03, 8, 48), new MeshStandardMaterial({ color: 11579568, metalness: 0.7, roughness: 0.3 }));
-    ring.position.y = ringY;
-    ring.rotation.x = Math.PI / 2;
-    ring.castShadow = true;
-    group.add(ring);
-  }
-  const topRing = new Mesh(new TorusGeometry(r * 1.03, 0.035, 8, 32), new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.2 }));
+  const topRing = new Mesh(new TorusGeometry(r * 1.03, 0.035, 10, 40), segMat);
   topRing.position.y = h / 2 + 0.01;
   topRing.rotation.x = Math.PI / 2;
   topRing.castShadow = true;
   group.add(topRing);
-  group.userData.height = h + r * 1.8 + 0.45;
+  group.userData.height = h + r * 1.9 + 0.5;
   group.userData.radius = r;
   return group;
 }
 function buildDecoupler(part) {
   const group = new Group();
   const r = part.mass > 500 ? 1.25 : 0.625;
-  const h = 0.35;
-  const ringGeo = new CylinderGeometry(r, r, h, 48, 1, true);
-  const ringMat = new MeshStandardMaterial({ color: 11184810, metalness: 0.6, roughness: 0.35, side: DoubleSide });
+  const h = 0.38;
+  const ringGeo = new CylinderGeometry(r, r, h, 56, 1, true);
+  const ringMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    roughnessMap: texRoughnessMap(0.35, 1024),
+    color: 11184810,
+    metalness: 0.65,
+    roughness: 0.35,
+    side: DoubleSide
+  });
   const ring = new Mesh(ringGeo, ringMat);
   ring.castShadow = true;
   group.add(ring);
-  const capGeo = new RingGeometry(r * 0.7, r, 48);
-  const capMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.35, side: DoubleSide });
-  const topCap = new Mesh(capGeo, capMat);
+  const capMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 10066329,
+    metalness: 0.65,
+    roughness: 0.35,
+    side: DoubleSide
+  });
+  const topCap = new Mesh(new RingGeometry(r * 0.7, r, 56), capMat);
   topCap.position.y = h / 2;
   topCap.rotation.x = -Math.PI / 2;
   group.add(topCap);
-  const botCap = new Mesh(capGeo, capMat);
+  const botCap = new Mesh(new RingGeometry(r * 0.7, r, 56), capMat);
   botCap.position.y = -h / 2;
   botCap.rotation.x = Math.PI / 2;
   group.add(botCap);
-  const bandGeo = new CylinderGeometry(r * 1.02, r * 1.02, 0.07, 48);
   const bandMat = new MeshStandardMaterial({ color: 16737792, metalness: 0.4, roughness: 0.5 });
-  const band = new Mesh(bandGeo, bandMat);
+  const band = new Mesh(new CylinderGeometry(r * 1.02, r * 1.02, 0.08, 56), bandMat);
   band.castShadow = true;
   group.add(band);
   const boltMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.7, roughness: 0.3 });
-  for (let i = 0; i < 8; i++) {
-    const angle = i / 8 * Math.PI * 2;
-    const bolt = new Mesh(new SphereGeometry(0.04, 8, 6), boltMat);
-    bolt.position.set(Math.cos(angle) * r * 0.85, 0, Math.sin(angle) * r * 0.85);
-    bolt.castShadow = true;
-    group.add(bolt);
+  addBoltRing(group, 16, r * 0.85, 0, boltMat, 0.035);
+  const portMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.7, roughness: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const port = new Mesh(new CylinderGeometry(0.04, 0.04, 0.1, 12), portMat);
+    port.position.set(Math.cos(angle) * r * 0.92, 0, Math.sin(angle) * r * 0.92);
+    port.lookAt(Math.cos(angle) * 3, 0, Math.sin(angle) * 3);
+    port.rotation.x = Math.PI / 2;
+    port.castShadow = true;
+    group.add(port);
   }
-  const grooveGeo = new TorusGeometry(r * 0.98, 0.025, 6, 48);
-  const grooveMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.5, roughness: 0.6 });
-  const groove = new Mesh(grooveGeo, grooveMat);
+  const grooveMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.6 });
+  const groove = new Mesh(new TorusGeometry(r * 0.98, 0.025, 8, 56), grooveMat);
   groove.rotation.x = Math.PI / 2;
   group.add(groove);
   group.userData.height = h;
@@ -25250,30 +26031,43 @@ function buildParachute(part) {
   const group = new Group();
   const r = 0.4;
   const h = 0.5;
-  const canGeo = new CylinderGeometry(r, r, h, 24);
-  const canMat = new MeshStandardMaterial({ color: 15658734, metalness: 0.5, roughness: 0.35 });
-  const can = new Mesh(canGeo, canMat);
+  const canMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 15658734,
+    metalness: 0.55,
+    roughness: 0.35
+  });
+  const can = new Mesh(new CylinderGeometry(r, r, h, 28), canMat);
   can.castShadow = true;
   group.add(can);
-  const coneGeo = new ConeGeometry(r * 0.9, 0.18, 24);
-  const coneMat = new MeshStandardMaterial({ color: 13382451, metalness: 0.4, roughness: 0.5 });
-  const cone = new Mesh(coneGeo, coneMat);
-  cone.position.y = h / 2 + 0.09;
+  const coneMat = new MeshStandardMaterial({
+    map: texBrushedMetal("white", 256),
+    color: 13382451,
+    metalness: 0.4,
+    roughness: 0.5
+  });
+  const cone = new Mesh(new ConeGeometry(r * 0.9, 0.2, 28), coneMat);
+  cone.position.y = h / 2 + 0.1;
   cone.castShadow = true;
   group.add(cone);
-  const handleGeo = new BoxGeometry(0.08, 0.12, 0.05);
-  const handleMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
-  const handle = new Mesh(handleGeo, handleMat);
+  const pilotChute = new Mesh(new SphereGeometry(0.06, 12, 8), coneMat);
+  pilotChute.position.y = h / 2 + 0.24;
+  pilotChute.scale.y = 0.6;
+  group.add(pilotChute);
+  const handleMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 6710886, metalness: 0.6, roughness: 0.4 });
+  const handle = new Mesh(new BoxGeometry(0.08, 0.12, 0.05), handleMat);
   handle.position.set(r * 0.95, 0, 0);
   handle.castShadow = true;
   group.add(handle);
-  const flangeGeo = new CylinderGeometry(r * 1.1, r * 1.1, 0.05, 24);
-  const flangeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.35 });
-  const flange = new Mesh(flangeGeo, flangeMat);
+  const flangeMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 10066329, metalness: 0.6, roughness: 0.35 });
+  const flange = new Mesh(new CylinderGeometry(r * 1.1, r * 1.1, 0.05, 28), flangeMat);
   flange.position.y = -h / 2 - 0.025;
   flange.castShadow = true;
   group.add(flange);
-  group.userData.height = h + 0.18;
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  addBoltRing(group, 12, r * 1.05, -h / 2 - 0.025, boltMat, 0.012);
+  group.userData.height = h + 0.24;
   group.userData.radius = r;
   return group;
 }
@@ -25283,21 +26077,43 @@ function buildAeroFin(part) {
   const span = 1 * scale;
   const root = 1.2 * scale;
   const thick = 0.05;
-  const shape = new Shape();
-  shape.moveTo(0, 0);
-  shape.lineTo(root, 0);
-  shape.lineTo(root * 0.72, span);
-  shape.lineTo(0, span * 0.85);
-  shape.lineTo(0, 0);
+  const nacaProfile = (chord, t, thickness) => {
+    const shape = new Shape();
+    const n = 30;
+    for (let i = 0; i <= n; i++) {
+      const x = i / n * chord;
+      const yt = thickness * 5 * t * (0.2969 * Math.sqrt(x / chord) - 0.126 * (x / chord) - 0.3516 * Math.pow(x / chord, 2) + 0.2843 * Math.pow(x / chord, 3) - 0.1015 * Math.pow(x / chord, 4));
+      if (i === 0) shape.moveTo(x, yt);
+      else shape.lineTo(x, yt);
+    }
+    for (let i = n; i >= 0; i--) {
+      const x = i / n * chord;
+      const yt = -thickness * 5 * t * (0.2969 * Math.sqrt(x / chord) - 0.126 * (x / chord) - 0.3516 * Math.pow(x / chord, 2) + 0.2843 * Math.pow(x / chord, 3) - 0.1015 * Math.pow(x / chord, 4));
+      shape.lineTo(x, yt);
+    }
+    return shape;
+  };
+  const planform = new Shape();
+  planform.moveTo(0, 0);
+  planform.lineTo(root, 0);
+  planform.lineTo(root * 0.72, span);
+  planform.lineTo(0, span * 0.85);
+  planform.lineTo(0, 0);
   const extrudeSettings = {
     depth: thick,
     bevelEnabled: true,
     bevelThickness: 0.012,
     bevelSize: 0.012,
-    bevelSegments: 2
+    bevelSegments: 3
   };
-  const finGeo = new ExtrudeGeometry(shape, extrudeSettings);
-  const finMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.5, roughness: 0.35 });
+  const finGeo = new ExtrudeGeometry(planform, extrudeSettings);
+  const finMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 13421772,
+    metalness: 0.55,
+    roughness: 0.32
+  });
   const fin = new Mesh(finGeo, finMat);
   fin.rotation.x = -Math.PI / 2;
   fin.position.z = -thick / 2;
@@ -25309,289 +26125,462 @@ function buildAeroFin(part) {
   ctrlShape.lineTo(root * 0.72, span * 0.4);
   ctrlShape.lineTo(root * 0.55, span * 0.35);
   ctrlShape.lineTo(root * 0.75, 0);
-  const ctrlGeo = new ExtrudeGeometry(ctrlShape, extrudeSettings);
-  const ctrlMat = new MeshStandardMaterial({ color: 16746496, metalness: 0.4, roughness: 0.5 });
+  const ctrlGeo = new ExtrudeGeometry(ctrlShape, { ...extrudeSettings, depth: thick * 0.9 });
+  const ctrlMat = new MeshStandardMaterial({
+    map: texBrushedMetal("titanium", 256),
+    color: 16746496,
+    metalness: 0.4,
+    roughness: 0.5
+  });
   const ctrl = new Mesh(ctrlGeo, ctrlMat);
   ctrl.rotation.x = -Math.PI / 2;
-  ctrl.position.z = -thick / 2;
+  ctrl.position.z = -thick / 2 + 5e-3;
   ctrl.castShadow = true;
   group.add(ctrl);
+  const hingeMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.3 });
+  const hinge = new Mesh(new CylinderGeometry(0.015, 0.015, span * 0.5, 8), hingeMat);
+  hinge.position.set(root * 0.73, span * 0.2, 0);
+  hinge.rotation.x = Math.PI / 2;
+  group.add(hinge);
   group.userData.height = 0.07 * scale;
   group.userData.radius = root;
   return group;
 }
 function buildRCSBlock(part) {
   const group = new Group();
-  const baseGeo = new BoxGeometry(0.18, 0.07, 0.18);
-  const baseMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
-  const base = new Mesh(baseGeo, baseMat);
+  const baseMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 6710886,
+    metalness: 0.65,
+    roughness: 0.38
+  });
+  const base = new Mesh(new BoxGeometry(0.2, 0.08, 0.2), baseMat);
   base.castShadow = true;
   group.add(base);
-  const nozMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (const bx of [-1, 1]) {
+    for (const bz of [-1, 1]) {
+      const bolt = new Mesh(new SphereGeometry(0.012, 8, 6), boltMat);
+      bolt.position.set(bx * 0.08, -0.03, bz * 0.08);
+      group.add(bolt);
+    }
+  }
+  const nozPts = [
+    new Vector2(0, 0),
+    new Vector2(0.035, 0),
+    new Vector2(0.04, 0.015),
+    new Vector2(0.03, 0.035),
+    new Vector2(0.02, 0.055),
+    new Vector2(0, 0.055)
+  ];
+  const nozGeo = new LatheGeometry(nozPts, 12);
+  const nozMat = new MeshStandardMaterial({
+    map: texBrushedMetal("copper", 256),
+    color: 8947848,
+    metalness: 0.75,
+    roughness: 0.28
+  });
+  const pipeMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 10066329,
+    metalness: 0.65,
+    roughness: 0.38
+  });
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const nozGeo = new ConeGeometry(0.035, 0.1, 8);
     const noz = new Mesh(nozGeo, nozMat);
-    noz.position.set(Math.cos(angle) * 0.08, 0.06, Math.sin(angle) * 0.08);
-    noz.rotation.z = Math.PI / 2;
-    noz.rotation.y = -angle;
+    noz.position.set(Math.cos(angle) * 0.09, 0.06, Math.sin(angle) * 0.09);
+    noz.lookAt(Math.cos(angle) * 5, 0.06, Math.sin(angle) * 5);
+    noz.rotation.x = Math.PI / 2;
     noz.castShadow = true;
     group.add(noz);
-  }
-  const pipeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.4 });
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const pipeGeo = new CylinderGeometry(9e-3, 9e-3, 0.08, 6);
-    const pipe = new Mesh(pipeGeo, pipeMat);
+    const pipe = new Mesh(new CylinderGeometry(0.01, 0.01, 0.08, 8), pipeMat);
     pipe.position.set(Math.cos(angle) * 0.06, 0.035, Math.sin(angle) * 0.06);
     pipe.rotation.z = Math.PI / 2;
     pipe.rotation.y = -angle;
     group.add(pipe);
   }
-  group.userData.height = 0.17;
-  group.userData.radius = 0.12;
+  group.userData.height = 0.18;
+  group.userData.radius = 0.13;
   return group;
 }
 function buildSolarPanel(part) {
   const group = new Group();
-  const baseGeo = new BoxGeometry(0.14, 0.09, 0.14);
-  const baseMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.6, roughness: 0.4 });
-  const base = new Mesh(baseGeo, baseMat);
+  const baseMat = new MeshStandardMaterial({
+    map: texBrushedMetal("dark", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 5592405,
+    metalness: 0.6,
+    roughness: 0.4
+  });
+  const base = new Mesh(new BoxGeometry(0.16, 0.1, 0.16), baseMat);
   base.castShadow = true;
   group.add(base);
-  const armMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
-  const arm1 = new Mesh(new CylinderGeometry(0.024, 0.024, 0.22, 8), armMat);
-  arm1.position.set(0.11, 0, 0);
+  const armMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 8947848,
+    metalness: 0.75,
+    roughness: 0.28
+  });
+  const arm1 = new Mesh(new CylinderGeometry(0.026, 0.026, 0.24, 10), armMat);
+  arm1.position.set(0.12, 0, 0);
   arm1.rotation.z = Math.PI / 2;
   arm1.castShadow = true;
   group.add(arm1);
-  const joint1 = new Mesh(new SphereGeometry(0.035, 8, 6), armMat);
-  joint1.position.set(0.22, 0, 0);
+  const joint1 = new Mesh(new SphereGeometry(0.038, 10, 8), armMat);
+  joint1.position.set(0.24, 0, 0);
   group.add(joint1);
-  const arm2 = new Mesh(new CylinderGeometry(0.024, 0.024, 0.22, 8), armMat);
-  arm2.position.set(0.33, 0, 0);
+  const arm2 = new Mesh(new CylinderGeometry(0.026, 0.026, 0.24, 10), armMat);
+  arm2.position.set(0.36, 0, 0);
   arm2.rotation.z = Math.PI / 2;
   arm2.castShadow = true;
   group.add(arm2);
-  const canvas = document.createElement("canvas");
-  canvas.width = 128;
-  canvas.height = 64;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#1a3a6a";
-  ctx.fillRect(0, 0, 128, 64);
-  ctx.strokeStyle = "#3a6aaa";
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= 128; x += 16) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, 64);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= 64; y += 16) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(128, y);
-    ctx.stroke();
-  }
-  const panelTex = new CanvasTexture(canvas);
-  const panelMat = new MeshStandardMaterial({ map: panelTex, color: 2245768, metalness: 0.3, roughness: 0.3, emissive: 1122986, emissiveIntensity: 0.25 });
-  const panelGeo = new BoxGeometry(0.9, 0.024, 0.4);
-  const panel = new Mesh(panelGeo, panelMat);
-  panel.position.set(0.78, 0, 0);
+  const joint2 = new Mesh(new SphereGeometry(0.038, 10, 8), armMat);
+  joint2.position.set(0.48, 0, 0);
+  group.add(joint2);
+  const panelTex = texSolarCells(1024);
+  const panelMat = new MeshStandardMaterial({
+    map: panelTex,
+    emissive: 1122986,
+    emissiveIntensity: 0.25,
+    color: 2245768,
+    metalness: 0.4,
+    roughness: 0.22
+  });
+  const panel = new Mesh(new BoxGeometry(0.95, 0.026, 0.42), panelMat);
+  panel.position.set(0.82, 0, 0);
   panel.castShadow = true;
   group.add(panel);
-  const backMat = new MeshStandardMaterial({ color: 3355477, metalness: 0.4, roughness: 0.5 });
-  const back = new Mesh(new BoxGeometry(0.9, 0.012, 0.4), backMat);
-  back.position.set(0.78, -0.02, 0);
+  const backMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 256),
+    color: 3355477,
+    metalness: 0.5,
+    roughness: 0.5
+  });
+  const back = new Mesh(new BoxGeometry(0.95, 0.014, 0.42), backMat);
+  back.position.set(0.82, -0.02, 0);
   group.add(back);
+  const frameMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  for (const sign2 of [-1, 1]) {
+    const frameEdge = new Mesh(new BoxGeometry(0.95, 0.03, 0.015), frameMat);
+    frameEdge.position.set(0.82, 0, sign2 * 0.21);
+    group.add(frameEdge);
+  }
   group.userData.height = 0.14;
   group.userData.radius = 0.12;
   return group;
 }
 function buildLandingLeg(part) {
   const group = new Group();
-  const metalMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
-  const darkMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.5, roughness: 0.5 });
-  const thigh = new Mesh(new CylinderGeometry(0.045, 0.04, 0.55, 8), metalMat);
+  const metalMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 8947848,
+    metalness: 0.72,
+    roughness: 0.3
+  });
+  const darkMat = new MeshStandardMaterial({
+    map: texBrushedMetal("dark", 256),
+    color: 4473924,
+    metalness: 0.55,
+    roughness: 0.5
+  });
+  const cylMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 10066329,
+    metalness: 0.8,
+    roughness: 0.22
+  });
+  const thigh = new Mesh(new CylinderGeometry(0.048, 0.042, 0.58, 12), metalMat);
   thigh.position.set(0.22, -0.11, 0);
   thigh.rotation.z = -0.6;
   thigh.castShadow = true;
   group.add(thigh);
-  const knee = new Mesh(new SphereGeometry(0.055, 12, 8), metalMat);
-  knee.position.set(0.46, -0.31, 0);
+  const knee = new Mesh(new SphereGeometry(0.058, 14, 10), metalMat);
+  knee.position.set(0.48, -0.32, 0);
   knee.castShadow = true;
   group.add(knee);
-  const shin = new Mesh(new CylinderGeometry(0.034, 0.028, 0.55, 8), metalMat);
-  shin.position.set(0.55, -0.6, 0);
+  const shin = new Mesh(new CylinderGeometry(0.036, 0.028, 0.58, 12), metalMat);
+  shin.position.set(0.57, -0.62, 0);
   shin.rotation.z = 0.4;
   shin.castShadow = true;
   group.add(shin);
-  for (let i = 0; i < 5; i++) {
-    const spring = new Mesh(new TorusGeometry(0.028, 9e-3, 4, 12), darkMat);
-    spring.position.set(0.3 + i * 0.022, -0.16 - i * 0.033, 0);
+  const absorber = new Mesh(new CylinderGeometry(0.028, 0.028, 0.4, 12), cylMat);
+  absorber.position.set(0.3, -0.2, 0.03);
+  absorber.rotation.z = -0.5;
+  absorber.castShadow = true;
+  group.add(absorber);
+  const piston = new Mesh(new CylinderGeometry(0.016, 0.016, 0.3, 10), darkMat);
+  piston.position.set(0.34, -0.27, 0.03);
+  piston.rotation.z = -0.5;
+  group.add(piston);
+  for (let i = 0; i < 6; i++) {
+    const spring = new Mesh(new TorusGeometry(0.03, 0.01, 6, 14), darkMat);
+    spring.position.set(0.3 + i * 0.024, -0.14 - i * 0.035, 0.03);
     spring.rotation.y = Math.PI / 2;
     group.add(spring);
   }
-  const piston = new Mesh(new CylinderGeometry(0.014, 0.014, 0.28, 6), darkMat);
-  piston.position.set(0.27, -0.22, 0.02);
-  piston.rotation.z = -0.5;
-  group.add(piston);
-  const footGeo = new CylinderGeometry(0.12, 0.12, 0.024, 16);
-  const foot = new Mesh(footGeo, metalMat);
-  foot.position.set(0.75, -0.88, 0);
+  const foot = new Mesh(new CylinderGeometry(0.14, 0.14, 0.028, 20), metalMat);
+  foot.position.set(0.78, -0.9, 0);
   foot.castShadow = true;
   group.add(foot);
-  const footEdge = new Mesh(new TorusGeometry(0.12, 0.014, 6, 16), darkMat);
-  footEdge.position.set(0.75, -0.89, 0);
+  const footEdge = new Mesh(new TorusGeometry(0.14, 0.016, 8, 20), darkMat);
+  footEdge.position.set(0.78, -0.91, 0);
   footEdge.rotation.x = Math.PI / 2;
   group.add(footEdge);
+  const bracket = new Mesh(new BoxGeometry(0.08, 0.12, 0.1), metalMat);
+  bracket.position.set(0.02, -0.02, 0);
+  bracket.castShadow = true;
+  group.add(bracket);
   group.userData.height = 1;
-  group.userData.radius = 0.17;
+  group.userData.radius = 0.18;
   return group;
 }
 function buildScienceInstrument(part) {
   const group = new Group();
   const name = (part.name + " " + (part.description || "")).toLowerCase();
-  const mat = new MeshStandardMaterial({ color: 13421772, metalness: 0.5, roughness: 0.4 });
-  const darkMat = new MeshStandardMaterial({ color: 4473941, metalness: 0.4, roughness: 0.5 });
+  const mat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 13421772,
+    metalness: 0.55,
+    roughness: 0.38
+  });
+  const darkMat = new MeshStandardMaterial({
+    map: texBrushedMetal("dark", 256),
+    color: 4473941,
+    metalness: 0.45,
+    roughness: 0.5
+  });
+  const ledMat = new MeshStandardMaterial({
+    emissiveMap: texEmissiveGlow("electronics", 256),
+    color: 65280,
+    emissive: 65280,
+    emissiveIntensity: 0.8,
+    metalness: 0.3,
+    roughness: 0.4
+  });
   if (name.includes("thermometer") || name.includes("\u6E29\u5EA6")) {
-    const stem = new Mesh(new CylinderGeometry(0.035, 0.035, 0.45, 12), mat);
-    stem.position.y = 0.22;
+    const stem = new Mesh(new CylinderGeometry(0.038, 0.038, 0.48, 16), mat);
+    stem.position.y = 0.24;
     stem.castShadow = true;
     group.add(stem);
-    const bulb = new Mesh(new SphereGeometry(0.07, 12, 8), darkMat);
-    bulb.position.y = 0.5;
+    const bulb = new Mesh(new SphereGeometry(0.075, 14, 10), darkMat);
+    bulb.position.y = 0.52;
     bulb.castShadow = true;
     group.add(bulb);
-    const baseBox = new Mesh(new BoxGeometry(0.12, 0.05, 0.09), mat);
+    const baseBox = new Mesh(new BoxGeometry(0.14, 0.06, 0.1), mat);
     baseBox.castShadow = true;
     group.add(baseBox);
-    group.userData.height = 0.55;
+    for (let i = 0; i < 3; i++) {
+      const port = new Mesh(new CylinderGeometry(0.015, 0.015, 0.03, 8), darkMat);
+      port.position.set((i - 1) * 0.04, 0.03, 0.05);
+      port.rotation.x = Math.PI / 2;
+      group.add(port);
+    }
+    group.userData.height = 0.58;
   } else if (name.includes("sensor") || name.includes("science") || name.includes("\u4F20\u611F\u5668") || name.includes("\u79D1\u5B66")) {
-    const box = new Mesh(new BoxGeometry(0.22, 0.17, 0.14), mat);
+    const box = new Mesh(new BoxGeometry(0.24, 0.18, 0.16), mat);
     box.castShadow = true;
     group.add(box);
-    const lens = new Mesh(new CylinderGeometry(0.035, 0.035, 0.045, 12), darkMat);
-    lens.position.z = 0.09;
+    const lens = new Mesh(new CylinderGeometry(0.038, 0.038, 0.05, 16), darkMat);
+    lens.position.z = 0.1;
     lens.rotation.x = Math.PI / 2;
     lens.castShadow = true;
     group.add(lens);
-    const ant = new Mesh(new CylinderGeometry(9e-3, 9e-3, 0.22, 6), mat);
-    ant.position.y = 0.19;
+    const ant = new Mesh(new CylinderGeometry(9e-3, 9e-3, 0.24, 8), mat);
+    ant.position.y = 0.2;
     ant.castShadow = true;
     group.add(ant);
-    group.userData.height = 0.4;
+    const antBall = new Mesh(new SphereGeometry(0.015, 8, 6), mat);
+    antBall.position.y = 0.32;
+    group.add(antBall);
+    const led = new Mesh(new SphereGeometry(0.012, 8, 6), ledMat);
+    led.position.set(0.08, 0.06, 0.08);
+    group.add(led);
+    for (let i = 0; i < 4; i++) {
+      const port = new Mesh(new CylinderGeometry(0.012, 0.012, 0.03, 8), darkMat);
+      port.position.set(-0.08 + i * 0.05, -0.07, 0.08);
+      group.add(port);
+    }
+    group.userData.height = 0.42;
   } else if (name.includes("arm") || name.includes("\u81C2")) {
-    const baseJoint = new Mesh(new SphereGeometry(0.055, 10, 8), mat);
+    const baseJoint = new Mesh(new SphereGeometry(0.058, 12, 10), mat);
     baseJoint.castShadow = true;
     group.add(baseJoint);
-    const seg1 = new Mesh(new CylinderGeometry(0.022, 0.022, 0.28, 8), mat);
-    seg1.position.set(0.11, 0.09, 0);
+    const seg1 = new Mesh(new CylinderGeometry(0.024, 0.024, 0.3, 10), mat);
+    seg1.position.set(0.12, 0.1, 0);
     seg1.rotation.z = -0.7;
     seg1.castShadow = true;
     group.add(seg1);
-    const elbow = new Mesh(new SphereGeometry(0.038, 10, 8), mat);
-    elbow.position.set(0.24, 0.18, 0);
+    const elbow = new Mesh(new SphereGeometry(0.04, 12, 10), mat);
+    elbow.position.set(0.26, 0.19, 0);
     group.add(elbow);
-    const seg2 = new Mesh(new CylinderGeometry(0.016, 0.016, 0.22, 8), mat);
-    seg2.position.set(0.35, 0.11, 0);
+    const seg2 = new Mesh(new CylinderGeometry(0.018, 0.018, 0.24, 10), mat);
+    seg2.position.set(0.37, 0.12, 0);
     seg2.rotation.z = 0.8;
     seg2.castShadow = true;
     group.add(seg2);
-    const claw = new Mesh(new ConeGeometry(0.032, 0.07, 6), darkMat);
-    claw.position.set(0.46, 0.04, 0);
+    const claw = new Mesh(new ConeGeometry(0.034, 0.08, 8), darkMat);
+    claw.position.set(0.48, 0.04, 0);
     claw.rotation.z = Math.PI / 2;
     group.add(claw);
-    group.userData.height = 0.32;
+    group.userData.height = 0.34;
   } else {
-    const box = new Mesh(new BoxGeometry(0.2, 0.2, 0.16), mat);
+    const box = new Mesh(new BoxGeometry(0.22, 0.22, 0.18), mat);
     box.castShadow = true;
     group.add(box);
-    const top = new Mesh(new CylinderGeometry(0.045, 0.045, 0.07, 8), darkMat);
-    top.position.y = 0.13;
+    const top = new Mesh(new CylinderGeometry(0.048, 0.048, 0.08, 12), darkMat);
+    top.position.y = 0.14;
     top.castShadow = true;
     group.add(top);
-    group.userData.height = 0.27;
+    for (let i = 0; i < 3; i++) {
+      const led = new Mesh(new SphereGeometry(0.01, 8, 6), ledMat);
+      led.position.set(-0.06 + i * 0.06, 0.08, 0.09);
+      group.add(led);
+    }
+    const ant = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.15, 6), mat);
+    ant.position.set(0.08, 0.18, 0);
+    group.add(ant);
+    group.userData.height = 0.3;
   }
-  group.userData.radius = 0.14;
+  group.userData.radius = 0.15;
   return group;
 }
 function buildCommAntenna(part) {
   const group = new Group();
-  const metalMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
-  const darkMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.5 });
-  const baseGeo = new CylinderGeometry(0.07, 0.09, 0.07, 12);
-  const base = new Mesh(baseGeo, metalMat);
+  const metalMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("panels", 512),
+    color: 8947848,
+    metalness: 0.72,
+    roughness: 0.28
+  });
+  const darkMat = new MeshStandardMaterial({
+    map: texBrushedMetal("dark", 256),
+    color: 3355443,
+    metalness: 0.55,
+    roughness: 0.5
+  });
+  const base = new Mesh(new CylinderGeometry(0.08, 0.1, 0.08, 16), metalMat);
   base.castShadow = true;
   group.add(base);
-  const segs = [0.042, 0.032, 0.022];
-  let yOff = 0.035;
+  const gimbalBall = new Mesh(new SphereGeometry(0.05, 12, 10), metalMat);
+  gimbalBall.position.y = 0.06;
+  gimbalBall.scale.y = 0.6;
+  group.add(gimbalBall);
+  const segs = [0.044, 0.034, 0.024];
+  let yOff = 0.08;
   for (let i = 0; i < 3; i++) {
-    const seg = new Mesh(new CylinderGeometry(segs[i], segs[i], 0.22, 8), metalMat);
-    seg.position.y = yOff + 0.11;
+    const seg = new Mesh(new CylinderGeometry(segs[i], segs[i], 0.24, 10), metalMat);
+    seg.position.y = yOff + 0.12;
     seg.castShadow = true;
     group.add(seg);
-    yOff += 0.22;
+    yOff += 0.24;
   }
   const dishPts = [];
   dishPts.push(new Vector2(0, 0));
-  dishPts.push(new Vector2(0.06, 0.022));
-  dishPts.push(new Vector2(0.12, 0.055));
-  dishPts.push(new Vector2(0.17, 0.11));
-  dishPts.push(new Vector2(0.22, 0.17));
-  dishPts.push(new Vector2(0.24, 0.22));
-  const dishGeo = new LatheGeometry(dishPts, 32);
-  const dishMat = new MeshStandardMaterial({ color: 11184810, metalness: 0.6, roughness: 0.3, side: DoubleSide });
+  dishPts.push(new Vector2(0.06, 0.024));
+  dishPts.push(new Vector2(0.12, 0.06));
+  dishPts.push(new Vector2(0.18, 0.12));
+  dishPts.push(new Vector2(0.23, 0.18));
+  dishPts.push(new Vector2(0.26, 0.24));
+  const dishGeo = new LatheGeometry(dishPts, 40);
+  const dishMat = new MeshStandardMaterial({
+    map: texBrushedMetal("white", 512),
+    color: 11184810,
+    metalness: 0.65,
+    roughness: 0.25,
+    side: DoubleSide
+  });
   const dish = new Mesh(dishGeo, dishMat);
   dish.position.y = yOff;
   dish.castShadow = true;
   group.add(dish);
-  const horn = new Mesh(new ConeGeometry(0.028, 0.09, 8), darkMat);
-  horn.position.y = yOff + 0.13;
+  const horn = new Mesh(new ConeGeometry(0.03, 0.1, 12), darkMat);
+  horn.position.y = yOff + 0.14;
   horn.castShadow = true;
   group.add(horn);
-  group.userData.height = yOff + 0.27;
-  group.userData.radius = 0.24;
+  const strutMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < 3; i++) {
+    const angle = i / 3 * Math.PI * 2;
+    const strut = new Mesh(new CylinderGeometry(5e-3, 5e-3, 0.18, 6), strutMat);
+    strut.position.set(Math.cos(angle) * 0.12, yOff + 0.09, Math.sin(angle) * 0.12);
+    strut.lookAt(0, yOff + 0.14, 0);
+    strut.rotation.x = Math.PI / 2;
+    group.add(strut);
+  }
+  group.userData.height = yOff + 0.28;
+  group.userData.radius = 0.26;
   return group;
 }
 function buildDockingPort(part) {
   const group = new Group();
   const r = part.mass > 300 ? 0.6 : 0.4;
-  const baseGeo = new CylinderGeometry(r, r, 0.07, 32);
-  const baseMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.6, roughness: 0.35 });
-  const base = new Mesh(baseGeo, baseMat);
+  const baseMat = new MeshStandardMaterial({
+    map: texBrushedMetal("titanium", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 8947848,
+    metalness: 0.65,
+    roughness: 0.33
+  });
+  const base = new Mesh(new CylinderGeometry(r, r, 0.08, 36), baseMat);
   base.castShadow = true;
   group.add(base);
   const goldRing = new Mesh(
-    new TorusGeometry(r * 0.75, 0.045, 10, 32),
-    new MeshStandardMaterial({ color: 16755200, metalness: 0.9, roughness: 0.2 })
+    new TorusGeometry(r * 0.75, 0.048, 12, 36),
+    new MeshStandardMaterial({ color: 16755200, metalness: 0.95, roughness: 0.15 })
   );
   goldRing.position.y = 0.045;
   goldRing.rotation.x = Math.PI / 2;
   goldRing.castShadow = true;
   group.add(goldRing);
+  const petalMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 6710886,
+    metalness: 0.75,
+    roughness: 0.28
+  });
+  for (let i = 0; i < 3; i++) {
+    const angle = i / 3 * Math.PI * 2;
+    const petal = new Mesh(new ConeGeometry(r * 0.18, 0.12, 4), petalMat);
+    petal.position.set(Math.cos(angle) * r * 0.55, 0.1, Math.sin(angle) * r * 0.55);
+    petal.lookAt(Math.cos(angle) * 3, 0.18, Math.sin(angle) * 3);
+    petal.castShadow = true;
+    group.add(petal);
+  }
   const cone = new Mesh(
-    new ConeGeometry(r * 0.3, 0.17, 20),
-    new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.3 })
+    new ConeGeometry(r * 0.3, 0.18, 24),
+    petalMat
   );
-  cone.position.y = 0.11;
+  cone.position.y = 0.12;
   cone.castShadow = true;
   group.add(cone);
   const seal = new Mesh(
-    new TorusGeometry(r * 0.5, 0.018, 6, 32),
+    new TorusGeometry(r * 0.5, 0.02, 8, 36),
     new MeshStandardMaterial({ color: 4473924, metalness: 0.5, roughness: 0.5 })
   );
   seal.position.y = 0.045;
   seal.rotation.x = Math.PI / 2;
   group.add(seal);
-  const ledMat = new MeshStandardMaterial({ color: 65280, emissive: 65280, emissiveIntensity: 1, metalness: 0.3, roughness: 0.4 });
+  const ledMat = new MeshStandardMaterial({
+    emissiveMap: texEmissiveGlow("electronics", 256),
+    color: 65280,
+    emissive: 65280,
+    emissiveIntensity: 1,
+    metalness: 0.3,
+    roughness: 0.4
+  });
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2;
-    const led = new Mesh(new SphereGeometry(0.022, 8, 6), ledMat);
+    const led = new Mesh(new SphereGeometry(0.022, 10, 8), ledMat);
     led.position.set(Math.cos(angle) * r * 0.88, 0.055, Math.sin(angle) * r * 0.88);
     group.add(led);
   }
-  group.userData.height = 0.22;
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  addBoltRing(group, 12, r * 0.95, -0.04, boltMat, 0.015);
+  group.userData.height = 0.24;
   group.userData.radius = r;
   return group;
 }
@@ -25599,39 +26588,70 @@ function buildStructuralTube(part) {
   const group = new Group();
   const r = 0.55;
   const h = 1.1;
-  const metalMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.4 });
-  for (let i = 0; i < 2; i++) {
-    const sign2 = i === 0 ? 1 : -1;
-    const strut = new Mesh(new CylinderGeometry(0.028, 0.028, h, 8), metalMat);
-    strut.position.set(sign2 * r * 0.5, 0, 0);
-    strut.rotation.z = sign2 * 0.7;
-    strut.castShadow = true;
-    group.add(strut);
-  }
-  for (let y = -h / 2; y <= h / 2; y += h) {
-    const ring = new Mesh(new TorusGeometry(r * 0.7, 0.022, 6, 32), metalMat);
-    ring.position.y = y;
+  const metalMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("rivets", 512),
+    color: 10066329,
+    metalness: 0.65,
+    roughness: 0.38
+  });
+  for (const sign2 of [1, -1]) {
+    const ring = new Mesh(new TorusGeometry(r * 0.75, 0.028, 10, 40), metalMat);
+    ring.position.y = sign2 * h / 2;
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
     group.add(ring);
   }
-  const nodeMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
-  const positions = [[0, h / 2, 0], [0, -h / 2, 0], [r * 0.5, 0, 0], [-r * 0.5, 0, 0]];
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const post = new Mesh(new CylinderGeometry(0.02, 0.02, h, 8), metalMat);
+    post.position.set(Math.cos(angle) * r * 0.75, 0, Math.sin(angle) * r * 0.75);
+    post.castShadow = true;
+    group.add(post);
+  }
+  const braceMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 7829367,
+    metalness: 0.7,
+    roughness: 0.33
+  });
+  const segs = 2;
+  for (let s = 0; s < segs; s++) {
+    const y1 = -h / 2 + h / segs * s;
+    const y2 = -h / 2 + h / segs * (s + 1);
+    for (let i = 0; i < 4; i++) {
+      const a1 = i / 4 * Math.PI * 2;
+      const a2 = (i + 1) / 4 * Math.PI * 2;
+      const p1 = new Vector3(Math.cos(a1) * r * 0.75, y1, Math.sin(a1) * r * 0.75);
+      const p2 = new Vector3(Math.cos(a2) * r * 0.75, y2, Math.sin(a2) * r * 0.75);
+      const dist1 = p1.distanceTo(p2);
+      const brace1 = new Mesh(new CylinderGeometry(0.012, 0.012, dist1, 6), braceMat);
+      brace1.position.copy(p1).lerp(p2, 0.5);
+      brace1.lookAt(p2);
+      brace1.rotation.x = Math.PI / 2;
+      brace1.castShadow = true;
+      group.add(brace1);
+      const p3 = new Vector3(Math.cos(a2) * r * 0.75, y1, Math.sin(a2) * r * 0.75);
+      const p4 = new Vector3(Math.cos(a1) * r * 0.75, y2, Math.sin(a1) * r * 0.75);
+      const dist2 = p3.distanceTo(p4);
+      const brace2 = new Mesh(new CylinderGeometry(0.012, 0.012, dist2, 6), braceMat);
+      brace2.position.copy(p3).lerp(p4, 0.5);
+      brace2.lookAt(p4);
+      brace2.rotation.x = Math.PI / 2;
+      brace2.castShadow = true;
+      group.add(brace2);
+    }
+  }
+  const nodeMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.75, roughness: 0.28 });
+  const positions = [[0, h / 2, 0], [0, -h / 2, 0], [r * 0.75, 0, 0], [-r * 0.75, 0, 0], [0, 0, r * 0.75], [0, 0, -r * 0.75]];
   for (const [x, y, z] of positions) {
-    const node = new Mesh(new SphereGeometry(0.045, 10, 8), nodeMat);
+    const node = new Mesh(new SphereGeometry(0.048, 12, 10), nodeMat);
     node.position.set(x, y, z);
     node.castShadow = true;
     group.add(node);
   }
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2;
-    const post = new Mesh(new CylinderGeometry(0.017, 0.017, h, 6), metalMat);
-    post.position.set(Math.cos(angle) * r * 0.7, 0, Math.sin(angle) * r * 0.7);
-    post.castShadow = true;
-    group.add(post);
-  }
   group.userData.height = h;
-  group.userData.radius = r * 0.7;
+  group.userData.radius = r * 0.75;
   return group;
 }
 function buildAdapter(part) {
@@ -25644,32 +26664,52 @@ function buildAdapter(part) {
   pts.push(new Vector2(botR, -h / 2));
   pts.push(new Vector2(botR * 0.98, -h / 2 + 0.04));
   pts.push(new Vector2(botR * 0.9, -h / 2 + h * 0.2));
-  pts.push(new Vector2(botR * 0.75, -h / 2 + h * 0.45));
-  pts.push(new Vector2(botR * 0.6, -h / 2 + h * 0.65));
-  pts.push(new Vector2(topR * 1.1, -h / 2 + h * 0.85));
+  pts.push(new Vector2(botR * 0.75, -h / 2 + h * 0.42));
+  pts.push(new Vector2(botR * 0.6, -h / 2 + h * 0.62));
+  pts.push(new Vector2(topR * 1.1, -h / 2 + h * 0.82));
   pts.push(new Vector2(topR, h / 2 - 0.03));
   pts.push(new Vector2(topR * 0.98, h / 2));
   pts.push(new Vector2(0, h / 2));
-  const adapterGeo = new LatheGeometry(pts, 48);
-  const adapterMat = new MeshStandardMaterial({ color: 13684944, metalness: 0.65, roughness: 0.25 });
+  const adapterGeo = new LatheGeometry(pts, 56);
+  const adapterMat = new MeshStandardMaterial({
+    map: texBrushedMetal("aluminum", 1024),
+    normalMap: texNormalDetail("panels", 512),
+    roughnessMap: texRoughnessMap(0.3, 1024),
+    color: 13684944,
+    metalness: 0.68,
+    roughness: 0.25
+  });
   const adapter = new Mesh(adapterGeo, adapterMat);
   adapter.castShadow = true;
   group.add(adapter);
-  const bandMat = new MeshStandardMaterial({ color: 11579568, metalness: 0.7, roughness: 0.3 });
-  const topBand = new Mesh(new TorusGeometry(topR * 1.01, 0.03, 8, 32), bandMat);
+  const bandMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 11579568,
+    metalness: 0.8,
+    roughness: 0.22
+  });
+  const topBand = new Mesh(new TorusGeometry(topR * 1.02, 0.035, 10, 40), bandMat);
   topBand.position.y = h / 2;
   topBand.rotation.x = Math.PI / 2;
   topBand.castShadow = true;
   group.add(topBand);
-  const botBand = new Mesh(new TorusGeometry(botR * 1.01, 0.03, 8, 32), bandMat);
+  const botBand = new Mesh(new TorusGeometry(botR * 1.02, 0.035, 10, 40), bandMat);
   botBand.position.y = -h / 2;
   botBand.rotation.x = Math.PI / 2;
   botBand.castShadow = true;
   group.add(botBand);
-  const lineMat = new MeshStandardMaterial({ color: 10526880, metalness: 0.6, roughness: 0.4 });
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2;
-    const lineGeo = new BoxGeometry(0.012, h * 0.9, 0.022);
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  addBoltRing(group, 16, topR * 1, h / 2, boltMat, 0.014);
+  addBoltRing(group, 24, botR * 1, -h / 2, boltMat, 0.016);
+  const lineMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 10526880,
+    metalness: 0.65,
+    roughness: 0.38
+  });
+  for (let i = 0; i < 6; i++) {
+    const angle = i / 6 * Math.PI * 2;
+    const lineGeo = new BoxGeometry(0.014, h * 0.92, 0.024);
     const line = new Mesh(lineGeo, lineMat);
     const midR = (topR + botR) / 2;
     line.position.set(Math.cos(angle) * midR * 0.95, 0, Math.sin(angle) * midR * 0.95);
@@ -25702,42 +26742,6 @@ function makeMetalTexture(type, size = 256) {
       const g8 = Math.min(255, Math.max(0, bg + v * 60 - 20));
       const b8 = Math.min(255, Math.max(0, bb + v * 60 - 20));
       ctx.fillStyle = `rgb(${Math.floor(r8)},${Math.floor(g8)},${Math.floor(b8)})`;
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-  const tex = new CanvasTexture(canvas);
-  tex.colorSpace = SRGBColorSpace;
-  tex.wrapS = RepeatWrapping;
-  tex.wrapT = RepeatWrapping;
-  return tex;
-}
-function makeTPSTileTexture(size = 256) {
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const tileSize = 16;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const tileX = Math.floor(x / tileSize);
-      const tileY = Math.floor(y / tileSize);
-      const localX = x % tileSize / tileSize;
-      const localY = y % tileSize / tileSize;
-      const gap = localX < 0.06 || localX > 0.94 || localY < 0.06 || localY > 0.94 ? 1 : 0;
-      const tileNoise = TextureFactory.fbm(tileX * 1.5, tileY * 1.5, 3, 0.5, 2);
-      const soot = TextureFactory.fbm(x * 0.05, y * 0.05, 4, 0.5, 2.2);
-      let r8, g8, b8;
-      if (gap) {
-        r8 = 20;
-        g8 = 18;
-        b8 = 16;
-      } else {
-        const base = 60 + tileNoise * 30;
-        r8 = base + soot * 20;
-        g8 = base * 0.85 + soot * 15;
-        b8 = base * 0.7 + soot * 10;
-      }
-      ctx.fillStyle = `rgb(${Math.floor(Math.min(255, r8))},${Math.floor(Math.min(255, g8))},${Math.floor(Math.min(255, b8))})`;
       ctx.fillRect(x, y, 1, 1);
     }
   }
@@ -27654,25 +28658,37 @@ var GameUI = class {
     if (existing) existing.remove();
     const overlay = document.createElement("div");
     overlay.id = "star-map-overlay";
-    overlay.className = "star-map-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;";
     overlay.innerHTML = `
-      <div class="star-map-content">
-        <h2>\u661F\u56FE</h2>
-        <div class="star-list">
-          <div class="star-item" style="cursor:default;font-weight:700;color:#5a9abf;border-bottom:1px solid rgba(60,100,140,0.3);">
+      <div style="background:#0a0e1a;border:1px solid #2a4060;border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:85vh;display:flex;flex-direction:column;">
+        <h2 style="color:#5a9abf;margin:0 0 12px;text-align:center;">\u{1F30C} \u661F\u56FE \u2014 \u9009\u62E9\u66F2\u901F\u76EE\u6807</h2>
+        <input id="star-search" placeholder="\u641C\u7D22\u661F\u7CFB\u540D\u79F0..." style="margin-bottom:8px;padding:8px 12px;background:#0d1420;border:1px solid #2a4060;color:#c0d0e0;border-radius:6px;outline:none;">
+        <div class="star-list" style="overflow-y:auto;flex:1;min-height:200px;">
+          <div class="star-item" style="cursor:default;font-weight:700;color:#5a9abf;border-bottom:1px solid rgba(60,100,140,0.3);display:flex;justify-content:space-between;padding:6px 12px;">
             <span class="star-name">\u540D\u79F0</span>
             <span class="star-type">\u7C7B\u578B</span>
             <span class="star-dist">\u8DDD\u79BB</span>
           </div>
           ${systems.map((s) => `
-            <div class="star-item" data-name="${s.name}">
+            <div class="star-item" data-name="${s.name}" style="display:flex;justify-content:space-between;padding:6px 12px;cursor:pointer;border-bottom:1px solid rgba(30,50,80,0.3);transition:background 0.15s;" onmouseover="this.style.background='rgba(40,80,120,0.3)'" onmouseout="this.style.background='transparent'">
               <span class="star-name">${s.name}</span>
-              <span class="star-type">${s.starType}</span>
-              <span class="star-dist">${s.distance.toFixed(2)} \u5149\u5E74</span>
+              <span class="star-type" style="color:#8899aa;">${s.starType}</span>
+              <span class="star-dist" style="color:#5a9abf;">${s.distance.toFixed(2)} \u5149\u5E74</span>
             </div>`).join("")}
         </div>
-        <button id="close-starmap">\u8FD4\u56DE</button>
+        <div style="margin-top:8px;text-align:center;color:#445566;font-size:12px;">\u5171 ${systems.length} \u4E2A\u76EE\u6807</div>
+        <button id="close-starmap" style="margin-top:8px;padding:10px 20px;background:#1a2540;border:1px solid #2a4060;color:#c0d0e0;border-radius:6px;cursor:pointer;">\u8FD4\u56DE</button>
       </div>`;
+    const searchInput = overlay.querySelector("#star-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        const q = searchInput.value.toLowerCase();
+        overlay.querySelectorAll(".star-item[data-name]").forEach((item) => {
+          const name = item.getAttribute("data-name") || "";
+          item.style.display = name.toLowerCase().includes(q) ? "flex" : "none";
+        });
+      });
+    }
     document.body.appendChild(overlay);
     overlay.querySelectorAll(".star-item[data-name]").forEach((item) => {
       item.addEventListener("click", () => {
@@ -27719,12 +28735,95 @@ var TimeWarpController = class {
 };
 
 // src/game/starchunk.ts
+var STAR_TYPES = [
+  // Brown dwarfs (L/T/Y) — 8%
+  { name: "L-T", minTemp: 500, maxTemp: 2200, probability: 0.08, sizeMin: 0.3, sizeMax: 0.8, massMin: 0.01, massMax: 0.08, radiusMin: 0.08, radiusMax: 0.15 },
+  // M-type red dwarfs — 42%
+  { name: "M", minTemp: 2400, maxTemp: 3700, probability: 0.42, sizeMin: 0.5, sizeMax: 2.5, massMin: 0.08, massMax: 0.6, radiusMin: 0.15, radiusMax: 0.7 },
+  // K-type orange dwarfs — 20%
+  { name: "K", minTemp: 3700, maxTemp: 5200, probability: 0.2, sizeMin: 1, sizeMax: 3, massMin: 0.45, massMax: 0.9, radiusMin: 0.6, radiusMax: 0.9 },
+  // G-type yellow (Sun-like) — 12%
+  { name: "G", minTemp: 5200, maxTemp: 6e3, probability: 0.12, sizeMin: 1.5, sizeMax: 4, massMin: 0.85, massMax: 1.2, radiusMin: 0.85, radiusMax: 1.2 },
+  // F-type yellow-white — 8%
+  { name: "F", minTemp: 6e3, maxTemp: 7500, probability: 0.08, sizeMin: 2, sizeMax: 5, massMin: 1, massMax: 1.5, radiusMin: 1.1, radiusMax: 1.6 },
+  // A-type white — 4%
+  { name: "A", minTemp: 7500, maxTemp: 1e4, probability: 0.04, sizeMin: 2.5, sizeMax: 6, massMin: 1.4, massMax: 2.5, radiusMin: 1.3, radiusMax: 2 },
+  // B-type blue-white — 3%
+  { name: "B", minTemp: 1e4, maxTemp: 3e4, probability: 0.03, sizeMin: 3, sizeMax: 8, massMin: 2.5, massMax: 15, radiusMin: 1.5, radiusMax: 7 },
+  // O-type hot blue — 0.5%
+  { name: "O", minTemp: 3e4, maxTemp: 5e4, probability: 5e-3, sizeMin: 4, sizeMax: 10, massMin: 15, massMax: 90, radiusMin: 6, radiusMax: 20 },
+  // Red giants — 1.5%
+  { name: "M-III", minTemp: 3e3, maxTemp: 4500, probability: 0.015, sizeMin: 5, sizeMax: 12, massMin: 0.5, massMax: 8, radiusMin: 10, radiusMax: 100 },
+  // White dwarfs — 1%
+  { name: "DA", minTemp: 1e4, maxTemp: 1e5, probability: 0.01, sizeMin: 0.3, sizeMax: 0.8, massMin: 0.5, massMax: 1.4, radiusMin: 8e-3, radiusMax: 0.02 },
+  // Neutron stars — 0.5%
+  { name: "NS", minTemp: 6e4, maxTemp: 1e6, probability: 5e-3, sizeMin: 0.2, sizeMax: 0.5, massMin: 1.4, massMax: 2.5, radiusMin: 1e-5, radiusMax: 3e-5 }
+];
+var SOLAR_MASS = 1989e27;
+var SOLAR_RADIUS = 69634e4;
+var STAR_RENDER_SCALE = 1e5 / LY;
+var GC_DIR = new Vector3(
+  Math.cos(GALACTIC_CENTER_DEC) * Math.cos(GALACTIC_CENTER_RA),
+  Math.sin(GALACTIC_CENTER_DEC),
+  Math.cos(GALACTIC_CENTER_DEC) * Math.sin(GALACTIC_CENTER_RA)
+);
+var GC_POS_LY = GC_DIR.clone().multiplyScalar(SUN_DIST_FROM_GALACTIC_CENTER_LY);
+function galaxyDensityFactor(posLy) {
+  const fromGC = posLy.clone().sub(GC_POS_LY);
+  const r = Math.sqrt(fromGC.x * fromGC.x + fromGC.z * fromGC.z);
+  const distFromCenter = fromGC.length();
+  const scaleLength = 5e3;
+  let factor = Math.exp(-(r - SUN_DIST_FROM_GALACTIC_CENTER_LY) / scaleLength);
+  if (distFromCenter < GALACTIC_BULGE_RADIUS_LY) {
+    const bulgeT = 1 - distFromCenter / GALACTIC_BULGE_RADIUS_LY;
+    factor *= 1 + bulgeT * bulgeT * 15;
+  }
+  factor *= spiralArmFactor(r, Math.atan2(fromGC.z, fromGC.x));
+  const planeDist = Math.abs(fromGC.y);
+  if (planeDist > GALACTIC_DISK_THICKNESS_LY * 0.5) {
+    factor *= Math.exp(-(planeDist - GALACTIC_DISK_THICKNESS_LY * 0.5) / 500);
+  }
+  return Math.max(0.01, Math.min(factor, 50));
+}
+function spiralArmFactor(r, angle) {
+  if (r < 100) return 1;
+  const armWidth = 0.4;
+  let maxFactor = 1;
+  for (let i = 0; i < GALACTIC_ARM_COUNT; i++) {
+    const armOffset = i * (Math.PI * 2 / GALACTIC_ARM_COUNT);
+    const spiralTheta = Math.log(r / 3e3) / GALACTIC_ARM_PITCH + armOffset;
+    let dTheta = angle - spiralTheta;
+    while (dTheta > Math.PI) dTheta -= 2 * Math.PI;
+    while (dTheta < -Math.PI) dTheta += 2 * Math.PI;
+    const armFactor = Math.exp(-(dTheta * dTheta) / (2 * armWidth * armWidth));
+    maxFactor = Math.max(maxFactor, 1 + armFactor * 1.5);
+  }
+  return maxFactor;
+}
+function pickStarType(rand) {
+  let cumulative = 0;
+  for (const spec of STAR_TYPES) {
+    cumulative += spec.probability;
+    if (rand < cumulative) return spec;
+  }
+  return STAR_TYPES[0];
+}
+function colorFromTemp(temperature) {
+  for (let j = 0; j < STAR_COLOR_TEMP.length; j++) {
+    if (temperature >= STAR_COLOR_TEMP[j].temp) {
+      return new Color(STAR_COLOR_TEMP[j].color);
+    }
+  }
+  return new Color(STAR_COLOR_TEMP[STAR_COLOR_TEMP.length - 1].color);
+}
 var StarChunk = class {
-  constructor(key) {
+  // 0 = full detail, 1 = reduced (LOD)
+  constructor(key, detailLevel = 0) {
     this.stars = [];
     this.points = null;
     this.isLoaded = false;
     this.key = key;
+    this.detailLevel = detailLevel;
     this.generateStars();
   }
   hash(x, y, z) {
@@ -27735,41 +28834,51 @@ var StarChunk = class {
   generateStars() {
     const cx = this.key.x, cy = this.key.y, cz = this.key.z;
     const seed = this.hash(cx, cy, cz);
-    const count = Math.floor(STARS_PER_CHUNK_MIN + seed * (STARS_PER_CHUNK_MAX - STARS_PER_CHUNK_MIN));
+    const centerLy = new Vector3(
+      (cx + 0.5) * CHUNK_SIZE_LY,
+      (cy + 0.5) * CHUNK_SIZE_LY,
+      (cz + 0.5) * CHUNK_SIZE_LY
+    );
+    const density = galaxyDensityFactor(centerLy);
+    let baseCount = STARS_PER_CHUNK_MIN + seed * (STARS_PER_CHUNK_MAX - STARS_PER_CHUNK_MIN);
+    baseCount *= density;
+    if (this.detailLevel > 0) {
+      baseCount *= 0.3;
+    }
+    const count = Math.max(0, Math.floor(baseCount));
     for (let i = 0; i < count; i++) {
       const s1 = this.hash(cx * 31 + i, cy * 37 + i, cz * 41 + i);
       const s2 = this.hash(cx * 43 + i * 2, cy * 47 + i * 2, cz * 53 + i * 2);
       const s3 = this.hash(cx * 59 + i * 3, cy * 61 + i * 3, cz * 67 + i * 3);
       const s4 = this.hash(cx * 71 + i * 4, cy * 73 + i * 4, cz * 79 + i * 4);
+      const s5 = this.hash(cx * 83 + i * 5, cy * 89 + i * 5, cz * 97 + i * 5);
+      const s6 = this.hash(cx * 101 + i * 6, cy * 103 + i * 6, cz * 107 + i * 6);
       const ox = (s1 - 0.5) * CHUNK_SIZE_M;
       const oy = (s2 - 0.5) * CHUNK_SIZE_M * 0.3;
       const oz = (s3 - 0.5) * CHUNK_SIZE_M;
       const worldX = (cx + 0.5) * CHUNK_SIZE_M + ox;
       const worldY = (cy + 0.5) * CHUNK_SIZE_M + oy;
       const worldZ = (cz + 0.5) * CHUNK_SIZE_M + oz;
-      const tempRand = s4;
-      let temperature;
-      if (tempRand < 0.42) temperature = 2400 + s4 * 1300;
-      else if (tempRand < 0.72) temperature = 3700 + (tempRand - 0.42) * 5e3;
-      else if (tempRand < 0.88) temperature = 5200 + (tempRand - 0.72) * 3e3;
-      else if (tempRand < 0.96) temperature = 6e3 + (tempRand - 0.88) * 4500;
-      else temperature = 1e4 + (tempRand - 0.96) * 2e4;
-      let color = new Color(16777215);
-      for (let j = STAR_COLOR_TEMP.length - 1; j >= 0; j--) {
-        if (temperature >= STAR_COLOR_TEMP[j].temp) {
-          color = new Color(STAR_COLOR_TEMP[j].color);
-          break;
-        }
-      }
-      const sizeRand = this.hash(cx * 83 + i * 5, cy * 89 + i * 5, cz * 97 + i * 5);
-      const size = sizeRand < 0.95 ? 0.5 + sizeRand * 2 : 3 + sizeRand * 5;
+      const spec = pickStarType(s4);
+      const typeRand = s5;
+      const temperature = spec.minTemp + typeRand * (spec.maxTemp - spec.minTemp);
+      const mass = (spec.massMin + typeRand * (spec.massMax - spec.massMin)) * SOLAR_MASS;
+      const radius = (spec.radiusMin + s6 * (spec.radiusMax - spec.radiusMin)) * SOLAR_RADIUS;
+      const color = colorFromTemp(temperature);
+      const sizeRand = this.hash(cx * 113 + i * 7, cy * 127 + i * 7, cz * 131 + i * 7);
+      const size = spec.sizeMin + sizeRand * (spec.sizeMax - spec.sizeMin);
+      const isVariable = spec.name === "M-III" && s6 < 0.3 || spec.name === "M" && s6 < 0.02;
       const designation = `Gaia DR2 ${cx >= 0 ? "+" : ""}${cx}${cy >= 0 ? "+" : ""}${cy}${cz >= 0 ? "+" : ""}${cz}-${i}`;
       this.stars.push({
         position: new Vector3(worldX, worldY, worldZ),
         color,
         size,
         temperature,
-        name: designation
+        name: designation,
+        starType: spec.name,
+        mass,
+        radius,
+        isVariable
       });
     }
   }
@@ -27779,12 +28888,14 @@ var StarChunk = class {
     const positions = new Float32Array(this.stars.length * 3);
     const colors = new Float32Array(this.stars.length * 3);
     const sizes = new Float32Array(this.stars.length);
+    const ccx = (this.key.x + 0.5) * CHUNK_SIZE_M;
+    const ccy = (this.key.y + 0.5) * CHUNK_SIZE_M;
+    const ccz = (this.key.z + 0.5) * CHUNK_SIZE_M;
     for (let i = 0; i < this.stars.length; i++) {
       const s = this.stars[i];
-      const scale = DIST_SCALE * 1e6;
-      positions[i * 3] = s.position.x * scale;
-      positions[i * 3 + 1] = s.position.y * scale;
-      positions[i * 3 + 2] = s.position.z * scale;
+      positions[i * 3] = (s.position.x - ccx) * STAR_RENDER_SCALE;
+      positions[i * 3 + 1] = (s.position.y - ccy) * STAR_RENDER_SCALE;
+      positions[i * 3 + 2] = (s.position.z - ccz) * STAR_RENDER_SCALE;
       colors[i * 3] = s.color.r;
       colors[i * 3 + 1] = s.color.g;
       colors[i * 3 + 2] = s.color.b;
@@ -27794,15 +28905,31 @@ var StarChunk = class {
     geometry.setAttribute("color", new BufferAttribute(colors, 3));
     geometry.setAttribute("size", new BufferAttribute(sizes, 1));
     const material = new PointsMaterial({
-      size: 1.5,
+      size: this.detailLevel > 0 ? 1 : 1.5,
       vertexColors: true,
       sizeAttenuation: false,
       transparent: true,
-      opacity: 0.9
+      opacity: this.detailLevel > 0 ? 0.6 : 0.9
     });
     this.points = new Points(geometry, material);
+    this.points.frustumCulled = false;
     this.isLoaded = true;
     return this.points;
+  }
+  /**
+   * Update the Points object position based on camera.
+   * Stars are rendered relative to camera, with chunk offset scaled by STAR_RENDER_SCALE.
+   */
+  updatePointsPosition(cameraRenderPos, cameraPhysicsPos) {
+    if (!this.points) return;
+    const ccx = (this.key.x + 0.5) * CHUNK_SIZE_M;
+    const ccy = (this.key.y + 0.5) * CHUNK_SIZE_M;
+    const ccz = (this.key.z + 0.5) * CHUNK_SIZE_M;
+    this.points.position.set(
+      cameraRenderPos.x + (ccx - cameraPhysicsPos.x) * STAR_RENDER_SCALE,
+      cameraRenderPos.y + (ccy - cameraPhysicsPos.y) * STAR_RENDER_SCALE,
+      cameraRenderPos.z + (ccz - cameraPhysicsPos.z) * STAR_RENDER_SCALE
+    );
   }
   dispose() {
     if (this.points) {
@@ -27813,13 +28940,110 @@ var StarChunk = class {
     this.isLoaded = false;
   }
 };
+var MilkyWayBackground = class {
+  // render units per ly (compressed galaxy scale)
+  constructor() {
+    this.bgScale = GALACTIC_BG_RENDER_RADIUS / GALACTIC_RADIUS_LY;
+    this.points = this.generate();
+  }
+  generate() {
+    const count = GALACTIC_BACKGROUND_STARS;
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+    const sunFromGC = GC_POS_LY;
+    for (let i = 0; i < count; i++) {
+      let r, theta, z;
+      let isBulge = false;
+      let distFromGC;
+      if (Math.random() < 0.25) {
+        isBulge = true;
+        r = GALACTIC_BULGE_RADIUS_LY * Math.sqrt(-Math.log(Math.max(1e-3, Math.random())));
+        theta = Math.random() * Math.PI * 2;
+        z = (Math.random() - 0.5) * GALACTIC_BULGE_RADIUS_LY * 0.3;
+        distFromGC = Math.sqrt(r * r + z * z);
+      } else {
+        const u = Math.random();
+        r = -3e3 * Math.log(Math.max(1e-3, 1 - u * 0.99));
+        r = Math.min(r, GALACTIC_RADIUS_LY);
+        const armIndex = Math.floor(Math.random() * GALACTIC_ARM_COUNT);
+        const armOffset = armIndex * (Math.PI * 2 / GALACTIC_ARM_COUNT);
+        const spiralTheta = Math.log(Math.max(1, r / 3e3)) / GALACTIC_ARM_PITCH + armOffset;
+        const armScatter = 0.35;
+        theta = spiralTheta + (Math.random() - 0.5) * armScatter * 2;
+        const thickness = GALACTIC_DISK_THICKNESS_LY * 0.3;
+        z = (Math.random() - 0.5) * thickness * 2;
+        distFromGC = Math.sqrt(r * r + z * z);
+      }
+      const gx = r * Math.cos(theta);
+      const gz = r * Math.sin(theta);
+      const gy = z;
+      const relX = gx - sunFromGC.x;
+      const relY = gy - sunFromGC.y;
+      const relZ = gz - sunFromGC.z;
+      positions[i * 3] = relX * this.bgScale;
+      positions[i * 3 + 1] = relY * this.bgScale;
+      positions[i * 3 + 2] = relZ * this.bgScale;
+      const colorT = Math.min(1, distFromGC / GALACTIC_RADIUS_LY);
+      let r_col, g_col, b_col;
+      if (isBulge) {
+        r_col = 1;
+        g_col = 0.7 - colorT * 0.1;
+        b_col = 0.45 - colorT * 0.1;
+      } else {
+        const blueShift = colorT;
+        r_col = 0.85 - blueShift * 0.15;
+        g_col = 0.8 - blueShift * 0.05;
+        b_col = 0.65 + blueShift * 0.35;
+      }
+      const variation = (Math.random() - 0.5) * 0.15;
+      colors[i * 3] = Math.max(0, Math.min(1, r_col + variation));
+      colors[i * 3 + 1] = Math.max(0, Math.min(1, g_col + variation));
+      colors[i * 3 + 2] = Math.max(0, Math.min(1, b_col + variation));
+      sizes[i] = isBulge ? 1 + Math.random() * 2 : 0.3 + Math.random() * 1.5;
+    }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new BufferAttribute(colors, 3));
+    geometry.setAttribute("size", new BufferAttribute(sizes, 1));
+    const material = new PointsMaterial({
+      size: 1.2,
+      vertexColors: true,
+      sizeAttenuation: false,
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false
+    });
+    const points = new Points(geometry, material);
+    points.frustumCulled = false;
+    return points;
+  }
+  /** Update background to follow camera (skybox behavior). */
+  update(cameraRenderPos) {
+    this.points.position.copy(cameraRenderPos);
+  }
+  getObject() {
+    return this.points;
+  }
+  setVisible(visible) {
+    this.points.visible = visible;
+  }
+  dispose() {
+    this.points.geometry.dispose();
+    this.points.material.dispose();
+  }
+};
 var StarChunkManager = class {
   constructor(scene) {
     this.chunks = /* @__PURE__ */ new Map();
-    this.renderRange = 3;
-    // Chunks in each direction (7x7x7 = 343 max)
+    this.renderRange = 4;
+    // Chunks in each direction (covers ~20 ly radius)
     this.playerPosition = new Vector3();
+    this.galaxyBackground = null;
+    this.galaxyBackgroundEnabled = true;
     this.scene = scene;
+    this.galaxyBackground = new MilkyWayBackground();
+    this.scene.add(this.galaxyBackground.getObject());
   }
   chunkKey(x, y, z) {
     return `${x},${y},${z}`;
@@ -27829,17 +29053,31 @@ var StarChunkManager = class {
     const cy = Math.floor(playerPosMeters.y / CHUNK_SIZE_M);
     const cz = Math.floor(playerPosMeters.z / CHUNK_SIZE_M);
     this.playerPosition.copy(playerPosMeters);
+    const cameraRenderPos = new Vector3(
+      playerPosMeters.x * DIST_SCALE,
+      playerPosMeters.y * DIST_SCALE,
+      playerPosMeters.z * DIST_SCALE
+    );
+    if (this.galaxyBackground && this.galaxyBackgroundEnabled) {
+      this.galaxyBackground.update(cameraRenderPos);
+    }
+    for (const chunk of this.chunks.values()) {
+      chunk.updatePointsPosition(cameraRenderPos, playerPosMeters);
+    }
     const needed = /* @__PURE__ */ new Set();
     for (let dx = -this.renderRange; dx <= this.renderRange; dx++) {
       for (let dy = -this.renderRange; dy <= this.renderRange; dy++) {
         for (let dz = -this.renderRange; dz <= this.renderRange; dz++) {
+          if (Math.abs(dy) > 3) continue;
           const x = cx + dx, y = cy + dy, z = cz + dz;
-          if (Math.abs(dy) > 2) continue;
           const key = this.chunkKey(x, y, z);
           needed.add(key);
           if (!this.chunks.has(key)) {
-            const chunk = new StarChunk({ x, y, z });
+            const chunkDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            const detailLevel = chunkDist > this.renderRange * 0.7 ? 1 : 0;
+            const chunk = new StarChunk({ x, y, z }, detailLevel);
             const points = chunk.buildPoints();
+            chunk.updatePointsPosition(cameraRenderPos, playerPosMeters);
             this.scene.add(points);
             this.chunks.set(key, chunk);
           }
@@ -27866,7 +29104,7 @@ var StarChunkManager = class {
     }
     return count;
   }
-  /** Find nearest stars to a position for warp drive targeting */
+  /** Find nearest stars to a position (from loaded chunks only). */
   getNearbyStars(pos, maxCount = 20) {
     const allStars = [];
     for (const chunk of this.chunks.values()) {
@@ -27878,12 +29116,84 @@ var StarChunkManager = class {
     allStars.sort((a, b) => a.dist - b.dist);
     return allStars.slice(0, maxCount).map((s) => s.star);
   }
+  /**
+   * ★★ Generate nearby stars on-demand for warp drive targeting.
+   * Searches a range of chunks around the given position, generating stars
+   * procedurally even for unloaded chunks. Returns NearbyStarInfo[] with
+   * name, distance (ly), starType, and position (meters).
+   */
+  getStarsInRange(pos, rangeLy, maxCount = 50) {
+    const results = [];
+    const rangeM = rangeLy * LY;
+    const rangeChunks = Math.ceil(rangeLy / CHUNK_SIZE_LY);
+    const cx = Math.floor(pos.x / CHUNK_SIZE_M);
+    const cy = Math.floor(pos.y / CHUNK_SIZE_M);
+    const cz = Math.floor(pos.z / CHUNK_SIZE_M);
+    for (let dx = -rangeChunks; dx <= rangeChunks; dx++) {
+      for (let dy = -rangeChunks; dy <= rangeChunks; dy++) {
+        for (let dz = -rangeChunks; dz <= rangeChunks; dz++) {
+          if (Math.abs(dy) > 3) continue;
+          const x = cx + dx, y = cy + dy, z = cz + dz;
+          const key = `${x},${y},${z}`;
+          const existing = this.chunks.get(key);
+          if (existing) {
+            for (const star of existing.stars) {
+              const dist = star.position.distanceTo(pos);
+              if (dist <= rangeM && dist > 1e10) {
+                results.push({
+                  info: {
+                    name: star.name,
+                    nameCN: star.name,
+                    distance: dist / LY,
+                    starType: star.starType,
+                    position: star.position.clone()
+                  },
+                  dist
+                });
+              }
+            }
+          } else {
+            const chunk = new StarChunk({ x, y, z }, 0);
+            for (const star of chunk.stars) {
+              const dist = star.position.distanceTo(pos);
+              if (dist <= rangeM && dist > 1e10) {
+                results.push({
+                  info: {
+                    name: star.name,
+                    nameCN: star.name,
+                    distance: dist / LY,
+                    starType: star.starType,
+                    position: star.position.clone()
+                  },
+                  dist
+                });
+              }
+            }
+            chunk.dispose();
+          }
+        }
+      }
+    }
+    results.sort((a, b) => a.dist - b.dist);
+    return results.slice(0, maxCount).map((r) => r.info);
+  }
+  setGalaxyBackgroundEnabled(enabled) {
+    this.galaxyBackgroundEnabled = enabled;
+    if (this.galaxyBackground) {
+      this.galaxyBackground.setVisible(enabled);
+    }
+  }
   dispose() {
     for (const chunk of this.chunks.values()) {
       if (chunk.points) this.scene.remove(chunk.points);
       chunk.dispose();
     }
     this.chunks.clear();
+    if (this.galaxyBackground) {
+      this.scene.remove(this.galaxyBackground.getObject());
+      this.galaxyBackground.dispose();
+      this.galaxyBackground = null;
+    }
   }
 };
 
@@ -28013,6 +29323,8 @@ var Game = class {
     this.trisolarisActive = false;
     this.trisolarisOrigin = new Vector3();
     this.unlockedAchievements = /* @__PURE__ */ new Set();
+    // ★★ 曲速目标位置缓存（过程化星 + 银河系地标）
+    this.warpTargetPositions = /* @__PURE__ */ new Map();
     this.landedBodies = /* @__PURE__ */ new Set();
     // 输入
     this.heldKeys = /* @__PURE__ */ new Set();
@@ -28144,6 +29456,7 @@ var Game = class {
     window.removeEventListener("keyup", this.boundKeyUp);
     window.removeEventListener("resize", this.boundResize);
     this.cleanupTrisolarisSystem();
+    this.starChunkManager?.dispose();
     this.scene.traverse((obj) => {
       if (obj instanceof Mesh) {
         obj.geometry?.dispose();
@@ -28548,29 +29861,64 @@ var Game = class {
       return;
     }
     if (this.warpDrive.isActive) return;
+    this.warpTargetPositions.clear();
+    const targets = [];
+    for (const s of STAR_SYSTEMS) {
+      targets.push({ name: s.nameCN || s.name, distance: s.distance, starType: s.starType });
+    }
+    const nearbyStars = this.starChunkManager.getStarsInRange(this.rocket.body.position, 50, 50);
+    for (const star of nearbyStars) {
+      targets.push({ name: star.name, distance: star.distance, starType: star.starType });
+      this.warpTargetPositions.set(star.name, star.position.clone());
+    }
+    for (const landmark of GALACTIC_LANDMARKS) {
+      const displayName = landmark.nameCN || landmark.name;
+      targets.push({ name: displayName, distance: landmark.distance, starType: "Galactic" });
+      const distM = landmark.distance * LY;
+      const lmPos = new Vector3(
+        distM * Math.cos(landmark.dec) * Math.cos(landmark.ra),
+        distM * Math.sin(landmark.dec),
+        distM * Math.cos(landmark.dec) * Math.sin(landmark.ra)
+      );
+      this.warpTargetPositions.set(displayName, lmPos);
+    }
+    targets.sort((a, b) => a.distance - b.distance);
     this.hud.showStarMap(
-      STAR_SYSTEMS.map((s) => ({ name: s.nameCN || s.name, distance: s.distance, starType: s.starType })),
+      targets,
       (targetName) => this.executeWarpJump(targetName)
     );
   }
   executeWarpJump(targetName) {
     const target = STAR_SYSTEMS.find((s) => s.nameCN === targetName || s.name === targetName);
-    if (!target) return;
-    const distMeters = target.distance * LY;
-    const targetPos = new Vector3(
-      distMeters * Math.cos(target.dec) * Math.cos(target.ra),
-      distMeters * Math.sin(target.dec),
-      distMeters * Math.cos(target.dec) * Math.sin(target.ra)
-    );
-    targetPos.multiplyScalar(0.95);
-    const startPos = this.rocket.body.position.clone();
-    if (this.warpDrive.activate(target.name, startPos, targetPos)) {
-      this.hud.showNotification(`\u6B63\u5728\u66F2\u901F\u8DC3\u8FC1\u81F3${target.nameCN || target.name}...`);
-      this.timeWarp.setToMinimum();
-      if (target.name === "Trisolaris System") {
-        this.trisolarisOrigin.copy(targetPos);
+    if (target) {
+      const distMeters = target.distance * LY;
+      const targetPos = new Vector3(
+        distMeters * Math.cos(target.dec) * Math.cos(target.ra),
+        distMeters * Math.sin(target.dec),
+        distMeters * Math.cos(target.dec) * Math.sin(target.ra)
+      );
+      targetPos.multiplyScalar(0.95);
+      const startPos = this.rocket.body.position.clone();
+      if (this.warpDrive.activate(target.name, startPos, targetPos)) {
+        this.hud.showNotification(`\u6B63\u5728\u66F2\u901F\u8DC3\u8FC1\u81F3${target.nameCN || target.name}...`);
+        this.timeWarp.setToMinimum();
+        if (target.name === "Trisolaris System") {
+          this.trisolarisOrigin.copy(targetPos);
+        }
       }
+      return;
     }
+    const cachedPos = this.warpTargetPositions.get(targetName);
+    if (cachedPos) {
+      const targetPos = cachedPos.clone().multiplyScalar(0.95);
+      const startPos = this.rocket.body.position.clone();
+      if (this.warpDrive.activate(targetName, startPos, targetPos)) {
+        this.hud.showNotification(`\u6B63\u5728\u66F2\u901F\u8DC3\u8FC1\u81F3${targetName}...`);
+        this.timeWarp.setToMinimum();
+      }
+      return;
+    }
+    this.hud.showNotification(`\u672A\u627E\u5230\u76EE\u6807\uFF1A${targetName}`);
   }
   // ★ 初始化三体星系 — 致敬《三体》
   initTrisolarisSystem(origin) {
