@@ -23325,26 +23325,200 @@ function createCelestialMesh(data, quality = "high") {
       color: 16777215
     });
     if (data.textureType === "ocean" && quality !== "low") {
-      const cloudTex = TextureFactory.generateCloudTexture(data);
-      const cloudGeo = new SphereGeometry(renderRadius * 1.01, segments, segments);
-      const cloudMat = new MeshStandardMaterial({
-        map: cloudTex,
+      const lowCloudTex = TextureFactory.generateCloudTexture(data);
+      const lowCloudGeo = new SphereGeometry(renderRadius * 1.008, segments, segments);
+      const lowCloudMat = new MeshStandardMaterial({
+        map: lowCloudTex,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.7,
         depthWrite: false,
         roughness: 1,
         metalness: 0
       });
-      const cloudMesh = new Mesh(cloudGeo, cloudMat);
-      cloudMesh.castShadow = false;
-      cloudMesh.receiveShadow = true;
-      group.add(cloudMesh);
+      const lowCloudMesh = new Mesh(lowCloudGeo, lowCloudMat);
+      lowCloudMesh.castShadow = false;
+      lowCloudMesh.receiveShadow = true;
+      group.add(lowCloudMesh);
+      if (quality === "high") {
+        const highCloudCanvas = document.createElement("canvas");
+        highCloudCanvas.width = TextureFactory.getResolution();
+        highCloudCanvas.height = TextureFactory.getResolution() / 2;
+        const hcCtx = highCloudCanvas.getContext("2d");
+        const hcData = hcCtx.createImageData(highCloudCanvas.width, highCloudCanvas.height);
+        const hcd = hcData.data;
+        const hw = highCloudCanvas.width, hh = highCloudCanvas.height;
+        for (let y = 0; y < hh; y++) {
+          for (let x = 0; x < hw; x++) {
+            const lon = x / hw * Math.PI * 2;
+            const lat = (y / hh - 0.5) * Math.PI;
+            const sx = Math.cos(lat) * Math.cos(lon);
+            const sy = Math.cos(lat) * Math.sin(lon);
+            const sz = Math.sin(lat);
+            const cloud = TextureFactory.fbm(sx * 8, sy * 8, 6, 0.45, 2.5);
+            const streak = TextureFactory.fbm(sx * 20 + sz * 5, sy * 3, 4, 0.4, 2);
+            const density = Math.max(0, cloud * 0.6 + streak * 0.3 - 0.55) * 2;
+            const idx = (y * hw + x) * 4;
+            hcd[idx] = hcd[idx + 1] = hcd[idx + 2] = 255;
+            hcd[idx + 3] = Math.min(180, density * 300);
+          }
+        }
+        hcCtx.putImageData(hcData, 0, 0);
+        const highCloudTex = new CanvasTexture(highCloudCanvas);
+        highCloudTex.wrapS = RepeatWrapping;
+        const highCloudGeo = new SphereGeometry(renderRadius * 1.018, segments, segments);
+        const highCloudMat = new MeshStandardMaterial({
+          map: highCloudTex,
+          transparent: true,
+          opacity: 0.4,
+          depthWrite: false,
+          roughness: 1,
+          metalness: 0
+        });
+        const highCloudMesh = new Mesh(highCloudGeo, highCloudMat);
+        highCloudMesh.castShadow = false;
+        highCloudMesh.receiveShadow = true;
+        group.add(highCloudMesh);
+      }
+    }
+    if (data.textureType === "ocean" && quality === "high") {
+      const coastCanvas = document.createElement("canvas");
+      coastCanvas.width = TextureFactory.getResolution();
+      coastCanvas.height = TextureFactory.getResolution() / 2;
+      const coCtx = coastCanvas.getContext("2d");
+      const coData = coCtx.createImageData(coastCanvas.width, coastCanvas.height);
+      const cod = coData.data;
+      const cw = coastCanvas.width, ch = coastCanvas.height;
+      for (let y = 0; y < ch; y++) {
+        for (let x = 0; x < cw; x++) {
+          const lon = x / cw * Math.PI * 2;
+          const lat = (y / ch - 0.5) * Math.PI;
+          const sx = Math.cos(lat) * Math.cos(lon);
+          const sy = Math.cos(lat) * Math.sin(lon);
+          const sz = Math.sin(lat);
+          const elevation = TextureFactory.fbm(sx * 4, sy * 4, 10, 0.5, 2);
+          const detail = TextureFactory.fbm(sx * 20, sy * 20, 5, 0.4, 2.5);
+          const height = elevation + detail * 0.15;
+          const idx = (y * cw + x) * 4;
+          if (height > 0.4 && height < 0.5) {
+            const shallow = (height - 0.4) / 0.1;
+            const r8 = Math.floor(20 + shallow * 40);
+            const g8 = Math.floor(60 + shallow * 80);
+            const b8 = Math.floor(100 + shallow * 60);
+            cod[idx] = r8;
+            cod[idx + 1] = g8;
+            cod[idx + 2] = b8;
+            cod[idx + 3] = Math.floor(120 * (1 - Math.abs(shallow - 0.5) * 2));
+          } else {
+            cod[idx + 3] = 0;
+          }
+        }
+      }
+      coCtx.putImageData(coData, 0, 0);
+      const coastTex = new CanvasTexture(coastCanvas);
+      coastTex.wrapS = RepeatWrapping;
+      const coastGeo = new SphereGeometry(renderRadius * 1.002, segments, segments);
+      const coastMat = new MeshStandardMaterial({
+        map: coastTex,
+        transparent: true,
+        depthWrite: false,
+        roughness: 0.3,
+        metalness: 0.2
+      });
+      const coastMesh = new Mesh(coastGeo, coastMat);
+      coastMesh.castShadow = false;
+      coastMesh.receiveShadow = true;
+      group.add(coastMesh);
     }
   }
   const mesh = new Mesh(geometry, material);
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   group.add(mesh);
+  if ((data.textureType === "rock" || data.textureType === "lava") && quality !== "low") {
+    const craterCount = quality === "high" ? 18 : 8;
+    const craterMat = new MeshStandardMaterial({
+      color: 3811866,
+      metalness: 0.15,
+      roughness: 0.95
+    });
+    const craterRimMat = new MeshStandardMaterial({
+      color: 6969930,
+      metalness: 0.2,
+      roughness: 0.85
+    });
+    for (let i = 0; i < craterCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const cx = renderRadius * Math.sin(phi) * Math.cos(theta);
+      const cy = renderRadius * Math.cos(phi);
+      const cz = renderRadius * Math.sin(phi) * Math.sin(theta);
+      if (Math.abs(cy) > renderRadius * 0.85) continue;
+      const craterR = renderRadius * (0.02 + Math.random() * 0.05);
+      const craterDepth = craterR * 0.3;
+      const craterGeo = new SphereGeometry(craterR, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+      const crater = new Mesh(craterGeo, craterMat);
+      const dir = new Vector3(cx, cy, cz).normalize();
+      crater.position.copy(dir).multiplyScalar(renderRadius - craterDepth * 0.5);
+      crater.lookAt(0, 0, 0);
+      crater.rotation.z = Math.random() * Math.PI;
+      crater.scale.y = 0.35;
+      crater.castShadow = false;
+      crater.receiveShadow = true;
+      group.add(crater);
+      const rimGeo = new TorusGeometry(craterR * 0.9, craterR * 0.08, 6, 20);
+      const rim = new Mesh(rimGeo, craterRimMat);
+      rim.position.copy(dir).multiplyScalar(renderRadius + craterR * 0.02);
+      rim.lookAt(0, 0, 0);
+      rim.castShadow = false;
+      group.add(rim);
+    }
+  }
+  if (data.textureType === "gas" && quality !== "low") {
+    const stormGroup = new Group();
+    const stormCanvas = document.createElement("canvas");
+    stormCanvas.width = 256;
+    stormCanvas.height = 128;
+    const stCtx = stormCanvas.getContext("2d");
+    for (let y = 0; y < 128; y++) {
+      for (let x = 0; x < 256; x++) {
+        const u = x / 256, v = y / 128;
+        const cx = u - 0.5, cy = v - 0.5;
+        const dist = Math.sqrt(cx * cx + cy * cy * 4);
+        const swirl = Math.sin(Math.atan2(cy * 2, cx) * 3 + dist * 8);
+        const n = TextureFactory.fbm(x * 0.04, y * 0.06, 5, 0.5, 2.2);
+        const intensity = Math.max(0, 1 - dist * 1.5) * (0.5 + n * 0.5 + swirl * 0.2);
+        const r8 = Math.floor(180 * intensity + 40);
+        const g8 = Math.floor(60 * intensity + 20);
+        const b8 = Math.floor(30 * intensity + 10);
+        stCtx.fillStyle = `rgba(${r8},${g8},${b8},${intensity})`;
+        stCtx.fillRect(x, y, 1, 1);
+      }
+    }
+    const stormTex = new CanvasTexture(stormCanvas);
+    stormTex.colorSpace = SRGBColorSpace;
+    const stormGeo = new SphereGeometry(renderRadius * 0.15, 24, 16);
+    const stormMat = new MeshStandardMaterial({
+      map: stormTex,
+      transparent: true,
+      opacity: 0.85,
+      roughness: 0.8,
+      metalness: 0,
+      depthWrite: false
+    });
+    const storm = new Mesh(stormGeo, stormMat);
+    const stormAngle = Math.PI * 0.3;
+    const stormLat = -0.3;
+    storm.position.set(
+      renderRadius * Math.cos(stormLat) * Math.cos(stormAngle),
+      renderRadius * Math.sin(stormLat),
+      renderRadius * Math.cos(stormLat) * Math.sin(stormAngle)
+    );
+    storm.scale.set(1.8, 1, 1);
+    storm.lookAt(0, 0, 0);
+    storm.castShadow = false;
+    stormGroup.add(storm);
+    group.add(stormGroup);
+  }
   if (data.type !== "star" && data.type !== "moon" && quality !== "low") {
     const atmoColors = {
       ocean: 4491519,
@@ -23614,88 +23788,204 @@ function createPartVisual(part) {
 }
 function buildCommandPod(part) {
   const group = new Group();
-  const r = part.mass > 2e3 ? 0.65 : part.mass > 1e3 ? 0.55 : 0.45;
-  const h = part.mass > 2e3 ? 1.4 : part.mass > 1e3 ? 1.2 : 1;
+  const mk = part.mass > 2e3 ? 3 : part.mass > 1e3 ? 2 : 1;
+  const r = mk === 3 ? 0.65 : mk === 2 ? 0.55 : 0.45;
+  const h = mk === 3 ? 1.4 : mk === 2 ? 1.2 : 1;
   const points = [];
   points.push(new Vector2(0, -h / 2));
   points.push(new Vector2(r, -h / 2));
-  points.push(new Vector2(r * 0.96, -h / 2 + 0.04));
-  points.push(new Vector2(r * 0.85, -h / 2 + 0.12));
-  points.push(new Vector2(r * 0.65, -h / 2 + h * 0.35));
-  points.push(new Vector2(r * 0.42, -h / 2 + h * 0.65));
-  points.push(new Vector2(r * 0.28, -h / 2 + h * 0.85));
-  points.push(new Vector2(r * 0.22, -h / 2 + h * 0.95));
+  points.push(new Vector2(r * 0.98, -h / 2 + 0.03));
+  points.push(new Vector2(r * 0.96, -h / 2 + 0.06));
+  if (mk === 3) {
+    points.push(new Vector2(r * 0.92, -h / 2 + h * 0.15));
+    points.push(new Vector2(r * 0.82, -h / 2 + h * 0.3));
+    points.push(new Vector2(r * 0.7, -h / 2 + h * 0.5));
+    points.push(new Vector2(r * 0.55, -h / 2 + h * 0.7));
+    points.push(new Vector2(r * 0.42, -h / 2 + h * 0.85));
+    points.push(new Vector2(r * 0.35, -h / 2 + h * 0.93));
+    points.push(new Vector2(r * 0.3, h / 2 - 0.02));
+  } else if (mk === 2) {
+    points.push(new Vector2(r * 0.88, -h / 2 + h * 0.12));
+    points.push(new Vector2(r * 0.78, -h / 2 + h * 0.25));
+    points.push(new Vector2(r * 0.62, -h / 2 + h * 0.45));
+    points.push(new Vector2(r * 0.48, -h / 2 + h * 0.65));
+    points.push(new Vector2(r * 0.38, -h / 2 + h * 0.8));
+    points.push(new Vector2(r * 0.32, -h / 2 + h * 0.9));
+    points.push(new Vector2(r * 0.36, -h / 2 + h * 0.95));
+    points.push(new Vector2(r * 0.28, h / 2 - 0.03));
+    points.push(new Vector2(r * 0.26, h / 2 - 0.01));
+  } else {
+    points.push(new Vector2(r * 0.85, -h / 2 + h * 0.1));
+    points.push(new Vector2(r * 0.68, -h / 2 + h * 0.25));
+    points.push(new Vector2(r * 0.5, -h / 2 + h * 0.45));
+    points.push(new Vector2(r * 0.32, -h / 2 + h * 0.65));
+    points.push(new Vector2(r * 0.2, -h / 2 + h * 0.82));
+    points.push(new Vector2(r * 0.14, -h / 2 + h * 0.92));
+    points.push(new Vector2(r * 0.1, h / 2 - 0.02));
+  }
   points.push(new Vector2(0, h / 2));
-  const podGeo = new LatheGeometry(points, 32);
-  const podMat = new MeshStandardMaterial({ color: 13158608, metalness: 0.6, roughness: 0.35 });
+  const podGeo = new LatheGeometry(points, 48);
+  const podMat = new MeshStandardMaterial({
+    color: mk === 3 ? 12105920 : mk === 2 ? 13158608 : 13684952,
+    metalness: mk === 3 ? 0.55 : 0.6,
+    roughness: mk === 1 ? 0.3 : 0.35
+  });
   const pod = new Mesh(podGeo, podMat);
   pod.castShadow = true;
   group.add(pod);
-  const shieldGeo = new CylinderGeometry(r * 0.98, r * 0.7, 0.12, 32);
-  const shieldMat = new MeshStandardMaterial({ color: 2759178, metalness: 0.2, roughness: 0.9 });
+  const shieldProfile = [];
+  shieldProfile.push(new Vector2(0, -h / 2 - 0.14));
+  shieldProfile.push(new Vector2(r * 0.55, -h / 2 - 0.14));
+  shieldProfile.push(new Vector2(r * 0.75, -h / 2 - 0.1));
+  shieldProfile.push(new Vector2(r * 0.92, -h / 2 - 0.06));
+  shieldProfile.push(new Vector2(r * 0.98, -h / 2 - 0.02));
+  shieldProfile.push(new Vector2(r, -h / 2));
+  const shieldGeo = new LatheGeometry(shieldProfile, 32);
+  const shieldCanvas = document.createElement("canvas");
+  shieldCanvas.width = 256;
+  shieldCanvas.height = 128;
+  const shCtx = shieldCanvas.getContext("2d");
+  for (let y = 0; y < 128; y++) {
+    for (let x = 0; x < 256; x++) {
+      const n = TextureFactory.fbm(x * 0.08, y * 0.12, 5, 0.5, 2.2);
+      const char = 0.15 + n * 0.35;
+      const r8 = Math.floor(42 * char + 8);
+      const g8 = Math.floor(26 * char + 4);
+      const b8 = Math.floor(10 * char + 2);
+      shCtx.fillStyle = `rgb(${r8},${g8},${b8})`;
+      shCtx.fillRect(x, y, 1, 1);
+    }
+  }
+  const shieldTex = new CanvasTexture(shieldCanvas);
+  shieldTex.colorSpace = SRGBColorSpace;
+  const shieldMat = new MeshStandardMaterial({
+    map: shieldTex,
+    color: 6706500,
+    metalness: 0.15,
+    roughness: 0.95
+  });
   const shield = new Mesh(shieldGeo, shieldMat);
-  shield.position.y = -h / 2 - 0.06;
   shield.castShadow = true;
   group.add(shield);
-  const windowCount = part.mass > 2e3 ? 6 : 4;
+  const grooveMat = new MeshStandardMaterial({ color: 1707524, metalness: 0.1, roughness: 1 });
+  for (let i = 0; i < 12; i++) {
+    const angle = i / 12 * Math.PI * 2;
+    const grooveGeo = new BoxGeometry(0.015, 0.1, r * 0.7);
+    const groove = new Mesh(grooveGeo, grooveMat);
+    groove.position.set(Math.cos(angle) * r * 0.4, -h / 2 - 0.08, Math.sin(angle) * r * 0.4);
+    groove.rotation.y = -angle;
+    groove.rotation.x = Math.PI / 2;
+    group.add(groove);
+  }
+  const windowCount = mk === 3 ? 6 : mk === 2 ? 5 : 4;
   const winMat = new MeshStandardMaterial({
     color: 4491519,
     metalness: 0.1,
-    roughness: 0.1,
+    roughness: 0.05,
     emissive: 2245802,
-    emissiveIntensity: 0.3
+    emissiveIntensity: 0.4
   });
-  const frameMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.8, roughness: 0.3 });
+  const frameMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.85, roughness: 0.25 });
+  const winR = mk === 3 ? r * 0.72 : mk === 2 ? r * 0.68 : r * 0.6;
+  const winY = mk === 3 ? h * 0.12 : mk === 2 ? h * 0.18 : h * 0.22;
+  const winSize = mk === 3 ? 0.16 : mk === 2 ? 0.13 : 0.1;
   for (let i = 0; i < windowCount; i++) {
     const angle = i / windowCount * Math.PI * 2;
-    const wy = h * 0.15;
-    const wr = r * 0.7;
-    const winGeo = new BoxGeometry(0.12, 0.08, 0.04);
-    const frameGeo = new BoxGeometry(0.15, 0.11, 0.05);
+    const frameGeo = new BoxGeometry(winSize * 1.3, winSize * 0.9, 0.05);
     const frame = new Mesh(frameGeo, frameMat);
-    frame.position.set(Math.cos(angle) * wr, wy, Math.sin(angle) * wr);
-    frame.lookAt(0, wy, 0);
+    frame.position.set(Math.cos(angle) * winR, winY, Math.sin(angle) * winR);
+    frame.lookAt(0, winY, 0);
     frame.castShadow = true;
     group.add(frame);
+    const winGeo = new BoxGeometry(winSize, winSize * 0.65, 0.04);
     const win = new Mesh(winGeo, winMat);
     win.position.copy(frame.position);
-    win.lookAt(0, wy, 0);
+    win.lookAt(0, winY, 0);
     group.add(win);
+    const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+    for (let bx of [-1, 1]) {
+      for (let by of [-1, 1]) {
+        const bolt = new Mesh(new SphereGeometry(8e-3, 6, 4), boltMat);
+        const localX = bx * winSize * 0.55;
+        const localY = by * winSize * 0.38;
+        bolt.position.copy(frame.position);
+        bolt.position.x += Math.cos(angle) * localX - Math.sin(angle) * 0.03;
+        bolt.position.y += localY;
+        bolt.position.z += Math.sin(angle) * localX + Math.cos(angle) * 0.03;
+        group.add(bolt);
+      }
+    }
   }
-  const rcsMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.4 });
+  const rcsMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.75, roughness: 0.35 });
+  const rcsBaseMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.4 });
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const rcsGeo = new ConeGeometry(0.04, 0.1, 8);
+    const rcsBase = new Mesh(new BoxGeometry(0.06, 0.06, 0.08), rcsBaseMat);
+    rcsBase.position.set(Math.cos(angle) * r * 0.92, h * 0.32, Math.sin(angle) * r * 0.92);
+    rcsBase.lookAt(Math.cos(angle) * 2, h * 0.32, Math.sin(angle) * 2);
+    rcsBase.castShadow = true;
+    group.add(rcsBase);
+    const rcsGeo = new ConeGeometry(0.035, 0.1, 8);
     const rcs = new Mesh(rcsGeo, rcsMat);
-    rcs.position.set(Math.cos(angle) * r * 0.9, h * 0.3, Math.sin(angle) * r * 0.9);
+    rcs.position.set(Math.cos(angle) * (r * 0.92 + 0.06), h * 0.32, Math.sin(angle) * (r * 0.92 + 0.06));
     rcs.rotation.z = Math.PI / 2;
     rcs.rotation.y = -angle;
     rcs.castShadow = true;
     group.add(rcs);
   }
   const portBase = new Mesh(
-    new CylinderGeometry(r * 0.18, r * 0.22, 0.06, 16),
-    new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 })
+    new CylinderGeometry(r * 0.18, r * 0.22, 0.06, 24),
+    new MeshStandardMaterial({ color: 8947848, metalness: 0.75, roughness: 0.3 })
   );
   portBase.position.y = h / 2 + 0.03;
   portBase.castShadow = true;
   group.add(portBase);
   const portRing = new Mesh(
-    new TorusGeometry(r * 0.16, 0.02, 8, 16),
-    new MeshStandardMaterial({ color: 11184810, metalness: 0.8, roughness: 0.2 })
+    new TorusGeometry(r * 0.16, 0.02, 8, 24),
+    new MeshStandardMaterial({ color: 11184810, metalness: 0.85, roughness: 0.2 })
   );
   portRing.position.y = h / 2 + 0.07;
   portRing.rotation.x = Math.PI / 2;
+  portRing.castShadow = true;
   group.add(portRing);
+  const dockCone = new Mesh(
+    new ConeGeometry(r * 0.08, 0.06, 16),
+    new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.25 })
+  );
+  dockCone.position.y = h / 2 + 0.1;
+  dockCone.castShadow = true;
+  group.add(dockCone);
   const lineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.5, roughness: 0.5 });
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2;
-    const lineGeo = new BoxGeometry(0.01, h * 0.7, 0.02);
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const lineGeo = new BoxGeometry(8e-3, h * 0.75, 0.015);
     const line = new Mesh(lineGeo, lineMat);
-    line.position.set(Math.cos(angle) * r * 0.8, 0, Math.sin(angle) * r * 0.8);
+    line.position.set(Math.cos(angle) * r * 0.82, 0, Math.sin(angle) * r * 0.82);
     line.lookAt(0, 0, 0);
     group.add(line);
   }
+  const seamGeo = new TorusGeometry(r * 0.85, 0.012, 6, 32);
+  const seam = new Mesh(seamGeo, lineMat);
+  seam.position.y = 0;
+  seam.rotation.x = Math.PI / 2;
+  group.add(seam);
+  const hatchMat = new MeshStandardMaterial({ color: 11184810, metalness: 0.6, roughness: 0.4 });
+  const hatch = new Mesh(new BoxGeometry(0.18, 0.25, 0.03), hatchMat);
+  hatch.position.set(r * 0.95, -h * 0.15, 0);
+  hatch.lookAt(r * 2, -h * 0.15, 0);
+  hatch.castShadow = true;
+  group.add(hatch);
+  const handle = new Mesh(new TorusGeometry(0.03, 8e-3, 6, 12), rcsMat);
+  handle.position.set(r * 1.02, -h * 0.15, 0);
+  handle.rotation.y = Math.PI / 2;
+  group.add(handle);
+  const whip = new Mesh(
+    new CylinderGeometry(5e-3, 5e-3, 0.3, 6),
+    new MeshStandardMaterial({ color: 3355443, metalness: 0.6, roughness: 0.4 })
+  );
+  whip.position.set(r * 0.3, h / 2 + 0.2, 0);
+  whip.rotation.z = -0.3;
+  group.add(whip);
   group.userData.height = h + 0.2;
   group.userData.radius = r;
   return group;
@@ -23704,13 +23994,57 @@ function buildFuelTank(part) {
   const group = new Group();
   const r = part.fuelMass > 15e3 ? 0.85 : part.fuelMass > 2e3 ? 0.65 : part.fuelMass > 500 ? 0.5 : 0.38;
   const h = part.fuelMass > 15e3 ? 4 : part.fuelMass > 2e3 ? 2.8 : part.fuelMass > 500 ? 1.8 : 1.2;
-  const bodyGeo = new CylinderGeometry(r, r, h, 32);
-  const bodyMat = new MeshStandardMaterial({ color: 15790320, metalness: 0.65, roughness: 0.25 });
+  const tankCanvas = document.createElement("canvas");
+  tankCanvas.width = 512;
+  tankCanvas.height = 256;
+  const tCtx = tankCanvas.getContext("2d");
+  const isOrange = part.fuelMass > 2e3;
+  const baseR = isOrange ? 240 : 245;
+  const baseG = isOrange ? 160 : 245;
+  const baseB = isOrange ? 64 : 245;
+  for (let y = 0; y < 256; y++) {
+    for (let x = 0; x < 512; x++) {
+      const n = TextureFactory.fbm(x * 0.06, y * 0.08, 5, 0.45, 2.3);
+      const v = 0.85 + n * 0.3;
+      tCtx.fillStyle = `rgb(${Math.min(255, baseR * v)},${Math.min(255, baseG * v)},${Math.min(255, baseB * v)})`;
+      tCtx.fillRect(x, y, 1, 1);
+    }
+  }
+  const seamCount = Math.floor(h / 0.5);
+  for (let i = 1; i < seamCount; i++) {
+    const sy = i / seamCount * 256;
+    tCtx.fillStyle = isOrange ? "rgba(180,120,40,0.6)" : "rgba(200,200,200,0.5)";
+    tCtx.fillRect(0, sy - 1, 512, 2);
+  }
+  const tankTex = new CanvasTexture(tankCanvas);
+  tankTex.colorSpace = SRGBColorSpace;
+  tankTex.wrapS = RepeatWrapping;
+  tankTex.wrapT = RepeatWrapping;
+  tankTex.repeat.set(3, Math.max(1, h / 2));
+  const bodyGeo = new CylinderGeometry(r, r, h, 48);
+  const bodyMat = new MeshStandardMaterial({
+    map: tankTex,
+    color: 16777215,
+    metalness: 0.55,
+    roughness: 0.3
+  });
   const body = new Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
   group.add(body);
-  const topCapGeo = new SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-  const capMat = new MeshStandardMaterial({ color: 15263976, metalness: 0.65, roughness: 0.25 });
+  const capPts = [];
+  capPts.push(new Vector2(0, 0));
+  capPts.push(new Vector2(r * 0.2, 0.01));
+  capPts.push(new Vector2(r * 0.5, 0.05));
+  capPts.push(new Vector2(r * 0.75, 0.15));
+  capPts.push(new Vector2(r * 0.92, 0.3));
+  capPts.push(new Vector2(r, 0.5));
+  const topCapGeo = new LatheGeometry(capPts, 32);
+  const capMat = new MeshStandardMaterial({
+    map: tankTex,
+    color: 16777215,
+    metalness: 0.6,
+    roughness: 0.28
+  });
   const topCap = new Mesh(topCapGeo, capMat);
   topCap.position.y = h / 2;
   topCap.castShadow = true;
@@ -23720,36 +24054,53 @@ function buildFuelTank(part) {
   botCap.rotation.x = Math.PI;
   botCap.castShadow = true;
   group.add(botCap);
-  const ringCount = h > 3 ? 3 : 2;
-  const ringMat = new MeshStandardMaterial({ color: 11579568, metalness: 0.7, roughness: 0.3 });
+  const ringCount = h > 3.5 ? 4 : h > 2 ? 3 : 2;
+  const ringMat = new MeshStandardMaterial({ color: 11579568, metalness: 0.75, roughness: 0.25 });
   for (let i = 0; i < ringCount; i++) {
-    const ringGeo = new TorusGeometry(r * 1.01, 0.03, 8, 32);
+    const ringGeo = new TorusGeometry(r * 1.02, 0.035, 10, 48);
     const ring = new Mesh(ringGeo, ringMat);
     ring.position.y = -h / 2 + h / (ringCount + 1) * (i + 1);
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
     group.add(ring);
+    const boltMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.8, roughness: 0.3 });
+    for (let b = 0; b < 16; b++) {
+      const ba = b / 16 * Math.PI * 2;
+      const bolt = new Mesh(new SphereGeometry(0.012, 6, 4), boltMat);
+      bolt.position.set(
+        Math.cos(ba) * r * 1.04,
+        -h / 2 + h / (ringCount + 1) * (i + 1),
+        Math.sin(ba) * r * 1.04
+      );
+      group.add(bolt);
+    }
   }
-  const weldMat = new MeshStandardMaterial({ color: 13684944, metalness: 0.6, roughness: 0.35 });
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2;
-    const weldGeo = new BoxGeometry(0.015, h * 0.92, 0.02);
+  const weldMat = new MeshStandardMaterial({ color: 14211288, metalness: 0.6, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const weldGeo = new BoxGeometry(0.012, h * 0.94, 0.018);
     const weld = new Mesh(weldGeo, weldMat);
     weld.position.set(Math.cos(angle) * r * 0.99, 0, Math.sin(angle) * r * 0.99);
     weld.lookAt(0, 0, 0);
     group.add(weld);
   }
-  const bandGeo = new CylinderGeometry(r * 1.005, r * 1.005, 0.1, 32);
-  const bandMat = new MeshStandardMaterial({ color: 13386820, metalness: 0.5, roughness: 0.4 });
+  const bandGeo = new CylinderGeometry(r * 1.01, r * 1.01, 0.12, 48);
+  const bandMat = new MeshStandardMaterial({ color: 13382451, metalness: 0.45, roughness: 0.4 });
   const band = new Mesh(bandGeo, bandMat);
   band.position.y = h * 0.15;
   band.castShadow = true;
   group.add(band);
+  const band2Geo = new CylinderGeometry(r * 1.01, r * 1.01, 0.06, 48);
+  const band2Mat = new MeshStandardMaterial({ color: 3359914, metalness: 0.45, roughness: 0.4 });
+  const band2 = new Mesh(band2Geo, band2Mat);
+  band2.position.y = h * 0.15 - 0.12;
+  band2.castShadow = true;
+  group.add(band2);
   if (part.fuelMass > 15e3) {
-    const stiffMat = new MeshStandardMaterial({ color: 12632256, metalness: 0.7, roughness: 0.3 });
-    for (let i = 0; i < 8; i++) {
-      const angle = i / 8 * Math.PI * 2;
-      const stiffGeo = new BoxGeometry(0.04, h * 0.9, 0.06);
+    const stiffMat = new MeshStandardMaterial({ color: 13158600, metalness: 0.7, roughness: 0.28 });
+    for (let i = 0; i < 12; i++) {
+      const angle = i / 12 * Math.PI * 2;
+      const stiffGeo = new BoxGeometry(0.035, h * 0.92, 0.05);
       const stiff = new Mesh(stiffGeo, stiffMat);
       stiff.position.set(Math.cos(angle) * r * 1.01, 0, Math.sin(angle) * r * 1.01);
       stiff.lookAt(0, 0, 0);
@@ -23757,6 +24108,23 @@ function buildFuelTank(part) {
       group.add(stiff);
     }
   }
+  const flangeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.2 });
+  const topFlange = new Mesh(new TorusGeometry(r * 1.03, 0.04, 8, 32), flangeMat);
+  topFlange.position.y = h / 2 + 0.48;
+  topFlange.rotation.x = Math.PI / 2;
+  topFlange.castShadow = true;
+  group.add(topFlange);
+  const botFlange = new Mesh(new TorusGeometry(r * 1.03, 0.04, 8, 32), flangeMat);
+  botFlange.position.y = -h / 2 - 0.48;
+  botFlange.rotation.x = Math.PI / 2;
+  botFlange.castShadow = true;
+  group.add(botFlange);
+  const ventMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.3 });
+  const vent = new Mesh(new CylinderGeometry(0.04, 0.04, 0.1, 12), ventMat);
+  vent.position.set(r * 1.02, h * 0.35, 0);
+  vent.rotation.z = Math.PI / 2;
+  vent.castShadow = true;
+  group.add(vent);
   group.userData.height = h + r;
   group.userData.radius = r;
   return group;
@@ -23768,71 +24136,160 @@ function buildEngine(part) {
   const nozzleH = big ? 1.2 : part.thrust > 1e5 ? 0.9 : 0.65;
   const points = [];
   points.push(new Vector2(0, -nozzleH / 2));
-  points.push(new Vector2(nozzleR * 0.4, -nozzleH / 2));
-  points.push(new Vector2(nozzleR * 0.75, -nozzleH / 2 + nozzleH * 0.15));
-  points.push(new Vector2(nozzleR * 0.95, -nozzleH / 2 + nozzleH * 0.35));
-  points.push(new Vector2(nozzleR, -nozzleH / 2 + nozzleH * 0.6));
-  points.push(new Vector2(nozzleR * 0.95, -nozzleH / 2 + nozzleH * 0.8));
-  points.push(new Vector2(nozzleR * 0.6, nozzleH / 2 - nozzleH * 0.08));
-  points.push(new Vector2(nozzleR * 0.25, nozzleH / 2 - 0.02));
+  points.push(new Vector2(nozzleR * 0.3, -nozzleH / 2));
+  points.push(new Vector2(nozzleR * 0.45, -nozzleH / 2 + nozzleH * 0.05));
+  points.push(new Vector2(nozzleR * 0.55, -nozzleH / 2 + nozzleH * 0.1));
+  points.push(new Vector2(nozzleR * 0.7, -nozzleH / 2 + nozzleH * 0.18));
+  points.push(new Vector2(nozzleR * 0.85, -nozzleH / 2 + nozzleH * 0.28));
+  points.push(new Vector2(nozzleR * 0.95, -nozzleH / 2 + nozzleH * 0.42));
+  points.push(new Vector2(nozzleR, -nozzleH / 2 + nozzleH * 0.58));
+  points.push(new Vector2(nozzleR * 0.97, -nozzleH / 2 + nozzleH * 0.72));
+  points.push(new Vector2(nozzleR * 0.88, -nozzleH / 2 + nozzleH * 0.82));
+  points.push(new Vector2(nozzleR * 0.55, nozzleH / 2 - nozzleH * 0.12));
+  points.push(new Vector2(nozzleR * 0.3, nozzleH / 2 - nozzleH * 0.06));
+  points.push(new Vector2(nozzleR * 0.22, nozzleH / 2 - 0.03));
   points.push(new Vector2(nozzleR * 0.18, nozzleH / 2));
   points.push(new Vector2(0, nozzleH / 2));
-  const nozzleGeo = new LatheGeometry(points, 32);
-  const nozzleMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.4, roughness: 0.8 });
+  const nozzleGeo = new LatheGeometry(points, 48);
+  const nozCanvas = document.createElement("canvas");
+  nozCanvas.width = 256;
+  nozCanvas.height = 256;
+  const nCtx = nozCanvas.getContext("2d");
+  for (let y = 0; y < 256; y++) {
+    for (let x = 0; x < 256; x++) {
+      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 5, 0.5, 2.2);
+      const heatFactor = 1 - y / 256;
+      const r8 = Math.floor(30 + n * 40 + heatFactor * 50);
+      const g8 = Math.floor(25 + n * 30 + heatFactor * 20);
+      const b8 = Math.floor(20 + n * 25 + heatFactor * 60);
+      nCtx.fillStyle = `rgb(${Math.min(255, r8)},${Math.min(255, g8)},${Math.min(255, b8)})`;
+      nCtx.fillRect(x, y, 1, 1);
+    }
+  }
+  const nozTex = new CanvasTexture(nozCanvas);
+  nozTex.colorSpace = SRGBColorSpace;
+  const nozzleMat = new MeshStandardMaterial({
+    map: nozTex,
+    color: 3815994,
+    metalness: 0.5,
+    roughness: 0.7
+  });
   const nozzle = new Mesh(nozzleGeo, nozzleMat);
   nozzle.position.y = -0.1;
   nozzle.castShadow = true;
   group.add(nozzle);
-  const ribCount = big ? 12 : 8;
-  const ribMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.7 });
+  const ribCount = big ? 12 : part.thrust > 1e5 ? 10 : 8;
+  const ribMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.6, roughness: 0.6 });
   for (let i = 0; i < ribCount; i++) {
     const angle = i / ribCount * Math.PI * 2;
-    const ribGeo = new BoxGeometry(0.02, nozzleH * 0.7, 0.04);
+    const ribGeo = new BoxGeometry(0.018, nozzleH * 0.78, 0.035);
     const rib = new Mesh(ribGeo, ribMat);
-    rib.position.set(Math.cos(angle) * nozzleR * 0.92, -0.15, Math.sin(angle) * nozzleR * 0.92);
-    rib.lookAt(0, -0.15, 0);
+    rib.position.set(Math.cos(angle) * nozzleR * 0.93, -0.12, Math.sin(angle) * nozzleR * 0.93);
+    rib.lookAt(0, -0.12, 0);
+    rib.castShadow = true;
     group.add(rib);
   }
-  const chamberGeo = new CylinderGeometry(nozzleR * 0.35, nozzleR * 0.25, 0.25, 16);
-  const chamberMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
+  const exitRingMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.4 });
+  const exitRing = new Mesh(new TorusGeometry(nozzleR * 1.01, 0.025, 8, 48), exitRingMat);
+  exitRing.position.y = -nozzleH / 2 + nozzleH * 0.08;
+  exitRing.rotation.x = Math.PI / 2;
+  exitRing.castShadow = true;
+  group.add(exitRing);
+  const chamberGeo = new CylinderGeometry(nozzleR * 0.38, nozzleR * 0.28, 0.28, 24);
+  const chamberMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.65, roughness: 0.35 });
   const chamber = new Mesh(chamberGeo, chamberMat);
-  chamber.position.y = nozzleH / 2 + 0.05;
+  chamber.position.y = nozzleH / 2 + 0.06;
   chamber.castShadow = true;
   group.add(chamber);
-  const pumpGeo = new CylinderGeometry(0.08, 0.08, 0.18, 12);
-  const pumpMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.3 });
-  const pump = new Mesh(pumpGeo, pumpMat);
-  pump.position.set(nozzleR * 0.3, nozzleH / 2 + 0.2, 0);
-  pump.rotation.z = Math.PI / 2;
-  pump.castShadow = true;
-  group.add(pump);
-  const gimbalGeo = new TorusGeometry(nozzleR * 0.3, 0.04, 8, 24);
-  const gimbalMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 });
+  const injectorMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 });
+  const injector = new Mesh(new CylinderGeometry(nozzleR * 0.35, nozzleR * 0.35, 0.04, 24), injectorMat);
+  injector.position.y = nozzleH / 2 + 0.21;
+  injector.castShadow = true;
+  group.add(injector);
+  const holeMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.3, roughness: 0.8 });
+  for (let ring = 0; ring < 3; ring++) {
+    const holeR = nozzleR * (0.08 + ring * 0.08);
+    const holeCount = 6 + ring * 4;
+    for (let i = 0; i < holeCount; i++) {
+      const a = i / holeCount * Math.PI * 2;
+      const hole = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.05, 6), holeMat);
+      hole.position.set(Math.cos(a) * holeR, nozzleH / 2 + 0.23, Math.sin(a) * holeR);
+      group.add(hole);
+    }
+  }
+  const pumpBodyMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.75, roughness: 0.3 });
+  const pumpBody = new Mesh(new CylinderGeometry(0.09, 0.09, 0.22, 16), pumpBodyMat);
+  pumpBody.position.set(nozzleR * 0.35, nozzleH / 2 + 0.22, 0);
+  pumpBody.rotation.z = Math.PI / 2;
+  pumpBody.castShadow = true;
+  group.add(pumpBody);
+  const turbCap = new Mesh(new SphereGeometry(0.09, 12, 8), pumpBodyMat);
+  turbCap.position.set(nozzleR * 0.35 + 0.11, nozzleH / 2 + 0.22, 0);
+  turbCap.castShadow = true;
+  group.add(turbCap);
+  const bracketMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
+  const bracket = new Mesh(new BoxGeometry(0.06, 0.04, 0.1), bracketMat);
+  bracket.position.set(nozzleR * 0.22, nozzleH / 2 + 0.22, 0);
+  bracket.castShadow = true;
+  group.add(bracket);
+  const gimbalGeo = new TorusGeometry(nozzleR * 0.32, 0.045, 10, 32);
+  const gimbalMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.85, roughness: 0.2 });
   const gimbal = new Mesh(gimbalGeo, gimbalMat);
-  gimbal.position.y = nozzleH / 2 + 0.02;
+  gimbal.position.y = nozzleH / 2 + 0.04;
   gimbal.rotation.x = Math.PI / 2;
   gimbal.castShadow = true;
   group.add(gimbal);
-  const curvePts = [
-    new Vector3(nozzleR * 0.3, nozzleH / 2 + 0.15, 0),
-    new Vector3(nozzleR * 0.5, nozzleH / 2 + 0.05, 0),
-    new Vector3(nozzleR * 0.5, 0, 0),
-    new Vector3(nozzleR * 0.4, -nozzleH * 0.3, 0)
+  const tubeMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.75, roughness: 0.25 });
+  const curve1Pts = [
+    new Vector3(nozzleR * 0.35, nozzleH / 2 + 0.18, 0),
+    new Vector3(nozzleR * 0.5, nozzleH / 2 + 0.1, 0),
+    new Vector3(nozzleR * 0.45, nozzleH / 2 - 0.02, 0),
+    new Vector3(nozzleR * 0.35, nozzleH / 2 - 0.08, 0)
   ];
-  const curve = new CatmullRomCurve3(curvePts);
-  const tubeGeo = new TubeGeometry(curve, 16, 0.025, 8, false);
-  const tubeMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
-  const tube = new Mesh(tubeGeo, tubeMat);
-  tube.castShadow = true;
-  group.add(tube);
-  const maniMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.5, roughness: 0.6 });
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2;
-    const maniGeo = new ConeGeometry(0.04, 0.1, 6);
+  const curve1 = new CatmullRomCurve3(curve1Pts);
+  const tube1Geo = new TubeGeometry(curve1, 20, 0.022, 8, false);
+  const tube1 = new Mesh(tube1Geo, tubeMat);
+  tube1.castShadow = true;
+  group.add(tube1);
+  const curve2Pts = [
+    new Vector3(-nozzleR * 0.35, nozzleH / 2 + 0.15, 0),
+    new Vector3(-nozzleR * 0.5, nozzleH / 2 + 0.05, 0),
+    new Vector3(-nozzleR * 0.45, nozzleH / 2 - 0.05, 0),
+    new Vector3(-nozzleR * 0.35, nozzleH / 2 - 0.12, 0)
+  ];
+  const curve2 = new CatmullRomCurve3(curve2Pts);
+  const tube2Geo = new TubeGeometry(curve2, 20, 0.022, 8, false);
+  const tube2 = new Mesh(tube2Geo, tubeMat);
+  tube2.castShadow = true;
+  group.add(tube2);
+  const valveMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.3 });
+  for (const sign2 of [-1, 1]) {
+    const valve = new Mesh(new CylinderGeometry(0.025, 0.025, 0.08, 10), valveMat);
+    valve.position.set(sign2 * nozzleR * 0.18, nozzleH / 2 + 0.26, 0);
+    valve.castShadow = true;
+    group.add(valve);
+  }
+  const maniMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.55, roughness: 0.5 });
+  for (let i = 0; i < 6; i++) {
+    const angle = i / 6 * Math.PI * 2;
+    const maniGeo = new ConeGeometry(0.035, 0.09, 6);
     const mani = new Mesh(maniGeo, maniMat);
-    mani.position.set(Math.cos(angle) * nozzleR * 0.35, nozzleH / 2 + 0.08, Math.sin(angle) * nozzleR * 0.35);
+    mani.position.set(Math.cos(angle) * nozzleR * 0.33, nozzleH / 2 + 0.08, Math.sin(angle) * nozzleR * 0.33);
     mani.rotation.x = Math.PI;
+    mani.castShadow = true;
     group.add(mani);
+  }
+  const flangeMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.2 });
+  const flange = new Mesh(new CylinderGeometry(nozzleR * 0.36, nozzleR * 0.36, 0.05, 24), flangeMat);
+  flange.position.y = nozzleH / 2 + 0.3;
+  flange.castShadow = true;
+  group.add(flange);
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(0.012, 6, 4), boltMat);
+    bolt.position.set(Math.cos(a) * nozzleR * 0.34, nozzleH / 2 + 0.3, Math.sin(a) * nozzleR * 0.34);
+    group.add(bolt);
   }
   group.userData.height = nozzleH + 0.5;
   group.userData.radius = nozzleR;
@@ -23842,59 +24299,169 @@ function buildBooster(part) {
   const group = new Group();
   const r = part.fuelMass > 5e3 ? 0.5 : 0.38;
   const h = part.fuelMass > 5e3 ? 4.5 : 3.2;
-  const bodyGeo = new CylinderGeometry(r, r, h, 24);
-  const bodyMat = new MeshStandardMaterial({ color: 14737632, metalness: 0.6, roughness: 0.3 });
+  const bodyCanvas = document.createElement("canvas");
+  bodyCanvas.width = 256;
+  bodyCanvas.height = 512;
+  const bCtx = bodyCanvas.getContext("2d");
+  for (let y = 0; y < 512; y++) {
+    for (let x = 0; x < 256; x++) {
+      const n = TextureFactory.fbm(x * 0.05, y * 0.04, 4, 0.4, 2.2);
+      const v = 0.88 + n * 0.24;
+      bCtx.fillStyle = `rgb(${Math.min(255, 235 * v)},${Math.min(255, 235 * v)},${Math.min(255, 235 * v)})`;
+      bCtx.fillRect(x, y, 1, 1);
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    const sx = (i + 0.5) * 64;
+    bCtx.fillStyle = "rgba(180,180,180,0.4)";
+    bCtx.fillRect(sx, 0, 1, 512);
+  }
+  for (let i = 1; i < 6; i++) {
+    const sy = i / 6 * 512;
+    bCtx.fillStyle = "rgba(200,200,200,0.5)";
+    bCtx.fillRect(0, sy, 256, 2);
+  }
+  const bodyTex = new CanvasTexture(bodyCanvas);
+  bodyTex.colorSpace = SRGBColorSpace;
+  bodyTex.wrapS = RepeatWrapping;
+  bodyTex.repeat.set(2, 1);
+  const bodyGeo = new CylinderGeometry(r, r, h, 32);
+  const bodyMat = new MeshStandardMaterial({
+    map: bodyTex,
+    color: 16777215,
+    metalness: 0.55,
+    roughness: 0.3
+  });
   const body = new Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
   group.add(body);
   const nosePts = [];
-  nosePts.push(new Vector2(0, h / 2 + r * 1.5));
-  nosePts.push(new Vector2(r * 0.2, h / 2 + r * 1.4));
-  nosePts.push(new Vector2(r * 0.5, h / 2 + r * 1.1));
-  nosePts.push(new Vector2(r * 0.8, h / 2 + r * 0.7));
-  nosePts.push(new Vector2(r * 0.95, h / 2 + r * 0.3));
+  nosePts.push(new Vector2(0, h / 2 + r * 1.6));
+  nosePts.push(new Vector2(r * 0.08, h / 2 + r * 1.55));
+  nosePts.push(new Vector2(r * 0.2, h / 2 + r * 1.48));
+  nosePts.push(new Vector2(r * 0.35, h / 2 + r * 1.35));
+  nosePts.push(new Vector2(r * 0.5, h / 2 + r * 1.18));
+  nosePts.push(new Vector2(r * 0.68, h / 2 + r * 0.95));
+  nosePts.push(new Vector2(r * 0.82, h / 2 + r * 0.68));
+  nosePts.push(new Vector2(r * 0.92, h / 2 + r * 0.38));
+  nosePts.push(new Vector2(r * 0.98, h / 2 + r * 0.12));
   nosePts.push(new Vector2(r, h / 2));
-  const noseGeo = new LatheGeometry(nosePts, 24);
-  const noseMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.6, roughness: 0.3 });
+  const noseGeo = new LatheGeometry(nosePts, 32);
+  const noseMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.6, roughness: 0.28 });
   const nose = new Mesh(noseGeo, noseMat);
   nose.castShadow = true;
   group.add(nose);
-  const nozGeo = new CylinderGeometry(r * 0.5, r * 0.7, 0.35, 20);
-  const nozMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.4, roughness: 0.8 });
+  const tipCap = new Mesh(
+    new SphereGeometry(r * 0.06, 12, 8),
+    new MeshStandardMaterial({ color: 4473924, metalness: 0.8, roughness: 0.3 })
+  );
+  tipCap.position.y = h / 2 + r * 1.6;
+  tipCap.castShadow = true;
+  group.add(tipCap);
+  const nozPts = [];
+  nozPts.push(new Vector2(0, -h / 2 - 0.4));
+  nozPts.push(new Vector2(r * 0.2, -h / 2 - 0.4));
+  nozPts.push(new Vector2(r * 0.35, -h / 2 - 0.38));
+  nozPts.push(new Vector2(r * 0.48, -h / 2 - 0.33));
+  nozPts.push(new Vector2(r * 0.58, -h / 2 - 0.25));
+  nozPts.push(new Vector2(r * 0.65, -h / 2 - 0.15));
+  nozPts.push(new Vector2(r * 0.68, -h / 2 - 0.05));
+  nozPts.push(new Vector2(r * 0.6, -h / 2 + 0.02));
+  nozPts.push(new Vector2(r * 0.45, -h / 2 + 0.06));
+  nozPts.push(new Vector2(r * 0.3, -h / 2 + 0.04));
+  const nozGeo = new LatheGeometry(nozPts, 24);
+  const nozMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.5, roughness: 0.7 });
   const noz = new Mesh(nozGeo, nozMat);
-  noz.position.y = -h / 2 - 0.18;
   noz.castShadow = true;
   group.add(noz);
-  const sepMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
+  const srbRibMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.6 });
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2;
+    const rib = new Mesh(new BoxGeometry(0.015, 0.35, 0.025), srbRibMat);
+    rib.position.set(Math.cos(a) * r * 0.55, -h / 2 - 0.2, Math.sin(a) * r * 0.55);
+    rib.lookAt(0, -h / 2 - 0.2, 0);
+    rib.castShadow = true;
+    group.add(rib);
+  }
+  const sepMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.65, roughness: 0.35 });
+  const sepNozMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.6, roughness: 0.5 });
   for (let i = 0; i < 2; i++) {
     const sign2 = i === 0 ? 1 : -1;
-    const sepBody = new Mesh(new CylinderGeometry(0.05, 0.05, 0.2, 8), sepMat);
-    sepBody.position.set(sign2 * (r + 0.08), h * 0.3, 0);
+    const sepBody = new Mesh(new CylinderGeometry(0.06, 0.06, 0.22, 12), sepMat);
+    sepBody.position.set(sign2 * (r + 0.1), h * 0.3, 0);
     sepBody.castShadow = true;
     group.add(sepBody);
-    const sepCone = new Mesh(new ConeGeometry(0.05, 0.08, 8), sepMat);
-    sepCone.position.set(sign2 * (r + 0.08), h * 0.3 + 0.14, 0);
+    const sepCone = new Mesh(new ConeGeometry(0.05, 0.1, 10), sepNozMat);
+    sepCone.position.set(sign2 * (r + 0.1), h * 0.3 + 0.16, 0);
+    sepCone.castShadow = true;
     group.add(sepCone);
+    const sepBracket = new Mesh(new BoxGeometry(0.04, 0.08, 0.1), sepMat);
+    sepBracket.position.set(sign2 * (r + 0.04), h * 0.3, 0);
+    sepBracket.castShadow = true;
+    group.add(sepBracket);
   }
   const strutMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < 2; i++) {
     const y = i === 0 ? h * 0.2 : -h * 0.2;
-    const strut = new Mesh(new BoxGeometry(0.15, 0.04, 0.08), strutMat);
-    strut.position.set(r + 0.07, y, 0);
+    const strut = new Mesh(new BoxGeometry(0.18, 0.06, 0.1), strutMat);
+    strut.position.set(r + 0.09, y, 0);
     strut.castShadow = true;
     group.add(strut);
+    const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+    for (let bx of [-1, 1]) {
+      for (let bz of [-1, 1]) {
+        const bolt = new Mesh(new SphereGeometry(0.012, 6, 4), boltMat);
+        bolt.position.set(r + 0.09 + bx * 0.06, y, bz * 0.03);
+        group.add(bolt);
+      }
+    }
   }
-  const lineGeo = new CylinderGeometry(0.02, 0.02, h * 0.5, 8);
-  const lineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.4 });
+  const lineGeo = new CylinderGeometry(0.025, 0.025, h * 0.6, 10);
+  const lineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.65, roughness: 0.35 });
   const line = new Mesh(lineGeo, lineMat);
-  line.position.set(r * 0.95, 0, 0);
+  line.position.set(r * 0.97, 0, 0);
+  line.castShadow = true;
   group.add(line);
-  const bandGeo = new CylinderGeometry(r * 1.01, r * 1.01, 0.15, 24);
-  const bandMat = new MeshStandardMaterial({ color: 4473958, metalness: 0.5, roughness: 0.4 });
+  const clampMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.7, roughness: 0.3 });
+  for (let i = -1; i <= 1; i++) {
+    const clamp2 = new Mesh(new BoxGeometry(0.05, 0.03, 0.05), clampMat);
+    clamp2.position.set(r * 0.97, i * h * 0.2, 0);
+    clamp2.castShadow = true;
+    group.add(clamp2);
+  }
+  const bandGeo = new CylinderGeometry(r * 1.02, r * 1.02, 0.15, 32);
+  const bandMat = new MeshStandardMaterial({ color: 3359846, metalness: 0.5, roughness: 0.4 });
   const band = new Mesh(bandGeo, bandMat);
   band.position.y = h * 0.25;
+  band.castShadow = true;
   group.add(band);
-  group.userData.height = h + r * 1.5 + 0.35;
+  const band2Geo = new CylinderGeometry(r * 1.02, r * 1.02, 0.06, 32);
+  const band2Mat = new MeshStandardMaterial({ color: 13382451, metalness: 0.5, roughness: 0.4 });
+  const band2 = new Mesh(band2Geo, band2Mat);
+  band2.position.y = h * 0.25 - 0.13;
+  band2.castShadow = true;
+  group.add(band2);
+  const ringCount = h > 4 ? 3 : 2;
+  for (let i = 0; i < ringCount; i++) {
+    const ringY = -h / 2 + h / (ringCount + 1) * (i + 1);
+    const ring = new Mesh(
+      new TorusGeometry(r * 1.02, 0.025, 8, 32),
+      new MeshStandardMaterial({ color: 11579568, metalness: 0.7, roughness: 0.3 })
+    );
+    ring.position.y = ringY;
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
+  }
+  const topRing = new Mesh(
+    new TorusGeometry(r * 1.03, 0.03, 8, 24),
+    new MeshStandardMaterial({ color: 10066329, metalness: 0.8, roughness: 0.2 })
+  );
+  topRing.position.y = h / 2 + 0.01;
+  topRing.rotation.x = Math.PI / 2;
+  topRing.castShadow = true;
+  group.add(topRing);
+  group.userData.height = h + r * 1.6 + 0.4;
   group.userData.radius = r;
   return group;
 }
@@ -24457,87 +25024,271 @@ function createSpaceCenterScene() {
     line.position.set(0, 0.11, -38 + i * 2);
     group.add(line);
   }
+  const edgeLineMat = new MeshBasicMaterial({ color: 16777215 });
+  for (const side of [-1, 1]) {
+    const edgeLine = new Mesh(new BoxGeometry(0.1, 0.02, 38), edgeLineMat);
+    edgeLine.position.set(side * 1.85, 0.11, -20);
+    group.add(edgeLine);
+  }
+  for (const end of [-1, 1]) {
+    for (let i = 0; i < 6; i++) {
+      const bar = new Mesh(new BoxGeometry(0.3, 0.02, 2), edgeLineMat);
+      bar.position.set(-1.2 + i * 0.5, 0.11, end > 0 ? 0.5 : -40.5);
+      group.add(bar);
+    }
+  }
+  const edgeLightMat = new MeshStandardMaterial({
+    color: 43775,
+    emissive: 43775,
+    emissiveIntensity: 0.8
+  });
+  for (let i = 0; i <= 20; i++) {
+    for (const side of [-1, 1]) {
+      const light = new Mesh(new SphereGeometry(0.06, 6, 4), edgeLightMat);
+      light.position.set(side * 2.1, 0.12, -38 + i * 2);
+      group.add(light);
+    }
+  }
+  for (let i = 0; i < 5; i++) {
+    const appLight = new Mesh(
+      new SphereGeometry(0.08, 6, 4),
+      new MeshStandardMaterial({ color: 16777215, emissive: 16777215, emissiveIntensity: 0.6 })
+    );
+    appLight.position.set(0, 0.12, -41 - i * 1.5);
+    group.add(appLight);
+  }
   const vabBody = new Mesh(new BoxGeometry(12, 10, 8), buildingMat);
   vabBody.position.set(-15, 5, 5);
   vabBody.castShadow = true;
   vabBody.receiveShadow = true;
   group.add(vabBody);
-  const vabRoof = new Mesh(new SphereGeometry(6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
+  const vabRoof = new Mesh(new SphereGeometry(6, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
   vabRoof.position.set(-15, 10, 5);
   vabRoof.scale.set(1, 0.4, 0.67);
   vabRoof.castShadow = true;
   group.add(vabRoof);
+  const vabRoofRing = new Mesh(
+    new TorusGeometry(6, 0.15, 8, 32),
+    new MeshStandardMaterial({ color: 6710903, metalness: 0.5, roughness: 0.5 })
+  );
+  vabRoofRing.position.set(-15, 10, 5);
+  vabRoofRing.rotation.x = Math.PI / 2;
+  vabRoofRing.scale.set(1, 1, 0.67);
+  vabRoofRing.castShadow = true;
+  group.add(vabRoofRing);
   const doorMat = new MeshStandardMaterial({ color: 6710903, roughness: 0.5, metalness: 0.5 });
   for (let i = 0; i < 2; i++) {
     const door = new Mesh(new BoxGeometry(3, 7, 0.2), doorMat);
     door.position.set(-15 + (i === 0 ? -2 : 2), 3.5, 9.1);
     door.castShadow = true;
     group.add(door);
+    for (let j = 0; j < 5; j++) {
+      const dl = new Mesh(
+        new BoxGeometry(2.8, 0.04, 0.02),
+        new MeshStandardMaterial({ color: 4473941, metalness: 0.5, roughness: 0.5 })
+      );
+      dl.position.set(-15 + (i === 0 ? -2 : 2), 0.7 + j * 1.4, 9.22);
+      group.add(dl);
+    }
   }
+  const vabWinMat = new MeshStandardMaterial({ color: 4491519, emissive: 2245734, emissiveIntensity: 0.5, roughness: 0.2, metalness: 0.8 });
+  const vabFrameMat = new MeshStandardMaterial({ color: 5592422, metalness: 0.6, roughness: 0.4 });
   for (let i = 0; i < 6; i++) {
-    const win = new Mesh(
-      new BoxGeometry(1, 0.8, 0.1),
-      new MeshStandardMaterial({ color: 4491519, emissive: 2245734, roughness: 0.2, metalness: 0.8 })
-    );
-    win.position.set(-12 + i * 1.5, 8, 9.1);
+    const frame = new Mesh(new BoxGeometry(1.1, 0.9, 0.12), vabFrameMat);
+    frame.position.set(-12 + i * 1.5, 8, 9.1);
+    frame.castShadow = true;
+    group.add(frame);
+    const win = new Mesh(new BoxGeometry(1, 0.8, 0.1), vabWinMat);
+    win.position.set(-12 + i * 1.5, 8, 9.15);
     group.add(win);
   }
-  const vabAnt = new Mesh(new CylinderGeometry(0.05, 0.05, 2, 8), metalMat);
-  vabAnt.position.set(-15, 12, 5);
+  const vabAntBase = new Mesh(new CylinderGeometry(0.1, 0.12, 0.3, 8), metalMat);
+  vabAntBase.position.set(-15, 10.2, 5);
+  vabAntBase.castShadow = true;
+  group.add(vabAntBase);
+  const vabAnt = new Mesh(new CylinderGeometry(0.05, 0.05, 2.5, 8), metalMat);
+  vabAnt.position.set(-15, 11.6, 5);
+  vabAnt.castShadow = true;
   group.add(vabAnt);
+  const vabDish = new Mesh(
+    new SphereGeometry(0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    new MeshStandardMaterial({ color: 14540270, roughness: 0.3, metalness: 0.6, side: DoubleSide })
+  );
+  vabDish.position.set(-15, 13, 5);
+  vabDish.rotation.x = -0.8;
+  vabDish.castShadow = true;
+  group.add(vabDish);
+  const vabAnnex = new Mesh(new BoxGeometry(5, 5, 6), buildingMat);
+  vabAnnex.position.set(-22, 2.5, 5);
+  vabAnnex.castShadow = true;
+  vabAnnex.receiveShadow = true;
+  group.add(vabAnnex);
+  const vabStripe = new Mesh(
+    new BoxGeometry(0.1, 8, 7.8),
+    new MeshStandardMaterial({ color: 13382451, metalness: 0.3, roughness: 0.5 })
+  );
+  vabStripe.position.set(-9, 5, 5);
+  group.add(vabStripe);
   const padMat = new MeshStandardMaterial({ color: 5592405, roughness: 0.8, metalness: 0.2 });
-  const pad = new Mesh(new CylinderGeometry(5, 5.5, 0.5, 32), padMat);
+  const pad = new Mesh(new CylinderGeometry(5, 5.5, 0.5, 48), padMat);
   pad.position.set(15, 0.25, 5);
   pad.castShadow = true;
   pad.receiveShadow = true;
   group.add(pad);
-  const trench = new Mesh(new BoxGeometry(3, 0.3, 3), darkMat);
-  trench.position.set(15, 0.6, 5);
+  const padDetail = new Mesh(
+    new CylinderGeometry(4.8, 4.8, 0.02, 48),
+    new MeshStandardMaterial({ color: 4473924, roughness: 0.9 })
+  );
+  padDetail.position.set(15, 0.51, 5);
+  padDetail.receiveShadow = true;
+  group.add(padDetail);
+  const trench = new Mesh(new BoxGeometry(3, 1, 3), darkMat);
+  trench.position.set(15, 0, 5);
+  trench.castShadow = true;
   group.add(trench);
+  const trenchInt = new Mesh(
+    new BoxGeometry(2.8, 0.8, 2.8),
+    new MeshStandardMaterial({ color: 1710618, roughness: 1 })
+  );
+  trenchInt.position.set(15, 0.1, 5);
+  group.add(trenchInt);
+  const towerLegMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const leg = new Mesh(new CylinderGeometry(0.08, 0.08, 12, 8), metalMat);
+    const leg = new Mesh(new CylinderGeometry(0.08, 0.08, 12, 8), towerLegMat);
     leg.position.set(15 + Math.cos(angle) * 2, 6, 5 + Math.sin(angle) * 2);
     leg.castShadow = true;
     group.add(leg);
   }
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const angle2 = (i + 1) / 4 * Math.PI * 2 + Math.PI / 4;
-    const support = new Mesh(new CylinderGeometry(0.04, 0.04, 3, 6), metalMat);
-    const mx = 15 + Math.cos((angle + angle2) / 2) * 2;
-    const mz = 5 + Math.sin((angle + angle2) / 2) * 2;
-    support.position.set(mx, 4, mz);
-    support.lookAt(15, 4, 5);
-    support.rotation.x = Math.PI / 2;
-    group.add(support);
+  for (let level = 0; level < 4; level++) {
+    const yLevel = 2 + level * 3;
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const angle2 = (i + 1) / 4 * Math.PI * 2 + Math.PI / 4;
+      const support = new Mesh(new CylinderGeometry(0.04, 0.04, 3.2, 6), metalMat);
+      const mx = 15 + Math.cos((angle + angle2) / 2) * 2;
+      const mz = 5 + Math.sin((angle + angle2) / 2) * 2;
+      support.position.set(mx, yLevel, mz);
+      support.lookAt(15, yLevel, 5);
+      support.rotation.x = Math.PI / 2;
+      group.add(support);
+    }
+    const ringGeo = new TorusGeometry(2, 0.03, 6, 24);
+    const ring = new Mesh(ringGeo, metalMat);
+    ring.position.set(15, yLevel, 5);
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
   }
-  const rod = new Mesh(new CylinderGeometry(0.03, 0.03, 3, 8), metalMat);
-  rod.position.set(15, 13.5, 5);
-  group.add(rod);
-  const warnLight = new Mesh(
-    new SphereGeometry(0.15, 8, 6),
-    new MeshStandardMaterial({ color: 16711680, emissive: 16711680, emissiveIntensity: 1 })
+  const platform = new Mesh(
+    new BoxGeometry(1.5, 0.1, 1.5),
+    new MeshStandardMaterial({ color: 6710886, metalness: 0.5, roughness: 0.5 })
   );
-  warnLight.position.set(15, 12.5, 5);
-  group.add(warnLight);
-  const trackBody = new Mesh(new CylinderGeometry(2, 2.5, 3, 16), buildingMat);
+  platform.position.set(16.5, 6, 5);
+  platform.castShadow = true;
+  group.add(platform);
+  const arm = new Mesh(new CylinderGeometry(0.06, 0.06, 2.5, 8), metalMat);
+  arm.position.set(16.5, 7, 5);
+  arm.rotation.z = Math.PI / 2;
+  arm.castShadow = true;
+  group.add(arm);
+  const rodBase = new Mesh(new CylinderGeometry(0.06, 0.08, 0.3, 8), metalMat);
+  rodBase.position.set(15, 12.2, 5);
+  rodBase.castShadow = true;
+  group.add(rodBase);
+  const rod = new Mesh(new CylinderGeometry(0.03, 0.03, 3, 8), metalMat);
+  rod.position.set(15, 13.8, 5);
+  rod.castShadow = true;
+  group.add(rod);
+  const rodTip = new Mesh(new ConeGeometry(0.03, 0.2, 8), metalMat);
+  rodTip.position.set(15, 15.4, 5);
+  rodTip.castShadow = true;
+  group.add(rodTip);
+  const warnLightMat = new MeshStandardMaterial({ color: 16711680, emissive: 16711680, emissiveIntensity: 1.5 });
+  for (let level = 0; level < 3; level++) {
+    const warnLight = new Mesh(new SphereGeometry(0.12, 8, 6), warnLightMat);
+    warnLight.position.set(15, 4 + level * 4, 5);
+    group.add(warnLight);
+  }
+  const topWarn = new Mesh(new SphereGeometry(0.15, 8, 6), warnLightMat);
+  topWarn.position.set(15, 12.5, 5);
+  group.add(topWarn);
+  const trackBody = new Mesh(new CylinderGeometry(2, 2.5, 3, 24), buildingMat);
   trackBody.position.set(-25, 1.5, -15);
   trackBody.castShadow = true;
   group.add(trackBody);
-  const trackDome = new Mesh(new SphereGeometry(2.2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
+  const trackDome = new Mesh(new SphereGeometry(2.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
   trackDome.position.set(-25, 3, -15);
   trackDome.castShadow = true;
   group.add(trackDome);
-  const dishPole = new Mesh(new CylinderGeometry(0.08, 0.08, 4, 8), metalMat);
+  const domeSlit = new Mesh(
+    new BoxGeometry(0.5, 1.5, 0.1),
+    new MeshStandardMaterial({ color: 2236962, roughness: 0.9 })
+  );
+  domeSlit.position.set(-25, 3.5, -12.8);
+  group.add(domeSlit);
+  const dishPole = new Mesh(new CylinderGeometry(0.1, 0.12, 4, 12), metalMat);
   dishPole.position.set(-25, 5, -15);
+  dishPole.castShadow = true;
   group.add(dishPole);
-  const dishGeo = new SphereGeometry(1.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-  const dish = new Mesh(dishGeo, new MeshStandardMaterial({ color: 14540270, roughness: 0.3, metalness: 0.6, side: DoubleSide }));
-  dish.position.set(-25, 7, -15);
-  dish.rotation.x = -0.5;
-  dish.castShadow = true;
-  group.add(dish);
+  const paraPts = [];
+  paraPts.push(new Vector2(0, 0));
+  paraPts.push(new Vector2(0.2, 0.02));
+  paraPts.push(new Vector2(0.5, 0.08));
+  paraPts.push(new Vector2(0.8, 0.18));
+  paraPts.push(new Vector2(1.1, 0.32));
+  paraPts.push(new Vector2(1.4, 0.5));
+  paraPts.push(new Vector2(1.6, 0.65));
+  const paraDishGeo = new LatheGeometry(paraPts, 32);
+  const paraDishMat = new MeshStandardMaterial({
+    color: 14540270,
+    roughness: 0.25,
+    metalness: 0.7,
+    side: DoubleSide
+  });
+  const paraDish = new Mesh(paraDishGeo, paraDishMat);
+  paraDish.position.set(-25, 7, -15);
+  paraDish.rotation.x = -0.6;
+  paraDish.castShadow = true;
+  group.add(paraDish);
+  const feedHorn = new Mesh(
+    new ConeGeometry(0.08, 0.3, 12),
+    new MeshStandardMaterial({ color: 5592405, metalness: 0.6, roughness: 0.4 })
+  );
+  feedHorn.position.set(-25, 7.5, -14.5);
+  feedHorn.rotation.x = -0.6 + Math.PI;
+  feedHorn.castShadow = true;
+  group.add(feedHorn);
+  const strutMat2 = new MeshStandardMaterial({ color: 8947848, metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 3; i++) {
+    const a = i / 3 * Math.PI * 2;
+    const strut = new Mesh(new CylinderGeometry(0.015, 0.015, 1.2, 6), strutMat2);
+    strut.position.set(
+      -25 + Math.cos(a) * 0.7,
+      7.2,
+      -15 + Math.sin(a) * 0.7
+    );
+    strut.lookAt(-25, 7.5, -14.5);
+    strut.rotation.x += Math.PI / 2;
+    group.add(strut);
+  }
+  const smallDishPole = new Mesh(new CylinderGeometry(0.05, 0.06, 2, 8), metalMat);
+  smallDishPole.position.set(-22, 4, -13);
+  smallDishPole.castShadow = true;
+  group.add(smallDishPole);
+  const smallDish = new Mesh(
+    new SphereGeometry(0.6, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    new MeshStandardMaterial({ color: 15658751, roughness: 0.25, metalness: 0.7, side: DoubleSide })
+  );
+  smallDish.position.set(-22, 5, -13);
+  smallDish.rotation.x = -0.5;
+  smallDish.castShadow = true;
+  group.add(smallDish);
+  for (let i = 0; i < 4; i++) {
+    const tw = new Mesh(new BoxGeometry(0.5, 0.4, 0.1), vabWinMat);
+    tw.position.set(-25 + (i - 1.5) * 0.8, 1.5, -13.8);
+    group.add(tw);
+  }
   const astroBody = new Mesh(new CylinderGeometry(1.5, 1.8, 2.5, 16), buildingMat);
   astroBody.position.set(10, 1.25, -15);
   astroBody.castShadow = true;
@@ -26967,6 +27718,14 @@ var SimpleOrbitControls = class {
     this.prevX = 0;
     this.prevY = 0;
     this.enabled = true;
+    // Inertia / damping for fluid camera motion (KSP-style smooth orbit)
+    this.thetaVel = 0;
+    // azimuthal angular velocity
+    this.phiVel = 0;
+    // polar angular velocity
+    this.radiusVel = 0;
+    // radial (zoom) velocity
+    this.damping = 0.9;
     this.camera = camera;
     this.dom = dom;
     this.target = target;
@@ -26991,9 +27750,13 @@ var SimpleOrbitControls = class {
       const dy = e.clientY - this.prevY;
       this.prevX = e.clientX;
       this.prevY = e.clientY;
-      this.spherical.theta -= dx * 5e-3;
-      this.spherical.phi -= dy * 5e-3;
+      const dTheta = -dx * 5e-3;
+      const dPhi = -dy * 5e-3;
+      this.spherical.theta += dTheta;
+      this.spherical.phi += dPhi;
       this.spherical.phi = Math.max(this.minPolar, Math.min(this.maxPolar, this.spherical.phi));
+      this.thetaVel = dTheta;
+      this.phiVel = dPhi;
     };
     this.onPointerUp = () => {
       this.isDragging = false;
@@ -27002,8 +27765,10 @@ var SimpleOrbitControls = class {
     this.onWheel = (e) => {
       if (!this.enabled) return;
       e.preventDefault();
-      this.spherical.radius *= 1 + e.deltaY * 1e-3;
-      this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
+      const zoomStep = e.deltaY * 15e-4 * Math.max(this.spherical.radius, 1);
+      this.radiusVel += zoomStep;
+      const maxVel = this.spherical.radius * 0.3;
+      this.radiusVel = Math.max(-maxVel, Math.min(maxVel, this.radiusVel));
     };
     dom.addEventListener("pointerdown", this.onPointerDown);
     dom.addEventListener("pointermove", this.onPointerMove);
@@ -27026,10 +27791,30 @@ var SimpleOrbitControls = class {
     this.minPolar = minPolar;
     this.maxPolar = maxPolar;
     this.spherical.radius = Math.max(minDist, Math.min(maxDist, this.spherical.radius));
+    this.thetaVel = 0;
+    this.phiVel = 0;
+    this.radiusVel = 0;
   }
   update() {
-    if (this.autoRotateSpeed !== 0 && !this.isDragging) {
+    if (this.autoRotateSpeed !== 0 && !this.isDragging && Math.abs(this.thetaVel) < 1e-4) {
       this.spherical.theta += this.autoRotateSpeed * 0.01;
+    }
+    if (!this.isDragging) {
+      if (Math.abs(this.thetaVel) > 1e-4 || Math.abs(this.phiVel) > 1e-4) {
+        this.spherical.theta += this.thetaVel;
+        this.spherical.phi += this.phiVel;
+        this.spherical.phi = Math.max(this.minPolar, Math.min(this.maxPolar, this.spherical.phi));
+        this.thetaVel *= this.damping;
+        this.phiVel *= this.damping;
+        if (Math.abs(this.thetaVel) < 1e-4) this.thetaVel = 0;
+        if (Math.abs(this.phiVel) < 1e-4) this.phiVel = 0;
+      }
+    }
+    if (Math.abs(this.radiusVel) > 1e-4) {
+      this.spherical.radius += this.radiusVel;
+      this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
+      this.radiusVel *= this.damping;
+      if (Math.abs(this.radiusVel) < 1e-4) this.radiusVel = 0;
     }
     const offset = new Vector3().setFromSpherical(this.spherical);
     this.camera.position.copy(this.target).add(offset);
@@ -27054,6 +27839,7 @@ var VAB3DPreview = class {
     this.pickedUpPart = null;
     this.selectedPart = null;
     this.selectionOutline = null;
+    this.selectionGlowMats = [];
     this.symmetryMode = 1;
     // 1, 2, 3, 4, 6
     this.pointerDownPos = null;
@@ -27132,6 +27918,13 @@ var VAB3DPreview = class {
       if (this.disposed) return;
       this.animationId = requestAnimationFrame(this.animate);
       this.controls.update();
+      if (this.selectionGlowMats.length > 0) {
+        const t = performance.now() * 3e-3;
+        const pulse = 0.08 + 0.07 * (0.5 + 0.5 * Math.sin(t));
+        for (const m of this.selectionGlowMats) {
+          m.opacity = pulse;
+        }
+      }
       this.renderer.render(this.scene, this.camera);
     };
     this.canvas = canvas;
@@ -27505,11 +28298,23 @@ var VAB3DPreview = class {
       const isMk3 = part.id.includes("mk3") || part.mass > 3e3;
       const isMk2 = part.id.includes("mk2") || part.mass > 1500;
       const lathePoints = [];
-      const lSegs = 16;
+      const lSegs = 24;
       for (let i = 0; i <= lSegs; i++) {
         const t = i / lSegs;
-        const r = cmdRadius * (1 - 0.4 * t) + cmdRadius * 0.1 * Math.sin(t * Math.PI);
         const y = -cmdHeight / 2 + t * cmdHeight;
+        let r;
+        if (t < 0.15) {
+          r = cmdRadius * (1 + 0.03 * Math.sin(t / 0.15 * Math.PI));
+        } else if (t < 0.55) {
+          const lt = (t - 0.15) / 0.4;
+          r = cmdRadius * (1 - 0.25 * lt) + cmdRadius * 0.05 * Math.sin(lt * Math.PI);
+        } else if (t < 0.85) {
+          const lt = (t - 0.55) / 0.3;
+          r = cmdRadius * 0.75 * (1 - 0.55 * lt);
+        } else {
+          const lt = (t - 0.85) / 0.15;
+          r = cmdRadius * 0.34 * (1 - lt * 0.7);
+        }
         lathePoints.push(new Vector2(Math.max(0.01, r), y));
       }
       lathePoints.push(new Vector2(cmdRadius * 0.1, cmdHeight / 2 + 0.05));
@@ -27520,10 +28325,12 @@ var VAB3DPreview = class {
       cone.receiveShadow = true;
       group.add(cone);
       const shieldPoints = [];
-      for (let i = 0; i <= 6; i++) {
-        const t = i / 6;
-        const r = cmdRadius * 1.15 - t * cmdRadius * 0.25;
-        const y = -cmdHeight / 2 - t * 0.12;
+      const shieldSegs = 8;
+      const shieldH = 0.16;
+      for (let i = 0; i <= shieldSegs; i++) {
+        const t = i / shieldSegs;
+        const r = cmdRadius * 1.15 * (1 - 0.28 * t) - cmdRadius * 0.04 * Math.sin(t * Math.PI);
+        const y = -cmdHeight / 2 - t * shieldH;
         shieldPoints.push(new Vector2(Math.max(0.01, r), y));
       }
       const heatShield = new Mesh(
@@ -27532,6 +28339,21 @@ var VAB3DPreview = class {
       );
       heatShield.castShadow = true;
       group.add(heatShield);
+      const grooveCount = 8;
+      for (let i = 0; i < grooveCount; i++) {
+        const angle = i / grooveCount * Math.PI * 2;
+        const groove = new Mesh(
+          new BoxGeometry(0.012, shieldH * 0.7, 0.012),
+          this.mats.copper
+        );
+        groove.position.set(
+          Math.cos(angle) * cmdRadius * 1,
+          -cmdHeight / 2 - shieldH * 0.4,
+          Math.sin(angle) * cmdRadius * 1
+        );
+        groove.rotation.y = -angle;
+        group.add(groove);
+      }
       const stripeMat = isMk3 ? this.mats.copper : isMk2 ? this.mats.accent : this.mats.dark;
       const stripe1 = new Mesh(
         new CylinderGeometry(cmdRadius * 0.98, cmdRadius * 1, 0.1, 28),
@@ -27768,6 +28590,35 @@ var VAB3DPreview = class {
         group.add(stiff);
       }
     }
+    const weldCount = Math.max(2, Math.floor(tankHeight / 0.35));
+    for (let i = 0; i < weldCount; i++) {
+      const yOff = -tankHeight / 2 + (i + 0.5) * (tankHeight / weldCount);
+      const tooClose = Math.abs(yOff - tankHeight * 0.2) < 0.08 || Math.abs(yOff + tankHeight * 0.2) < 0.08;
+      if (tooClose) continue;
+      const weld = new Mesh(
+        new TorusGeometry(Math.max(0.02, tankRadius * 1.005), 8e-3, 5, 32),
+        this.mats.dark
+      );
+      weld.rotation.x = Math.PI / 2;
+      weld.position.y = yOff;
+      group.add(weld);
+    }
+    const triBandY = tankHeight / 2 - 0.15;
+    const triBandColors = [this.mats.fuelWhite, this.mats.fuelOrange, this.mats.fuelGray];
+    for (let i = 0; i < 3; i++) {
+      const angle = i / 3 * Math.PI * 2;
+      const seg = new Mesh(
+        new BoxGeometry(0.04, 0.06, 0.015),
+        triBandColors[i]
+      );
+      seg.position.set(
+        Math.cos(angle) * (tankRadius + 0.02),
+        triBandY,
+        Math.sin(angle) * (tankRadius + 0.02)
+      );
+      seg.rotation.y = -angle;
+      group.add(seg);
+    }
     return { group, height: tankHeight, radius: tankRadius };
   }
   // ============================================
@@ -27866,6 +28717,30 @@ var VAB3DPreview = class {
       );
       topRing.position.y = bodyH + nozzleH / 2 - 0.08;
       group.add(topRing);
+      const chamberH = bodyH * 0.35;
+      const chamberR = bodyR * 0.95;
+      const chamber = new Mesh(
+        new CylinderGeometry(chamberR, bodyR * 0.75, chamberH, 24),
+        this.mats.engineBody
+      );
+      chamber.position.y = nozzleH / 2 - bodyH * 0.32;
+      chamber.castShadow = true;
+      group.add(chamber);
+      const ribChannelCount = 10;
+      for (let i = 0; i < ribChannelCount; i++) {
+        const angle = i / ribChannelCount * Math.PI * 2;
+        const chan = new Mesh(
+          new BoxGeometry(0.012, chamberH * 0.9, 0.012),
+          this.mats.copper
+        );
+        chan.position.set(
+          Math.cos(angle) * chamberR * 1,
+          nozzleH / 2 - bodyH * 0.32,
+          Math.sin(angle) * chamberR * 1
+        );
+        chan.rotation.y = -angle;
+        group.add(chan);
+      }
       const pipeCount = 3;
       for (let i = 0; i < pipeCount; i++) {
         const angle = i / pipeCount * Math.PI * 2;
@@ -29194,34 +30069,57 @@ var VAB3DPreview = class {
     this.adjustCamera();
     this.onPartsChanged?.();
   }
-  // 选择零件 (高亮)
+  // 选择零件 (高亮 + 发光)
   selectPart(placedPart) {
     if (this.selectionOutline) {
       this.scene.remove(this.selectionOutline);
-      this.selectionOutline.geometry.dispose();
-      this.selectionOutline.material.dispose();
+      this.selectionOutline.traverse((child) => {
+        if (child instanceof LineSegments) {
+          child.geometry.dispose();
+          child.material.dispose();
+        } else if (child instanceof Mesh) {
+          child.geometry.dispose();
+          child.material.dispose();
+        }
+      });
       this.selectionOutline = null;
     }
+    this.selectionGlowMats = [];
     this.selectedPart = placedPart;
     if (placedPart) {
+      const outlineGroup = new Group();
       const allParts = [placedPart, ...placedPart.symmetryParts];
       for (const p of allParts) {
-        const boxGeo = new BoxGeometry(p.radius * 2 + 0.15, p.height + 0.15, p.radius * 2 + 0.15);
+        const w = p.radius * 2 + 0.15;
+        const h = p.height + 0.15;
+        const boxGeo = new BoxGeometry(w, h, w);
         const edges = new EdgesGeometry(boxGeo);
-        const outline = new LineSegments(edges, new LineBasicMaterial({ color: 16776960 }));
+        const outline = new LineSegments(edges, new LineBasicMaterial({ color: 16772608, linewidth: 2, transparent: true, opacity: 0.95 }));
         outline.position.copy(p.position);
         if (!p.isStack) {
           outline.rotation.copy(p.mesh.rotation);
         }
-        if (p === placedPart) {
-          this.selectionOutline = outline;
-          this.scene.add(outline);
-        } else {
-          this.scene.add(outline);
-          this.selectionOutline.add(outline);
-        }
+        outlineGroup.add(outline);
         boxGeo.dispose();
+        const glowGeo = new BoxGeometry(w + 0.06, h + 0.06, w + 0.06);
+        const glowMat = new MeshBasicMaterial({
+          color: 16763904,
+          transparent: true,
+          opacity: 0.12,
+          blending: AdditiveBlending,
+          depthWrite: false,
+          side: BackSide
+        });
+        const glow = new Mesh(glowGeo, glowMat);
+        glow.position.copy(p.position);
+        if (!p.isStack) {
+          glow.rotation.copy(p.mesh.rotation);
+        }
+        outlineGroup.add(glow);
+        this.selectionGlowMats.push(glowMat);
       }
+      this.selectionOutline = outlineGroup;
+      this.scene.add(outlineGroup);
     }
   }
   // 获取堆栈顶部 Y 位置
@@ -29713,6 +30611,79 @@ var VAB3DPreview = class {
       }
     });
   }
+  // Add extra building details that complement the base createSpaceCenterScene()
+  augmentSpaceCenter() {
+    const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.7 });
+    const darkMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
+    const glassMat = new MeshStandardMaterial({ color: 4491519, emissive: 2245734, roughness: 0.2, metalness: 0.8 });
+    const whiteMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.5, metalness: 0.3 });
+    for (let i = 0; i < 3; i++) {
+      const duct = new Mesh(new CylinderGeometry(0.4, 0.4, 0.8, 10), metalMat);
+      duct.position.set(-17 + i * 2, 10.8, 5);
+      this.centerGroup.add(duct);
+    }
+    for (let i = 0; i < 4; i++) {
+      const win = new Mesh(new BoxGeometry(0.1, 0.6, 0.8), glassMat);
+      win.position.set(-21.1, 3 + i * 1.5, 5);
+      this.centerGroup.add(win);
+    }
+    const vabAnt2 = new Mesh(new CylinderGeometry(0.03, 0.04, 1.5, 6), metalMat);
+    vabAnt2.position.set(-13, 12.5, 5);
+    this.centerGroup.add(vabAnt2);
+    const vabAnt2Ball = new Mesh(new SphereGeometry(0.08, 8, 6), darkMat);
+    vabAnt2Ball.position.set(-13, 13.3, 5);
+    this.centerGroup.add(vabAnt2Ball);
+    const gantryArm = new Mesh(new BoxGeometry(2, 0.15, 0.3), metalMat);
+    gantryArm.position.set(15, 9, 5);
+    this.centerGroup.add(gantryArm);
+    for (const yLevel of [3, 7, 10]) {
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+        const angle2 = (i + 1) / 4 * Math.PI * 2 + Math.PI / 4;
+        const len = 2 * Math.sqrt(2 - 2 * Math.cos(Math.PI / 2));
+        const brace = new Mesh(new CylinderGeometry(0.03, 0.03, Math.max(0.1, len), 5), metalMat);
+        const mx = 15 + Math.cos((angle + angle2) / 2) * 2;
+        const mz = 5 + Math.sin((angle + angle2) / 2) * 2;
+        brace.position.set(mx, yLevel, mz);
+        brace.lookAt(15, yLevel, 5);
+        brace.rotation.x = Math.PI / 2;
+        this.centerGroup.add(brace);
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2;
+      const clamp2 = new Mesh(new BoxGeometry(0.3, 0.4, 0.3), darkMat);
+      clamp2.position.set(15 + Math.cos(angle) * 1.2, 0.7, 5 + Math.sin(angle) * 1.2);
+      this.centerGroup.add(clamp2);
+    }
+    const dish2Pole = new Mesh(new CylinderGeometry(0.05, 0.05, 2.5, 8), metalMat);
+    dish2Pole.position.set(-23, 4.25, -13);
+    this.centerGroup.add(dish2Pole);
+    const dish2Geo = new SphereGeometry(0.8, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+    const dish2 = new Mesh(dish2Geo, new MeshStandardMaterial({ color: 14540270, roughness: 0.3, metalness: 0.6, side: DoubleSide }));
+    dish2.position.set(-23, 5.5, -13);
+    dish2.rotation.x = -0.7;
+    dish2.rotation.y = 0.5;
+    this.centerGroup.add(dish2);
+    const feed2 = new Mesh(new ConeGeometry(0.05, 0.15, 8), darkMat);
+    feed2.position.set(-23, 5.9, -13);
+    feed2.rotation.x = -0.7;
+    this.centerGroup.add(feed2);
+    for (const zEnd of [-38, 0]) {
+      for (let i = 0; i < 6; i++) {
+        const stripe = new Mesh(new BoxGeometry(0.3, 0.02, 1.5), whiteMat);
+        stripe.position.set(-1.5 + i * 0.6, 0.11, zEnd + (zEnd < 0 ? 1 : -1));
+        this.centerGroup.add(stripe);
+      }
+    }
+    for (const xOff of [-1.9, 1.9]) {
+      for (let i = 0; i < 20; i++) {
+        const edge = new Mesh(new BoxGeometry(0.1, 0.02, 1.8), whiteMat);
+        edge.position.set(xOff, 0.11, -38 + i * 2 + 1);
+        this.centerGroup.add(edge);
+      }
+    }
+  }
   dispose() {
     this.disposed = true;
     if (this.animationId) cancelAnimationFrame(this.animationId);
@@ -29831,6 +30802,7 @@ var SpaceCenter3DScene = class {
     this.scene.add(rimLight);
     this.centerGroup = createSpaceCenterScene();
     this.scene.add(this.centerGroup);
+    this.augmentSpaceCenter();
     this.centerGroup.traverse((child) => {
       if (child instanceof Mesh) {
         child.castShadow = true;
