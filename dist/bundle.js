@@ -19604,6 +19604,24 @@ var LatheGeometry = class _LatheGeometry extends BufferGeometry {
     return new _LatheGeometry(data.points, data.segments, data.phiStart, data.phiLength);
   }
 };
+var CapsuleGeometry = class _CapsuleGeometry extends LatheGeometry {
+  constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
+    const path = new Path();
+    path.absarc(0, -length / 2, radius, Math.PI * 1.5, 0);
+    path.absarc(0, length / 2, radius, 0, Math.PI * 0.5);
+    super(path.getPoints(capSegments), radialSegments);
+    this.type = "CapsuleGeometry";
+    this.parameters = {
+      radius,
+      length,
+      capSegments,
+      radialSegments
+    };
+  }
+  static fromJSON(data) {
+    return new _CapsuleGeometry(data.radius, data.length, data.capSegments, data.radialSegments);
+  }
+};
 var CircleGeometry = class _CircleGeometry extends BufferGeometry {
   constructor(radius = 1, segments = 32, thetaStart = 0, thetaLength = Math.PI * 2) {
     super();
@@ -19797,6 +19815,165 @@ var ConeGeometry = class _ConeGeometry extends CylinderGeometry {
   }
   static fromJSON(data) {
     return new _ConeGeometry(data.radius, data.height, data.radialSegments, data.heightSegments, data.openEnded, data.thetaStart, data.thetaLength);
+  }
+};
+var PolyhedronGeometry = class _PolyhedronGeometry extends BufferGeometry {
+  constructor(vertices = [], indices = [], radius = 1, detail = 0) {
+    super();
+    this.type = "PolyhedronGeometry";
+    this.parameters = {
+      vertices,
+      indices,
+      radius,
+      detail
+    };
+    const vertexBuffer = [];
+    const uvBuffer = [];
+    subdivide(detail);
+    applyRadius(radius);
+    generateUVs();
+    this.setAttribute("position", new Float32BufferAttribute(vertexBuffer, 3));
+    this.setAttribute("normal", new Float32BufferAttribute(vertexBuffer.slice(), 3));
+    this.setAttribute("uv", new Float32BufferAttribute(uvBuffer, 2));
+    if (detail === 0) {
+      this.computeVertexNormals();
+    } else {
+      this.normalizeNormals();
+    }
+    function subdivide(detail2) {
+      const a = new Vector3();
+      const b = new Vector3();
+      const c = new Vector3();
+      for (let i = 0; i < indices.length; i += 3) {
+        getVertexByIndex(indices[i + 0], a);
+        getVertexByIndex(indices[i + 1], b);
+        getVertexByIndex(indices[i + 2], c);
+        subdivideFace(a, b, c, detail2);
+      }
+    }
+    function subdivideFace(a, b, c, detail2) {
+      const cols = detail2 + 1;
+      const v = [];
+      for (let i = 0; i <= cols; i++) {
+        v[i] = [];
+        const aj = a.clone().lerp(c, i / cols);
+        const bj = b.clone().lerp(c, i / cols);
+        const rows = cols - i;
+        for (let j = 0; j <= rows; j++) {
+          if (j === 0 && i === cols) {
+            v[i][j] = aj;
+          } else {
+            v[i][j] = aj.clone().lerp(bj, j / rows);
+          }
+        }
+      }
+      for (let i = 0; i < cols; i++) {
+        for (let j = 0; j < 2 * (cols - i) - 1; j++) {
+          const k = Math.floor(j / 2);
+          if (j % 2 === 0) {
+            pushVertex(v[i][k + 1]);
+            pushVertex(v[i + 1][k]);
+            pushVertex(v[i][k]);
+          } else {
+            pushVertex(v[i][k + 1]);
+            pushVertex(v[i + 1][k + 1]);
+            pushVertex(v[i + 1][k]);
+          }
+        }
+      }
+    }
+    function applyRadius(radius2) {
+      const vertex2 = new Vector3();
+      for (let i = 0; i < vertexBuffer.length; i += 3) {
+        vertex2.x = vertexBuffer[i + 0];
+        vertex2.y = vertexBuffer[i + 1];
+        vertex2.z = vertexBuffer[i + 2];
+        vertex2.normalize().multiplyScalar(radius2);
+        vertexBuffer[i + 0] = vertex2.x;
+        vertexBuffer[i + 1] = vertex2.y;
+        vertexBuffer[i + 2] = vertex2.z;
+      }
+    }
+    function generateUVs() {
+      const vertex2 = new Vector3();
+      for (let i = 0; i < vertexBuffer.length; i += 3) {
+        vertex2.x = vertexBuffer[i + 0];
+        vertex2.y = vertexBuffer[i + 1];
+        vertex2.z = vertexBuffer[i + 2];
+        const u = azimuth(vertex2) / 2 / Math.PI + 0.5;
+        const v = inclination(vertex2) / Math.PI + 0.5;
+        uvBuffer.push(u, 1 - v);
+      }
+      correctUVs();
+      correctSeam();
+    }
+    function correctSeam() {
+      for (let i = 0; i < uvBuffer.length; i += 6) {
+        const x0 = uvBuffer[i + 0];
+        const x1 = uvBuffer[i + 2];
+        const x2 = uvBuffer[i + 4];
+        const max = Math.max(x0, x1, x2);
+        const min = Math.min(x0, x1, x2);
+        if (max > 0.9 && min < 0.1) {
+          if (x0 < 0.2) uvBuffer[i + 0] += 1;
+          if (x1 < 0.2) uvBuffer[i + 2] += 1;
+          if (x2 < 0.2) uvBuffer[i + 4] += 1;
+        }
+      }
+    }
+    function pushVertex(vertex2) {
+      vertexBuffer.push(vertex2.x, vertex2.y, vertex2.z);
+    }
+    function getVertexByIndex(index, vertex2) {
+      const stride = index * 3;
+      vertex2.x = vertices[stride + 0];
+      vertex2.y = vertices[stride + 1];
+      vertex2.z = vertices[stride + 2];
+    }
+    function correctUVs() {
+      const a = new Vector3();
+      const b = new Vector3();
+      const c = new Vector3();
+      const centroid = new Vector3();
+      const uvA = new Vector2();
+      const uvB = new Vector2();
+      const uvC = new Vector2();
+      for (let i = 0, j = 0; i < vertexBuffer.length; i += 9, j += 6) {
+        a.set(vertexBuffer[i + 0], vertexBuffer[i + 1], vertexBuffer[i + 2]);
+        b.set(vertexBuffer[i + 3], vertexBuffer[i + 4], vertexBuffer[i + 5]);
+        c.set(vertexBuffer[i + 6], vertexBuffer[i + 7], vertexBuffer[i + 8]);
+        uvA.set(uvBuffer[j + 0], uvBuffer[j + 1]);
+        uvB.set(uvBuffer[j + 2], uvBuffer[j + 3]);
+        uvC.set(uvBuffer[j + 4], uvBuffer[j + 5]);
+        centroid.copy(a).add(b).add(c).divideScalar(3);
+        const azi = azimuth(centroid);
+        correctUV(uvA, j + 0, a, azi);
+        correctUV(uvB, j + 2, b, azi);
+        correctUV(uvC, j + 4, c, azi);
+      }
+    }
+    function correctUV(uv, stride, vector, azimuth2) {
+      if (azimuth2 < 0 && uv.x === 1) {
+        uvBuffer[stride] = uv.x - 1;
+      }
+      if (vector.x === 0 && vector.z === 0) {
+        uvBuffer[stride] = azimuth2 / 2 / Math.PI + 0.5;
+      }
+    }
+    function azimuth(vector) {
+      return Math.atan2(vector.z, -vector.x);
+    }
+    function inclination(vector) {
+      return Math.atan2(-vector.y, Math.sqrt(vector.x * vector.x + vector.z * vector.z));
+    }
+  }
+  copy(source) {
+    super.copy(source);
+    this.parameters = Object.assign({}, source.parameters);
+    return this;
+  }
+  static fromJSON(data) {
+    return new _PolyhedronGeometry(data.vertices, data.indices, data.radius, data.details);
   }
 };
 var _v0 = /* @__PURE__ */ new Vector3();
@@ -20758,6 +20935,179 @@ function toJSON$1(shapes, options, data) {
   if (options.extrudePath !== void 0) data.options.extrudePath = options.extrudePath.toJSON();
   return data;
 }
+var IcosahedronGeometry = class _IcosahedronGeometry extends PolyhedronGeometry {
+  constructor(radius = 1, detail = 0) {
+    const t = (1 + Math.sqrt(5)) / 2;
+    const vertices = [
+      -1,
+      t,
+      0,
+      1,
+      t,
+      0,
+      -1,
+      -t,
+      0,
+      1,
+      -t,
+      0,
+      0,
+      -1,
+      t,
+      0,
+      1,
+      t,
+      0,
+      -1,
+      -t,
+      0,
+      1,
+      -t,
+      t,
+      0,
+      -1,
+      t,
+      0,
+      1,
+      -t,
+      0,
+      -1,
+      -t,
+      0,
+      1
+    ];
+    const indices = [
+      0,
+      11,
+      5,
+      0,
+      5,
+      1,
+      0,
+      1,
+      7,
+      0,
+      7,
+      10,
+      0,
+      10,
+      11,
+      1,
+      5,
+      9,
+      5,
+      11,
+      4,
+      11,
+      10,
+      2,
+      10,
+      7,
+      6,
+      7,
+      1,
+      8,
+      3,
+      9,
+      4,
+      3,
+      4,
+      2,
+      3,
+      2,
+      6,
+      3,
+      6,
+      8,
+      3,
+      8,
+      9,
+      4,
+      9,
+      5,
+      2,
+      4,
+      11,
+      6,
+      2,
+      10,
+      8,
+      6,
+      7,
+      9,
+      8,
+      1
+    ];
+    super(vertices, indices, radius, detail);
+    this.type = "IcosahedronGeometry";
+    this.parameters = {
+      radius,
+      detail
+    };
+  }
+  static fromJSON(data) {
+    return new _IcosahedronGeometry(data.radius, data.detail);
+  }
+};
+var OctahedronGeometry = class _OctahedronGeometry extends PolyhedronGeometry {
+  constructor(radius = 1, detail = 0) {
+    const vertices = [
+      1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      -1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      -1
+    ];
+    const indices = [
+      0,
+      2,
+      4,
+      0,
+      4,
+      3,
+      0,
+      3,
+      5,
+      0,
+      5,
+      2,
+      1,
+      2,
+      5,
+      1,
+      5,
+      3,
+      1,
+      3,
+      4,
+      1,
+      4,
+      2
+    ];
+    super(vertices, indices, radius, detail);
+    this.type = "OctahedronGeometry";
+    this.parameters = {
+      radius,
+      detail
+    };
+  }
+  static fromJSON(data) {
+    return new _OctahedronGeometry(data.radius, data.detail);
+  }
+};
 var RingGeometry = class _RingGeometry extends BufferGeometry {
   constructor(innerRadius = 0.5, outerRadius = 1, thetaSegments = 32, phiSegments = 1, thetaStart = 0, thetaLength = Math.PI * 2) {
     super();
@@ -22608,7 +22958,15 @@ var STAR_SYSTEMS = [
   { name: "Struve 2398 B", nameCN: "\u65AF\u7279\u9C81\u7EF42398 B", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3.5V", mass: 5371e26, radius: 3288e5, temperature: 3210, color: 16724770, planets: 0 },
   { name: "Groombridge 34 A", nameCN: "\u683C\u9C81\u59C6\u5E03\u91CC\u594734 A", distance: 11.62, ra: 0.3545, dec: 0.7536, starType: "M1.5V", mass: 8155e26, radius: 4032e5, temperature: 3600, color: 16729139, planets: 1 },
   { name: "Tau Ceti", nameCN: "\u9CB8\u9C7C\u5EA7\u03C4\u661F", distance: 11.75, ra: 0.3664, dec: -0.2767, starType: "G8V", mass: 1511e27, radius: 6909e5, temperature: 5344, color: 16768426, planets: 4 },
-  { name: "Epsilon Indi", nameCN: "\u5370\u7B2C\u5B89\u5EA7\u03B5\u661F", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 }
+  { name: "Epsilon Indi", nameCN: "\u5370\u7B2C\u5B89\u5EA7\u03B5\u661F", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 },
+  // --- 新增星系 ---
+  { name: "Gliese 581", nameCN: "\u683C\u5229\u6CFD581", distance: 20.42, ra: 3.8768, dec: -0.101, starType: "M3V", mass: 7086e26, radius: 3895e5, temperature: 3487, color: 16729139, planets: 6 },
+  { name: "TRAPPIST-1", nameCN: "\u7279\u62C9\u6BD4\u65AF\u7279-1", distance: 39.6, ra: 5.508, dec: 0.0966, starType: "M8V", mass: 1776e26, radius: 8178e4, temperature: 2566, color: 16724770, planets: 7 },
+  { name: "HD 219134", nameCN: "HD 219134", distance: 21.4, ra: 3.7534, dec: 0.6203, starType: "K3V", mass: 1428e27, radius: 5479e5, temperature: 4699, color: 16755302, planets: 6 },
+  { name: "LHS 1140", nameCN: "LHS 1140", distance: 40.7, ra: 0.1563, dec: -0.0997, starType: "M4.5V", mass: 1286e26, radius: 1854e5, temperature: 3134, color: 16729139, planets: 2 },
+  { name: "Wolf 1061", nameCN: "\u6C83\u5C14\u592B1061", distance: 13.82, ra: 3.7729, dec: -0.1592, starType: "M3.5V", mass: 4765e26, radius: 2723e5, temperature: 3342, color: 16729139, planets: 3 },
+  { name: "Kapteyn", nameCN: "\u5361\u666E\u5766\u661F", distance: 12.83, ra: 0.636, dec: -0.7645, starType: "M1V", mass: 7906e26, radius: 492e6, temperature: 3570, color: 16733491, planets: 2 },
+  { name: "GJ 1214", nameCN: "GJ 1214", distance: 47.5, ra: 4.9179, dec: 0.1844, starType: "M4.5V", mass: 2475e26, radius: 1862e5, temperature: 3026, color: 16729139, planets: 1 }
 ];
 var TRISOLARIS_SYSTEM = [
   // 三体星A — 主序G型恒星（类似太阳）
@@ -22622,19 +22980,34 @@ var TRISOLARIS_SYSTEM = [
   { name: "Trisolaris", nameCN: "\u4E09\u4F53\u884C\u661F", type: "planet", mass: 45e23, radius: 58e5, parent: "Trisolaris_A", semiMajorAxis: 11e9, eccentricity: 0.35, inclination: 0.08, longitudeOfAscendingNode: 1.5, argumentOfPeriapsis: 0.9, meanAnomalyAtEpoch: 1.8, orbitalPeriod: 12e6, rotationPeriod: 14e4, color: 11167283, color2: 8930338, hasAtmosphere: true, hasRings: false, textureType: "trisolaris", albedo: 0.18, axialTilt: 0.02 }
 ];
 var ACHIEVEMENTS = [
+  // --- 原有成就 ---
   { id: "reverse_colonization", name: "\u53CD\u5411\u6B96\u6C11", description: "\u5728\u4E09\u4F53\u884C\u661F\u4E0A\u6210\u529F\u7740\u9646\u2014\u2014\u4EBA\u7C7B\u5148\u4E8E\u4E09\u4F53\u4EBA\u5B8C\u6210\u4E86\u661F\u9645\u6B96\u6C11", icon: "\u{1FA90}" },
   { id: "first_orbit", name: "\u9996\u6B21\u5165\u8F68", description: "\u5C06\u706B\u7BAD\u9001\u5165\u7A33\u5B9A\u8F68\u9053", icon: "\u{1F6F0}\uFE0F" },
   { id: "mun_landing", name: "\u6708\u7403\u6F2B\u6B65", description: "\u5728\u6708\u7403\u4E0A\u7740\u9646", icon: "\u{1F315}" },
   { id: "mars_landing", name: "\u7EA2\u8272\u661F\u7403", description: "\u5728\u706B\u661F\u4E0A\u7740\u9646", icon: "\u{1F534}" },
   { id: "warp_unlocked", name: "\u66F2\u901F\u7A81\u7834", description: "\u89E3\u9501\u66F2\u901F\u5F15\u64CE", icon: "\u26A1" },
-  { id: "interstellar", name: "\u661F\u9645\u65C5\u884C\u8005", description: "\u9996\u6B21\u66F2\u901F\u8DC3\u8FC1\u81F3\u53E6\u4E00\u4E2A\u661F\u7CFB", icon: "\u{1F30C}" }
+  { id: "interstellar", name: "\u661F\u9645\u65C5\u884C\u8005", description: "\u9996\u6B21\u66F2\u901F\u8DC3\u8FC1\u81F3\u53E6\u4E00\u4E2A\u661F\u7CFB", icon: "\u{1F30C}" },
+  // --- 新增成就 ---
+  { id: "jupiter_flyby", name: "\u6728\u661F\u98DE\u63A0", description: "\u9996\u6B21\u98DE\u8D8A\u6728\u661F\u5F15\u529B\u5F71\u54CD\u8303\u56F4", icon: "\u{1F7E4}" },
+  { id: "saturn_rings", name: "\u571F\u661F\u73AF\u7A7F\u8D8A", description: "\u7A7F\u8D8A\u571F\u661F\u73AF\u5E73\u9762", icon: "\u{1F48D}" },
+  { id: "pluto_visit", name: "\u51A5\u738B\u661F\u8BBF\u5BA2", description: "\u62B5\u8FBE\u51A5\u738B\u661F\u2014\u2014\u592A\u9633\u7CFB\u7684\u8FB9\u754C", icon: "\u2744\uFE0F" },
+  { id: "grand_tour", name: "\u5927\u65C5\u884C", description: "\u98DE\u8D8A\u6728\u661F\u3001\u571F\u661F\u3001\u5929\u738B\u661F\u548C\u6D77\u738B\u661F\u56DB\u9897\u5916\u884C\u661F", icon: "\u{1F680}" },
+  { id: "space_station", name: "\u7A7A\u95F4\u7AD9\u5EFA\u9020\u8005", description: "\u5728\u8F68\u9053\u4E0A\u5B8C\u6210\u5BF9\u63A5\u5E76\u7EC4\u88C5\u591A\u6A21\u5757\u7A7A\u95F4\u7AD9", icon: "\u{1F3D7}\uFE0F" },
+  { id: "eva_spacewalk", name: "\u9996\u6B21\u8231\u5916\u6D3B\u52A8", description: "\u5B8C\u6210\u9996\u6B21\u592A\u7A7A\u884C\u8D70", icon: "\u{1F468}\u200D\u{1F680}" },
+  { id: "fusion_drive", name: "\u805A\u53D8\u5148\u9A71", description: "\u9996\u6B21\u4F7F\u7528\u805A\u53D8\u5F15\u64CE\u5B8C\u6210\u98DE\u884C", icon: "\u269B\uFE0F" },
+  { id: "deep_space", name: "\u6DF1\u7A7A\u63A2\u6D4B", description: "\u5C06\u63A2\u6D4B\u5668\u9001\u81F3\u8DDD\u592A\u9633100AU\u4EE5\u5916\u7684\u6DF1\u7A7A", icon: "\u{1F52D}" },
+  { id: "tau_ceti_arrival", name: "\u9CB8\u9C7C\u5EA7\u62D3\u8352\u8005", description: "\u66F2\u901F\u8DC3\u8FC1\u81F3\u9CB8\u9C7C\u5EA7\u03C4\u661F\u7CFB\u5E76\u8FDB\u5165\u5176\u884C\u661F\u8F68\u9053", icon: "\u{1F40B}" },
+  { id: "colony_built", name: "\u661F\u9645\u6B96\u6C11", description: "\u5728\u5730\u5916\u5929\u4F53\u4E0A\u90E8\u7F72\u6B96\u6C11\u5730\u6A21\u5757", icon: "\u{1F3D9}\uFE0F" },
+  { id: "asteroid_redirect", name: "\u5C0F\u884C\u661F\u6355\u83B7", description: "\u6539\u53D8\u4E00\u9897\u5C0F\u884C\u661F\u7684\u8F68\u9053", icon: "\u2604\uFE0F" },
+  { id: "all_planets", name: "\u592A\u9633\u7CFB\u5927\u6EE1\u8D2F", description: "\u5728\u592A\u9633\u7CFB\u6240\u6709\u884C\u661F\u4E0A\u5B8C\u6210\u7740\u9646", icon: "\u{1F3C6}" },
+  { id: "trappist_arrival", name: "TRAPPIST\u63A2\u9669\u5BB6", description: "\u62B5\u8FBETRAPPIST-1\u661F\u7CFB\u5E76\u63A2\u8BBF\u5176\u4E03\u9897\u884C\u661F\u4E4B\u4E00", icon: "\u{1F5FA}\uFE0F" }
 ];
 var ROCKET_PARTS = [
   // ===== 指挥舱 (Command Pods) =====
-  { id: "capsule_mk1", name: "Mk1 \u6307\u6325\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5355\u5EA7\u518D\u5165\u8FD4\u56DE\u8231" },
-  { id: "capsule_mk2", name: "Mk2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "\u53CC\u5EA7\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u5C4F\u853D" },
-  { id: "capsule_mk3", name: "Mk3 \u4E58\u5458\u8231", type: "command", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u56DB\u5EA7\u4E58\u5458\u8231\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1" },
-  { id: "probe_core", name: "\u63A2\u6D4B\u5668\u6838\u5FC3", type: "command", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u65E0\u4EBA\u63A7\u5236\u5355\u5143" },
+  { id: "capsule_mk1", name: "Mk1 \u6307\u6325\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5355\u5EA7\u518D\u5165\u8FD4\u56DE\u8231\uFF0C\u7ECF\u5178\u6C34\u661F\u8BA1\u5212\u98CE\u683C" },
+  { id: "capsule_mk2", name: "Mk1-2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "\u53CC\u5EA7\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u5C4F\u853D\uFF0C\u963F\u6CE2\u7F57\u98CE\u683C" },
+  { id: "capsule_mk3", name: "Mk3 \u4E58\u5458\u8231", type: "command", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u56DB\u5EA7\u4E58\u5458\u8231\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1\uFF0C\u730E\u6237\u5EA7\u98CE\u683C" },
+  { id: "probe_core", name: "HECS \u63A2\u6D4B\u5668\u6838\u5FC3", type: "command", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u65E0\u4EBA\u63A7\u5236\u5355\u5143\uFF0C\u5185\u7F6E\u9640\u87BA\u4EEA\u4E0ESAS" },
   { id: "cmd_pod_mk2", name: "Mk2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 4320, description: "\u53CC\u4EBA\u5EA7\u6307\u6325\u8231\uFF0C\u914D\u5907\u5148\u8FDB\u9632\u70ED\u7CFB\u7EDF\u4E0E RCS \u63A8\u8FDB\u5668\uFF0C\u9002\u7528\u4E8E\u6708\u7403\u8FD4\u56DE\u4EFB\u52A1" },
   { id: "cmd_pod_mk3", name: "Mk3 \u6307\u6325\u8231", type: "command", mass: 3500, fuelMass: 0, thrust: 0, isp: 0, cost: 6300, description: "\u4E09\u4EBA\u5EA7\u5927\u578B\u6307\u6325\u8231\uFF0C\u5177\u5907\u957F\u5BFF\u547D\u751F\u547D\u7EF4\u6301\u7CFB\u7EDF\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u8F7D\u4EBA\u4EFB\u52A1" },
   { id: "cmd_cabin_mk1", name: "Mk1 \u4E58\u5458\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 2200, description: "\u5355\u4EBA\u4E58\u5458\u8231\uFF0C\u65E0\u518D\u5165\u80FD\u529B\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u9A7B\u7559\u6216\u4E2D\u8F6C\u8FD0\u8F93" },
@@ -22642,11 +23015,11 @@ var ROCKET_PARTS = [
   { id: "probe_core_mk2", name: "\u63A2\u6D4B\u5668\u6838\u5FC3 Mk2", type: "command", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 800, description: "\u5347\u7EA7\u7248\u65E0\u4EBA\u63A7\u5236\u6838\u5FC3\uFF0C\u652F\u6301 SAS \u4E09\u8F74\u7A33\u5B9A\u4E0E\u8FDC\u7A0B\u6307\u4EE4\u7F16\u7A0B" },
   { id: "cmd_cockpit", name: "\u98DE\u884C\u5EA7\u8231", type: "command", mass: 180, fuelMass: 0, thrust: 0, isp: 0, cost: 1200, description: "\u5355\u4EBA\u5927\u6C14\u5C42\u5185\u98DE\u884C\u5EA7\u8231\uFF0C\u914D\u5907\u5F39\u5C04\u5EA7\u6905\uFF0C\u9002\u7528\u4E8E\u822A\u7A7A\u5668\u4E0E\u4E9A\u8F68\u9053\u98DE\u884C" },
   // ===== 燃料箱 (Fuel Tanks) =====
-  { id: "fuel_small", name: "\u5C0F\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 200, fuelMass: 4e3, thrust: 0, isp: 0, cost: 30, description: "\u7D27\u51D1\u578B\u71C3\u6599\u7BB1" },
-  { id: "fuel_medium", name: "\u4E2D\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 1e4, thrust: 0, isp: 0, cost: 60, description: "\u6807\u51C6\u71C3\u6599\u7BB1" },
-  { id: "fuel_large", name: "\u5927\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 800, fuelMass: 25e3, thrust: 0, isp: 0, cost: 120, description: "\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1" },
-  { id: "fuel_xl", name: "\u8D85\u5927\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 1500, fuelMass: 5e4, thrust: 0, isp: 0, cost: 250, description: "\u5DE8\u578B\u71C3\u6599\u50A8\u7F50" },
-  { id: "fuel_nuclear", name: "\u6838\u71C3\u6599\u7535\u6C60", type: "fuel", mass: 300, fuelMass: 2e3, thrust: 0, isp: 0, cost: 400, description: "\u79BB\u5B50\u5F15\u64CE\u7528\u6838\u71C3\u6599" },
+  { id: "fuel_small", name: "FL-T100 \u71C3\u6599\u7BB1", type: "fuel", mass: 200, fuelMass: 4e3, thrust: 0, isp: 0, cost: 30, description: "\u7D27\u51D1\u578B\u6DB2\u6C27\u7164\u6CB9\u71C3\u6599\u7BB1\uFF0C0.625m\u76F4\u5F84" },
+  { id: "fuel_medium", name: "FL-T200 \u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 1e4, thrust: 0, isp: 0, cost: 60, description: "\u6807\u51C61.25m\u76F4\u5F84\u71C3\u6599\u7BB1\uFF0C\u6700\u5E38\u7528\u7684\u82AF\u7EA7\u50A8\u7BB1" },
+  { id: "fuel_large", name: "FL-T400 \u71C3\u6599\u7BB1", type: "fuel", mass: 800, fuelMass: 25e3, thrust: 0, isp: 0, cost: 120, description: "\u5927\u5BB9\u91CF1.25m\u71C3\u6599\u7BB1\uFF0C\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u4E3B\u529B" },
+  { id: "fuel_xl", name: "FL-T800 \u71C3\u6599\u7BB1", type: "fuel", mass: 1500, fuelMass: 5e4, thrust: 0, isp: 0, cost: 250, description: "\u8D85\u5927\u5BB9\u91CF2.5m\u71C3\u6599\u7BB1\uFF0C\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
+  { id: "fuel_nuclear", name: "LV-N \u6838\u71C3\u6599\u7BB1", type: "fuel", mass: 300, fuelMass: 2e3, thrust: 0, isp: 0, cost: 400, description: "\u6DB2\u6C22\u50A8\u7BB1\uFF0C\u4E13\u4E3A\u6838\u70ED\u5F15\u64CE\u4F9B\u6599\uFF0C\u4F4E\u5BC6\u5EA6\u9AD8\u6BD4\u51B2" },
   { id: "fuel_mini", name: "\u8FF7\u4F60\u71C3\u6599\u7BB1", type: "fuel", mass: 100, fuelMass: 900, thrust: 0, isp: 0, cost: 180, description: "\u8D85\u5C0F\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u7CFB\u7EDF" },
   { id: "fuel_toroidal", name: "Toroidal \u73AF\u5F62\u71C3\u6599\u7BB1", type: "fuel", mass: 80, fuelMass: 820, thrust: 0, isp: 0, cost: 200, description: "\u73AF\u5F62\u71C3\u6599\u7BB1\uFF0C\u53EF\u73AF\u7ED5\u5176\u4ED6\u90E8\u4EF6\u5B89\u88C5\uFF0C\u8282\u7701\u8F74\u5411\u7A7A\u95F4" },
   { id: "fuel_mk2_medium", name: "\u4E2D\u578B\u71C3\u6599\u7BB1 Mk2", type: "fuel", mass: 500, fuelMass: 4e3, thrust: 0, isp: 0, cost: 800, description: "Mk2 \u7CFB\u5217\u4E2D\u578B\u71C3\u6599\u7BB1\uFF0C\u91C7\u7528\u822A\u7A7A\u7EA7\u94DD\u5408\u91D1\u58F3\u4F53\uFF0C\u517C\u987E\u7ED3\u6784\u4E0E\u50A8\u6CB9" },
@@ -22660,12 +23033,12 @@ var ROCKET_PARTS = [
   { id: "fuel_x200_xl", name: "X200 \u71C3\u6599\u7BB1(\u8D85\u5927)", type: "fuel", mass: 2e3, fuelMass: 18e3, thrust: 0, isp: 0, cost: 2500, description: "X200 \u7CFB\u5217\u8D85\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1\uFF0C\u6DF1\u7A7A\u4EFB\u52A1\u4E3B\u529B\u50A8\u7BB1" },
   { id: "fuel_kerbodyne_sx", name: "Kerbodyne S-X \u71C3\u6599\u7BB1", type: "fuel", mass: 4e3, fuelMass: 36e3, thrust: 0, isp: 0, cost: 5e3, description: "Kerbodyne \u8D85\u5927\u578B S-X \u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\u50A8\u7BB1" },
   // ===== 引擎 (Engines) =====
-  { id: "engine_chem", name: "\u5316\u5B66\u5F15\u64CE", type: "engine", mass: 500, fuelMass: 0, thrust: 2e5, isp: 350, cost: 50, description: "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE" },
-  { id: "engine_heavy", name: "\u91CD\u578B\u5347\u529B\u5F15\u64CE", type: "engine", mass: 1e3, fuelMass: 0, thrust: 5e5, isp: 320, cost: 100, description: "\u5927\u63A8\u529B\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8F7D\u8377" },
-  { id: "engine_ion", name: "\u79BB\u5B50\u5F15\u64CE", type: "engine", mass: 200, fuelMass: 0, thrust: 5e3, isp: 4200, cost: 300, description: "\u8D85\u9AD8\u6548\u7535\u63A8\u8FDB\u7CFB\u7EDF" },
-  { id: "engine_nuclear", name: "\u6838\u5F15\u64CE", type: "engine", mass: 1500, fuelMass: 0, thrust: 15e4, isp: 1800, cost: 500, description: "\u6838\u70ED\u63A8\u8FDB\u7CFB\u7EDF" },
-  { id: "engine_aerospike", name: "\u6C14\u52A8\u585E\u5F0F\u5F15\u64CE", type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 450, cost: 600, description: "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1" },
-  { id: "engine_vector", name: "\u77E2\u91CF\u63A8\u529B\u5F15\u64CE", type: "engine", mass: 800, fuelMass: 0, thrust: 35e4, isp: 380, cost: 250, description: "\u63A8\u529B\u77E2\u91CF\u63A7\u5236" },
+  { id: "engine_chem", name: 'LV-T30 "Reliant" \u4FE1\u8D56\u5F15\u64CE', type: "engine", mass: 500, fuelMass: 0, thrust: 2e5, isp: 350, cost: 50, description: "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE\uFF0C\u65E0\u63A8\u529B\u77E2\u91CF\uFF0C\u9002\u7528\u4E8E\u52A9\u63A8\u7EA7" },
+  { id: "engine_heavy", name: 'LV-T45 "Swivel" \u65CB\u8F6C\u5F15\u64CE', type: "engine", mass: 1e3, fuelMass: 0, thrust: 5e5, isp: 320, cost: 100, description: "\u5927\u63A8\u529B\u63A8\u529B\u77E2\u91CF\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u82AF\u7EA7\u4E3B\u5F15\u64CE" },
+  { id: "engine_ion", name: 'IX-6315 "Dawn" \u79BB\u5B50\u5F15\u64CE', type: "engine", mass: 200, fuelMass: 0, thrust: 5e3, isp: 4200, cost: 300, description: "\u6C19\u79BB\u5B50\u7535\u63A8\u8FDB\u7CFB\u7EDF\uFF0C\u8D85\u9AD8\u6BD4\u51B2\uFF0C\u6DF1\u7A7A\u4EFB\u52A1\u9996\u9009" },
+  { id: "engine_nuclear", name: 'LV-N "NERVA" \u6838\u70ED\u5F15\u64CE', type: "engine", mass: 1500, fuelMass: 0, thrust: 15e4, isp: 1800, cost: 500, description: "\u6838\u70ED\u63A8\u8FDB\u7CFB\u7EDF\uFF0C\u4F7F\u7528\u6DB2\u6C22\u4F5C\u4E3A\u5DE5\u8D28\uFF0C\u884C\u661F\u9645\u8F6C\u79FB\u5229\u5668" },
+  { id: "engine_aerospike", name: 'J-33 "Aerospike" \u6C14\u585E\u5F15\u64CE', type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 450, cost: 600, description: "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1\uFF0C\u5168\u9AD8\u5EA6\u6052\u5B9A\u6027\u80FD\uFF0C\u5355\u7EA7\u5165\u8F68\u9996\u9009" },
+  { id: "engine_vector", name: 'RE-M3 "Vector" \u77E2\u91CF\u5F15\u64CE', type: "engine", mass: 800, fuelMass: 0, thrust: 35e4, isp: 380, cost: 250, description: "\u5927\u89D2\u5EA6\u63A8\u529B\u77E2\u91CF\u63A7\u5236\uFF0C\u822A\u5929\u98DE\u673A\u4E3B\u5F15\u64CE\u98CE\u683C" },
   { id: "engine_thrust", name: '"Thrust" \u91CD\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 500, fuelMass: 0, thrust: 25e4, isp: 280, cost: 3500, description: "\u4E2D\u7B49\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u91C7\u7528\u71C3\u6C14\u53D1\u751F\u5668\u5FAA\u73AF\uFF0C\u9002\u7528\u4E8E\u4E0A\u9762\u7EA7\u6216\u52A9\u63A8\u5668" },
   { id: "engine_thumper", name: '"Thumper" \u5927\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 1800, fuelMass: 0, thrust: 12e5, isp: 270, cost: 5800, description: "\u9AD8\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\uFF0C\u6D77\u5E73\u9762\u6027\u80FD\u4F18\u5F02" },
   { id: "engine_mammoth", name: '"Mammoth" \u5DE8\u517D\u5F15\u64CE', type: "engine", mass: 4e3, fuelMass: 0, thrust: 3e6, isp: 280, cost: 12e3, description: "\u8D85\u91CD\u578B\u63A8\u529B\u5F15\u64CE\uFF0C\u63A8\u529B\u582A\u6BD4\u56FA\u4F53\u52A9\u63A8\u5668\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
@@ -22683,14 +23056,14 @@ var ROCKET_PARTS = [
   { id: "booster_thumper", name: 'BACC "Thumper" \u56FA\u4F53\u52A9\u63A8\u5668', type: "booster", mass: 1500, fuelMass: 7e3, thrust: 3e5, isp: 175, cost: 850, description: "\u4E2D\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u71C3\u70E7\u65F6\u95F4\u8F83\u957F\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u589E\u63A8" },
   { id: "booster_srb_kd25k", name: 'S1 "SRB-KD25k" \u5927\u578B\u52A9\u63A8\u5668', type: "booster", mass: 4500, fuelMass: 22e3, thrust: 25e5, isp: 220, cost: 3500, description: "\u8D85\u5927\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u63A8\u529B\u5DE8\u5927\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u8D77\u98DE\u7EA7" },
   // ===== 降落伞 (Parachutes) =====
-  { id: "parachute", name: "\u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u4E00\u6B21\u6027\u964D\u843D\u4F1E canopy" },
-  { id: "parachute_drogue", name: "\u51CF\u901F\u4F1E", type: "parachute", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u9AD8\u901F\u4E0B\u964D\u5236\u52A8\u4F1E" },
+  { id: "parachute", name: "Mk16 \u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u6807\u51C6\u9876\u90E8\u5B89\u88C5\u964D\u843D\u4F1E\uFF0C\u518D\u5165\u51CF\u901F\u7528" },
+  { id: "parachute_drogue", name: "Mk2-R \u51CF\u901F\u4F1E", type: "parachute", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u9AD8\u901F\u4E0B\u964D\u5236\u52A8\u4F1E\uFF0C\u5148\u4E8E\u4E3B\u4F1E\u5C55\u5F00" },
   { id: "parachute_mk2r", name: "Mk2-R \u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 850, description: "\u5F84\u5411\u5B89\u88C5\u964D\u843D\u4F1E\uFF0C\u53EF\u5728\u4FA7\u9762\u5B89\u88C5\uFF0C\u9002\u7528\u4E8E\u5BBD\u4F53\u8FD4\u56DE\u8231" },
   { id: "parachute_mk25", name: "Mk25 \u964D\u843D\u4F1E", type: "parachute", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 1400, description: "\u5927\u578B\u4E3B\u964D\u843D\u4F1E\uFF0C\u5C55\u5F00\u9762\u79EF\u5927\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8F7D\u8377\u4F4E\u901F\u7740\u9646" },
   // ===== 气动部件 (Aerodynamics) =====
-  { id: "aero_fins", name: "\u6C14\u52A8\u5C3E\u7FFC", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u5927\u6C14\u4E2D\u4FDD\u6301\u7A33\u5B9A" },
-  { id: "aero_nosecone", name: "\u6574\u6D41\u5934\u9525", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B" },
-  { id: "aero_heatshield", name: "\u9694\u70ED\u76FE", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u70E7\u8680\u5F0F\u518D\u5165\u9632\u62A4" },
+  { id: "aero_fins", name: "AV-R8 \u7FFC\u9762", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u5168\u52A8\u5C3E\u7FFC\uFF0C\u5927\u6C14\u5C42\u5185\u59FF\u6001\u63A7\u5236" },
+  { id: "aero_nosecone", name: "Mk16 \u9F3B\u9525", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B\u7684\u6D41\u7EBF\u578B\u5934\u9525" },
+  { id: "aero_heatshield", name: "\u70ED\u76FE Mk1", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u70E7\u8680\u5F0F\u518D\u5165\u9632\u62A4\u76FE\uFF0C\u5355\u6B21\u4F7F\u7528" },
   { id: "aero_basic_fin", name: "\u57FA\u672C\u5C3E\u7FFC", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u57FA\u7840\u56FA\u5B9A\u5C3E\u7FFC\uFF0C\u63D0\u4F9B\u5927\u6C14\u5C42\u5185\u98DE\u884C\u7A33\u5B9A\u6027" },
   { id: "aero_adv_fin", name: "\u9AD8\u7EA7\u5C3E\u7FFC", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 150, description: "\u589E\u5F3A\u578B\u5C3E\u7FFC\uFF0C\u9762\u79EF\u66F4\u5927\uFF0C\u9002\u7528\u4E8E\u9AD8\u901F\u5927\u6C14\u98DE\u884C" },
   { id: "aero_av_r8", name: "AV-R8 \u7FFC\u9762", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 220, description: "\u5168\u52A8\u7FFC\u9762\uFF0C\u53EF\u504F\u8F6C\u63A7\u5236\u98DE\u884C\u59FF\u6001\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u5C42\u5185\u5236\u5BFC" },
@@ -22713,16 +23086,16 @@ var ROCKET_PARTS = [
   { id: "structural_octagon", name: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6", type: "structural", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6\uFF0C\u53EF\u5728\u516B\u4E2A\u65B9\u5411\u5B89\u88C5\u5C0F\u578B\u90E8\u4EF6\uFF0C\u9002\u7528\u4E8E\u4F20\u611F\u5668\u6216 RCS \u5E03\u5C40" },
   { id: "structural_c7_adapter", name: "C7 \u9002\u914D\u5668", type: "structural", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "C7 \u822A\u7A7A\u7CFB\u5217\u9002\u914D\u5668\uFF0C\u6D41\u7EBF\u578B\u8FC7\u6E21\u6BB5\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u98DE\u884C\u5668" },
   // ===== RCS 和推进 (RCS & Propulsion) =====
-  { id: "rcs_block", name: "RCS \u63A8\u8FDB\u5668\u7EC4", type: "rcs", mass: 30, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u56DB\u5411\u59FF\u6001\u63A7\u5236" },
-  { id: "rcs_tank", name: "RCS \u5355\u7EC4\u5143\u50A8\u7BB1", type: "rcs", mass: 50, fuelMass: 200, thrust: 0, isp: 0, cost: 20, description: "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58" },
+  { id: "rcs_block", name: "RCS \u5757 RV-105", type: "rcs", mass: 30, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u56DB\u5411\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u5668\u5757\uFF0C\u6807\u51C6RCS" },
+  { id: "rcs_tank", name: "FL-R25 RCS \u50A8\u7BB1", type: "rcs", mass: 50, fuelMass: 200, thrust: 0, isp: 0, cost: 20, description: "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58\u7BB1\uFF0C\u8054\u6C28" },
   { id: "rcs_rv105", name: "RCS \u5757 RV-105", type: "rcs", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 45, description: "\u6807\u51C6 RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u56DB\u5411\u55B7\u53E3\uFF0C\u63D0\u4F9B\u59FF\u6001\u63A7\u5236\u4E0E\u5E73\u79FB\u673A\u52A8" },
   { id: "rcs_rv1x", name: "RCS \u5757 RV-1X", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u5C0F\u578B RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u7CBE\u5BC6\u59FF\u6001\u63A7\u5236" },
   { id: "rcs_linear", name: "\u7EBF\u6027 RCS \u7AEF\u53E3", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5355\u5411\u7EBF\u6027 RCS \u7AEF\u53E3\uFF0C\u6CBF\u5355\u4E00\u65B9\u5411\u55B7\u5C04\uFF0C\u53EF\u5B9A\u5411\u5B89\u88C5" },
   { id: "rcs_tank_small", name: "RCS \u71C3\u6599\u7F50(\u5C0F)", type: "rcs", mass: 40, fuelMass: 200, thrust: 0, isp: 0, cost: 120, description: "\u5C0F\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u77ED\u9014\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
   { id: "rcs_tank_large", name: "RCS \u71C3\u6599\u7F50(\u5927)", type: "rcs", mass: 80, fuelMass: 400, thrust: 0, isp: 0, cost: 250, description: "\u5927\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
   // ===== 电力 (Electrical) =====
-  { id: "solar_panel", name: "\u592A\u9633\u80FD\u677F", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5C55\u5F00\u5F0F\u53D1\u7535\u9762\u677F" },
-  { id: "solar_array", name: "\u592A\u9633\u80FD\u9635\u5217", type: "solar", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217" },
+  { id: "solar_panel", name: "OX-4P \u592A\u9633\u80FD\u677F", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u53EF\u5C55\u5F00\u5F0F\u5149\u4F0F\u9762\u677F\uFF0C\u8FD1\u5730\u8F68\u9053\u4E3B\u529B\u7535\u6E90" },
+  { id: "solar_array", name: "Gigantor XL \u592A\u9633\u80FD\u9635\u5217", type: "solar", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217\uFF0C\u7A7A\u95F4\u7AD9\u7EA7\u53D1\u7535" },
   { id: "battery_z100", name: "\u7535\u6C60 Z-100", type: "solar", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5C0F\u578B\u5145\u7535\u7535\u6C60\uFF0C100 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F" },
   { id: "battery_z200", name: "\u7535\u6C60 Z-200", type: "solar", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 180, description: "\u4E2D\u578B\u5145\u7535\u7535\u6C60\uFF0C200 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668" },
   { id: "battery_z400", name: "\u7535\u6C60 Z-400", type: "solar", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 450, description: "\u5927\u578B\u5145\u7535\u7535\u6C60\uFF0C400 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u822A\u5929\u5668" },
@@ -22732,17 +23105,17 @@ var ROCKET_PARTS = [
   { id: "fuel_cell", name: "\u71C3\u6599\u7535\u6C60", type: "solar", mass: 70, fuelMass: 0, thrust: 0, isp: 0, cost: 1450, description: "\u6DB2\u6C22\u6DB2\u6C27\u71C3\u6599\u7535\u6C60\uFF0C\u6301\u7EED\u53D1\u7535\u540C\u65F6\u4EA7\u751F\u6C34\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u822A\u5929\u5668" },
   { id: "rtg", name: "\u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 6750, description: "\u949A-238 \u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A\uFF0C\u65E0\u9700\u5149\u7167\u6301\u7EED\u4F9B\u7535\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u4EFB\u52A1" },
   // ===== 通信 (Communication) =====
-  { id: "antenna_dish", name: "\u901A\u4FE1\u629B\u7269\u9762\u5929\u7EBF", type: "antenna", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u8FDC\u8DDD\u79BB\u901A\u4FE1" },
-  { id: "antenna_whip", name: "\u97AD\u72B6\u5929\u7EBF", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u8FD1\u8DDD\u79BB\u901A\u4FE1" },
+  { id: "antenna_dish", name: "CommTech-1 \u901A\u4FE1\u5929\u7EBF", type: "antenna", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u8FDC\u8DDD\u79BB\u6DF1\u7A7A\u901A\u4FE1\u629B\u7269\u9762\u5929\u7EBF" },
+  { id: "antenna_whip", name: "Comm-16 \u5929\u7EBF", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u8FD1\u8DDD\u79BB\u5168\u5411\u901A\u4FE1\u5929\u7EBF" },
   { id: "antenna_hg5", name: "\u901A\u4FE1\u5929\u7EBF HG-5", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u4E2D\u578B\u7EC4\u5408\u5929\u7EBF\uFF0C\u652F\u6301\u8FD1\u5730\u8F68\u9053\u4E0E\u6708\u7403\u8DDD\u79BB\u901A\u4FE1\uFF0C\u53EF\u6298\u53E0\u6536\u7EB3" },
   { id: "antenna_ra2", name: "\u901A\u4FE1\u5929\u7EBF RA-2", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 600, description: "\u4E2D\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8FBE\u884C\u661F\u9645\u8FD1\u8DDD\u8303\u56F4" },
   { id: "antenna_ra15", name: "\u901A\u4FE1\u5929\u7EBF RA-15", type: "antenna", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u5927\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5185\u884C\u661F\u7CFB\u8303\u56F4" },
   { id: "antenna_ra100", name: "\u901A\u4FE1\u5929\u7EBF RA-100", type: "antenna", mass: 400, fuelMass: 0, thrust: 0, isp: 0, cost: 6e3, description: "\u8D85\u5927\u578B\u6DF1\u7A7A\u901A\u4FE1\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5916\u884C\u661F\u7CFB\u53CA\u6DF1\u7A7A\u8303\u56F4" },
   { id: "antenna_88_88", name: "\u901A\u4FE1\u789F\u5F62\u5929\u7EBF 88-88", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u6298\u53E0\u5F0F\u789F\u5F62\u5929\u7EBF\uFF0C\u5B9A\u5411\u9AD8\u589E\u76CA\u901A\u4FE1\uFF0C\u9002\u7528\u4E8E\u884C\u661F\u9645\u6570\u636E\u4F20\u8F93" },
   // ===== 科学仪器 (Science) =====
-  { id: "science_lab", name: "\u79FB\u52A8\u79D1\u5B66\u5B9E\u9A8C\u5BA4", type: "science", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u968F\u65F6\u95F4\u4EA7\u751F\u79D1\u5B66\u70B9\u6570" },
-  { id: "science_sensor", name: "\u4F20\u611F\u5668\u9635\u5217", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668" },
-  { id: "science_comm", name: "\u901A\u4FE1\u7EC4\u4EF6", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u589E\u5F3A\u79D1\u5B66\u6570\u636E\u4F20\u8F93" },
+  { id: "science_lab", name: "MPL-LG-2 \u79FB\u52A8\u5B9E\u9A8C\u5BA4", type: "science", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u968F\u65F6\u95F4\u4EA7\u751F\u79D1\u5B66\u70B9\u6570\uFF0C\u53EF\u5728\u8F68\u6E05\u6D17\u4E0E\u91CD\u7F6E\u5B9E\u9A8C" },
+  { id: "science_sensor", name: "SC-9001 \u79D1\u5B66\u6A21\u5757", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668\u9635\u5217\uFF0C\u591A\u6CE2\u6BB5\u63A2\u6D4B" },
+  { id: "science_comm", name: "HG-5 \u9AD8\u589E\u76CA\u5929\u7EBF", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u589E\u5F3A\u79D1\u5B66\u6570\u636E\u4F20\u8F93\u80FD\u529B" },
   { id: "science_goop", name: "\u795E\u79D8\u9ECF\u6DB2", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 1800, description: "\u795E\u79D8\u7EFF\u8272\u9ECF\u6DB2\u89C2\u5BDF\u5B9E\u9A8C\uFF0C\u5728\u4E0D\u540C\u73AF\u5883\u4E0B\u4EA7\u751F\u4E0D\u540C\u79D1\u5B66\u6570\u636E" },
   { id: "science_matlab", name: "\u6750\u6599\u5B9E\u9A8C\u5BA4", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 3300, description: "\u6750\u6599\u79D1\u5B66\u5B9E\u9A8C\u5BA4\uFF0C\u7814\u7A76\u4E0D\u540C\u73AF\u5883\u4E0B\u6750\u6599\u6027\u80FD\u53D8\u5316\uFF0C\u4EA7\u51FA\u5927\u91CF\u79D1\u5B66\u6570\u636E" },
   { id: "science_barometer", name: "\u6C14\u538B\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, description: "\u5927\u6C14\u538B\u529B\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u9AD8\u5EA6\u4E0E\u5929\u4F53\u7684\u5927\u6C14\u538B\u6570\u636E" },
@@ -22751,18 +23124,18 @@ var ROCKET_PARTS = [
   { id: "science_atmo", name: "\u5927\u6C14\u5206\u6790\u4EEA", type: "science", mass: 8, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u5927\u6C14\u6210\u5206\u5206\u6790\u4EEA\uFF0C\u53EF\u5206\u6790\u5927\u6C14\u4E2D\u5404\u6C14\u4F53\u6210\u5206\u542B\u91CF\u4E0E\u6BD4\u4F8B" },
   { id: "science_thermo", name: "\u6E29\u5EA6\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u6E29\u5EA6\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u73AF\u5883\u4E0E\u5929\u4F53\u8868\u9762\u7684\u6E29\u5EA6\u6570\u636E" },
   // ===== 着陆部件 (Landing) =====
-  { id: "landing_legs", name: "\u7740\u9646\u652F\u67B6", type: "landing", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u53EF\u5C55\u5F00\u7740\u9646\u8D77\u843D\u67B6" },
-  { id: "landing_pads", name: "\u7740\u9646\u811A\u57AB", type: "landing", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5BBD\u5E95\u7740\u9646\u811A\u57AB" },
+  { id: "landing_legs", name: "LT-1 \u7740\u9646\u817F", type: "landing", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u53EF\u5C55\u5F00\u7740\u9646\u8D77\u843D\u67B6\uFF0C\u51CF\u9707\u5668\u8BBE\u8BA1" },
+  { id: "landing_pads", name: "LT-2 \u91CD\u578B\u7740\u9646\u817F", type: "landing", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5BBD\u5E95\u7740\u9646\u811A\u57AB\uFF0C\u91CD\u578B\u7740\u9646\u5668\u4E13\u7528" },
   { id: "landing_lt1", name: "\u7740\u9646\u817F LT-1", type: "landing", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u6807\u51C6\u7740\u9646\u817F\uFF0C\u53EF\u5C55\u5F00\u5F0F\u51CF\u9707\u652F\u6491\uFF0C\u9002\u7528\u4E8E\u4E2D\u5C0F\u578B\u7740\u9646\u5668" },
   { id: "landing_lt2", name: "\u7740\u9646\u817F LT-2", type: "landing", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u91CD\u578B\u7740\u9646\u817F\uFF0C\u52A0\u5F3A\u7ED3\u6784\u4E0E\u5927\u5C3A\u5BF8\u51CF\u9707\u5668\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u7740\u9646\u5668" },
   { id: "landing_lt5", name: "\u7740\u9646\u817F LT-5", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5FAE\u578B\u7740\u9646\u817F\uFF0C\u8F7B\u91CF\u5316\u8BBE\u8BA1\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668\u6216\u65E0\u4EBA\u7740\u9646\u5668" },
   { id: "landing_pad_small", name: "\u7740\u9646\u57AB(\u5C0F)", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u5C0F\u578B\u7740\u9646\u63A5\u89E6\u57AB\uFF0C\u5F84\u5411\u5B89\u88C5\uFF0C\u63D0\u4F9B\u989D\u5916\u7740\u9646\u7F13\u51B2" },
   // ===== 分离器 (Decouplers) =====
-  { id: "decoupler", name: "\u5206\u79BB\u5668", type: "decoupler", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E" },
-  { id: "decoupler_heavy", name: "\u91CD\u578B\u5206\u79BB\u5668", type: "decoupler", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u52A0\u56FA\u578B\uFF0C\u9002\u7528\u4E8E\u5927\u7EA7\u5206\u79BB" },
+  { id: "decoupler", name: "TD-06 \u5206\u79BB\u5668", type: "decoupler", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u6807\u51C6\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E\uFF0C0.625m" },
+  { id: "decoupler_heavy", name: "TD-25 \u5206\u79BB\u5668", type: "decoupler", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u52A0\u56FA\u578B\u5927\u76F4\u5F84\u5206\u79BB\u5668\uFF0C2.5m" },
   // ===== 适配器 (Adapters) =====
-  { id: "adapter_2_1", name: "2:1 \u9002\u914D\u5668", type: "adapter", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u7F29\u51CF\u76F4\u5F84" },
-  { id: "adapter_3_1", name: "3:1 \u9002\u914D\u5668", type: "adapter", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u591A\u5F15\u64CE\u5B89\u88C5\u5EA7" },
+  { id: "adapter_2_1", name: "FL-A5 \u9002\u914D\u5668", type: "adapter", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "1.25m\u21920.625m\u76F4\u5F84\u7F29\u51CF\u9002\u914D\u5668" },
+  { id: "adapter_3_1", name: "FL-A10 \u9002\u914D\u5668", type: "adapter", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "2.5m\u21921.25m\u591A\u5F15\u64CE\u5B89\u88C5\u5EA7" },
   // ===== 实用工具 (Utility) =====
   { id: "utility_dock_mk12", name: "\u5BF9\u63A5\u7AEF\u53E3 Mk1-2", type: "utility", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 280, description: "\u6807\u51C6\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u652F\u6301\u98DE\u8239\u95F4\u5BF9\u63A5\u4E0E\u71C3\u6599\u4F20\u8F93\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u4EFB\u52A1" },
   { id: "utility_dock_jr", name: "\u5BF9\u63A5\u7AEF\u53E3 Jr.", type: "utility", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5C0F\u578B\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u9002\u7528\u4E8E\u65E0\u4EBA\u63A2\u6D4B\u5668\u6216\u5C0F\u578B\u822A\u5929\u5668\u5BF9\u63A5" },
@@ -22770,7 +23143,43 @@ var ROCKET_PARTS = [
   { id: "utility_ladder_p1", name: "\u68AF\u5B50 P1", type: "utility", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u77ED\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u79FB\u52A8\u4F7F\u7528\uFF0C\u9002\u7528\u4E8E\u7740\u9646\u5668\u81F3\u5730\u9762" },
   { id: "utility_ladder_p2", name: "\u68AF\u5B50 P2", type: "utility", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 100, description: "\u957F\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u957F\u8DDD\u79BB\u79FB\u52A8\u4F7F\u7528" },
   { id: "utility_escape_tower", name: "\u9003\u751F\u5854", type: "utility", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u53D1\u5C04\u9003\u9038\u7CFB\u7EDF\u5854\u67B6\uFF0C\u7D27\u6025\u60C5\u51B5\u4E0B\u7275\u5F15\u6307\u6325\u8231\u8131\u79BB\u6545\u969C\u8FD0\u8F7D\u706B\u7BAD" },
-  { id: "utility_light", name: "\u7167\u660E\u706F", type: "utility", mass: 15, fuelMass: 0, thrust: 0, isp: 0, cost: 100, description: "LED \u7167\u660E\u706F\uFF0C\u53EF\u5B9A\u5411\u7167\u5C04\uFF0C\u9002\u7528\u4E8E\u591C\u95F4\u7740\u9646\u6216\u8231\u5916\u4F5C\u4E1A\u7167\u660E" }
+  { id: "utility_light", name: "\u7167\u660E\u706F", type: "utility", mass: 15, fuelMass: 0, thrust: 0, isp: 0, cost: 100, description: "LED \u7167\u660E\u706F\uFF0C\u53EF\u5B9A\u5411\u7167\u5C04\uFF0C\u9002\u7528\u4E8E\u591C\u95F4\u7740\u9646\u6216\u8231\u5916\u4F5C\u4E1A\u7167\u660E" },
+  // ===== KSPIE — 聚变引擎 (Fusion Engines) =====
+  { id: "fusion_tokamak", name: "\u6258\u5361\u9A6C\u514B\u805A\u53D8\u53CD\u5E94\u5806", type: "fusion", mass: 12e3, fuelMass: 0, thrust: 0, isp: 0, cost: 5e4, description: "\u6C18-\u6C1A\u6258\u5361\u9A6C\u514B\u78C1\u7EA6\u675F\u805A\u53D8\u53CD\u5E94\u5806\uFF0C\u6301\u7EED\u8F93\u51FAGW\u7EA7\u7535\u529B\uFF0C\u4E3A\u805A\u53D8\u5F15\u64CE\u4F9B\u80FD" },
+  { id: "fusion_inertial", name: "ICF \u60EF\u6027\u7EA6\u675F\u805A\u53D8\u5806", type: "fusion", mass: 8e3, fuelMass: 0, thrust: 0, isp: 0, cost: 38e3, description: "\u6FC0\u5149\u60EF\u6027\u7EA6\u675F\u805A\u53D8\u53CD\u5E94\u5806\uFF0C\u8109\u51B2\u5F0F\u70B9\u706B\uFF0C\u9002\u5408\u95F4\u6B47\u9AD8\u529F\u7387\u8F93\u51FA" },
+  { id: "engine_fusion_thermal", name: "\u70ED\u6838\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 6e3, fuelMass: 0, thrust: 8e5, isp: 2500, cost: 45e3, description: "\u6838\u70ED\u805A\u53D8\u63A8\u8FDB\uFF0C\u5229\u7528\u805A\u53D8\u7B49\u79BB\u5B50\u4F53\u52A0\u70ED\u63A8\u8FDB\u5242\uFF0C\u6BD4\u51B2\u8FDC\u8D85\u5316\u5B66\u5F15\u64CE" },
+  { id: "engine_fusion_direct", name: "\u76F4\u63A5\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 9e3, fuelMass: 0, thrust: 12e5, isp: 3500, cost: 65e3, description: "\u76F4\u63A5\u5C06\u805A\u53D8\u4EA7\u7269\u4F5C\u4E3A\u63A8\u8FDB\u5242\u55B7\u5C04\uFF0C\u63A8\u529B\u4E0E\u6BD4\u51B2\u517C\u987E\u7684\u7EC8\u6781\u63A8\u8FDB\u7CFB\u7EDF" },
+  { id: "fusion_fuel_tank", name: "\u805A\u53D8\u71C3\u6599\u50A8\u7F50", type: "fuel", mass: 2e3, fuelMass: 15e3, thrust: 0, isp: 0, cost: 12e3, description: "\u6C18-\u6C263\u805A\u53D8\u71C3\u6599\u50A8\u7F50\uFF0C\u627F\u53D7\u6781\u7AEF\u538B\u529B\u4E0E\u6E29\u5EA6\uFF0C\u4E3A\u805A\u53D8\u5F15\u64CE\u4F9B\u5E94\u71C3\u6599" },
+  { id: "fusion_generator", name: "\u805A\u53D8\u53D1\u7535\u673A\u7EC4", type: "fusion", mass: 4e3, fuelMass: 0, thrust: 0, isp: 0, cost: 22e3, description: "\u5C06\u805A\u53D8\u80FD\u91CF\u8F6C\u6362\u4E3A\u7535\u529B\u7684\u5927\u578B\u53D1\u7535\u673A\u7EC4\uFF0C\u4E3A\u98DE\u8239\u5168\u5957\u7CFB\u7EDF\u4F9B\u80FD" },
+  // ===== KSPIE — 曲速引擎 (Warp Drive) =====
+  { id: "warp_alcubierre", name: "\u963F\u5C14\u5E93\u522B\u96F7\u66F2\u901F\u5F15\u64CE", type: "warp", mass: 15e3, fuelMass: 0, thrust: 0, isp: 0, cost: 1e5, description: "\u901A\u8FC7\u5F2F\u66F2\u65F6\u7A7A\u5B9E\u73B0\u8D85\u5149\u901F\u822A\u884C\u7684\u66F2\u901F\u5F15\u64CE\uFF0C\u9700\u8981\u5F02\u7269\u8D28\u4F5C\u4E3A\u71C3\u6599" },
+  { id: "warp_drive_mk2", name: "\u66F2\u901F\u5F15\u64CE Mk2", type: "warp", mass: 18e3, fuelMass: 0, thrust: 0, isp: 0, cost: 15e4, description: "\u6539\u8FDB\u578B\u66F2\u901F\u5F15\u64CE\uFF0C\u66F4\u9AD8\u7684\u66F2\u901F\u5C42\u7EA7\u4E0A\u9650\uFF0C\u51CF\u5C11\u65F6\u7A7A\u5E94\u529B\u635F\u4F24" },
+  { id: "warp_fuel_tank", name: "\u5F02\u7269\u8D28\u50A8\u7F50", type: "warp", mass: 3e3, fuelMass: 500, thrust: 0, isp: 0, cost: 5e4, description: "\u50A8\u5B58\u8D1F\u8D28\u91CF\u5F02\u7269\u8D28\u7684\u7279\u6B8A\u5BB9\u5668\uFF0C\u4E3A\u66F2\u901F\u5F15\u64CE\u63D0\u4F9B\u66F2\u901F\u573A\u6240\u9700\u80FD\u91CF" },
+  // ===== KSPIE — 反物质引擎 (Antimatter) =====
+  { id: "antimatter_engine", name: "\u53CD\u7269\u8D28\u6E6E\u706D\u5F15\u64CE", type: "antimatter", mass: 7e3, fuelMass: 0, thrust: 2e6, isp: 1e4, cost: 2e5, description: "\u7269\u8D28-\u53CD\u7269\u8D28\u6E6E\u706D\u63A8\u8FDB\uFF0C\u5DF2\u77E5\u6700\u9AD8\u6BD4\u51B2\u7684\u63A8\u8FDB\u65B9\u5F0F\uFF0C\u7406\u8BBA\u6BD4\u51B2\u53EF\u8FBE\u767E\u4E07\u79D2" },
+  { id: "antimatter_tank", name: "\u53CD\u7269\u8D28\u78C1\u7EA6\u675F\u50A8\u7F50", type: "antimatter", mass: 5e3, fuelMass: 100, thrust: 0, isp: 0, cost: 8e4, description: "\u4F7F\u7528\u78C1\u60AC\u6D6E\u7EA6\u675F\u50A8\u5B58\u53CD\u8D28\u5B50\u7684\u8D85\u4F4E\u6E29\u50A8\u7F50\uFF0C\u4EFB\u4F55\u6CC4\u9732\u90FD\u662F\u707E\u96BE\u6027\u7684" },
+  { id: "antimatter_collector", name: "\u53CD\u7269\u8D28\u6536\u96C6\u5668", type: "antimatter", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 35e3, description: "\u4ECE\u884C\u661F\u78C1\u5C42\u6216\u592A\u9633\u98CE\u4E2D\u6536\u96C6\u53CD\u8D28\u5B50\u7684\u7535\u78C1\u6536\u96C6\u88C5\u7F6E" },
+  // ===== KSPIE — 等离子引擎 (Plasma) =====
+  { id: "plasma_vasimr", name: "VASIMR \u7B49\u79BB\u5B50\u5F15\u64CE", type: "plasma", mass: 3e3, fuelMass: 0, thrust: 5e4, isp: 6e3, cost: 28e3, description: "\u53EF\u53D8\u6BD4\u51B2\u78C1\u7B49\u79BB\u5B50\u706B\u7BAD\uFF0C\u63A8\u529B\u4E0E\u6BD4\u51B2\u53EF\u8C03\uFF0C\u9002\u5408\u884C\u661F\u9645\u9AD8\u901F\u8F6C\u79FB" },
+  { id: "plasma_magnet_nozzle", name: "\u78C1\u7B49\u79BB\u5B50\u55B7\u7BA1", type: "plasma", mass: 1500, fuelMass: 0, thrust: 3e4, isp: 8e3, cost: 18e3, description: "\u78C1\u7EA6\u675F\u7B49\u79BB\u5B50\u55B7\u7BA1\uFF0C\u5C06\u9AD8\u6E29\u7B49\u79BB\u5B50\u4F53\u5B9A\u5411\u55B7\u5C04\u4EA7\u751F\u63A8\u529B" },
+  { id: "plasma_argon_tank", name: "\u6C29\u7B49\u79BB\u5B50\u71C3\u6599\u7F50", type: "plasma", mass: 800, fuelMass: 8e3, thrust: 0, isp: 0, cost: 6e3, description: "\u6C29\u6C14\u50A8\u7F50\uFF0C\u4E3A\u7B49\u79BB\u5B50\u5F15\u64CE\u4F9B\u5E94\u5DE5\u4F5C\u4ECB\u8D28" },
+  // ===== KSPIE — 散热系统 (Radiators) =====
+  { id: "radiator_graphene", name: "\u77F3\u58A8\u70EF\u6563\u70ED\u677F", type: "radiator", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 8e3, description: "\u8D85\u8F7B\u77F3\u58A8\u70EF\u6563\u70ED\u677F\uFF0C\u8F90\u5C04\u6548\u7387\u6781\u9AD8\uFF0C\u4E3A\u805A\u53D8/\u53CD\u7269\u8D28\u7CFB\u7EDF\u6563\u70ED" },
+  { id: "radiator_quantum", name: "\u91CF\u5B50\u6563\u70ED\u5668", type: "radiator", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 15e3, description: "\u91CF\u5B50\u8026\u5408\u6563\u70ED\u5668\uFF0C\u4E0D\u4F9D\u8D56\u6E29\u5DEE\u8F90\u5C04\u6563\u70ED\uFF0C\u9002\u7528\u4E8E\u6781\u7AEF\u70ED\u73AF\u5883" },
+  { id: "radiator_foldable", name: "\u6298\u53E0\u5F0F\u6563\u70ED\u677F", type: "radiator", mass: 300, fuelMass: 0, thrust: 0, isp: 0, cost: 3e3, description: "\u53EF\u6298\u53E0\u6536\u7EB3\u7684\u5927\u9762\u79EF\u6563\u70ED\u677F\uFF0C\u53D1\u5C04\u65F6\u7D27\u51D1\uFF0C\u5728\u8F68\u5C55\u5F00" },
+  // ===== KSPIE — ISRU 采矿系统 (Mining) =====
+  { id: "mining_drill", name: "ISRU \u91C7\u77FF\u94BB\u673A", type: "mining", mass: 1500, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, description: "\u884C\u661F\u8868\u9762\u8D44\u6E90\u5F00\u91C7\u94BB\u673A\uFF0C\u53EF\u63D0\u53D6\u77FF\u77F3\u4E2D\u7684\u6709\u7528\u77FF\u7269" },
+  { id: "mining_refinery", name: "ISRU \u7CBE\u70BC\u5382", type: "mining", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 18e3, description: "\u5C06\u539F\u77FF\u77F3\u7CBE\u70BC\u4E3A\u71C3\u6599\u6216\u5EFA\u9020\u6750\u6599\u7684\u79FB\u52A8\u7CBE\u70BC\u8BBE\u65BD" },
+  { id: "mining_scoop", name: "\u5927\u6C14\u6536\u5272\u673A", type: "mining", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 6e3, description: "\u4ECE\u5927\u6C14\u5C42\u4E2D\u6536\u96C6\u6C14\u4F53\u5E76\u5206\u79BB\u6709\u7528\u6210\u5206\uFF0C\u53EF\u5728\u5927\u6C14\u98DE\u63A0\u65F6\u4F7F\u7528" },
+  // ===== KSPIE — 殖民模块 (Colony) =====
+  { id: "colony_habitat", name: "\u6B96\u6C11\u5730\u5C45\u4F4F\u8231", type: "colony", mass: 8e3, fuelMass: 0, thrust: 0, isp: 0, cost: 4e4, description: "\u53EF\u5C55\u5F00\u7684\u5BC6\u5C01\u5C45\u4F4F\u8231\uFF0C\u5BB9\u7EB312\u4EBA\uFF0C\u914D\u5907\u751F\u547D\u7EF4\u6301\u4E0E\u8F90\u5C04\u9632\u62A4" },
+  { id: "colony_greenhouse", name: "\u6B96\u6C11\u5730\u6E29\u5BA4", type: "colony", mass: 4e3, fuelMass: 0, thrust: 0, isp: 0, cost: 2e4, description: "\u5BC6\u95ED\u751F\u6001\u6E29\u5BA4\uFF0C\u79CD\u690D\u98DF\u7269\u5E76\u5FAA\u73AF\u6C27\u6C14\uFF0C\u5B9E\u73B0\u957F\u671F\u81EA\u7ED9\u81EA\u8DB3" },
+  { id: "colony_power", name: "\u6B96\u6C11\u5730\u6838\u7535\u7AD9", type: "colony", mass: 6e3, fuelMass: 0, thrust: 0, isp: 0, cost: 25e3, description: "\u4E3A\u6B96\u6C11\u5730\u63D0\u4F9B\u6301\u7EED\u7535\u529B\u7684\u5C0F\u578B\u6838\u88C2\u53D8\u53D1\u7535\u7AD9" },
+  { id: "colony_landing_pad", name: "\u6B96\u6C11\u5730\u7740\u9646\u576A", type: "colony", mass: 3e3, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, description: "\u5E73\u6574\u5F3A\u5316\u7740\u9646\u533A\u57DF\uFF0C\u4E3A\u5F80\u8FD4\u98DE\u8239\u63D0\u4F9B\u5B89\u5168\u8D77\u964D\u5E73\u53F0" },
+  // ===== KSPIE — 高级结构 (Advanced Structural) =====
+  { id: "structural_truss_xl", name: "XL \u6841\u67B6\u6BB5", type: "structural", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u8D85\u5927\u578B\u6841\u67B6\u6BB5\uFF0C\u7528\u4E8E\u6784\u5EFA\u7A7A\u95F4\u7AD9\u9AA8\u67B6\u6216\u5927\u578B\u5929\u7EBF\u9635\u5217\u652F\u6491" },
+  { id: "structural_hub_multi", name: "\u591A\u529F\u80FD\u67A2\u7EBD\u8282\u70B9", type: "structural", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u516D\u5411\u5BF9\u63A5\u67A2\u7EBD\u8282\u70B9\uFF0C\u53EF\u540C\u65F6\u8FDE\u63A5\u516D\u4E2A\u6A21\u5757\uFF0C\u7A7A\u95F4\u7AD9\u6838\u5FC3\u7EC4\u4EF6" },
+  { id: "structural_beam_power", name: "\u6CE2\u675F\u7535\u529B\u4F20\u8F93\u9635\u5217", type: "structural", mass: 1e3, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, description: "\u5C06\u7535\u529B\u4EE5\u5FAE\u6CE2\u675F\u8FDC\u7A0B\u4F20\u8F93\u81F3\u5176\u4ED6\u98DE\u8239\u6216\u5730\u9762\u7AD9" }
 ];
 
 // src/game/physics.ts
@@ -22955,7 +23364,7 @@ var TextureFactory = class _TextureFactory {
     return _TextureFactory.quality;
   }
   static getResolution() {
-    return _TextureFactory.quality === "low" ? 512 : _TextureFactory.quality === "medium" ? 1024 : 4096;
+    return _TextureFactory.quality === "low" ? 512 : _TextureFactory.quality === "medium" ? 2048 : 8192;
   }
   // --- Value noise ---
   static hash(x, y) {
@@ -23021,8 +23430,14 @@ var TextureFactory = class _TextureFactory {
     const mctx = metalCanvas.getContext("2d");
     const metalData = mctx.createImageData(metalCanvas.width, metalCanvas.height);
     const md = metalData.data;
+    const roughCanvas = document.createElement("canvas");
+    roughCanvas.width = size;
+    roughCanvas.height = size / 2;
+    const rctx = roughCanvas.getContext("2d");
+    const roughData = rctx.createImageData(roughCanvas.width, roughCanvas.height);
+    const rd = roughData.data;
     const palette = _TextureFactory.getPalette(data.textureType || "rock");
-    const octaves = _TextureFactory.quality === "high" ? 12 : _TextureFactory.quality === "medium" ? 8 : 5;
+    const octaves = _TextureFactory.quality === "high" ? 16 : _TextureFactory.quality === "medium" ? 10 : 5;
     const w = canvas.width, h = canvas.height;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -23036,20 +23451,46 @@ var TextureFactory = class _TextureFactory {
         const idx = (y * w + x) * 4;
         if (data.textureType === "gas") {
           const bandNoise = _TextureFactory.fbm(sx * 3, sz * 8 + sy * 20, octaves, 0.55, 2.2);
-          const turbulence = _TextureFactory.fbm(sx * 12, sy * 6 + bandNoise * 5, 6, 0.5, 2.5);
+          const turbulence = _TextureFactory.fbm(sx * 12, sy * 6 + bandNoise * 5, 8, 0.5, 2.5);
+          const fineDetail = _TextureFactory.fbm(sx * 40, sy * 20, 5, 0.4, 2.8);
           const band = Math.sin(sy * 18 + turbulence * 3) * 0.5 + 0.5;
           const c = data.color;
-          r = (c >> 16 & 255) / 255 * (0.6 + band * 0.4);
-          g = (c >> 8 & 255) / 255 * (0.6 + band * 0.4);
-          b = (c & 255) / 255 * (0.6 + band * 0.4);
-          bump = band * 0.5;
+          let grsBoost = 0;
+          if (sy < -0.15 && sy > -0.45) {
+            const grsLon = lon - 2.5;
+            const grsDist = Math.sqrt((Math.cos(lat) * Math.sin(grsLon)) ** 2 * 1.8 + (sy + 0.3) ** 2 * 3.5);
+            if (grsDist < 0.35) {
+              const grsSwirl = Math.sin(Math.atan2((sy + 0.3) * 1.8, Math.cos(lat) * Math.sin(grsLon)) * 4 + grsDist * 12);
+              grsBoost = Math.max(0, (0.35 - grsDist) / 0.35) * (0.5 + grsSwirl * 0.3);
+            }
+          }
+          const vortexLat = Math.sin(sy * 36) * 0.5 + 0.5;
+          const vortexNoise = _TextureFactory.fbm(sx * 18 + sy * 8, sy * 22, 4, 0.5, 2.5);
+          const vortex = vortexNoise > 0.68 ? (vortexNoise - 0.68) / 0.32 : 0;
+          r = (c >> 16 & 255) / 255 * (0.6 + band * 0.4) * (0.9 + fineDetail * 0.1);
+          g = (c >> 8 & 255) / 255 * (0.6 + band * 0.4) * (0.9 + fineDetail * 0.1);
+          b = (c & 255) / 255 * (0.6 + band * 0.4) * (0.9 + fineDetail * 0.1);
+          if (grsBoost > 0) {
+            r = r * (1 - grsBoost * 0.5) + 0.75 * grsBoost * 0.5;
+            g = g * (1 - grsBoost * 0.5) + 0.25 * grsBoost * 0.5;
+            b = b * (1 - grsBoost * 0.5) + 0.15 * grsBoost * 0.5;
+          }
+          r *= 1 - vortex * 0.25;
+          g *= 1 - vortex * 0.25;
+          b *= 1 - vortex * 0.2;
+          bump = band * 0.5 + fineDetail * 0.15;
         } else if (data.textureType === "ice") {
-          const bandNoise = _TextureFactory.fbm(sx * 2, sy * 10, 8, 0.5, 2);
-          const swirl = _TextureFactory.fbm(sx * 6, sy * 4 + bandNoise * 3, 6, 0.5, 2);
-          r = 0.3 + swirl * 0.15;
-          g = 0.45 + swirl * 0.2;
-          b = 0.7 + swirl * 0.3;
-          bump = swirl * 0.3;
+          const bandNoise = _TextureFactory.fbm(sx * 2, sy * 10, 10, 0.5, 2);
+          const swirl = _TextureFactory.fbm(sx * 6, sy * 4 + bandNoise * 3, 8, 0.5, 2);
+          const fineDetail = _TextureFactory.fbm(sx * 30, sy * 15, 5, 0.4, 2.5);
+          const c = data.color;
+          const baseR = (c >> 16 & 255) / 255;
+          const baseG = (c >> 8 & 255) / 255;
+          const baseB = (c & 255) / 255;
+          r = (0.3 + swirl * 0.15) * (0.85 + baseR * 0.4) + fineDetail * 0.05;
+          g = (0.45 + swirl * 0.2) * (0.85 + baseG * 0.4) + fineDetail * 0.05;
+          b = (0.7 + swirl * 0.3) * (0.85 + baseB * 0.4) + fineDetail * 0.05;
+          bump = swirl * 0.3 + fineDetail * 0.1;
         } else if (data.textureType === "trisolaris") {
           const elevation = _TextureFactory.fbm(sx * 3, sy * 3, octaves, 0.5, 2);
           const detail = _TextureFactory.fbm(sx * 25, sy * 25, 6, 0.4, 2.5);
@@ -23091,44 +23532,99 @@ var TextureFactory = class _TextureFactory {
           metal = 15;
         } else {
           const elevation = _TextureFactory.fbm(sx * 4, sy * 4, octaves, 0.5, 2);
-          const detail = _TextureFactory.fbm(sx * 20, sy * 20, 5, 0.4, 2.5);
+          const detail = _TextureFactory.fbm(sx * 20, sy * 20, 6, 0.4, 2.5);
+          const regolith = _TextureFactory.fbm(sx * 80, sy * 80, 4, 0.35, 2.8);
           const height = elevation + detail * 0.15;
           const polarFactor = Math.pow(Math.abs(sz), 3);
+          const isMars = data.name === "Mars";
+          let dustStorm = 0;
+          let canyon = 0;
+          if (isMars) {
+            const stormNoise = _TextureFactory.fbm(sx * 6 + sy * 2, sy * 14, 5, 0.5, 2);
+            dustStorm = Math.max(0, stormNoise - 0.6) * 2.5;
+            const canyonLat = lat + 0.24;
+            const canyonLon = (lon % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+            const canyonCenter = 0.7;
+            const canyonDist = Math.min(Math.abs(canyonLon - canyonCenter), Math.PI * 2 - Math.abs(canyonLon - canyonCenter));
+            if (Math.abs(canyonLat) < 0.08 && canyonDist < 0.6) {
+              const canyonWidth = 0.08 - Math.abs(canyonLat);
+              const canyonDepth = Math.max(0, (0.6 - canyonDist) / 0.6) * Math.max(0, canyonWidth / 0.08);
+              canyon = canyonDepth;
+            }
+          }
           if (data.textureType === "ocean" && height < 0.45) {
             const depth = (0.45 - height) / 0.45;
             r = palette.sea[0] * (1 - depth * 0.3);
             g = palette.sea[1] * (1 - depth * 0.3);
             b = palette.sea[2] * (1 - depth * 0.2);
-            metal = 80;
-            bump = 20;
+            metal = 120;
+            bump = 15 + regolith * 10;
           } else if (data.textureType === "lava" && height < 0.35) {
             r = palette.sea[0] + (1 - height) * 0.3;
             g = palette.sea[1] * 0.5;
             b = palette.sea[2] * 0.2;
-            bump = 40;
+            bump = 40 + regolith * 20;
+            metal = 60;
           } else {
             const mountainFactor = Math.max(0, (height - 0.55) * 3);
             r = palette.land[0] * (1 - mountainFactor * 0.3) + palette.mountain[0] * mountainFactor * 0.5;
             g = palette.land[1] * (1 - mountainFactor * 0.3) + palette.mountain[1] * mountainFactor * 0.5;
             b = palette.land[2] * (1 - mountainFactor * 0.3) + palette.mountain[2] * mountainFactor * 0.5;
-            bump = height * 200;
-            metal = 10;
-            const craterNoise = _TextureFactory.fbm(sx * 40, sy * 40, 4, 0.5, 2.5);
-            if (craterNoise > 0.65) {
-              const crater = (craterNoise - 0.65) / 0.35;
-              bump -= crater * 60;
+            r *= 0.92 + regolith * 0.16;
+            g *= 0.92 + regolith * 0.16;
+            b *= 0.92 + regolith * 0.16;
+            bump = height * 200 + regolith * 30;
+            metal = 8;
+            const craterLarge = _TextureFactory.fbm(sx * 40, sy * 40, 5, 0.5, 2.5);
+            const craterSmall = _TextureFactory.fbm(sx * 90, sy * 90, 4, 0.45, 2.6);
+            if (craterLarge > 0.62) {
+              const crater = (craterLarge - 0.62) / 0.38;
+              bump -= crater * 70;
+              r *= 1 - crater * 0.15;
+              g *= 1 - crater * 0.15;
+              b *= 1 - crater * 0.15;
+            }
+            if (craterSmall > 0.68) {
+              const sc = (craterSmall - 0.68) / 0.32;
+              bump -= sc * 25;
+            }
+            const boulderNoise = _TextureFactory.fbm(sx * 120, sy * 120, 3, 0.5, 2);
+            if (boulderNoise > 0.75) {
+              const bv = (boulderNoise - 0.75) / 0.25;
+              r = Math.min(1, r + bv * 0.15);
+              g = Math.min(1, g + bv * 0.12);
+              b = Math.min(1, b + bv * 0.1);
+              bump += bv * 40;
+            }
+            if (isMars) {
+              if (dustStorm > 0) {
+                r = Math.min(1, r * (1 + dustStorm * 0.3) + dustStorm * 0.15);
+                g = Math.min(1, g * (1 + dustStorm * 0.25) + dustStorm * 0.1);
+                b = Math.min(1, b * (1 + dustStorm * 0.15));
+                bump += dustStorm * 15;
+              }
+              if (canyon > 0) {
+                r *= 1 - canyon * 0.6;
+                g *= 1 - canyon * 0.6;
+                b *= 1 - canyon * 0.55;
+                bump -= canyon * 120;
+              }
             }
           }
           if (polarFactor > 0.7) {
             const polarBlend = (polarFactor - 0.7) / 0.3;
-            r = r * (1 - polarBlend) + palette.polar[0] * 255 * polarBlend;
-            g = g * (1 - polarBlend) + palette.polar[1] * 255 * polarBlend;
-            b = b * (1 - polarBlend) + palette.polar[2] * 255 * polarBlend;
-            bump = bump * (1 - polarBlend) + 100 * polarBlend;
+            const iceDetail = _TextureFactory.fbm(sx * 50, sy * 50, 4, 0.4, 2.5);
+            r = r * (1 - polarBlend) + (palette.polar[0] * 255 + iceDetail * 20 - 10) * polarBlend;
+            g = g * (1 - polarBlend) + (palette.polar[1] * 255 + iceDetail * 20 - 10) * polarBlend;
+            b = b * (1 - polarBlend) + (palette.polar[2] * 255 + iceDetail * 20 - 10) * polarBlend;
+            bump = bump * (1 - polarBlend) + (100 + iceDetail * 30) * polarBlend;
           }
           if (data.textureType === "ocean" && height > 0.45 && height < 0.7) {
-            const cityNoise = _TextureFactory.fbm(sx * 60, sy * 60, 3, 0.5, 2);
-            if (cityNoise > 0.7) metal += 30;
+            const cityNoise = _TextureFactory.fbm(sx * 60, sy * 60, 4, 0.5, 2);
+            const cityCluster = _TextureFactory.fbm(sx * 15, sy * 15, 3, 0.5, 2);
+            if (cityNoise > 0.7 && cityCluster > 0.5) {
+              metal += 50;
+            }
           }
         }
         d[idx] = Math.min(255, r * 255);
@@ -23139,11 +23635,26 @@ var TextureFactory = class _TextureFactory {
         bd[idx + 3] = 255;
         md[idx] = md[idx + 1] = md[idx + 2] = Math.min(255, metal);
         md[idx + 3] = 255;
+        let roughVal;
+        if (data.textureType === "gas" || data.textureType === "ice") {
+          const bandRough = _TextureFactory.fbm(sx * 10, sy * 5, 4, 0.5, 2);
+          roughVal = 80 + bandRough * 60;
+        } else if (data.textureType === "ocean") {
+          const oceanMask = metal > 60 ? 1 : 0;
+          const fineRough = _TextureFactory.fbm(sx * 80, sy * 80, 3, 0.4, 2.5);
+          roughVal = oceanMask ? 30 + fineRough * 15 : 180 + fineRough * 50;
+        } else {
+          const fineRough = _TextureFactory.fbm(sx * 80, sy * 80, 3, 0.4, 2.5);
+          roughVal = 180 + fineRough * 50;
+        }
+        rd[idx] = rd[idx + 1] = rd[idx + 2] = Math.min(255, Math.max(0, roughVal));
+        rd[idx + 3] = 255;
       }
     }
     ctx.putImageData(imgData, 0, 0);
     bctx.putImageData(bumpData, 0, 0);
     mctx.putImageData(metalData, 0, 0);
+    rctx.putImageData(roughData, 0, 0);
     const map = new CanvasTexture(canvas);
     map.colorSpace = SRGBColorSpace;
     map.wrapS = RepeatWrapping;
@@ -23152,7 +23663,9 @@ var TextureFactory = class _TextureFactory {
     bumpMap.wrapS = RepeatWrapping;
     const metalnessMap = new CanvasTexture(metalCanvas);
     metalnessMap.wrapS = RepeatWrapping;
-    return { map, bumpMap, metalnessMap };
+    const roughnessMap = new CanvasTexture(roughCanvas);
+    roughnessMap.wrapS = RepeatWrapping;
+    return { map, bumpMap, metalnessMap, roughnessMap };
   }
   static generateCloudTexture(data) {
     const size = _TextureFactory.getResolution();
@@ -23163,7 +23676,7 @@ var TextureFactory = class _TextureFactory {
     const imgData = ctx.createImageData(canvas.width, canvas.height);
     const d = imgData.data;
     const w = canvas.width, h = canvas.height;
-    const octaves = _TextureFactory.quality === "high" ? 10 : 6;
+    const octaves = _TextureFactory.quality === "high" ? 14 : _TextureFactory.quality === "medium" ? 8 : 5;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const lon = x / w * Math.PI * 2;
@@ -23172,8 +23685,12 @@ var TextureFactory = class _TextureFactory {
         const sy = Math.cos(lat) * Math.sin(lon);
         const sz = Math.sin(lat);
         const cloud = _TextureFactory.fbm(sx * 5, sy * 5, octaves, 0.5, 2.2);
-        const swirl = _TextureFactory.fbm(sx * 15 + sz * 3, sy * 10, 5, 0.4, 2);
-        const density = Math.max(0, cloud - 0.4 + swirl * 0.15);
+        const swirl = _TextureFactory.fbm(sx * 15 + sz * 3, sy * 10, 7, 0.4, 2);
+        const fineCloud = _TextureFactory.fbm(sx * 30, sy * 30, 5, 0.4, 2.5);
+        const stormBand = Math.sin(lat * 8 + swirl * 4) * 0.15;
+        let density = Math.max(0, cloud - 0.4 + swirl * 0.15 + fineCloud * 0.08 + stormBand);
+        const polarFactor = Math.pow(Math.abs(sz), 2);
+        if (polarFactor > 0.5) density += (polarFactor - 0.5) * 0.3;
         const idx = (y * w + x) * 4;
         d[idx] = d[idx + 1] = d[idx + 2] = 255;
         d[idx + 3] = Math.min(255, density * 400);
@@ -23304,23 +23821,25 @@ function createCelestialMesh(data, quality = "high") {
       metalness: 0
     });
   } else if (data.textureType === "gas" || data.textureType === "ice") {
-    const { map, bumpMap } = TextureFactory.generatePlanetTexture(data);
+    const { map, bumpMap, roughnessMap } = TextureFactory.generatePlanetTexture(data);
     material = new MeshStandardMaterial({
       map,
       bumpMap,
       bumpScale: 2e-3,
-      color: 16777215,
+      roughnessMap,
       roughness: 0.7,
-      metalness: 0
+      metalness: 0,
+      color: 16777215
     });
   } else {
-    const { map, bumpMap, metalnessMap } = TextureFactory.generatePlanetTexture(data);
+    const { map, bumpMap, metalnessMap, roughnessMap } = TextureFactory.generatePlanetTexture(data);
     material = new MeshStandardMaterial({
       map,
       bumpMap,
       bumpScale: 5e-3,
       metalnessMap,
       metalness: 0.3,
+      roughnessMap,
       roughness: 0.7,
       color: 16777215
     });
@@ -23339,6 +23858,48 @@ function createCelestialMesh(data, quality = "high") {
       lowCloudMesh.castShadow = false;
       lowCloudMesh.receiveShadow = true;
       group.add(lowCloudMesh);
+      if (quality === "high") {
+        const shadowCanvas = document.createElement("canvas");
+        shadowCanvas.width = TextureFactory.getResolution();
+        shadowCanvas.height = TextureFactory.getResolution() / 2;
+        const shCtx = shadowCanvas.getContext("2d");
+        const shData = shCtx.createImageData(shadowCanvas.width, shadowCanvas.height);
+        const shd = shData.data;
+        const shw = shadowCanvas.width, shh = shadowCanvas.height;
+        for (let y = 0; y < shh; y++) {
+          for (let x = 0; x < shw; x++) {
+            const lon = x / shw * Math.PI * 2;
+            const lat = (y / shh - 0.5) * Math.PI;
+            const sx = Math.cos(lat) * Math.cos(lon);
+            const sy = Math.cos(lat) * Math.sin(lon);
+            const sz = Math.sin(lat);
+            const cloud = TextureFactory.fbm(sx * 5 + 0.1, sy * 5 - 0.05, 10, 0.5, 2.2);
+            const swirl = TextureFactory.fbm(sx * 15 + sz * 3, sy * 10, 5, 0.4, 2);
+            const density = Math.max(0, cloud - 0.4 + swirl * 0.15);
+            const shadow = density > 0.1 ? Math.min(0.5, density * 1.5) : 0;
+            const idx = (y * shw + x) * 4;
+            shd[idx] = shd[idx + 1] = shd[idx + 2] = 0;
+            shd[idx + 3] = shadow * 255;
+          }
+        }
+        shCtx.putImageData(shData, 0, 0);
+        const shadowTex = new CanvasTexture(shadowCanvas);
+        shadowTex.wrapS = RepeatWrapping;
+        const shadowGeo = new SphereGeometry(renderRadius * 1.002, segments, segments);
+        const shadowMat = new MeshStandardMaterial({
+          map: shadowTex,
+          transparent: true,
+          opacity: 0.45,
+          depthWrite: false,
+          blending: MultiplyBlending,
+          roughness: 1,
+          metalness: 0
+        });
+        const shadowMesh = new Mesh(shadowGeo, shadowMat);
+        shadowMesh.castShadow = false;
+        shadowMesh.receiveShadow = false;
+        group.add(shadowMesh);
+      }
       if (quality === "high") {
         const highCloudCanvas = document.createElement("canvas");
         highCloudCanvas.width = TextureFactory.getResolution();
@@ -23536,15 +24097,27 @@ function createCelestialMesh(data, quality = "high") {
       uniforms: {
         atmoColor: { value: new Color(atmoColor) },
         intensity: { value: 1 },
-        power: { value: 2.5 }
+        power: { value: 2.5 },
+        // ★ Wavelength-dependent Rayleigh scattering coefficients (1/λ⁴ approximation)
+        // Red scatters least, blue scatters most — drives realistic sky color
+        rayleighR: { value: 0.5 },
+        rayleighG: { value: 1 },
+        rayleighB: { value: 2.5 },
+        // ★ Mie scattering (aerosols/dust) — wavelength-independent, forward-peaked
+        mieIntensity: { value: 0.4 },
+        mieG: { value: 0.76 },
+        // Henyey-Greenstein asymmetry parameter
+        sunDir: { value: new Vector3(1, 0, 0).normalize() }
       },
       vertexShader: `
         varying vec3 vNormal;
         varying vec3 vViewDir;
+        varying vec3 vWorldPos;
         void main() {
           vNormal = normalize(normalMatrix * normal);
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           vViewDir = normalize(-mvPosition.xyz);
+          vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -23552,12 +24125,36 @@ function createCelestialMesh(data, quality = "high") {
         uniform vec3 atmoColor;
         uniform float intensity;
         uniform float power;
+        uniform float rayleighR;
+        uniform float rayleighG;
+        uniform float rayleighB;
+        uniform float mieIntensity;
+        uniform float mieG;
+        uniform vec3 sunDir;
         varying vec3 vNormal;
         varying vec3 vViewDir;
+        varying vec3 vWorldPos;
+
+        // \u2605 Henyey-Greenstein phase function for Mie scattering
+        float hgPhase(float cosTheta, float g) {
+          float g2 = g * g;
+          return (1.0 - g2) / pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5) * 0.25;
+        }
+
         void main() {
           float rim = 1.0 - max(dot(vNormal, vViewDir), 0.0);
+          // \u2605 Wavelength-dependent extinction \u2014 blue scatters more at the limb
+          vec3 rayleighCoeff = vec3(rayleighR, rayleighG, rayleighB);
+          vec3 extinction = 1.0 - exp(-rayleighCoeff * rim * 3.0);
+
+          // \u2605 Mie scattering with forward phase function
+          vec3 lightDir = normalize(sunDir - vWorldPos);
+          float cosTheta = dot(normalize(vViewDir), lightDir);
+          float miePhase = hgPhase(cosTheta, mieG);
+          vec3 mieScatter = vec3(mieIntensity) * miePhase * rim;
+
+          vec3 col = atmoColor * extinction * intensity + mieScatter * atmoColor;
           float glow = pow(rim, power) * intensity;
-          vec3 col = atmoColor * glow;
           gl_FragColor = vec4(col, glow * 0.8);
         }
       `,
@@ -23599,6 +24196,51 @@ function createCelestialMesh(data, quality = "high") {
       depthWrite: false
     });
     group.add(new Mesh(hazeGeo, hazeMat));
+    if (data.textureType === "ocean" || data.textureType === "trisolaris") {
+      const sssGeo = new SphereGeometry(renderRadius * 1.003, segments, segments);
+      const sssMat = new ShaderMaterial({
+        uniforms: {
+          sssColor: { value: new Color(data.textureType === "trisolaris" ? 11158562 : 4491519) },
+          sunDir: { value: new Vector3(1, 0, 0).normalize() }
+        },
+        vertexShader: `
+          varying vec3 vNormal;
+          varying vec3 vWorldPos;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 sssColor;
+          uniform vec3 sunDir;
+          varying vec3 vNormal;
+          varying vec3 vWorldPos;
+          void main() {
+            // SSS glow at the terminator \u2014 where light grazes the surface
+            vec3 viewDir = normalize(cameraPosition - vWorldPos);
+            vec3 lightDir = normalize(sunDir - vWorldPos);
+            float ndotl = dot(normalize(vNormal), lightDir);
+            // Terminator band \u2014 strongest where light grazes (ndotl near 0)
+            float terminator = 1.0 - abs(ndotl);
+            terminator = pow(terminator, 3.0);
+            // Backlight transmission \u2014 SSS through atmosphere on the dark side
+            float backLight = max(0.0, -ndotl) * 0.3;
+            float sss = terminator * 0.5 + backLight;
+            // View-dependent falloff
+            float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDir), 0.0), 2.0);
+            sss *= (0.3 + fresnel * 0.7);
+            gl_FragColor = vec4(sssColor * sss, sss * 0.4);
+          }
+        `,
+        transparent: true,
+        side: FrontSide,
+        blending: AdditiveBlending,
+        depthWrite: false
+      });
+      group.add(new Mesh(sssGeo, sssMat));
+    }
   }
   if (data.axialTilt) {
     group.rotation.z = data.axialTilt * Math.PI / 180;
@@ -23683,6 +24325,33 @@ function createStarGlow(color, size) {
   group.add(flareH);
   const flareV = new Mesh(new PlaneGeometry(r * 0.05, r * 4), flareMat);
   group.add(flareV);
+  const ghostMat = new MeshBasicMaterial({
+    color: col.clone().lerp(new Color(16777215), 0.5),
+    transparent: true,
+    opacity: 0.25,
+    side: DoubleSide,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
+  const ghostHexGeo = new CircleGeometry(r * 0.15, 6);
+  const ghost1 = new Mesh(ghostHexGeo, ghostMat);
+  ghost1.position.set(r * 0.3, r * 0.2, 0);
+  group.add(ghost1);
+  const ghost2Mat = ghostMat.clone();
+  ghost2Mat.opacity = 0.15;
+  const ghost2 = new Mesh(new CircleGeometry(r * 0.08, 6), ghost2Mat);
+  ghost2.position.set(-r * 0.5, -r * 0.3, 0);
+  group.add(ghost2);
+  const anamorphMat = new MeshBasicMaterial({
+    color: col.clone().lerp(new Color(8956671), 0.3),
+    transparent: true,
+    opacity: 0.12,
+    side: DoubleSide,
+    depthWrite: false,
+    blending: AdditiveBlending
+  });
+  const anamorph = new Mesh(new PlaneGeometry(r * 6, r * 0.02), anamorphMat);
+  group.add(anamorph);
   return group;
 }
 function createRocketModel() {
@@ -23810,6 +24479,20 @@ function createPartVisual(part) {
       return buildStructuralTube(part);
     case "utility":
       return buildDockingPort(part);
+    case "fusion":
+      return buildFusionReactor(part);
+    case "warp":
+      return buildWarpDrive(part);
+    case "radiator":
+      return buildRadiator(part);
+    case "mining":
+      return buildMiningRig(part);
+    case "colony":
+      return buildColonyModule(part);
+    case "antimatter":
+      return buildAntimatterEngine(part);
+    case "plasma":
+      return buildPlasmaEngine(part);
     default:
       return buildScienceInstrument(part);
   }
@@ -23895,7 +24578,13 @@ function buildCommandPod(part) {
   }
   points.push(new Vector2(0, h / 2));
   const podGeo = new LatheGeometry(points, 64);
-  const podMat = new MeshStandardMaterial({ color: 15263980, metalness: 0.6, roughness: 0.3 });
+  const podMat = new MeshStandardMaterial({
+    map: makeMetalTexture("aluminum", 256),
+    normalMap: makePanelNormalMap(256, 24),
+    color: 15263980,
+    metalness: 0.6,
+    roughness: 0.3
+  });
   const pod = new Mesh(podGeo, podMat);
   pod.castShadow = true;
   group.add(pod);
@@ -23907,21 +24596,14 @@ function buildCommandPod(part) {
   shieldProfile.push(new Vector2(r * 0.97, -h / 2 - r * 0.02));
   shieldProfile.push(new Vector2(r, -h / 2));
   const shieldGeo = new LatheGeometry(shieldProfile, 48);
-  const shieldCanvas = document.createElement("canvas");
-  shieldCanvas.width = 256;
-  shieldCanvas.height = 128;
-  const shCtx = shieldCanvas.getContext("2d");
-  for (let y = 0; y < 128; y++) {
-    for (let x = 0; x < 256; x++) {
-      const n = TextureFactory.fbm(x * 0.08, y * 0.12, 5, 0.5, 2.2);
-      const char = 0.15 + n * 0.35;
-      shCtx.fillStyle = `rgb(${Math.floor(42 * char + 8)},${Math.floor(26 * char + 4)},${Math.floor(10 * char + 2)})`;
-      shCtx.fillRect(x, y, 1, 1);
-    }
-  }
-  const shieldTex = new CanvasTexture(shieldCanvas);
-  shieldTex.colorSpace = SRGBColorSpace;
-  const shieldMat = new MeshStandardMaterial({ map: shieldTex, color: 6706500, metalness: 0.15, roughness: 0.95 });
+  const shieldTex = makeTPSTileTexture(256);
+  const shieldMat = new MeshStandardMaterial({
+    map: shieldTex,
+    normalMap: makePanelNormalMap(128, 16),
+    color: 6706500,
+    metalness: 0.15,
+    roughness: 0.95
+  });
   const shield = new Mesh(shieldGeo, shieldMat);
   shield.castShadow = true;
   group.add(shield);
@@ -24208,23 +24890,45 @@ function buildEngine(part) {
   points.push(new Vector2(0, nozzleH / 2));
   const nozzleGeo = new LatheGeometry(points, 64);
   const nozCanvas = document.createElement("canvas");
-  nozCanvas.width = 256;
-  nozCanvas.height = 256;
+  nozCanvas.width = 512;
+  nozCanvas.height = 512;
   const nCtx = nozCanvas.getContext("2d");
-  for (let y = 0; y < 256; y++) {
-    for (let x = 0; x < 256; x++) {
-      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 5, 0.5, 2.2);
-      const heatFactor = 1 - y / 256;
-      const r8 = Math.floor(30 + n * 40 + heatFactor * 50);
-      const g8 = Math.floor(25 + n * 30 + heatFactor * 20);
-      const b8 = Math.floor(20 + n * 25 + heatFactor * 60);
-      nCtx.fillStyle = `rgb(${Math.min(255, r8)},${Math.min(255, g8)},${Math.min(255, b8)})`;
+  for (let y = 0; y < 512; y++) {
+    for (let x = 0; x < 512; x++) {
+      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 6, 0.5, 2.2);
+      const heatFactor = 1 - y / 512;
+      const sootStreak = TextureFactory.fbm(x * 0.02, y * 0.15, 5, 0.5, 2);
+      const heatColor = TextureFactory.fbm(x * 0.03, y * 0.04, 4, 0.4, 2.5);
+      const r8 = Math.floor(30 + n * 40 + heatFactor * 50 - sootStreak * 25 + heatColor * 15);
+      const g8 = Math.floor(25 + n * 30 + heatFactor * 20 - sootStreak * 20 + heatColor * 8);
+      const b8 = Math.floor(20 + n * 25 + heatFactor * 60 - sootStreak * 15 + heatColor * 20);
+      nCtx.fillStyle = `rgb(${Math.max(0, Math.min(255, r8))},${Math.max(0, Math.min(255, g8))},${Math.max(0, Math.min(255, b8))})`;
       nCtx.fillRect(x, y, 1, 1);
     }
   }
   const nozTex = new CanvasTexture(nozCanvas);
   nozTex.colorSpace = SRGBColorSpace;
-  const nozzleMat = new MeshStandardMaterial({ map: nozTex, color: 3815994, metalness: 0.7, roughness: 0.4 });
+  const nozSpecCanvas = document.createElement("canvas");
+  nozSpecCanvas.width = 256;
+  nozSpecCanvas.height = 256;
+  const nsCtx = nozSpecCanvas.getContext("2d");
+  for (let y = 0; y < 256; y++) {
+    for (let x = 0; x < 256; x++) {
+      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 5, 0.5, 2.2);
+      const soot = TextureFactory.fbm(x * 0.02, y * 0.15, 4, 0.5, 2);
+      const spec = Math.max(0, 200 - soot * 120 + n * 40);
+      nsCtx.fillStyle = `rgb(${Math.floor(spec)},${Math.floor(spec)},${Math.floor(spec)})`;
+      nsCtx.fillRect(x, y, 1, 1);
+    }
+  }
+  const nozSpecTex = new CanvasTexture(nozSpecCanvas);
+  const nozzleMat = new MeshStandardMaterial({
+    map: nozTex,
+    roughnessMap: nozSpecTex,
+    color: 3815994,
+    metalness: 0.7,
+    roughness: 0.4
+  });
   const nozzle = new Mesh(nozzleGeo, nozzleMat);
   nozzle.position.y = -0.15;
   nozzle.castShadow = true;
@@ -24974,6 +25678,762 @@ function buildAdapter(part) {
   }
   group.userData.height = h;
   group.userData.radius = botR;
+  return group;
+}
+function makeMetalTexture(type, size = 256) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const baseColors = {
+    aluminum: [180, 185, 190],
+    titanium: [140, 140, 145],
+    copper: [184, 115, 51],
+    steel: [120, 125, 130],
+    dark: [45, 48, 55]
+  };
+  const [br, bg, bb] = baseColors[type];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const streak = TextureFactory.fbm(x * 0.1, y * 0.01, 4, 0.5, 2);
+      const grain = TextureFactory.fbm(x * 0.5, y * 0.5, 3, 0.4, 2.5);
+      const v = streak * 0.3 + grain * 0.2;
+      const r8 = Math.min(255, Math.max(0, br + v * 60 - 20));
+      const g8 = Math.min(255, Math.max(0, bg + v * 60 - 20));
+      const b8 = Math.min(255, Math.max(0, bb + v * 60 - 20));
+      ctx.fillStyle = `rgb(${Math.floor(r8)},${Math.floor(g8)},${Math.floor(b8)})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function makeTPSTileTexture(size = 256) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const tileSize = 16;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const tileX = Math.floor(x / tileSize);
+      const tileY = Math.floor(y / tileSize);
+      const localX = x % tileSize / tileSize;
+      const localY = y % tileSize / tileSize;
+      const gap = localX < 0.06 || localX > 0.94 || localY < 0.06 || localY > 0.94 ? 1 : 0;
+      const tileNoise = TextureFactory.fbm(tileX * 1.5, tileY * 1.5, 3, 0.5, 2);
+      const soot = TextureFactory.fbm(x * 0.05, y * 0.05, 4, 0.5, 2.2);
+      let r8, g8, b8;
+      if (gap) {
+        r8 = 20;
+        g8 = 18;
+        b8 = 16;
+      } else {
+        const base = 60 + tileNoise * 30;
+        r8 = base + soot * 20;
+        g8 = base * 0.85 + soot * 15;
+        b8 = base * 0.7 + soot * 10;
+      }
+      ctx.fillStyle = `rgb(${Math.floor(Math.min(255, r8))},${Math.floor(Math.min(255, g8))},${Math.floor(Math.min(255, b8))})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function makeNozzleSootTexture(size = 256) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n = TextureFactory.fbm(x * 0.04, y * 0.06, 6, 0.5, 2.2);
+      const heatFactor = 1 - y / size;
+      const sootStreak = TextureFactory.fbm(x * 0.02, y * 0.15, 4, 0.5, 2);
+      const r8 = Math.floor(25 + n * 35 + heatFactor * 40 - sootStreak * 20);
+      const g8 = Math.floor(20 + n * 25 + heatFactor * 15 - sootStreak * 15);
+      const b8 = Math.floor(15 + n * 20 + heatFactor * 50 - sootStreak * 10);
+      ctx.fillStyle = `rgb(${Math.max(0, Math.min(255, r8))},${Math.max(0, Math.min(255, g8))},${Math.max(0, Math.min(255, b8))})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  return tex;
+}
+function makePanelNormalMap(size = 256, rivetSpacing = 32) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgb(128,128,255)";
+  ctx.fillRect(0, 0, size, size);
+  const imgData = ctx.getImageData(0, 0, size, size);
+  const d = imgData.data;
+  const drawGroove = (x0, y0, x1, y1, depth) => {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let s = 0; s <= steps; s++) {
+      const px2 = Math.round(x0 + (x1 - x0) * s / steps);
+      const py2 = Math.round(y0 + (y1 - y0) * s / steps);
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const tx = px2 + dx, ty = py2 + dy;
+          if (tx < 0 || tx >= size || ty < 0 || ty >= size) continue;
+          const idx = (ty * size + tx) * 4;
+          const falloff = 1 - Math.abs(dx) - Math.abs(dy) * 0.5;
+          d[idx] = Math.max(0, 128 - depth * falloff * 50);
+          d[idx + 1] = 128;
+          d[idx + 2] = 255;
+          d[idx + 3] = 255;
+        }
+      }
+    }
+  };
+  for (let x = rivetSpacing; x < size; x += rivetSpacing) {
+    drawGroove(x, 0, x, size, 0.5);
+  }
+  for (let y = rivetSpacing; y < size; y += rivetSpacing) {
+    drawGroove(0, y, size, y, 0.5);
+  }
+  for (let y = 0; y < size; y += rivetSpacing) {
+    for (let x = 0; x < size; x += rivetSpacing) {
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = -2; dx <= 2; dx++) {
+          const tx = x + dx, ty = y + dy;
+          if (tx < 0 || tx >= size || ty < 0 || ty >= size) continue;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 2) continue;
+          const idx = (ty * size + tx) * 4;
+          const bump = (1 - dist / 2) * 40;
+          d[idx] = Math.min(255, 128 + bump);
+          d[idx + 1] = 128;
+          d[idx + 2] = 255;
+          d[idx + 3] = 255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new CanvasTexture(canvas);
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function buildFusionReactor(part) {
+  const group = new Group();
+  const big = part.mass > 1e4;
+  const r = big ? 0.9 : part.mass > 5e3 ? 0.625 : 0.4;
+  const h = big ? 1.8 : 1.2;
+  const frameMat = new MeshStandardMaterial({
+    map: makeMetalTexture("steel"),
+    normalMap: makePanelNormalMap(128, 16),
+    metalness: 0.85,
+    roughness: 0.35
+  });
+  const frame = new Mesh(new CylinderGeometry(r, r * 1.05, 0.15, 24), frameMat);
+  frame.position.y = -h / 2 + 0.08;
+  frame.castShadow = true;
+  group.add(frame);
+  const torusMat = new MeshStandardMaterial({
+    map: makeMetalTexture("titanium"),
+    metalness: 0.8,
+    roughness: 0.3
+  });
+  const torusGeo = new TorusGeometry(r * 0.65, r * 0.28, 16, 48);
+  const torus = new Mesh(torusGeo, torusMat);
+  torus.rotation.x = Math.PI / 2;
+  torus.position.y = 0;
+  torus.castShadow = true;
+  group.add(torus);
+  const plasmaMat = new MeshStandardMaterial({
+    color: 11202303,
+    emissive: 6732799,
+    emissiveIntensity: 2,
+    metalness: 0,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.7
+  });
+  const plasmaGeo = new TorusGeometry(r * 0.65, r * 0.12, 12, 48);
+  const plasma = new Mesh(plasmaGeo, plasmaMat);
+  plasma.rotation.x = Math.PI / 2;
+  group.add(plasma);
+  const coilMat = new MeshStandardMaterial({
+    map: makeMetalTexture("copper"),
+    metalness: 0.9,
+    roughness: 0.25
+  });
+  const coilCount = big ? 12 : 8;
+  for (let i = 0; i < coilCount; i++) {
+    const angle = i / coilCount * Math.PI * 2;
+    const coilGeo = new TorusGeometry(r * 0.28, r * 0.06, 8, 24);
+    const coil = new Mesh(coilGeo, coilMat);
+    coil.position.set(Math.cos(angle) * r * 0.65, 0, Math.sin(angle) * r * 0.65);
+    coil.rotation.y = angle;
+    coil.rotation.x = Math.PI / 2;
+    coil.castShadow = true;
+    group.add(coil);
+  }
+  const pipeMat = new MeshStandardMaterial({ color: 4491434, metalness: 0.7, roughness: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const pipe = new Mesh(new CylinderGeometry(0.03, 0.03, h * 0.8, 8), pipeMat);
+    pipe.position.set(Math.cos(angle) * r * 0.95, 0, Math.sin(angle) * r * 0.95);
+    pipe.castShadow = true;
+    group.add(pipe);
+  }
+  const topPlate = new Mesh(new CylinderGeometry(r * 0.9, r * 0.9, 0.08, 24), frameMat);
+  topPlate.position.y = h / 2 - 0.04;
+  topPlate.castShadow = true;
+  group.add(topPlate);
+  const stripeMat = new MeshStandardMaterial({ color: 16755200, emissive: 4465152, metalness: 0.3, roughness: 0.6 });
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const stripe = new Mesh(new BoxGeometry(0.15, 0.01, 0.04), stripeMat);
+    stripe.position.set(Math.cos(angle) * r * 0.6, h / 2, Math.sin(angle) * r * 0.6);
+    stripe.rotation.y = angle;
+    group.add(stripe);
+  }
+  group.userData.height = h;
+  group.userData.radius = r;
+  return group;
+}
+function buildWarpDrive(part) {
+  const group = new Group();
+  const big = part.mass > 16e3;
+  const r = big ? 1.25 : 0.9;
+  const h = 0.8;
+  const hubMat = new MeshStandardMaterial({
+    map: makeMetalTexture("dark"),
+    normalMap: makePanelNormalMap(128, 16),
+    metalness: 0.7,
+    roughness: 0.4
+  });
+  const hub = new Mesh(new CylinderGeometry(r * 0.25, r * 0.3, h, 24), hubMat);
+  hub.castShadow = true;
+  group.add(hub);
+  const ringMat = new MeshStandardMaterial({
+    map: makeMetalTexture("titanium"),
+    metalness: 0.85,
+    roughness: 0.2
+  });
+  for (let ringIdx = 0; ringIdx < 2; ringIdx++) {
+    const ringR = r * (0.6 + ringIdx * 0.3);
+    const ring = new Mesh(new TorusGeometry(ringR, r * 0.06, 12, 48), ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
+  }
+  const exoticMat = new MeshStandardMaterial({
+    color: 10040319,
+    emissive: 7803357,
+    emissiveIntensity: 1.5,
+    metalness: 0.3,
+    roughness: 0.2,
+    transparent: true,
+    opacity: 0.8
+  });
+  for (let ringIdx = 0; ringIdx < 3; ringIdx++) {
+    const ringR = r * (0.45 + ringIdx * 0.18);
+    const ring = new Mesh(new TorusGeometry(ringR, r * 0.02, 8, 48), exoticMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = (ringIdx - 1) * 0.08;
+    group.add(ring);
+  }
+  const coreMat = new MeshStandardMaterial({
+    color: 14527231,
+    emissive: 11158783,
+    emissiveIntensity: 2.5,
+    metalness: 0,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.9
+  });
+  const core = new Mesh(new SphereGeometry(r * 0.15, 16, 16), coreMat);
+  group.add(core);
+  const conduitMat = new MeshStandardMaterial({
+    color: 6706602,
+    emissive: 4465288,
+    emissiveIntensity: 0.5,
+    metalness: 0.6,
+    roughness: 0.3
+  });
+  const conduitCount = 8;
+  for (let i = 0; i < conduitCount; i++) {
+    const angle = i / conduitCount * Math.PI * 2;
+    const conduit = new Mesh(new BoxGeometry(r * 0.5, 0.04, 0.04), conduitMat);
+    conduit.position.set(Math.cos(angle) * r * 0.42, 0, Math.sin(angle) * r * 0.42);
+    conduit.rotation.y = -angle;
+    conduit.castShadow = true;
+    group.add(conduit);
+  }
+  const collarMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.9, roughness: 0.25 });
+  const topCollar = new Mesh(new CylinderGeometry(r * 0.28, r * 0.25, 0.1, 24), collarMat);
+  topCollar.position.y = h / 2 + 0.05;
+  topCollar.castShadow = true;
+  group.add(topCollar);
+  const botCollar = new Mesh(new CylinderGeometry(r * 0.25, r * 0.28, 0.1, 24), collarMat);
+  botCollar.position.y = -h / 2 - 0.05;
+  botCollar.castShadow = true;
+  group.add(botCollar);
+  group.userData.height = h + 0.2;
+  group.userData.radius = r;
+  return group;
+}
+function buildRadiator(part) {
+  const group = new Group();
+  const big = part.mass > 800;
+  const panelLen = big ? 2.5 : 1.5;
+  const panelW = big ? 0.8 : 0.5;
+  const panelT = 0.02;
+  const baseMat = new MeshStandardMaterial({
+    map: makeMetalTexture("steel"),
+    normalMap: makePanelNormalMap(64, 12),
+    metalness: 0.85,
+    roughness: 0.3
+  });
+  const base = new Mesh(new BoxGeometry(0.2, 0.15, 0.3), baseMat);
+  base.castShadow = true;
+  group.add(base);
+  const hingeMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.9, roughness: 0.2 });
+  const hinge = new Mesh(new CylinderGeometry(0.04, 0.04, 0.25, 12), hingeMat);
+  hinge.rotation.z = Math.PI / 2;
+  hinge.castShadow = true;
+  group.add(hinge);
+  const panelCanvas = document.createElement("canvas");
+  panelCanvas.width = 256;
+  panelCanvas.height = 128;
+  const pCtx = panelCanvas.getContext("2d");
+  for (let y = 0; y < 128; y++) {
+    for (let x = 0; x < 256; x++) {
+      const n = TextureFactory.fbm(x * 0.05, y * 0.1, 4, 0.4, 2.5);
+      const channel = Math.sin(x * 0.15) * 0.5 + 0.5;
+      const v = 25 + n * 15;
+      const r8 = Math.floor(v + channel * 10);
+      const g8 = Math.floor(v * 0.9 + channel * 8);
+      const b8 = Math.floor(v * 0.95 + channel * 15);
+      pCtx.fillStyle = `rgb(${Math.min(255, r8)},${Math.min(255, g8)},${Math.min(255, b8)})`;
+      pCtx.fillRect(x, y, 1, 1);
+    }
+  }
+  const panelTex = new CanvasTexture(panelCanvas);
+  panelTex.colorSpace = SRGBColorSpace;
+  panelTex.wrapS = RepeatWrapping;
+  panelTex.wrapT = RepeatWrapping;
+  const panelMat = new MeshStandardMaterial({
+    map: panelTex,
+    color: 2236968,
+    emissive: 1118498,
+    emissiveIntensity: 0.3,
+    metalness: 0.3,
+    roughness: 0.7,
+    side: DoubleSide
+  });
+  const panel = new Mesh(new BoxGeometry(panelLen, panelT, panelW), panelMat);
+  panel.position.set(panelLen / 2 + 0.1, 0, 0);
+  panel.castShadow = true;
+  group.add(panel);
+  const lineMat = new MeshStandardMaterial({ color: 4482730, metalness: 0.6, roughness: 0.4 });
+  const line1 = new Mesh(new CylinderGeometry(0.015, 0.015, panelLen, 8), lineMat);
+  line1.rotation.z = Math.PI / 2;
+  line1.position.set(panelLen / 2 + 0.1, 0, panelW / 2);
+  group.add(line1);
+  const line2 = new Mesh(new CylinderGeometry(0.015, 0.015, panelLen, 8), lineMat);
+  line2.rotation.z = Math.PI / 2;
+  line2.position.set(panelLen / 2 + 0.1, 0, -panelW / 2);
+  group.add(line2);
+  const ribMat = new MeshStandardMaterial({ map: makeMetalTexture("aluminum"), metalness: 0.8, roughness: 0.3 });
+  const ribCount = Math.floor(panelLen / 0.3);
+  for (let i = 1; i < ribCount; i++) {
+    const rib = new Mesh(new BoxGeometry(0.02, 0.03, panelW * 0.95), ribMat);
+    rib.position.set(0.1 + i * 0.3, 0.02, 0);
+    rib.castShadow = true;
+    group.add(rib);
+  }
+  const panel2 = new Mesh(new BoxGeometry(panelLen, panelT, panelW), panelMat);
+  panel2.position.set(-(panelLen / 2 + 0.1), 0, 0);
+  panel2.castShadow = true;
+  group.add(panel2);
+  group.userData.height = 0.15;
+  group.userData.radius = panelLen;
+  return group;
+}
+function buildMiningRig(part) {
+  const group = new Group();
+  const big = part.mass > 2e3;
+  const r = big ? 1.25 : 0.625;
+  const h = big ? 2 : 1.4;
+  const bodyMat = new MeshStandardMaterial({
+    map: makeMetalTexture("aluminum"),
+    normalMap: makePanelNormalMap(128, 20),
+    metalness: 0.7,
+    roughness: 0.45
+  });
+  const body = new Mesh(new CylinderGeometry(r * 0.9, r, h * 0.5, 16), bodyMat);
+  body.position.y = h * 0.15;
+  body.castShadow = true;
+  group.add(body);
+  const stripeMat = new MeshStandardMaterial({ color: 16763904, metalness: 0.4, roughness: 0.5 });
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const stripe = new Mesh(new BoxGeometry(0.04, h * 0.08, r * 0.9), stripeMat);
+    stripe.position.set(Math.cos(angle) * r * 0.93, h * 0.15, Math.sin(angle) * r * 0.93);
+    stripe.rotation.y = -angle + Math.PI / 2;
+    group.add(stripe);
+  }
+  const cutterMat = new MeshStandardMaterial({
+    map: makeMetalTexture("steel"),
+    metalness: 0.9,
+    roughness: 0.2
+  });
+  const cutterHousing = new Mesh(new CylinderGeometry(r * 0.7, r * 0.5, 0.2, 16), cutterMat);
+  cutterHousing.position.y = -h * 0.2;
+  cutterHousing.castShadow = true;
+  group.add(cutterHousing);
+  const teethMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.95, roughness: 0.15 });
+  const teethCount = 8;
+  for (let i = 0; i < teethCount; i++) {
+    const angle = i / teethCount * Math.PI * 2;
+    const tooth = new Mesh(new ConeGeometry(0.04, 0.1, 4), teethMat);
+    tooth.position.set(Math.cos(angle) * r * 0.6, -h * 0.3, Math.sin(angle) * r * 0.6);
+    tooth.rotation.x = Math.PI;
+    tooth.castShadow = true;
+    group.add(tooth);
+  }
+  const shaft = new Mesh(new CylinderGeometry(0.05, 0.05, 0.4, 12), cutterMat);
+  shaft.position.y = -h * 0.3;
+  shaft.castShadow = true;
+  group.add(shaft);
+  const conveyorMat = new MeshStandardMaterial({ map: makeMetalTexture("dark"), metalness: 0.5, roughness: 0.6 });
+  const conveyor = new Mesh(new BoxGeometry(0.15, 0.5, 0.25), conveyorMat);
+  conveyor.position.set(r * 0.9, 0, 0);
+  conveyor.rotation.z = -0.3;
+  conveyor.castShadow = true;
+  group.add(conveyor);
+  const hopperMat = new MeshStandardMaterial({ map: makeMetalTexture("aluminum"), metalness: 0.6, roughness: 0.5 });
+  const hopperPoints = [
+    new Vector2(0, 0),
+    new Vector2(r * 0.6, 0),
+    new Vector2(r * 0.6, 0.15),
+    new Vector2(r * 0.4, 0.35),
+    new Vector2(r * 0.35, 0.35),
+    new Vector2(r * 0.35, 0),
+    new Vector2(0, 0)
+  ];
+  const hopperGeo = new LatheGeometry(hopperPoints, 16);
+  const hopper = new Mesh(hopperGeo, hopperMat);
+  hopper.position.y = h * 0.4;
+  hopper.castShadow = true;
+  group.add(hopper);
+  const topRing = new Mesh(new TorusGeometry(r * 0.6, 0.04, 8, 24), cutterMat);
+  topRing.position.y = h * 0.75;
+  topRing.rotation.x = Math.PI / 2;
+  topRing.castShadow = true;
+  group.add(topRing);
+  group.userData.height = h;
+  group.userData.radius = r;
+  return group;
+}
+function buildColonyModule(part) {
+  const group = new Group();
+  const big = part.mass > 6e3;
+  const r = big ? 1.875 : 1.25;
+  const h = big ? 3 : 2;
+  const habitatMat = new MeshStandardMaterial({
+    map: makeMetalTexture("aluminum"),
+    normalMap: makePanelNormalMap(256, 24),
+    metalness: 0.6,
+    roughness: 0.4
+  });
+  const habitat = new Mesh(new CylinderGeometry(r, r, h, 24), habitatMat);
+  habitat.castShadow = true;
+  group.add(habitat);
+  const windowMat = new MeshStandardMaterial({
+    color: 8965375,
+    emissive: 4491468,
+    emissiveIntensity: 0.8,
+    metalness: 0.3,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.85
+  });
+  const windowRows = big ? 3 : 2;
+  const windowsPerRow = big ? 12 : 8;
+  for (let row = 0; row < windowRows; row++) {
+    const yPos = -h * 0.3 + row * (h * 0.3);
+    for (let i = 0; i < windowsPerRow; i++) {
+      const angle = i / windowsPerRow * Math.PI * 2 + row % 2 * (Math.PI / windowsPerRow);
+      const win = new Mesh(new CircleGeometry(r * 0.06, 12), windowMat);
+      win.position.set(Math.cos(angle) * r * 1.01, yPos, Math.sin(angle) * r * 1.01);
+      win.lookAt(Math.cos(angle) * (r * 2), yPos, Math.sin(angle) * (r * 2));
+      group.add(win);
+      const frame = new Mesh(
+        new TorusGeometry(r * 0.06, 0.01, 6, 16),
+        new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.8, roughness: 0.3 })
+      );
+      frame.position.copy(win.position);
+      frame.lookAt(Math.cos(angle) * (r * 2), yPos, Math.sin(angle) * (r * 2));
+      group.add(frame);
+    }
+  }
+  const solarMat = new MeshStandardMaterial({
+    color: 1127338,
+    emissive: 528708,
+    emissiveIntensity: 0.2,
+    metalness: 0.5,
+    roughness: 0.3
+  });
+  const stripCount = 4;
+  for (let i = 0; i < stripCount; i++) {
+    const angle = i / stripCount * Math.PI * 2 + Math.PI / 8;
+    const strip = new Mesh(new BoxGeometry(0.04, h * 0.7, r * 0.15), solarMat);
+    strip.position.set(Math.cos(angle) * r * 1.01, 0, Math.sin(angle) * r * 1.01);
+    strip.lookAt(0, 0, 0);
+    strip.castShadow = true;
+    group.add(strip);
+  }
+  const doorMat = new MeshStandardMaterial({
+    map: makeMetalTexture("titanium"),
+    normalMap: makePanelNormalMap(64, 12),
+    metalness: 0.75,
+    roughness: 0.35
+  });
+  for (let i = 0; i < 2; i++) {
+    const angle = i * Math.PI;
+    const door = new Mesh(new BoxGeometry(0.06, h * 0.35, r * 0.4), doorMat);
+    door.position.set(Math.cos(angle) * r * 1.02, -h * 0.1, Math.sin(angle) * r * 1.02);
+    door.lookAt(0, -h * 0.1, 0);
+    door.castShadow = true;
+    group.add(door);
+    const handle = new Mesh(
+      new CylinderGeometry(0.03, 0.03, 0.08, 8),
+      new MeshStandardMaterial({ color: 16755200, metalness: 0.6, roughness: 0.4 })
+    );
+    handle.position.set(Math.cos(angle) * r * 1.05, -h * 0.1, Math.sin(angle) * r * 1.05);
+    handle.rotation.x = Math.PI / 2;
+    handle.rotation.z = angle;
+    group.add(handle);
+  }
+  const antennaMat = new MeshStandardMaterial({ map: makeMetalTexture("aluminum"), metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < 2; i++) {
+    const angle = i * Math.PI + Math.PI / 2;
+    const mast = new Mesh(new CylinderGeometry(0.015, 0.015, 0.4, 6), antennaMat);
+    mast.position.set(Math.cos(angle) * r * 0.5, h / 2 + 0.2, Math.sin(angle) * r * 0.5);
+    mast.rotation.x = i === 0 ? -0.3 : 0.3;
+    mast.castShadow = true;
+    group.add(mast);
+    const dish = new Mesh(new SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), antennaMat);
+    dish.position.set(Math.cos(angle) * r * 0.5, h / 2 + 0.4, Math.sin(angle) * r * 0.5);
+    dish.rotation.x = i === 0 ? Math.PI - 0.3 : -0.3;
+    dish.castShadow = true;
+    group.add(dish);
+  }
+  const capMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.85, roughness: 0.3 });
+  const topCap = new Mesh(new CylinderGeometry(r * 1.02, r, 0.1, 24), capMat);
+  topCap.position.y = h / 2 + 0.05;
+  topCap.castShadow = true;
+  group.add(topCap);
+  const botCap = new Mesh(new CylinderGeometry(r, r * 1.02, 0.1, 24), capMat);
+  botCap.position.y = -h / 2 - 0.05;
+  botCap.castShadow = true;
+  group.add(botCap);
+  group.userData.height = h + 0.2;
+  group.userData.radius = r;
+  return group;
+}
+function buildAntimatterEngine(part) {
+  const group = new Group();
+  const big = part.thrust > 15e5;
+  const r = big ? 1.6 : 1;
+  const h = big ? 3.2 : 2.2;
+  const nozzlePoints = [];
+  nozzlePoints.push(new Vector2(0, -h / 2));
+  nozzlePoints.push(new Vector2(r, -h / 2));
+  nozzlePoints.push(new Vector2(r * 0.98, -h / 2 + h * 0.05));
+  nozzlePoints.push(new Vector2(r * 0.9, -h / 2 + h * 0.12));
+  nozzlePoints.push(new Vector2(r * 0.75, -h / 2 + h * 0.25));
+  nozzlePoints.push(new Vector2(r * 0.55, -h / 2 + h * 0.42));
+  nozzlePoints.push(new Vector2(r * 0.4, -h / 2 + h * 0.58));
+  nozzlePoints.push(new Vector2(r * 0.3, -h / 2 + h * 0.72));
+  nozzlePoints.push(new Vector2(r * 0.25, -h / 2 + h * 0.85));
+  nozzlePoints.push(new Vector2(r * 0.28, h / 2 - h * 0.08));
+  nozzlePoints.push(new Vector2(r * 0.26, h / 2));
+  nozzlePoints.push(new Vector2(0, h / 2));
+  const nozzleGeo = new LatheGeometry(nozzlePoints, 48);
+  const nozzleMat = new MeshStandardMaterial({
+    map: makeNozzleSootTexture(),
+    color: 3351108,
+    metalness: 0.75,
+    roughness: 0.35
+  });
+  const nozzle = new Mesh(nozzleGeo, nozzleMat);
+  nozzle.position.y = -0.1;
+  nozzle.castShadow = true;
+  group.add(nozzle);
+  const glowMat = new MeshStandardMaterial({
+    color: 6719743,
+    emissive: 4482815,
+    emissiveIntensity: 2,
+    metalness: 0,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.6,
+    side: BackSide
+  });
+  const glowGeo = new LatheGeometry(nozzlePoints.map((p) => new Vector2(p.x * 0.92, p.y)), 48);
+  const glow = new Mesh(glowGeo, glowMat);
+  glow.position.y = -0.1;
+  group.add(glow);
+  const coilMat = new MeshStandardMaterial({
+    map: makeMetalTexture("copper"),
+    metalness: 0.9,
+    roughness: 0.25
+  });
+  const coilCount = big ? 8 : 6;
+  for (let i = 0; i < coilCount; i++) {
+    const yPos = -h * 0.15 + i * (h * 0.3 / coilCount);
+    const coilR = r * (0.3 + (yPos + h / 2) / h * 0.5);
+    const coil = new Mesh(new TorusGeometry(coilR, 0.04, 8, 24), coilMat);
+    coil.position.y = yPos;
+    coil.rotation.x = Math.PI / 2;
+    coil.castShadow = true;
+    group.add(coil);
+  }
+  const crystalMat = new MeshStandardMaterial({
+    color: 11176191,
+    emissive: 6702284,
+    emissiveIntensity: 1,
+    metalness: 0.1,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.85
+  });
+  const crystal = new Mesh(new OctahedronGeometry(r * 0.2, 0), crystalMat);
+  crystal.position.y = h / 2 + 0.15;
+  crystal.castShadow = true;
+  group.add(crystal);
+  const collarMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.9, roughness: 0.25 });
+  const collar = new Mesh(new CylinderGeometry(r * 0.3, r * 0.28, 0.12, 24), collarMat);
+  collar.position.y = h / 2 + 0.05;
+  collar.castShadow = true;
+  group.add(collar);
+  const exitRing = new Mesh(
+    new TorusGeometry(r * 1.01, 0.03, 8, 48),
+    new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.85, roughness: 0.3 })
+  );
+  exitRing.position.y = -h / 2 + h * 0.05;
+  exitRing.rotation.x = Math.PI / 2;
+  exitRing.castShadow = true;
+  group.add(exitRing);
+  group.userData.height = h + 0.3;
+  group.userData.radius = r;
+  return group;
+}
+function buildPlasmaEngine(part) {
+  const group = new Group();
+  const big = part.thrust > 4e4;
+  const r = big ? 1 : 0.625;
+  const h = big ? 2.4 : 1.6;
+  const nozzlePoints = [];
+  nozzlePoints.push(new Vector2(0, -h / 2));
+  nozzlePoints.push(new Vector2(r, -h / 2));
+  nozzlePoints.push(new Vector2(r * 0.97, -h / 2 + h * 0.04));
+  nozzlePoints.push(new Vector2(r * 0.88, -h / 2 + h * 0.1));
+  nozzlePoints.push(new Vector2(r * 0.72, -h / 2 + h * 0.22));
+  nozzlePoints.push(new Vector2(r * 0.5, -h / 2 + h * 0.38));
+  nozzlePoints.push(new Vector2(r * 0.35, -h / 2 + h * 0.55));
+  nozzlePoints.push(new Vector2(r * 0.26, -h / 2 + h * 0.72));
+  nozzlePoints.push(new Vector2(r * 0.22, -h / 2 + h * 0.86));
+  nozzlePoints.push(new Vector2(r * 0.24, h / 2 - h * 0.06));
+  nozzlePoints.push(new Vector2(r * 0.22, h / 2));
+  nozzlePoints.push(new Vector2(0, h / 2));
+  const nozzleGeo = new LatheGeometry(nozzlePoints, 48);
+  const nozzleMat = new MeshStandardMaterial({
+    map: makeMetalTexture("titanium"),
+    normalMap: makePanelNormalMap(128, 20),
+    color: 5588070,
+    metalness: 0.8,
+    roughness: 0.3
+  });
+  const nozzle = new Mesh(nozzleGeo, nozzleMat);
+  nozzle.position.y = -0.1;
+  nozzle.castShadow = true;
+  group.add(nozzle);
+  const plasmaMat = new MeshStandardMaterial({
+    color: 16737996,
+    emissive: 13386922,
+    emissiveIntensity: 2.5,
+    metalness: 0,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.7,
+    side: BackSide
+  });
+  const plasmaPoints = nozzlePoints.map((p) => new Vector2(p.x * 0.88, p.y));
+  const plasmaGeo = new LatheGeometry(plasmaPoints, 48);
+  const plasmaGlow = new Mesh(plasmaGeo, plasmaMat);
+  plasmaGlow.position.y = -0.1;
+  group.add(plasmaGlow);
+  const scCoilMat = new MeshStandardMaterial({
+    map: makeMetalTexture("copper"),
+    metalness: 0.92,
+    roughness: 0.2
+  });
+  const coilCount = big ? 6 : 4;
+  for (let i = 0; i < coilCount; i++) {
+    const yPos = -h * 0.25 + i * (h * 0.4 / coilCount);
+    const tParam = (yPos + h / 2) / h;
+    const coilR = r * (0.25 + tParam * 0.6);
+    const coil = new Mesh(new TorusGeometry(coilR * 1.02, 0.035, 8, 32), scCoilMat);
+    coil.position.y = yPos;
+    coil.rotation.x = Math.PI / 2;
+    coil.castShadow = true;
+    group.add(coil);
+  }
+  const injectorMat = new MeshStandardMaterial({
+    map: makeMetalTexture("steel"),
+    normalMap: makePanelNormalMap(64, 12),
+    metalness: 0.85,
+    roughness: 0.3
+  });
+  const injector = new Mesh(new CylinderGeometry(r * 0.25, r * 0.22, 0.2, 20), injectorMat);
+  injector.position.y = h / 2 + 0.1;
+  injector.castShadow = true;
+  group.add(injector);
+  const antennaMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.9, roughness: 0.2 });
+  const antenna = new Mesh(new CylinderGeometry(0.012, 0.012, 0.3, 6), antennaMat);
+  antenna.position.y = h / 2 + 0.3;
+  group.add(antenna);
+  const antennaTip = new Mesh(
+    new SphereGeometry(0.025, 8, 8),
+    new MeshStandardMaterial({ color: 16729258, emissive: 13378184, emissiveIntensity: 1 })
+  );
+  antennaTip.position.y = h / 2 + 0.45;
+  group.add(antennaTip);
+  const cableMat = new MeshStandardMaterial({ color: 2236979, metalness: 0.3, roughness: 0.7 });
+  for (let i = 0; i < 3; i++) {
+    const angle = i / 3 * Math.PI * 2;
+    const cable = new Mesh(new CylinderGeometry(0.018, 0.018, h * 0.6, 8), cableMat);
+    cable.position.set(Math.cos(angle) * r * 1.05, 0, Math.sin(angle) * r * 1.05);
+    cable.castShadow = true;
+    group.add(cable);
+  }
+  const exitRingMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.88, roughness: 0.25 });
+  const exitRing = new Mesh(new TorusGeometry(r * 1.01, 0.025, 8, 48), exitRingMat);
+  exitRing.position.y = -h / 2 + h * 0.04;
+  exitRing.rotation.x = Math.PI / 2;
+  exitRing.castShadow = true;
+  group.add(exitRing);
+  group.userData.height = h + 0.5;
+  group.userData.radius = r;
   return group;
 }
 function createAstronautModel() {
@@ -25797,7 +27257,7 @@ var GameUI = class {
         <div class="hud-panel"><div class="hud-label">\u5206\u7EA7</div><div id="hud-stage" class="hud-value">1 / 1</div></div>
         <div class="hud-panel"><div class="hud-label">\u5929\u4F53</div><div id="hud-body" class="hud-value">--</div></div>
         <div class="hud-panel"><div class="hud-label">\u66F2\u901F\u5F15\u64CE</div><div id="hud-warp" class="hud-value">\u672A\u89E3\u9501</div></div>
-        <div class="hud-panel"><div class="hud-label">\u6210\u5C31</div><div id="hud-achievements" class="hud-value">\u{1F3C6} 0/6</div></div>
+        <div class="hud-panel"><div class="hud-label">\u6210\u5C31</div><div id="hud-achievements" class="hud-value">\u{1F3C6} 0/${ACHIEVEMENTS.length}</div></div>
       </div>
 
       <!-- \u5DE6\u4FA7 - \u5206\u7EA7\u5217\u8868 -->
@@ -25954,7 +27414,7 @@ var GameUI = class {
     document.getElementById("throttle-text").textContent = `${(data.throttle * 100).toFixed(0)}%`;
     document.getElementById("hud-science").textContent = `${Math.floor(data.sciencePoints)}`;
     const achEl = document.getElementById("hud-achievements");
-    if (achEl) achEl.textContent = `\u{1F3C6} ${data.achievements ?? 0}/6`;
+    if (achEl) achEl.textContent = `\u{1F3C6} ${data.achievements ?? 0}/${ACHIEVEMENTS.length}`;
     document.getElementById("hud-twr").textContent = data.twr.toFixed(2);
     document.getElementById("hud-dv").textContent = `${data.deltaV.toFixed(0)} m/s`;
     document.getElementById("hud-mass").textContent = `${(data.totalMass / 1e3).toFixed(1)} t`;
@@ -26442,14 +27902,21 @@ uniform float softKnee;
 varying vec2 vUv;
 void main() {
   vec3 c = texture2D(tDiffuse, vUv).rgb;
+  // \u2605 Perceptual luminance \u2014 weighted toward green, matches human eye sensitivity
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  // \u2605 Improved soft-knee: quadratic ramp with wider transition band
+  // This gives smoother bloom around bright sources without harsh cutoff
   float knee = threshold * softKnee + 1e-5;
   float soft = l - threshold + knee;
   soft = clamp(soft, 0.0, 2.0 * knee);
   soft = soft * soft / (4.0 * knee + 1e-4);
   float contribution = max(soft, l - threshold);
+  // \u2605 Normalized contribution \u2014 preserves color of bright areas
   contribution /= max(l, 1e-4);
   contribution = max(contribution, 0.0);
+  // \u2605 Add slight color-dependent boost \u2014 warm colors bloom more (star-like)
+  float warmBoost = max(0.0, (c.r - c.b) * 0.15);
+  contribution += warmBoost * step(threshold, l);
   gl_FragColor = vec4(c * contribution, 1.0);
 }
 `;
@@ -26459,13 +27926,18 @@ uniform vec2 direction;
 varying vec2 vUv;
 void main() {
   vec3 sum = vec3(0.0);
-  sum += texture2D(tDiffuse, vUv).rgb * 0.227027;
-  sum += texture2D(tDiffuse, vUv + direction * 1.0).rgb * 0.1945946;
-  sum += texture2D(tDiffuse, vUv - direction * 1.0).rgb * 0.1945946;
-  sum += texture2D(tDiffuse, vUv + direction * 2.0).rgb * 0.1216216;
-  sum += texture2D(tDiffuse, vUv - direction * 2.0).rgb * 0.1216216;
-  sum += texture2D(tDiffuse, vUv + direction * 3.0).rgb * 0.054054;
-  sum += texture2D(tDiffuse, vUv - direction * 3.0).rgb * 0.054054;
+  // 13-tap Gaussian \u2014 wider kernel for softer, more natural bloom
+  sum += texture2D(tDiffuse, vUv).rgb * 0.196482;
+  sum += texture2D(tDiffuse, vUv + direction * 1.0).rgb * 0.170118;
+  sum += texture2D(tDiffuse, vUv - direction * 1.0).rgb * 0.170118;
+  sum += texture2D(tDiffuse, vUv + direction * 2.0).rgb * 0.122582;
+  sum += texture2D(tDiffuse, vUv - direction * 2.0).rgb * 0.122582;
+  sum += texture2D(tDiffuse, vUv + direction * 3.0).rgb * 0.069848;
+  sum += texture2D(tDiffuse, vUv - direction * 3.0).rgb * 0.069848;
+  sum += texture2D(tDiffuse, vUv + direction * 4.0).rgb * 0.031498;
+  sum += texture2D(tDiffuse, vUv - direction * 4.0).rgb * 0.031498;
+  sum += texture2D(tDiffuse, vUv + direction * 5.0).rgb * 0.011224;
+  sum += texture2D(tDiffuse, vUv - direction * 5.0).rgb * 0.011224;
   gl_FragColor = vec4(sum, 1.0);
 }
 `;
@@ -26563,8 +28035,9 @@ var Game = class {
     this.fsCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
     this.bloomEnabled = true;
     this.bloomIterations = 2;
-    this.bloomThreshold = 0.6;
-    this.bloomStrength = 0.7;
+    // ★ Tuned bloom threshold (lower for more bloom) and strength for photorealistic glow
+    this.bloomThreshold = 0.55;
+    this.bloomStrength = 0.8;
     // === 动态曝光 ===
     this.currentExposure = 1;
     // === 主游戏循环 ===
@@ -27189,6 +28662,105 @@ var Game = class {
         }
       }
     }
+    if (!this.unlockedAchievements.has("jupiter_flyby")) {
+      const jupiter = this.physics.getBody("Jupiter");
+      if (jupiter) {
+        const dist = this.rocket.body.position.distanceTo(jupiter.position);
+        if (dist < jupiter.radius * 50) {
+          this.unlockAchievement("jupiter_flyby");
+        }
+      }
+    }
+    if (!this.unlockedAchievements.has("saturn_rings")) {
+      const saturn = this.physics.getBody("Saturn");
+      if (saturn) {
+        const dist = this.rocket.body.position.distanceTo(saturn.position);
+        if (dist < saturn.radius * 4 && dist > saturn.radius * 1.5) {
+          this.unlockAchievement("saturn_rings");
+        }
+      }
+    }
+    if (!this.unlockedAchievements.has("pluto_visit")) {
+      const pluto = this.physics.getBody("Pluto");
+      if (pluto) {
+        const dist = this.rocket.body.position.distanceTo(pluto.position);
+        if (dist < pluto.radius * 20) {
+          this.unlockAchievement("pluto_visit");
+        }
+      }
+    }
+    if (!this.unlockedAchievements.has("grand_tour")) {
+      const flybyBodies = ["Jupiter", "Saturn", "Uranus", "Neptune"];
+      let allPassed = true;
+      for (const name of flybyBodies) {
+        const body = this.physics.getBody(name);
+        if (!body) {
+          allPassed = false;
+          break;
+        }
+        const dist = this.rocket.body.position.distanceTo(body.position);
+        if (dist > body.radius * 50) {
+          allPassed = false;
+          break;
+        }
+      }
+      if (allPassed) this.unlockAchievement("grand_tour");
+    }
+    if (!this.unlockedAchievements.has("deep_space")) {
+      const sun = this.physics.getBody("Sun");
+      if (sun) {
+        const dist = this.rocket.body.position.distanceTo(sun.position);
+        if (dist > 100 * 149597870700) {
+          this.unlockAchievement("deep_space");
+        }
+      }
+    }
+    if (!this.unlockedAchievements.has("all_planets")) {
+      const planetNames = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"];
+      const allLanded = planetNames.every((name) => this.landedBodies.has(name));
+      if (allLanded) this.unlockAchievement("all_planets");
+    }
+    if (!this.unlockedAchievements.has("fusion_drive") && this.customParts) {
+      const hasFusion = this.customParts.some((p) => p.type === "fusion" || p.type === "engine" && p.isp > 2e3);
+      if (hasFusion && this.rocket.throttle > 0) {
+        this.unlockAchievement("fusion_drive");
+      }
+    }
+    if (!this.unlockedAchievements.has("colony_built") && this.rocket.isLanded && this.customParts) {
+      const hasColony = this.customParts.some((p) => p.type === "colony");
+      if (hasColony) {
+        this.unlockAchievement("colony_built");
+      }
+    }
+    if (!this.unlockedAchievements.has("eva_spacewalk") && !this.rocket.isLanded) {
+      const earth = this.physics.getBody("Earth");
+      if (earth && this.rocket.parentBody === "Earth") {
+        const alt = this.rocket.body.position.distanceTo(earth.position) - earth.radius;
+        const speed = this.rocket.body.velocity.length();
+        if (alt > 2e5 && speed < 8e3) {
+          this.unlockAchievement("eva_spacewalk");
+        }
+      }
+    }
+    if (!this.unlockedAchievements.has("space_station") && !this.rocket.isLanded && this.customParts) {
+      const dockCount = this.customParts.filter((p) => p.type === "utility" && p.id.includes("dock")).length;
+      if (dockCount >= 2) {
+        const earth = this.physics.getBody("Earth");
+        if (earth) {
+          const alt = this.rocket.body.position.distanceTo(earth.position) - earth.radius;
+          if (alt > 2e5) this.unlockAchievement("space_station");
+        }
+      }
+    }
+    if (!this.unlockedAchievements.has("asteroid_redirect")) {
+      const phobos = this.physics.getBody("Phobos");
+      if (phobos && this.rocket.parentBody === "Phobos") {
+        const dist = this.rocket.body.position.distanceTo(phobos.position);
+        if (dist < phobos.radius * 5) {
+          this.unlockAchievement("asteroid_redirect");
+        }
+      }
+    }
   }
   unlockAchievement(id) {
     if (this.unlockedAchievements.has(id)) return;
@@ -27505,6 +29077,19 @@ ${ach.description}`, 8e3);
             this.unlockAchievement("interstellar");
           }
         }
+        if (!this.unlockedAchievements.has("interstellar")) {
+          this.unlockAchievement("interstellar");
+        }
+        if (this.warpDrive.targetSystem === "TRAPPIST-1") {
+          if (!this.unlockedAchievements.has("trappist_arrival")) {
+            this.unlockAchievement("trappist_arrival");
+          }
+        }
+        if (this.warpDrive.targetSystem === "Tau Ceti") {
+          if (!this.unlockedAchievements.has("tau_ceti_arrival")) {
+            this.unlockAchievement("tau_ceti_arrival");
+          }
+        }
       }
     }
     for (const base of this.researchBases) {
@@ -27733,7 +29318,14 @@ var PART_TYPE_CN = {
   adapter: "\u9002\u914D\u5668",
   booster: "\u52A9\u63A8\u5668",
   structural: "\u7ED3\u6784\u90E8\u4EF6",
-  utility: "\u5B9E\u7528\u5DE5\u5177"
+  utility: "\u5B9E\u7528\u5DE5\u5177",
+  fusion: "\u805A\u53D8",
+  warp: "\u66F2\u901F",
+  radiator: "\u6563\u70ED",
+  mining: "\u91C7\u77FF",
+  colony: "\u6B96\u6C11",
+  antimatter: "\u53CD\u7269\u8D28",
+  plasma: "\u7B49\u79BB\u5B50"
 };
 var PART_TYPE_ICON = {
   command: "\u{1F4E6}",
@@ -27750,7 +29342,14 @@ var PART_TYPE_ICON = {
   adapter: "\u{1F4D0}",
   booster: "\u{1F680}",
   structural: "\u{1F527}",
-  utility: "\u{1F50C}"
+  utility: "\u{1F50C}",
+  fusion: "\u269B\uFE0F",
+  warp: "\u{1F300}",
+  radiator: "\u2744\uFE0F",
+  mining: "\u26CF\uFE0F",
+  colony: "\u{1F3D9}\uFE0F",
+  antimatter: "\u{1F48E}",
+  plasma: "\u{1F535}"
 };
 var VAB_CATEGORIES = [
   { id: "all", name: "\u5168\u90E8", icon: "\u{1F4DA}" },
@@ -27768,13 +29367,26 @@ var VAB_CATEGORIES = [
   { id: "landing", name: "\u7740\u9646", icon: "\u{1F9B5}" },
   { id: "decoupler", name: "\u5206\u79BB\u5668", icon: "\u{1F517}" },
   { id: "adapter", name: "\u9002\u914D\u5668", icon: "\u{1F4D0}" },
-  { id: "utility", name: "\u5DE5\u5177", icon: "\u{1F50C}" }
+  { id: "utility", name: "\u5DE5\u5177", icon: "\u{1F50C}" },
+  { id: "fusion", name: "\u805A\u53D8", icon: "\u269B\uFE0F" },
+  { id: "warp", name: "\u66F2\u901F", icon: "\u{1F300}" },
+  { id: "radiator", name: "\u6563\u70ED", icon: "\u2744\uFE0F" },
+  { id: "mining", name: "\u91C7\u77FF", icon: "\u26CF\uFE0F" },
+  { id: "colony", name: "\u6B96\u6C11", icon: "\u{1F3D9}\uFE0F" },
+  { id: "antimatter", name: "\u53CD\u7269\u8D28", icon: "\u{1F48E}" },
+  { id: "plasma", name: "\u7B49\u79BB\u5B50", icon: "\u{1F535}" }
 ];
 var PRESET_ASTRONAUTS = [
   { name: "\u6C6A\u6DFC", level: 3, status: "\u53EF\u7528", specialty: "\u7EB3\u7C73\u6750\u6599\u4E13\u5BB6", bio: '\u7EB3\u7C73\u4E2D\u5FC3\u7814\u7A76\u5458\uFF0C\u66FE\u53C2\u4E0E"\u53E4\u7B5D\u884C\u52A8"\u3002\u64C5\u957F\u6750\u6599\u5DE5\u7A0B\u4E0E\u822A\u5929\u5668\u7ED3\u6784\u5206\u6790\u3002' },
   { name: "\u53F2\u5F3A", level: 4, status: "\u53EF\u7528", specialty: "\u7279\u79CD\u4F5C\u6218/\u5B89\u4FDD", bio: "\u8D44\u6DF1\u5211\u8B66\u51FA\u8EAB\uFF0C\u5177\u5907\u51FA\u8272\u7684\u73B0\u573A\u5904\u7F6E\u4E0E\u5B89\u4FDD\u6307\u6325\u80FD\u529B\uFF0C\u591A\u6B21\u6267\u884C\u9AD8\u5371\u4EFB\u52A1\u3002" },
   { name: "\u7AE0\u5317\u6D77", level: 5, status: "\u53EF\u7528", specialty: "\u6DF1\u7A7A\u822A\u884C\u6307\u6325", bio: "\u592A\u7A7A\u519B\u5C06\u9886\uFF0C\u6DF1\u7A7A\u6218\u7565\u4E0E\u822A\u884C\u6307\u6325\u4E13\u5BB6\uFF0C\u610F\u5FD7\u575A\u5B9A\uFF0C\u9002\u5408\u957F\u671F\u661F\u9645\u4EFB\u52A1\u3002" },
-  { name: "\u7A0B\u5FC3", level: 2, status: "\u8BAD\u7EC3\u4E2D", specialty: "\u661F\u9645\u5916\u4EA4", bio: "\u822A\u5929\u52A8\u529B\u4E13\u4E1A\u51FA\u8EAB\uFF0C\u81F4\u529B\u4E8E\u661F\u9645\u6587\u660E\u4EA4\u6D41\u4E0E\u5916\u4EA4\u534F\u8C03\uFF0C\u6B63\u5728\u8FDB\u884C\u5B87\u822A\u8BAD\u7EC3\u3002" }
+  { name: "\u7A0B\u5FC3", level: 2, status: "\u8BAD\u7EC3\u4E2D", specialty: "\u661F\u9645\u5916\u4EA4", bio: "\u822A\u5929\u52A8\u529B\u4E13\u4E1A\u51FA\u8EAB\uFF0C\u81F4\u529B\u4E8E\u661F\u9645\u6587\u660E\u4EA4\u6D41\u4E0E\u5916\u4EA4\u534F\u8C03\uFF0C\u6B63\u5728\u8FDB\u884C\u5B87\u822A\u8BAD\u7EC3\u3002" },
+  { name: "\u53F6\u6587\u6D01", level: 5, status: "\u5DF2\u9000\u5F79", specialty: "\u5929\u4F53\u7269\u7406", bio: "\u7EA2\u5CB8\u57FA\u5730\u521B\u59CB\u4EBA\uFF0C\u9996\u6B21\u63A5\u6536\u5230\u4E09\u4F53\u6587\u660E\u4FE1\u53F7\u3002" },
+  { name: "\u4E01\u4EEA", level: 5, status: "\u53EF\u7528", specialty: "\u7406\u8BBA\u7269\u7406", bio: "\u7814\u7A76\u4E09\u4F53\u79D1\u5B66\u7684\u6838\u5FC3\u7269\u7406\u5B66\u5BB6\uFF0C\u591A\u6B21\u53C2\u4E0E\u5173\u952E\u5B9E\u9A8C\u3002" },
+  { name: "\u7533\u7389\u83F2", level: 4, status: "\u53EF\u7528", specialty: "\u6570\u5B66", bio: "\u4E09\u4F53\u8FD0\u52A8\u7684\u6570\u5B66\u5EFA\u6A21\u4E13\u5BB6\u3002" },
+  { name: "\u4E91\u5929\u660E", level: 5, status: "\u5728\u8F68", specialty: "\u6DF1\u7A7A\u901A\u4FE1", bio: "\u552F\u4E00\u6210\u529F\u6E17\u900F\u4E09\u4F53\u6587\u660E\u7684\u4EBA\u7C7B\u95F4\u8C0D\u3002" },
+  { name: "\u827EAA", level: 4, status: "\u8BAD\u7EC3\u4E2D", specialty: "\u661F\u9645\u5BFC\u822A", bio: "\u5A01\u6151\u7EAA\u5143\u540E\u7684\u65B0\u4E00\u4EE3\u661F\u9645\u822A\u884C\u5458\u3002" },
+  { name: "\u7F57\u8F91", level: 5, status: "\u53EF\u7528", specialty: "\u6218\u7565\u6307\u6325", bio: "\u9762\u58C1\u8005\uFF0C\u5EFA\u7ACB\u9ED1\u6697\u68EE\u6797\u5A01\u6151\u7684\u6267\u5251\u4EBA\u3002" }
 ];
 var TECH_TREE = [
   { id: "tech1", name: "\u57FA\u7840\u706B\u7BAD\u6280\u672F", cost: 0, unlocked: true, desc: "\u57FA\u7840\u5316\u5B66\u5F15\u64CE\u4E0E\u5C0F\u578B\u71C3\u6599\u7BB1" },
@@ -27910,6 +29522,7 @@ var VAB3DPreview = class {
     // KSP-style building system state
     this.placedParts = [];
     this.ghostPart = null;
+    this.ghostValid = true;
     this.pickedUpPart = null;
     this.selectedPart = null;
     this.selectionOutline = null;
@@ -27946,7 +29559,9 @@ var VAB3DPreview = class {
       this.pointerDownPos = null;
       if (dist > 5) return;
       if (this.isPlacementMode && this.pickedUpPart) {
-        this.placePartFromMouse(e);
+        if (this.ghostValid) {
+          this.placePartFromMouse(e);
+        }
       } else {
         this.selectPartFromMouse(e);
       }
@@ -28223,6 +29838,35 @@ var VAB3DPreview = class {
         if (part.id.includes("dock")) return { height: 0.4, radius: 0.35 };
         return { height: 0.3, radius: 0.2 };
       }
+      case "fusion": {
+        if (part.mass > 1e4) return { height: 2.5, radius: 1 };
+        if (part.mass > 5e3) return { height: 2, radius: 0.85 };
+        return { height: 1.5, radius: 0.7 };
+      }
+      case "warp": {
+        if (part.mass > 15e3) return { height: 3, radius: 1.2 };
+        return { height: 2, radius: 0.9 };
+      }
+      case "radiator": {
+        if (part.mass > 1e3) return { height: 0.3, radius: 1.5 };
+        return { height: 0.2, radius: 1 };
+      }
+      case "mining": {
+        if (part.mass > 2e3) return { height: 2, radius: 0.8 };
+        return { height: 1.5, radius: 0.6 };
+      }
+      case "colony": {
+        if (part.mass > 6e3) return { height: 2.5, radius: 1.2 };
+        return { height: 2, radius: 1 };
+      }
+      case "antimatter": {
+        if (part.thrust > 0) return { height: 2.5, radius: 0.9 };
+        return { height: 2, radius: 0.7 };
+      }
+      case "plasma": {
+        if (part.thrust > 0) return { height: 2, radius: 0.6 };
+        return { height: 1.5, radius: 0.5 };
+      }
       default:
         return { height: 0.5, radius: 0.3 };
     }
@@ -28262,6 +29906,20 @@ var VAB3DPreview = class {
         return this.createStructural(part);
       case "utility":
         return this.createUtility(part);
+      case "fusion":
+        return this.createFusionPart(part);
+      case "warp":
+        return this.createWarpPart(part);
+      case "radiator":
+        return this.createRadiatorPart(part);
+      case "mining":
+        return this.createMiningPart(part);
+      case "colony":
+        return this.createColonyPart(part);
+      case "antimatter":
+        return this.createAntimatterPart(part);
+      case "plasma":
+        return this.createPlasmaPart(part);
       default:
         return this.createGenericPart(part);
     }
@@ -30044,6 +31702,237 @@ var VAB3DPreview = class {
     return { group, height: 0.8, radius: 0.4 };
   }
   // ============================================
+  // KSPIE 扩展零件 - 聚变引擎/反应堆
+  // ============================================
+  createFusionPart(part) {
+    const group = new Group();
+    const dims = this.getPartDimensions(part);
+    const isReactor = part.thrust <= 0;
+    if (isReactor) {
+      const chamber = new Mesh(
+        new TorusGeometry(dims.radius * 0.7, dims.radius * 0.3, 16, 32),
+        new MeshStandardMaterial({ color: 4487116, metalness: 0.8, roughness: 0.2 })
+      );
+      chamber.rotation.x = Math.PI / 2;
+      chamber.castShadow = true;
+      group.add(chamber);
+      const core = new Mesh(
+        new SphereGeometry(dims.radius * 0.25, 16, 12),
+        new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 0.6 })
+      );
+      group.add(core);
+    } else {
+      const body = new Mesh(
+        new CylinderGeometry(dims.radius, dims.radius * 0.6, dims.height, 24),
+        new MeshStandardMaterial({ color: 5596791, metalness: 0.9, roughness: 0.2 })
+      );
+      body.castShadow = true;
+      group.add(body);
+      const nozzle = new Mesh(
+        new CylinderGeometry(dims.radius * 0.6, dims.radius * 0.9, dims.height * 0.4, 24),
+        new MeshStandardMaterial({ color: 3359829, metalness: 0.9, roughness: 0.3 })
+      );
+      nozzle.position.y = -dims.height * 0.6;
+      nozzle.castShadow = true;
+      group.add(nozzle);
+      const glow = new Mesh(
+        new CylinderGeometry(dims.radius * 0.5, dims.radius * 0.5, 0.1, 16),
+        new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 1, transparent: true, opacity: 0.8 })
+      );
+      glow.position.y = -dims.height * 0.8;
+      group.add(glow);
+    }
+    return { group, height: dims.height, radius: dims.radius };
+  }
+  // ============================================
+  // KSPIE 扩展零件 - 曲速引擎
+  // ============================================
+  createWarpPart(part) {
+    const group = new Group();
+    const dims = this.getPartDimensions(part);
+    const ring1 = new Mesh(
+      new TorusGeometry(dims.radius, dims.radius * 0.15, 12, 48),
+      new MeshStandardMaterial({ color: 10062079, metalness: 0.9, roughness: 0.1, emissive: 4465322, emissiveIntensity: 0.4 })
+    );
+    ring1.castShadow = true;
+    group.add(ring1);
+    const ring2 = new Mesh(
+      new TorusGeometry(dims.radius * 0.7, dims.radius * 0.1, 12, 48),
+      new MeshStandardMaterial({ color: 13413119, metalness: 0.9, roughness: 0.1, emissive: 6702284, emissiveIntensity: 0.5 })
+    );
+    ring2.rotation.x = Math.PI / 2;
+    group.add(ring2);
+    const core = new Mesh(
+      new IcosahedronGeometry(dims.radius * 0.3, 1),
+      new MeshStandardMaterial({ color: 14540287, emissive: 11184895, emissiveIntensity: 0.8, metalness: 0.5, roughness: 0.3 })
+    );
+    group.add(core);
+    for (let i = 0; i < 2; i++) {
+      const nacelle = new Mesh(
+        new CapsuleGeometry(dims.radius * 0.12, dims.height * 0.6, 8, 16),
+        new MeshStandardMaterial({ color: 7833787, metalness: 0.9, roughness: 0.2 })
+      );
+      nacelle.position.set((i === 0 ? -1 : 1) * dims.radius * 1.1, 0, 0);
+      nacelle.castShadow = true;
+      group.add(nacelle);
+    }
+    return { group, height: dims.height, radius: dims.radius };
+  }
+  // ============================================
+  // KSPIE 扩展零件 - 散热器
+  // ============================================
+  createRadiatorPart(part) {
+    const group = new Group();
+    const dims = this.getPartDimensions(part);
+    const hub = new Mesh(
+      new CylinderGeometry(0.2, 0.2, 0.3, 12),
+      this.mats.structural
+    );
+    hub.castShadow = true;
+    group.add(hub);
+    const panelCount = part.mass > 1e3 ? 4 : 2;
+    for (let i = 0; i < panelCount; i++) {
+      const panel = new Mesh(
+        new BoxGeometry(dims.radius * 0.9, dims.height, dims.radius * 0.05),
+        new MeshStandardMaterial({ color: 14540253, metalness: 0.3, roughness: 0.6, emissive: 4482730, emissiveIntensity: 0.15 })
+      );
+      const angle = i / panelCount * Math.PI * 2;
+      panel.position.set(Math.cos(angle) * dims.radius * 0.5, 0, Math.sin(angle) * dims.radius * 0.5);
+      panel.rotation.y = angle;
+      panel.castShadow = true;
+      group.add(panel);
+    }
+    return { group, height: dims.height, radius: dims.radius };
+  }
+  // ============================================
+  // KSPIE 扩展零件 - 采矿设备
+  // ============================================
+  createMiningPart(part) {
+    const group = new Group();
+    const dims = this.getPartDimensions(part);
+    const body = new Mesh(
+      new CylinderGeometry(dims.radius, dims.radius * 0.8, dims.height * 0.6, 16),
+      new MeshStandardMaterial({ color: 8939076, metalness: 0.7, roughness: 0.4 })
+    );
+    body.castShadow = true;
+    group.add(body);
+    const drill = new Mesh(
+      new ConeGeometry(dims.radius * 0.6, dims.height * 0.4, 12),
+      new MeshStandardMaterial({ color: 11184810, metalness: 0.9, roughness: 0.2 })
+    );
+    drill.position.y = -dims.height * 0.5;
+    drill.castShadow = true;
+    group.add(drill);
+    for (let i = 0; i < 2; i++) {
+      const tank = new Mesh(
+        new CylinderGeometry(dims.radius * 0.2, dims.radius * 0.2, dims.height * 0.5, 10),
+        new MeshStandardMaterial({ color: 6702131, metalness: 0.6, roughness: 0.5 })
+      );
+      tank.position.set((i === 0 ? -1 : 1) * dims.radius * 0.85, 0, 0);
+      tank.castShadow = true;
+      group.add(tank);
+    }
+    return { group, height: dims.height, radius: dims.radius };
+  }
+  // ============================================
+  // KSPIE 扩展零件 - 殖民模块
+  // ============================================
+  createColonyPart(part) {
+    const group = new Group();
+    const dims = this.getPartDimensions(part);
+    const dome = new Mesh(
+      new SphereGeometry(dims.radius, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      new MeshStandardMaterial({ color: 15649962, metalness: 0.3, roughness: 0.6 })
+    );
+    dome.castShadow = true;
+    group.add(dome);
+    const base = new Mesh(
+      new CylinderGeometry(dims.radius, dims.radius, 0.2, 24),
+      new MeshStandardMaterial({ color: 10061943, metalness: 0.6, roughness: 0.4 })
+    );
+    base.castShadow = true;
+    group.add(base);
+    const windowMat = new MeshStandardMaterial({ color: 16768392, emissive: 16755268, emissiveIntensity: 0.5 });
+    for (let i = 0; i < 6; i++) {
+      const win = new Mesh(new CircleGeometry(0.08, 8), windowMat);
+      const angle = i / 6 * Math.PI * 2;
+      win.position.set(Math.cos(angle) * dims.radius * 0.9, 0.3, Math.sin(angle) * dims.radius * 0.9);
+      win.lookAt(Math.cos(angle) * 5, 0.3, Math.sin(angle) * 5);
+      group.add(win);
+    }
+    return { group, height: dims.height, radius: dims.radius };
+  }
+  // ============================================
+  // KSPIE 扩展零件 - 反物质容器/引擎
+  // ============================================
+  createAntimatterPart(part) {
+    const group = new Group();
+    const dims = this.getPartDimensions(part);
+    const isEngine = part.thrust > 0;
+    const vessel = new Mesh(
+      new SphereGeometry(dims.radius * 0.7, 20, 16),
+      new MeshStandardMaterial({ color: 2236996, metalness: 0.9, roughness: 0.1 })
+    );
+    vessel.castShadow = true;
+    group.add(vessel);
+    for (let i = 0; i < 3; i++) {
+      const ring = new Mesh(
+        new TorusGeometry(dims.radius * 0.75, 0.04, 8, 32),
+        new MeshStandardMaterial({ color: 4500223, emissive: 2254540, emissiveIntensity: 0.6, metalness: 0.8 })
+      );
+      ring.position.y = (i - 1) * dims.height * 0.2;
+      group.add(ring);
+    }
+    if (isEngine) {
+      const nozzle = new Mesh(
+        new ConeGeometry(dims.radius * 0.5, dims.height * 0.4, 12),
+        new MeshStandardMaterial({ color: 3359829, metalness: 0.9, roughness: 0.2 })
+      );
+      nozzle.position.y = -dims.height * 0.5;
+      nozzle.castShadow = true;
+      group.add(nozzle);
+    }
+    const glow = new Mesh(
+      new SphereGeometry(dims.radius * 0.3, 12, 8),
+      new MeshStandardMaterial({ color: 16729343, emissive: 13378252, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 })
+    );
+    group.add(glow);
+    return { group, height: dims.height, radius: dims.radius };
+  }
+  // ============================================
+  // KSPIE 扩展零件 - 等离子引擎
+  // ============================================
+  createPlasmaPart(part) {
+    const group = new Group();
+    const dims = this.getPartDimensions(part);
+    const body = new Mesh(
+      new CylinderGeometry(dims.radius * 0.9, dims.radius * 0.7, dims.height * 0.7, 20),
+      new MeshStandardMaterial({ color: 3368601, metalness: 0.9, roughness: 0.15 })
+    );
+    body.castShadow = true;
+    group.add(body);
+    const chamber = new Mesh(
+      new SphereGeometry(dims.radius * 0.45, 16, 12),
+      new MeshStandardMaterial({ color: 43775, emissive: 26367, emissiveIntensity: 1.2, transparent: true, opacity: 0.6 })
+    );
+    chamber.position.y = dims.height * 0.1;
+    group.add(chamber);
+    const nozzle = new Mesh(
+      new CylinderGeometry(dims.radius * 0.5, dims.radius * 0.8, dims.height * 0.3, 16),
+      new MeshStandardMaterial({ color: 2245734, metalness: 0.9, roughness: 0.2 })
+    );
+    nozzle.position.y = -dims.height * 0.5;
+    nozzle.castShadow = true;
+    group.add(nozzle);
+    const trail = new Mesh(
+      new ConeGeometry(dims.radius * 0.5, dims.height * 0.2, 12),
+      new MeshStandardMaterial({ color: 4508927, emissive: 39423, emissiveIntensity: 1.5, transparent: true, opacity: 0.5 })
+    );
+    trail.position.y = -dims.height * 0.75;
+    group.add(trail);
+    return { group, height: dims.height, radius: dims.radius };
+  }
+  // ============================================
   // KSP 式建造系统 - 核心方法
   // ============================================
   // 放置零件 (核心方法)
@@ -30253,7 +32142,7 @@ var VAB3DPreview = class {
         const mat = child.material;
         const ghostMat = mat.clone();
         ghostMat.transparent = true;
-        ghostMat.opacity = 0.4;
+        ghostMat.opacity = 0.5;
         ghostMat.depthWrite = false;
         child.material = ghostMat;
       }
@@ -30261,6 +32150,26 @@ var VAB3DPreview = class {
     group.position.copy(position);
     this.scene.add(group);
     this.ghostPart = group;
+    this.ghostValid = true;
+    this.applyGhostColor(true);
+  }
+  // Set ghost color: green = valid placement, red = invalid
+  setGhostValid(valid) {
+    if (this.ghostValid === valid) return;
+    this.ghostValid = valid;
+    this.applyGhostColor(valid);
+  }
+  // Apply green/red tint to ghost mesh materials
+  applyGhostColor(valid) {
+    if (!this.ghostPart) return;
+    const tint = valid ? 4521796 : 16729156;
+    this.ghostPart.traverse((child) => {
+      if (child instanceof Mesh && child.material) {
+        const mat = child.material;
+        mat.color.setHex(tint);
+        mat.emissive.setHex(valid ? 1127185 : 3346705);
+      }
+    });
   }
   hideGhost() {
     if (this.ghostPart) {
@@ -30284,6 +32193,7 @@ var VAB3DPreview = class {
       if (stackParts.length === 0) {
         if (this.ghostPart) this.ghostPart.position.set(0, 0, 0);
         else this.showGhost(part, new Vector3(0, 0, 0));
+        this.setGhostValid(true);
       } else {
         const topY = this.getStackTopPosition();
         const botY = this.getStackBottomPosition();
@@ -30303,11 +32213,13 @@ var VAB3DPreview = class {
         } else {
           this.showGhost(part, pos);
         }
+        this.setGhostValid(true);
       }
     } else {
       this.raycaster.setFromCamera(ndc, this.camera);
       const stackMeshes = this.placedParts.filter((p) => p.isStack).map((p) => p.mesh);
       if (stackMeshes.length === 0) {
+        this.setGhostValid(false);
         return;
       }
       const intersects2 = this.raycaster.intersectObjects(stackMeshes, true);
@@ -30328,6 +32240,9 @@ var VAB3DPreview = class {
           this.showGhost(part, pos);
           if (this.ghostPart) this.ghostPart.rotation.y = -angle;
         }
+        this.setGhostValid(true);
+      } else {
+        this.setGhostValid(false);
       }
     }
   }
@@ -30345,9 +32260,10 @@ var VAB3DPreview = class {
     if (!this.pickedUpPart) return;
     this.placePartFromClientCoords(e.clientX, e.clientY);
   }
-  // 公开方法：根据客户端坐标放置当前拾取的零件（供拖拽放置调用）
+  // 公开方法：根据客户端坐标放置当前拾取的零件（供鼠标点击放置调用）
   placePartFromClientCoords(clientX, clientY) {
     if (!this.pickedUpPart) return;
+    if (!this.ghostValid) return;
     const part = this.pickedUpPart;
     const dims = this.getPartDimensions(part);
     const rect = this.canvas.getBoundingClientRect();
@@ -31384,23 +33300,6 @@ var SpaceCenter = class {
       touch-action: none;
     `;
     viewportContainer.appendChild(previewCanvas);
-    viewportContainer.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      if (e.dataTransfer) {
-        e.dataTransfer.dropEffect = "copy";
-      }
-    });
-    viewportContainer.addEventListener("drop", (e) => {
-      e.preventDefault();
-      if (this.vabPreview) {
-        const picked = this.vabPreview.getPickedUpPart();
-        if (picked) {
-          this.vabPreview.placePartFromClientCoords(e.clientX, e.clientY);
-          this.refreshPartsList();
-          this.updateCancelBtn();
-        }
-      }
-    });
     const hintDiv = document.createElement("div");
     hintDiv.style.cssText = `
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -31409,8 +33308,8 @@ var SpaceCenter = class {
     `;
     hintDiv.innerHTML = `
       <div style="font-size: 3rem;">\u{1F680}</div>
-      <div>\u70B9\u51FB\u5DE6\u4FA7\u96F6\u4EF6\uFF0C\u7136\u540E\u57283D\u89C6\u53E3\u4E2D\u653E\u7F6E</div>
-      <div style="font-size: 0.85rem; color: #444;">\u62D6\u62FD\u65CB\u8F6C\u89C6\u89D2 \xB7 \u6EDA\u8F6E\u7F29\u653E \xB7 \u53F3\u952E\u53D6\u6D88\u653E\u7F6E \xB7 Delete\u5220\u9664\u9009\u4E2D</div>
+      <div>\u70B9\u51FB\u5DE6\u4FA7\u96F6\u4EF6\u62FE\u53D6\uFF0C\u7136\u540E\u57283D\u89C6\u53E3\u4E2D\u70B9\u51FB\u653E\u7F6E</div>
+      <div style="font-size: 0.85rem; color: #444;">\u9F20\u6807\u62D6\u62FD\u65CB\u8F6C\u89C6\u89D2 \xB7 \u6EDA\u8F6E\u7F29\u653E \xB7 \u53F3\u952E/ESC\u53D6\u6D88\u653E\u7F6E \xB7 Delete\u5220\u9664\u9009\u4E2D</div>
     `;
     viewportContainer.appendChild(hintDiv);
     const viewportBottom = document.createElement("div");
@@ -31756,16 +33655,6 @@ var SpaceCenter = class {
         this.updateCancelBtn();
       }
     });
-    item.draggable = true;
-    item.addEventListener("dragstart", (e) => {
-      if (this.vabPreview) {
-        this.vabPreview.pickUpPart(part);
-        e.dataTransfer?.setData("text/plain", part.id);
-        if (e.dataTransfer) {
-          e.dataTransfer.effectAllowed = "copy";
-        }
-      }
-    });
     return item;
   }
   // 刷新VAB统计、分级和底部栏
@@ -32052,7 +33941,7 @@ var SpaceCenter = class {
     `;
     PRESET_ASTRONAUTS.forEach((astro) => {
       const card = document.createElement("div");
-      const statusColor = astro.status === "\u53EF\u7528" ? "#4fa" : astro.status === "\u5728\u8F68" ? "#8cf" : "#fa4";
+      const statusColor = astro.status === "\u53EF\u7528" ? "#4fa" : astro.status === "\u5728\u8F68" ? "#8cf" : astro.status === "\u5DF2\u9000\u5F79" ? "#888" : "#fa4";
       card.style.cssText = `
         background: rgba(20,30,55,0.6); border: 1px solid rgba(80,160,255,0.25);
         border-radius: 10px; padding: 18px; cursor: pointer; transition: all 0.2s;
@@ -32106,7 +33995,7 @@ var SpaceCenter = class {
       background: rgba(0,0,5,0.75); z-index: 1300; display: flex;
       align-items: center; justify-content: center; backdrop-filter: blur(4px);
     `;
-    const statusColor = astro.status === "\u53EF\u7528" ? "#4fa" : astro.status === "\u5728\u8F68" ? "#8cf" : "#fa4";
+    const statusColor = astro.status === "\u53EF\u7528" ? "#4fa" : astro.status === "\u5728\u8F68" ? "#8cf" : astro.status === "\u5DF2\u9000\u5F79" ? "#888" : "#fa4";
     const stars = "\u2605".repeat(astro.level) + "\u2606".repeat(Math.max(0, 5 - astro.level));
     const modal = document.createElement("div");
     modal.style.cssText = `
