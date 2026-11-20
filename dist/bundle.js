@@ -7765,8 +7765,8 @@ function WebGLAnimation() {
   let isAnimating = false;
   let animationLoop = null;
   let requestId = null;
-  function onAnimationFrame(time, frame) {
-    animationLoop(time, frame);
+  function onAnimationFrame(time, frame2) {
+    animationLoop(time, frame2);
     requestId = context.requestAnimationFrame(onAnimationFrame);
   }
   return {
@@ -10570,30 +10570,30 @@ function WebGLMorphtargets(gl, capabilities, textures) {
 function WebGLObjects(gl, geometries, attributes, info) {
   let updateMap = /* @__PURE__ */ new WeakMap();
   function update(object) {
-    const frame = info.render.frame;
+    const frame2 = info.render.frame;
     const geometry = object.geometry;
     const buffergeometry = geometries.get(object, geometry);
-    if (updateMap.get(buffergeometry) !== frame) {
+    if (updateMap.get(buffergeometry) !== frame2) {
       geometries.update(buffergeometry);
-      updateMap.set(buffergeometry, frame);
+      updateMap.set(buffergeometry, frame2);
     }
     if (object.isInstancedMesh) {
       if (object.hasEventListener("dispose", onInstancedMeshDispose) === false) {
         object.addEventListener("dispose", onInstancedMeshDispose);
       }
-      if (updateMap.get(object) !== frame) {
+      if (updateMap.get(object) !== frame2) {
         attributes.update(object.instanceMatrix, gl.ARRAY_BUFFER);
         if (object.instanceColor !== null) {
           attributes.update(object.instanceColor, gl.ARRAY_BUFFER);
         }
-        updateMap.set(object, frame);
+        updateMap.set(object, frame2);
       }
     }
     if (object.isSkinnedMesh) {
       const skeleton = object.skeleton;
-      if (updateMap.get(skeleton) !== frame) {
+      if (updateMap.get(skeleton) !== frame2) {
         skeleton.update();
-        updateMap.set(skeleton, frame);
+        updateMap.set(skeleton, frame2);
       }
     }
     return buffergeometry;
@@ -15228,9 +15228,9 @@ function WebGLTextures(_gl, extensions, state, properties, capabilities, utils, 
     return renderTarget.samples > 0 && extensions.has("WEBGL_multisampled_render_to_texture") === true && renderTargetProperties.__useRenderToTexture !== false;
   }
   function updateVideoTexture(texture) {
-    const frame = info.render.frame;
-    if (_videoTextures.get(texture) !== frame) {
-      _videoTextures.set(texture, frame);
+    const frame2 = info.render.frame;
+    if (_videoTextures.get(texture) !== frame2) {
+      _videoTextures.set(texture, frame2);
       texture.update();
     }
   }
@@ -15486,18 +15486,18 @@ var WebXRController = class {
     }
     return this;
   }
-  update(inputSource, frame, referenceSpace) {
+  update(inputSource, frame2, referenceSpace) {
     let inputPose = null;
     let gripPose = null;
     let handPose = null;
     const targetRay = this._targetRay;
     const grip = this._grip;
     const hand = this._hand;
-    if (inputSource && frame.session.visibilityState !== "visible-blurred") {
+    if (inputSource && frame2.session.visibilityState !== "visible-blurred") {
       if (hand && inputSource.hand) {
         handPose = true;
         for (const inputjoint of inputSource.hand.values()) {
-          const jointPose = frame.getJointPose(inputjoint, referenceSpace);
+          const jointPose = frame2.getJointPose(inputjoint, referenceSpace);
           const joint = this._getHandJoint(hand, inputjoint);
           if (jointPose !== null) {
             joint.matrix.fromArray(jointPose.transform.matrix);
@@ -15529,7 +15529,7 @@ var WebXRController = class {
         }
       } else {
         if (grip !== null && inputSource.gripSpace) {
-          gripPose = frame.getPose(inputSource.gripSpace, referenceSpace);
+          gripPose = frame2.getPose(inputSource.gripSpace, referenceSpace);
           if (gripPose !== null) {
             grip.matrix.fromArray(gripPose.transform.matrix);
             grip.matrix.decompose(grip.position, grip.rotation, grip.scale);
@@ -15550,7 +15550,7 @@ var WebXRController = class {
         }
       }
       if (targetRay !== null) {
-        inputPose = frame.getPose(inputSource.targetRaySpace, referenceSpace);
+        inputPose = frame2.getPose(inputSource.targetRaySpace, referenceSpace);
         if (inputPose === null && gripPose !== null) {
           inputPose = gripPose;
         }
@@ -16040,9 +16040,9 @@ var WebXRManager = class extends EventDispatcher {
       return depthSensing.getMesh(cameraXR);
     };
     let onAnimationFrameCallback = null;
-    function onAnimationFrame(time, frame) {
-      pose = frame.getViewerPose(customReferenceSpace || referenceSpace);
-      xrFrame = frame;
+    function onAnimationFrame(time, frame2) {
+      pose = frame2.getViewerPose(customReferenceSpace || referenceSpace);
+      xrFrame = frame2;
       if (pose !== null) {
         const views = pose.views;
         if (glBaseLayer !== null) {
@@ -16103,12 +16103,12 @@ var WebXRManager = class extends EventDispatcher {
         const inputSource = controllerInputSources[i];
         const controller = controllers[i];
         if (inputSource !== null && controller !== void 0) {
-          controller.update(inputSource, frame, customReferenceSpace || referenceSpace);
+          controller.update(inputSource, frame2, customReferenceSpace || referenceSpace);
         }
       }
-      if (onAnimationFrameCallback) onAnimationFrameCallback(time, frame);
-      if (frame.detectedPlanes) {
-        scope.dispatchEvent({ type: "planesdetected", data: frame });
+      if (onAnimationFrameCallback) onAnimationFrameCallback(time, frame2);
+      if (frame2.detectedPlanes) {
+        scope.dispatchEvent({ type: "planesdetected", data: frame2 });
       }
       xrFrame = null;
     }
@@ -16451,10 +16451,10 @@ function WebGLUniformsGroups(gl, info, capabilities, state) {
     }
     const webglProgram = program.program;
     state.updateUBOMapping(uniformsGroup, webglProgram);
-    const frame = info.render.frame;
-    if (updateList[uniformsGroup.id] !== frame) {
+    const frame2 = info.render.frame;
+    if (updateList[uniformsGroup.id] !== frame2) {
       updateBufferData(uniformsGroup);
-      updateList[uniformsGroup.id] = frame;
+      updateList[uniformsGroup.id] = frame2;
     }
   }
   function createBuffer(uniformsGroup) {
@@ -24306,10 +24306,10 @@ var TextureFactory = class _TextureFactory {
             bump = height * 180;
           }
           if (boulder > 0.72) {
-            const b2 = (boulder - 0.72) / 0.28;
-            r = Math.min(1, r + b2 * 0.2);
-            g = Math.min(1, g + b2 * 0.1);
-            bump += b2 * 100;
+            const bBoost = (boulder - 0.72) / 0.28;
+            r = Math.min(1, r + bBoost * 0.2);
+            g = Math.min(1, g + bBoost * 0.1);
+            bump += bBoost * 100;
           }
           if (height > 0.65) {
             const m = (height - 0.65) / 0.35;
@@ -24848,10 +24848,8 @@ function addCloudSpin(mesh, speed) {
 }
 function setupPlumePhysics(flameGroup, layers, light, machDiamonds, smokeTrail) {
   const wp = new Vector3();
-  let lastT = 0;
   flameGroup.onBeforeRender = (_r, scene) => {
     const now2 = performance.now() / 1e3;
-    lastT = now2;
     flameGroup.getWorldPosition(wp);
     let pressure = 0;
     let bestD = Infinity;
@@ -25114,7 +25112,6 @@ function setupEclipseShadow(mesh, data, renderRadius) {
       return;
     }
     sunDir.subVectors(sun.position, planetPos).normalize();
-    const sunAng = (sun.userData ? 0 : 0) + renderRadius * 0;
     let sunRadius = 3482;
     for (const c of scene.children) {
       const ud = c.userData;
@@ -26034,10 +26031,10 @@ function createRocketModel() {
   }
   const nozzleGeo = new CylinderGeometry(0.35, 0.5, 0.6, 12);
   const nozzleMat = new MeshStandardMaterial({ color: 3355443, roughness: 0.8, metalness: 0.5 });
-  const nozzle = new Mesh(nozzleGeo, nozzleMat);
-  nozzle.position.y = -2.8;
-  nozzle.castShadow = true;
-  group.add(nozzle);
+  const nozzle2 = new Mesh(nozzleGeo, nozzleMat);
+  nozzle2.position.y = -2.8;
+  nozzle2.castShadow = true;
+  group.add(nozzle2);
   const flameGroup = new Group();
   flameGroup.name = "engineFlame";
   flameGroup.position.y = -3.2;
@@ -26100,20 +26097,21 @@ function createRocketModel() {
     { mesh: fHot, baseOpacity: 0.9 }
   ], flameLight, machDiamonds, smokeTrail);
   group.add(flameGroup);
-  setupReentryEffects(group, Math.max(1, currentY));
+  const rocketHeight = 7.1;
+  setupReentryEffects(group, Math.max(1, rocketHeight));
   return group;
 }
 function createRocketModelFromParts(parts) {
   const group = new Group();
   if (parts.length === 0) return group;
-  let currentY2 = 0;
+  let currentY = 0;
   const partSpacing = 0.03;
   for (let i = 0; i < parts.length; i++) {
     const part = parts[parts.length - 1 - i];
     const partGroup = createPartVisual(part);
     const height = partGroup.userData.height || 1;
-    partGroup.position.y = currentY2 + height / 2;
-    currentY2 += height + partSpacing;
+    partGroup.position.y = currentY + height / 2;
+    currentY += height + partSpacing;
     group.add(partGroup);
   }
   const flameGroup = new Group();
@@ -26265,12 +26263,30 @@ function texBrushedMetal(type, size = 1024) {
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
-      const streak = TextureFactory.fbm(x * 0.08, y * 4e-3, 5, 0.5, 2);
+      const dirVar = TextureFactory.fbm(x * 2e-3, y * 0.08, 3, 0.4, 2) * 0.3;
+      const streak = TextureFactory.fbm(x * 0.08, y * (4e-3 + dirVar), 5, 0.5, 2);
       const grain = TextureFactory.fbm(x * 0.4, y * 0.4, 3, 0.4, 2.5);
+      const oxPatch = TextureFactory.fbm(x * 0.015, y * 0.015, 3, 0.5, 2);
+      const oxideLayer = TextureFactory.fbm(x * 8e-3, y * 0.012, 4, 0.5, 2.2);
       const v = (streak * 0.4 + grain * 0.15 - 0.28) * 85;
-      d[i] = Math.max(0, Math.min(255, br + v));
-      d[i + 1] = Math.max(0, Math.min(255, bg + v));
-      d[i + 2] = Math.max(0, Math.min(255, bb + v));
+      const ox = oxPatch * 12;
+      let oR = 0, oG = 0, oB = 0;
+      if (type === "copper") {
+        oR = oxideLayer * 25;
+        oG = oxideLayer * 10;
+        oB = -oxideLayer * 5;
+      } else if (type === "titanium") {
+        oR = oxideLayer * 15;
+        oG = oxideLayer * 8;
+        oB = oxideLayer * 20;
+      } else if (type === "steel") {
+        oR = oxideLayer * 10;
+        oG = oxideLayer * 6;
+        oB = -oxideLayer * 3;
+      }
+      d[i] = Math.max(0, Math.min(255, br + v + ox + oR));
+      d[i + 1] = Math.max(0, Math.min(255, bg + v + ox * 0.7 + oG));
+      d[i + 2] = Math.max(0, Math.min(255, bb + v + ox * 0.4 + oB));
       d[i + 3] = 255;
     }
   }
@@ -26294,9 +26310,15 @@ function texFoamInsulation(size = 1024) {
       const lumps = TextureFactory.fbm(x * 0.015, y * 0.015, 6, 0.55, 2.2);
       const medium = TextureFactory.fbm(x * 0.06, y * 0.06, 4, 0.5, 2.3);
       const fine = TextureFactory.fbm(x * 0.25, y * 0.25, 3, 0.4, 2.5);
-      const v = lumps * 0.5 + medium * 0.25 + fine * 0.1;
-      d[i] = Math.max(0, Math.min(255, 232 + v * 22 - 12));
-      d[i + 1] = Math.max(0, Math.min(255, 152 + v * 18 - 8));
+      const peel = Math.sin(x * 0.12) * Math.sin(y * 0.12) * 0.5 + 0.5;
+      const bigBubble = TextureFactory.fbm(x * 8e-3, y * 8e-3, 3, 0.6, 2.5);
+      const smallBubble = TextureFactory.fbm(x * 0.15, y * 0.15, 3, 0.4, 2.2);
+      const repair = TextureFactory.fbm(x * 4e-3, y * 4e-3, 2, 0.5, 2);
+      const bubblePit = (bigBubble > 0.6 ? (bigBubble - 0.6) * 30 : 0) + (smallBubble > 0.55 ? (smallBubble - 0.55) * 15 : 0);
+      const repairMark = repair > 0.65 ? (repair - 0.65) * 40 : 0;
+      const v = lumps * 0.5 + medium * 0.25 + fine * 0.1 + peel * 0.08 - bubblePit * 0.3;
+      d[i] = Math.max(0, Math.min(255, 232 + v * 22 - 12 + repairMark * 0.5));
+      d[i + 1] = Math.max(0, Math.min(255, 152 + v * 18 - 8 + repairMark * 0.3));
       d[i + 2] = Math.max(0, Math.min(255, 58 + v * 8 - 4));
       d[i + 3] = 255;
     }
@@ -26322,11 +26344,17 @@ function texAblationChar(size = 1024) {
       const grooves = TextureFactory.fbm(x * 0.08, y * 0.08, 4, 0.4, 2.5);
       const scorch = TextureFactory.fbm(x * 0.015, y * 0.015, 5, 0.5, 2);
       const ash = TextureFactory.fbm(x * 0.3, y * 0.3, 3, 0.4, 2.5);
+      const streak = TextureFactory.fbm(x * 0.01, y * 0.05, 4, 0.6, 2);
+      const depthVar = TextureFactory.fbm(x * 5e-3, y * 0.02, 3, 0.5, 2);
+      const crackNet = TextureFactory.fbm(x * 0.12, y * 0.12, 4, 0.5, 2.3);
+      const crackEdge = crackNet > 0.72 ? (crackNet - 0.72) * 50 : 0;
       const v = charBase * 0.4 + grooves * 0.2 + scorch * 0.15 + ash * 0.05;
-      const base = 35 + v * 55;
-      d[i] = Math.max(0, Math.min(255, base + 18));
-      d[i + 1] = Math.max(0, Math.min(255, base * 0.65 + 8));
-      d[i + 2] = Math.max(0, Math.min(255, base * 0.45 + 4));
+      const depthMod = depthVar * 15;
+      const base = 35 + v * 55 - depthMod - crackEdge * 0.5;
+      const streakMod = streak * 20;
+      d[i] = Math.max(0, Math.min(255, base + 18 - streakMod - crackEdge));
+      d[i + 1] = Math.max(0, Math.min(255, base * 0.65 + 8 - streakMod * 0.8 - crackEdge * 0.7));
+      d[i + 2] = Math.max(0, Math.min(255, base * 0.45 + 4 - streakMod * 0.6 - crackEdge * 0.5));
       d[i + 3] = 255;
     }
   }
@@ -26352,6 +26380,7 @@ function texNozzleThermal(size = 1024) {
       const n = TextureFactory.fbm(x * 0.04, y * 0.06, 6, 0.5, 2.2);
       const sootStreak = TextureFactory.fbm(x * 0.02, y * 0.12, 5, 0.5, 2);
       const heatColor = TextureFactory.fbm(x * 0.03, y * 0.04, 4, 0.4, 2.5);
+      const streak = TextureFactory.fbm(x * 8e-3, y * 0.02, 4, 0.6, 2);
       let r = 35 + n * 30;
       let g = 32 + n * 25;
       let b = 30 + n * 22;
@@ -26361,6 +26390,28 @@ function texNozzleThermal(size = 1024) {
       r -= (1 - heatFactor) * sootStreak * 25;
       g -= (1 - heatFactor) * sootStreak * 22;
       b -= (1 - heatFactor) * sootStreak * 18;
+      if (heatFactor > 0.92) {
+        const blueZone = (heatFactor - 0.92) / 0.08;
+        b += blueZone * 80 * heatColor;
+        g += blueZone * 40 * heatColor;
+        r += blueZone * 20 * heatColor;
+      } else if (heatFactor > 0.78) {
+        const purpleZone = (heatFactor - 0.78) / 0.14;
+        b += purpleZone * 50 * heatColor;
+        r += purpleZone * 30 * heatColor;
+      } else if (heatFactor > 0.55) {
+        const redZone = (heatFactor - 0.55) / 0.23;
+        r += redZone * 35 * heatColor;
+        g += redZone * 10 * heatColor;
+      } else {
+        const darkZone = (0.55 - heatFactor) / 0.55;
+        r -= darkZone * 20;
+        g -= darkZone * 18;
+        b -= darkZone * 15;
+      }
+      r -= streak * 15 * (1 - heatFactor);
+      g -= streak * 15 * (1 - heatFactor);
+      b -= streak * 12 * (1 - heatFactor);
       d[i] = Math.max(0, Math.min(255, Math.floor(r)));
       d[i + 1] = Math.max(0, Math.min(255, Math.floor(g)));
       d[i + 2] = Math.max(0, Math.min(255, Math.floor(b)));
@@ -26385,15 +26436,17 @@ function texSRBBody(size = 1024) {
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
       const n = TextureFactory.fbm(x * 0.05, y * 0.04, 5, 0.45, 2.2);
-      const v = 0.88 + n * 0.22;
-      d[i] = Math.min(255, 232 * v);
-      d[i + 1] = Math.min(255, 232 * v);
-      d[i + 2] = Math.min(255, 235 * v);
+      const yNorm = y / size;
+      const scorch = yNorm < 0.15 ? (0.15 - yNorm) * 3 * TextureFactory.fbm(x * 0.03, y * 0.05, 3, 0.5, 2) : 0;
+      const v = 0.88 + n * 0.22 - scorch * 0.3;
+      d[i] = Math.max(0, Math.min(255, 232 * v));
+      d[i + 1] = Math.max(0, Math.min(255, 232 * v));
+      d[i + 2] = Math.max(0, Math.min(255, 235 * v));
       d[i + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
-  ctx.strokeStyle = "rgba(160,160,165,0.5)";
+  ctx.strokeStyle = "rgba(150,150,155,0.5)";
   ctx.lineWidth = 2;
   for (let i = 1; i < 6; i++) {
     const sy = i / 6 * size;
@@ -26408,6 +26461,16 @@ function texSRBBody(size = 1024) {
     ctx.moveTo(sx, 0);
     ctx.lineTo(sx, size);
     ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(100,100,105,0.6)";
+  for (let i = 1; i < 6; i++) {
+    const sy = i / 6 * size;
+    for (let j = 0; j < 16; j++) {
+      const sx = j / 16 * size;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   const tex = new CanvasTexture(canvas);
   tex.colorSpace = SRGBColorSpace;
@@ -26426,7 +26489,8 @@ function texRoughnessMap(base, size = 1024) {
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
       const n = TextureFactory.fbm(x * 0.08, y * 0.08, 4, 0.45, 2.3);
-      const v = Math.max(0, Math.min(255, (base + (n - 0.5) * 0.3) * 255));
+      const fine = TextureFactory.fbm(x * 0.5, y * 0.5, 2, 0.4, 2.5);
+      const v = Math.max(0, Math.min(255, (base + (n - 0.5) * 0.3 + (fine - 0.5) * 0.05) * 255));
       d[i] = v;
       d[i + 1] = v;
       d[i + 2] = v;
@@ -26502,8 +26566,16 @@ function texNormalDetail(detail, size = 1024) {
     for (let p = 64; p < size; p += 128) {
       for (let y = 0; y < size; y++) {
         const weld = Math.sin(y * 0.15) * 15 + 20;
-        for (let dx = -3; dx <= 3; dx++) {
-          setPx(p + dx, y, Math.min(255, 128 + weld - Math.abs(dx) * 8), 128, 255);
+        const weldNoise = TextureFactory.fbm(p * 0.1, y * 0.2, 3, 0.5, 2) * 10;
+        for (let dx = -4; dx <= 4; dx++) {
+          const fade = 1 - Math.abs(dx) / 4;
+          setPx(
+            p + dx,
+            y,
+            Math.min(255, 128 + (weld + weldNoise) * fade - Math.abs(dx) * 6),
+            128 + weldNoise * fade * 0.3,
+            255
+          );
         }
       }
     }
@@ -26534,9 +26606,11 @@ function texEmissiveGlow(type, size = 1024) {
         d[i + 2] = Math.min(255, intensity * 255);
       } else {
         const n = TextureFactory.fbm(x * 0.1, y * 0.1, 4, 0.5, 2.3);
-        const led = n > 0.7 ? (n - 0.7) / 0.3 : 0;
-        d[i] = Math.min(255, led * 50);
-        d[i + 1] = Math.min(255, led * 255);
+        const led = n > 0.65 ? (n - 0.65) / 0.35 : 0;
+        const n2 = TextureFactory.fbm(x * 0.15 + 50, y * 0.15 + 50, 3, 0.5, 2);
+        const led2 = n2 > 0.75 ? (n2 - 0.75) / 0.25 : 0;
+        d[i] = Math.min(255, led * 50 + led2 * 200);
+        d[i + 1] = Math.min(255, led * 255 + led2 * 120);
         d[i + 2] = Math.min(255, led * 80);
       }
       d[i + 3] = 255;
@@ -26555,24 +26629,49 @@ function texSolarCells(size = 1024) {
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   const cellSize = size / 8;
-  ctx.fillStyle = "#1a2a5a";
+  ctx.fillStyle = "#0a0a12";
   ctx.fillRect(0, 0, size, size);
   for (let cy = 0; cy < 8; cy++) {
     for (let cx = 0; cx < 8; cx++) {
       const n = TextureFactory.fbm(cx * 1.5, cy * 1.5, 3, 0.5, 2);
       const v = 0.7 + n * 0.3;
-      ctx.fillStyle = `rgb(${Math.floor(30 * v)},${Math.floor(50 * v)},${Math.floor(100 * v)})`;
-      ctx.fillRect(cx * cellSize + 1, cy * cellSize + 1, cellSize - 2, cellSize - 2);
-      ctx.fillStyle = "#aaaab0";
-      ctx.fillRect(cx * cellSize + 1, cy * cellSize + cellSize * 0.45, cellSize - 2, 1);
-      ctx.fillRect(cx * cellSize + cellSize * 0.45, cy * cellSize + 1, 1, cellSize - 2);
-      ctx.strokeStyle = "rgba(120,140,180,0.4)";
+      const blueShift = Math.floor(n * 20);
+      ctx.fillStyle = `rgb(${Math.floor(25 * v)},${Math.floor(45 * v)},${Math.floor(95 * v + blueShift)})`;
+      ctx.fillRect(cx * cellSize + 2, cy * cellSize + 2, cellSize - 4, cellSize - 4);
+      ctx.fillStyle = "#b8b8c0";
+      ctx.fillRect(cx * cellSize + 2, cy * cellSize + cellSize * 0.48, cellSize - 4, 1.5);
+      ctx.fillRect(cx * cellSize + cellSize * 0.48, cy * cellSize + 2, 1.5, cellSize - 4);
+      ctx.strokeStyle = "rgba(140,160,200,0.35)";
       ctx.lineWidth = 0.5;
-      for (let g = 1; g < 4; g++) {
+      for (let g = 1; g < 5; g++) {
         ctx.beginPath();
-        ctx.moveTo(cx * cellSize + cellSize / 4 * g, cy * cellSize + 1);
-        ctx.lineTo(cx * cellSize + cellSize / 4 * g, cy * cellSize + cellSize - 1);
+        ctx.moveTo(cx * cellSize + cellSize / 5 * g, cy * cellSize + 2);
+        ctx.lineTo(cx * cellSize + cellSize / 5 * g, cy * cellSize + cellSize - 2);
         ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx * cellSize + 2, cy * cellSize + cellSize / 5 * g);
+        ctx.lineTo(cx * cellSize + cellSize - 2, cy * cellSize + cellSize / 5 * g);
+        ctx.stroke();
+      }
+      const sheenGrad = ctx.createLinearGradient(cx * cellSize, cy * cellSize, cx * cellSize + cellSize, cy * cellSize + cellSize);
+      sheenGrad.addColorStop(0, "rgba(80,120,200,0.08)");
+      sheenGrad.addColorStop(0.5, "rgba(0,0,0,0)");
+      sheenGrad.addColorStop(1, "rgba(120,80,200,0.08)");
+      ctx.fillStyle = sheenGrad;
+      ctx.fillRect(cx * cellSize + 2, cy * cellSize + 2, cellSize - 4, cellSize - 4);
+      const cellVar = TextureFactory.fbm(cx * 3.7, cy * 2.3, 2, 0.5, 2);
+      if (cellVar > 0.6) {
+        ctx.fillStyle = `rgba(${Math.floor(10 * (cellVar - 0.6))}, ${Math.floor(15 * (cellVar - 0.6))}, ${Math.floor(30 * (cellVar - 0.6))}, 0.3)`;
+        ctx.fillRect(cx * cellSize + 2, cy * cellSize + 2, cellSize - 4, cellSize - 4);
+      }
+      ctx.fillStyle = "#a0a0b0";
+      for (let bb = 1; bb < 3; bb++) {
+        ctx.fillRect(cx * cellSize + 2, cy * cellSize + cellSize * (0.25 * bb + 0.12), cellSize - 4, 1);
+      }
+      const arcSpot = TextureFactory.fbm(cx * 5.1, cy * 4.3, 2, 0.4, 2);
+      if (arcSpot > 0.7) {
+        ctx.fillStyle = `rgba(60, 40, 120, ${(arcSpot - 0.7) * 0.5})`;
+        ctx.fillRect(cx * cellSize + 4, cy * cellSize + 4, cellSize - 8, cellSize - 8);
       }
     }
   }
@@ -26587,8 +26686,67 @@ function addBoltRing(group, count, radius, y, mat, boltR = 0.018) {
     const a = i / count * Math.PI * 2;
     const bolt = new Mesh(new SphereGeometry(boltR, 8, 6), mat);
     bolt.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
+    bolt.castShadow = true;
     group.add(bolt);
   }
+}
+function texWarningLabel(type, size = 512) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (type === "hazard") {
+    const stripeW = size / 16;
+    for (let i = -16; i < 32; i++) {
+      ctx.fillStyle = i % 2 === 0 ? "#ffcc00" : "#1a1a1a";
+      ctx.save();
+      ctx.translate(i * stripeW, 0);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-size, -size * 2, stripeW, size * 4);
+      ctx.restore();
+    }
+  } else if (type === "text") {
+    ctx.fillStyle = "#f0f0f0";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#222";
+    ctx.font = `bold ${size / 16}px sans-serif`;
+    for (let i = 0; i < 4; i++) {
+      const y = (i + 1) * (size / 5);
+      ctx.fillText("SYSTEM " + (i + 1), size / 16, y);
+      ctx.fillRect(size / 16, y + size / 32, size * 0.6, 2);
+    }
+    ctx.fillStyle = "#111";
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) {
+      if (Math.random() > 0.5) ctx.fillRect(size * 0.75 + x * (size / 32), size * 0.05 + y * (size / 32), size / 32, size / 32);
+    }
+  } else {
+    ctx.fillStyle = "#1a3a6a";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#e0e0e0";
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#2255aa";
+    ctx.lineWidth = size / 40;
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size * 0.3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "#2255aa";
+    ctx.font = `bold ${size / 12}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText("KSC", size / 2, size / 2 + size / 40);
+  }
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = RepeatWrapping;
+  tex.wrapT = RepeatWrapping;
+  return tex;
+}
+function makeLabelDecal(radius, y, angle, w, h, mat) {
+  const label = new Mesh(new PlaneGeometry(w, h), mat);
+  label.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+  label.lookAt(0, y, 0);
+  return label;
 }
 function buildCommandPod(part) {
   const group = new Group();
@@ -26599,7 +26757,7 @@ function buildCommandPod(part) {
   if (isProbe) {
     const probeR = 0.35, probeH = 0.5;
     const probeBody = new Mesh(
-      new CylinderGeometry(probeR, probeR, probeH, 16),
+      new CylinderGeometry(probeR, probeR, probeH, 8),
       new MeshStandardMaterial({
         map: texBrushedMetal("dark", 1024),
         normalMap: texNormalDetail("rivets", 512),
@@ -26609,6 +26767,7 @@ function buildCommandPod(part) {
       })
     );
     probeBody.castShadow = true;
+    probeBody.receiveShadow = true;
     group.add(probeBody);
     const dome = new Mesh(
       new SphereGeometry(probeR, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2),
@@ -26617,29 +26776,48 @@ function buildCommandPod(part) {
     dome.position.y = probeH / 2;
     dome.castShadow = true;
     group.add(dome);
-    const panelMat = new MeshStandardMaterial({ color: 1714778, metalness: 0.3, roughness: 0.3, emissive: 662074, emissiveIntensity: 0.4 });
+    const kaptonMat = new MeshStandardMaterial({ color: 16755251, metalness: 0.6, roughness: 0.35, transparent: true, opacity: 0.7 });
+    const kapton = new Mesh(new SphereGeometry(probeR * 1.01, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), kaptonMat);
+    kapton.position.y = probeH / 2;
+    group.add(kapton);
+    const panelMat = new MeshStandardMaterial({ map: texSolarCells(512), color: 1714778, metalness: 0.3, roughness: 0.3, emissive: 662074, emissiveIntensity: 0.4 });
     for (let i = 0; i < 4; i++) {
       const a = i / 4 * Math.PI * 2 + Math.PI / 8;
-      const panel = new Mesh(new BoxGeometry(0.25, 0.15, 0.01), panelMat);
-      panel.position.set(Math.cos(a) * probeR * 1.1, 0, Math.sin(a) * probeR * 1.1);
+      const panelArm = new Mesh(new BoxGeometry(0.08, 0.02, 0.02), new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.3 }));
+      panelArm.position.set(Math.cos(a) * (probeR + 0.04), 0, Math.sin(a) * (probeR + 0.04));
+      panelArm.lookAt(Math.cos(a) * 2, 0, Math.sin(a) * 2);
+      group.add(panelArm);
+      const panel = new Mesh(new BoxGeometry(0.25, 0.15, 8e-3), panelMat);
+      panel.position.set(Math.cos(a) * (probeR + 0.18), 0, Math.sin(a) * (probeR + 0.18));
       panel.lookAt(0, 0, 0);
       panel.castShadow = true;
       group.add(panel);
     }
+    const antBase = new Mesh(new CylinderGeometry(0.015, 0.02, 0.03, 8), new MeshStandardMaterial({ color: 4473924, metalness: 0.6, roughness: 0.4 }));
+    antBase.position.y = probeH / 2 + 0.015;
+    group.add(antBase);
     const ant = new Mesh(
       new CylinderGeometry(8e-3, 8e-3, 0.4, 6),
       new MeshStandardMaterial({ color: 3355443, metalness: 0.6, roughness: 0.4 })
     );
-    ant.position.y = probeH / 2 + 0.2;
+    ant.position.y = probeH / 2 + 0.23;
     group.add(ant);
     const antBall = new Mesh(new SphereGeometry(0.025, 8, 6), new MeshStandardMaterial({ color: 11184810, metalness: 0.8, roughness: 0.2 }));
-    antBall.position.y = probeH / 2 + 0.4;
+    antBall.position.y = probeH / 2 + 0.43;
     group.add(antBall);
     const led = new Mesh(new SphereGeometry(0.02, 8, 6), new MeshStandardMaterial({ color: 65280, emissive: 65280, emissiveIntensity: 1 }));
     led.position.set(probeR * 0.9, probeH / 2 + 0.05, 0);
     group.add(led);
-    group.userData.height = probeH + 0.4;
-    group.userData.radius = probeR;
+    const led2 = new Mesh(new SphereGeometry(0.015, 8, 6), new MeshStandardMaterial({ color: 16724736, emissive: 16724736, emissiveIntensity: 0.8 }));
+    led2.position.set(-probeR * 0.9, probeH / 2 + 0.05, 0);
+    group.add(led2);
+    const flange = new Mesh(new CylinderGeometry(probeR * 1.1, probeR * 1, 0.04, 8), new MeshStandardMaterial({ color: 6710886, metalness: 0.75, roughness: 0.3 }));
+    flange.position.y = -probeH / 2 - 0.02;
+    flange.castShadow = true;
+    group.add(flange);
+    addBoltRing(group, 8, probeR * 1.05, -probeH / 2 - 0.02, new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 }), 8e-3);
+    group.userData.height = probeH + 0.43;
+    group.userData.radius = probeR + 0.18;
     return group;
   }
   const points = [];
@@ -26691,6 +26869,7 @@ function buildCommandPod(part) {
   });
   const pod = new Mesh(podGeo, podMat);
   pod.castShadow = true;
+  pod.receiveShadow = true;
   group.add(pod);
   const shieldProfile = [];
   shieldProfile.push(new Vector2(0, -h / 2 - r * 0.25));
@@ -26733,16 +26912,17 @@ function buildCommandPod(part) {
     group.add(scorch);
   }
   const glassMat = new MeshPhysicalMaterial({
-    color: 2241348,
+    color: 1718874,
     metalness: 0,
-    roughness: 0.05,
-    transmission: 0.92,
-    thickness: 0.5,
-    ior: 1.5,
+    roughness: 0.03,
+    transmission: 0.95,
+    thickness: 0.3,
+    ior: 1.52,
     clearcoat: 1,
-    clearcoatRoughness: 0.02,
-    emissive: 1122884,
-    emissiveIntensity: 0.2
+    clearcoatRoughness: 0.01,
+    emissive: 662074,
+    emissiveIntensity: 0.3,
+    envMapIntensity: 1.5
   });
   const frameMat = new MeshStandardMaterial({
     map: texBrushedMetal("titanium", 512),
@@ -26756,20 +26936,20 @@ function buildCommandPod(part) {
   const winSize = mk === 3 ? 0.3 : mk === 2 ? 0.24 : 0.18;
   for (const angle of [0, Math.PI]) {
     const frameGeo = new BoxGeometry(winSize * 1.5, winSize * 1.1, 0.07);
-    const frame = new Mesh(frameGeo, frameMat);
-    frame.position.set(Math.cos(angle) * winR, winY, Math.sin(angle) * winR);
-    frame.lookAt(0, winY, 0);
-    frame.castShadow = true;
-    group.add(frame);
+    const frame2 = new Mesh(frameGeo, frameMat);
+    frame2.position.set(Math.cos(angle) * winR, winY, Math.sin(angle) * winR);
+    frame2.lookAt(0, winY, 0);
+    frame2.castShadow = true;
+    group.add(frame2);
     const winGeo = new BoxGeometry(winSize, winSize * 0.75, 0.05);
     const win = new Mesh(winGeo, glassMat);
-    win.position.copy(frame.position);
+    win.position.copy(frame2.position);
     win.lookAt(0, winY, 0);
     group.add(win);
     for (const bx of [-1, 1]) {
       for (const by of [-1, 1]) {
         const bolt = new Mesh(new SphereGeometry(winSize * 0.08, 8, 6), boltMat);
-        bolt.position.copy(frame.position);
+        bolt.position.copy(frame2.position);
         bolt.position.x += Math.cos(angle) * bx * winSize * 0.6 - Math.sin(angle) * 0.03;
         bolt.position.y += by * winSize * 0.42;
         bolt.position.z += Math.sin(angle) * bx * winSize * 0.6 + Math.cos(angle) * 0.03;
@@ -26780,14 +26960,14 @@ function buildCommandPod(part) {
   const smallWinSize = winSize * 0.6;
   for (const angle of [Math.PI / 2, -Math.PI / 2]) {
     const frameGeo = new BoxGeometry(smallWinSize * 1.5, smallWinSize * 1.1, 0.06);
-    const frame = new Mesh(frameGeo, frameMat);
-    frame.position.set(Math.cos(angle) * winR, winY + winSize * 0.3, Math.sin(angle) * winR);
-    frame.lookAt(0, winY + winSize * 0.3, 0);
-    frame.castShadow = true;
-    group.add(frame);
+    const frame2 = new Mesh(frameGeo, frameMat);
+    frame2.position.set(Math.cos(angle) * winR, winY + winSize * 0.3, Math.sin(angle) * winR);
+    frame2.lookAt(0, winY + winSize * 0.3, 0);
+    frame2.castShadow = true;
+    group.add(frame2);
     const winGeo = new BoxGeometry(smallWinSize, smallWinSize * 0.75, 0.04);
     const win = new Mesh(winGeo, glassMat);
-    win.position.copy(frame.position);
+    win.position.copy(frame2.position);
     win.lookAt(0, winY + winSize * 0.3, 0);
     group.add(win);
   }
@@ -26884,11 +27064,65 @@ function buildCommandPod(part) {
   hatch.lookAt(r * 3, -h * 0.12, 0);
   hatch.castShadow = true;
   group.add(hatch);
-  addBoltRing(group, 8, 0.1, -h * 0.12, boltMat, 8e-3);
+  const hatchFrame = new Mesh(new TorusGeometry(0.2, 0.025, 8, 24), rcsBaseMat);
+  hatchFrame.position.set(r * 0.98, -h * 0.12, 0);
+  hatchFrame.lookAt(r * 3, -h * 0.12, 0);
+  group.add(hatchFrame);
+  addBoltRing(group, 10, 0.18, -h * 0.12, boltMat, 0.01);
   const handle = new Mesh(new TorusGeometry(0.035, 9e-3, 8, 14), rcsBaseMat);
   handle.position.set(r * 1.04, -h * 0.12, 0);
   handle.rotation.y = Math.PI / 2;
   group.add(handle);
+  const hatchWin = new Mesh(new CircleGeometry(0.04, 12), glassMat);
+  hatchWin.position.set(r * 0.99, -h * 0.18, 0);
+  hatchWin.lookAt(r * 3, -h * 0.18, 0);
+  group.add(hatchWin);
+  const hazardTex = texWarningLabel("hazard", 256);
+  const hazardMat = new MeshStandardMaterial({ map: hazardTex, metalness: 0.3, roughness: 0.6, transparent: true, opacity: 0.9 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const label = makeLabelDecal(r * 1.01, h * 0.05, a, 0.18, 0.05, hazardMat);
+    group.add(label);
+  }
+  const logoTex = texWarningLabel("logo", 256);
+  const logoMat = new MeshStandardMaterial({ map: logoTex, metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.85 });
+  const logo = makeLabelDecal(r * 1.01, -h * 0.3, Math.PI / 2, 0.16, 0.16, logoMat);
+  group.add(logo);
+  const ullageMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 6710886,
+    metalness: 0.75,
+    roughness: 0.3
+  });
+  const ullageNozMat = new MeshStandardMaterial({ map: texNozzleThermal(256), color: 3355443, metalness: 0.5, roughness: 0.6 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const motor = new Mesh(new CylinderGeometry(0.04, 0.035, 0.14, 12), ullageMat);
+    motor.position.set(Math.cos(angle) * r * 0.88, -h * 0.35, Math.sin(angle) * r * 0.88);
+    motor.lookAt(Math.cos(angle) * 3, -h * 0.35, Math.sin(angle) * 3);
+    motor.castShadow = true;
+    group.add(motor);
+    const ullNoz = new Mesh(new ConeGeometry(0.025, 0.06, 10), ullageNozMat);
+    ullNoz.position.set(Math.cos(angle) * r * 0.88, -h * 0.42, Math.sin(angle) * r * 0.88);
+    group.add(ullNoz);
+  }
+  const adapterRing = new Mesh(
+    new CylinderGeometry(r * 0.98, r, 0.06, 40),
+    new MeshStandardMaterial({ map: texBrushedMetal("steel", 512), color: 7829367, metalness: 0.8, roughness: 0.25 })
+  );
+  adapterRing.position.y = -h / 2 - 0.03;
+  adapterRing.castShadow = true;
+  group.add(adapterRing);
+  addBoltRing(group, 24, r * 0.96, -h / 2 - 0.03, boltMat, 0.014);
+  const connMat = new MeshStandardMaterial({ color: 14527010, metalness: 0.8, roughness: 0.2 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const conn = new Mesh(new CylinderGeometry(0.03, 0.03, 0.04, 12), connMat);
+    conn.position.set(Math.cos(angle) * r * 0.9, -h / 2 - 0.03, Math.sin(angle) * r * 0.9);
+    conn.lookAt(Math.cos(angle) * 3, -h / 2 - 0.03, Math.sin(angle) * 3);
+    conn.rotation.x = Math.PI / 2;
+    group.add(conn);
+  }
   const whip = new Mesh(
     new CylinderGeometry(6e-3, 6e-3, 0.35, 6),
     new MeshStandardMaterial({ color: 3355443, metalness: 0.6, roughness: 0.4 })
@@ -26899,6 +27133,153 @@ function buildCommandPod(part) {
   const whipBall = new Mesh(new SphereGeometry(0.015, 8, 6), new MeshStandardMaterial({ color: 13421772, metalness: 0.8, roughness: 0.2 }));
   whipBall.position.set(r * 0.38, h / 2 + 0.48, 0);
   group.add(whipBall);
+  const noseCapR = mk === 3 ? r * 0.28 : mk === 2 ? r * 0.26 : r * 0.12;
+  const noseCap = new Mesh(
+    new SphereGeometry(noseCapR, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    new MeshStandardMaterial({ map: texBrushedMetal("titanium", 256), color: 10066329, metalness: 0.82, roughness: 0.2 })
+  );
+  noseCap.position.y = h / 2 + 0.04;
+  noseCap.castShadow = true;
+  group.add(noseCap);
+  const innerGlassMat = new MeshPhysicalMaterial({
+    color: 2771562,
+    metalness: 0,
+    roughness: 0.05,
+    transmission: 0.88,
+    thickness: 0.15,
+    ior: 1.5,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.02
+  });
+  const thermalGlassMat = new MeshPhysicalMaterial({
+    color: 1714746,
+    metalness: 0.1,
+    roughness: 0.02,
+    transmission: 0.92,
+    thickness: 0.08,
+    ior: 1.46,
+    clearcoat: 1,
+    clearcoatRoughness: 5e-3,
+    envMapIntensity: 2
+  });
+  for (const angle of [0, Math.PI]) {
+    const spacerMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.8, roughness: 0.3 });
+    const spacer = new Mesh(new TorusGeometry(winSize * 0.42, 6e-3, 6, 16), spacerMat);
+    spacer.position.set(Math.cos(angle) * winR, winY, Math.sin(angle) * winR);
+    spacer.lookAt(0, winY, 0);
+    group.add(spacer);
+    const innerWin = new Mesh(new BoxGeometry(winSize * 0.95, winSize * 0.7, 0.03), innerGlassMat);
+    innerWin.position.copy(frame.position);
+    innerWin.position.x -= Math.cos(angle) * 0.025;
+    innerWin.position.z -= Math.sin(angle) * 0.025;
+    innerWin.lookAt(0, winY, 0);
+    group.add(innerWin);
+    const outerWin = new Mesh(new BoxGeometry(winSize * 1.05, winSize * 0.78, 0.015), thermalGlassMat);
+    outerWin.position.copy(frame.position);
+    outerWin.position.x += Math.cos(angle) * 0.028;
+    outerWin.position.z += Math.sin(angle) * 0.028;
+    outerWin.lookAt(0, winY, 0);
+    group.add(outerWin);
+  }
+  const hingeMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 7829367, metalness: 0.8, roughness: 0.25 });
+  for (const hy of [-0.12, 0.12]) {
+    const hingeHousing = new Mesh(new CylinderGeometry(0.018, 0.018, 0.06, 10), hingeMat);
+    hingeHousing.position.set(r * 1.02, -h * 0.12 + hy, 0);
+    hingeHousing.rotation.z = Math.PI / 2;
+    group.add(hingeHousing);
+    const hingePin = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.07, 8), new MeshStandardMaterial({ color: 11184810, metalness: 0.9, roughness: 0.15 }));
+    hingePin.position.set(r * 1.02, -h * 0.12 + hy, 0);
+    hingePin.rotation.z = Math.PI / 2;
+    group.add(hingePin);
+  }
+  const sealGrooveMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.3, roughness: 0.8 });
+  const sealGroove = new Mesh(new TorusGeometry(0.22, 8e-3, 6, 20), sealGrooveMat);
+  sealGroove.position.set(r * 0.99, -h * 0.12, 0);
+  sealGroove.lookAt(r * 3, -h * 0.12, 0);
+  group.add(sealGroove);
+  const compHandleBase = new Mesh(new CylinderGeometry(0.025, 0.025, 0.03, 12), hingeMat);
+  compHandleBase.position.set(r * 1.05, -h * 0.12, 0.06);
+  compHandleBase.rotation.x = Math.PI / 2;
+  group.add(compHandleBase);
+  const compHandleBar = new Mesh(new BoxGeometry(0.08, 0.012, 0.012), hingeMat);
+  compHandleBar.position.set(r * 1.06, -h * 0.12, 0.06);
+  group.add(compHandleBar);
+  const rcs2NozzlePts = [
+    new Vector2(0, 0),
+    new Vector2(0.032, 0),
+    new Vector2(0.038, 0.015),
+    new Vector2(0.034, 0.028),
+    new Vector2(0.022, 0.048),
+    new Vector2(0, 0.048)
+  ];
+  const rcs2Geo = new LatheGeometry(rcs2NozzlePts, 14);
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const rcs2 = new Mesh(rcs2Geo, rcsCopperMat);
+    const offAng = angle + 0.35;
+    rcs2.position.set(Math.cos(offAng) * (r * 0.95 + 0.08), h * 0.3, Math.sin(offAng) * (r * 0.95 + 0.08));
+    rcs2.lookAt(Math.cos(offAng) * 5, h * 0.3, Math.sin(offAng) * 5);
+    rcs2.rotation.x = Math.PI / 2;
+    rcs2.castShadow = true;
+    group.add(rcs2);
+    const feedPts = [
+      new Vector3(Math.cos(angle) * (r * 0.95 + 0.06), h * 0.3, Math.sin(angle) * (r * 0.95 + 0.06)),
+      new Vector3(Math.cos((angle + offAng) / 2) * (r * 0.93), h * 0.3, Math.sin((angle + offAng) / 2) * (r * 0.93)),
+      new Vector3(Math.cos(offAng) * (r * 0.95 + 0.06), h * 0.3, Math.sin(offAng) * (r * 0.95 + 0.06))
+    ];
+    const feedCurve = new CatmullRomCurve3(feedPts);
+    const feedLine = new Mesh(new TubeGeometry(feedCurve, 8, 8e-3, 6, false), rcsBaseMat);
+    group.add(feedLine);
+  }
+  for (let ring = 0; ring < 5; ring++) {
+    const ringR = r * (0.2 + ring * 0.16);
+    const heatRing = new Mesh(
+      new TorusGeometry(ringR, 0.012, 8, 48),
+      new MeshStandardMaterial({ color: ring < 2 ? 1706498 : 3809296, metalness: 0.1, roughness: 0.95 })
+    );
+    heatRing.position.y = -h / 2 - r * 0.12 - ring * 0.03;
+    heatRing.rotation.x = Math.PI / 2;
+    group.add(heatRing);
+  }
+  const carbonMat = new MeshStandardMaterial({ color: 656900, metalness: 0.05, roughness: 1, transparent: true, opacity: 0.5 });
+  const carbonDisc = new Mesh(new CircleGeometry(r * 0.35, 32), carbonMat);
+  carbonDisc.position.y = -h / 2 - r * 0.25;
+  carbonDisc.rotation.x = -Math.PI / 2;
+  group.add(carbonDisc);
+  const fairingMat = new MeshStandardMaterial({ map: texBrushedMetal("white", 256), color: 15658734, metalness: 0.5, roughness: 0.35 });
+  const fairing = new Mesh(new SphereGeometry(r * 0.16, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.6), fairingMat);
+  fairing.position.y = h / 2 + 0.12;
+  fairing.castShadow = true;
+  group.add(fairing);
+  const sepLineMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.3, roughness: 0.7 });
+  const sepLine = new Mesh(new TorusGeometry(r * 0.16, 5e-3, 6, 24), sepLineMat);
+  sepLine.position.y = h / 2 + 0.12;
+  sepLine.rotation.x = Math.PI / 2;
+  group.add(sepLine);
+  const beaconMat = new MeshStandardMaterial({ color: 16720384, emissive: 16720384, emissiveIntensity: 1.5, metalness: 0.3, roughness: 0.3 });
+  const beacon = new Mesh(new SphereGeometry(0.022, 10, 8), beaconMat);
+  beacon.position.set(-r * 0.25, h / 2 + 0.06, 0);
+  group.add(beacon);
+  const antInterfaceMat = new MeshStandardMaterial({ map: texBrushedMetal("titanium", 256), color: 7829367, metalness: 0.8, roughness: 0.25 });
+  const antInterface = new Mesh(new CylinderGeometry(0.025, 0.03, 0.04, 12), antInterfaceMat);
+  antInterface.position.set(r * 0.25, h / 2 + 0.04, 0);
+  group.add(antInterface);
+  const apasMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 6710886, metalness: 0.75, roughness: 0.3 });
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2;
+    const petal = new Mesh(new ConeGeometry(0.04, 0.06, 4), apasMat);
+    petal.position.set(Math.cos(a) * r * 0.88, -h / 2 - 0.04, Math.sin(a) * r * 0.88);
+    petal.lookAt(Math.cos(a) * 3, -h / 2 + 0.02, Math.sin(a) * 3);
+    petal.castShadow = true;
+    group.add(petal);
+  }
+  const alignLedMat = new MeshStandardMaterial({ color: 65348, emissive: 65348, emissiveIntensity: 1.2, metalness: 0.3, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const led = new Mesh(new SphereGeometry(0.012, 8, 6), alignLedMat);
+    led.position.set(Math.cos(a) * r * 0.92, -h / 2 - 0.02, Math.sin(a) * r * 0.92);
+    group.add(led);
+  }
   group.userData.height = h + 0.35;
   group.userData.radius = r;
   return group;
@@ -26926,16 +27307,42 @@ function buildFuelTank(part) {
   });
   const body = new Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
+  body.receiveShadow = true;
   group.add(body);
+  const skirtMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 8947848,
+    metalness: 0.7,
+    roughness: 0.3
+  });
+  const skirtPts = [
+    new Vector2(0, -h / 2 - 0.4),
+    new Vector2(r * 1.12, -h / 2 - 0.4),
+    new Vector2(r * 1.1, -h / 2 - 0.35),
+    new Vector2(r * 1.06, -h / 2 - 0.28),
+    new Vector2(r * 1.02, -h / 2 - 0.2),
+    new Vector2(r, -h / 2)
+  ];
+  const skirtGeo = new LatheGeometry(skirtPts, 56);
+  const skirt = new Mesh(skirtGeo, skirtMat);
+  skirt.castShadow = true;
+  skirt.receiveShadow = true;
+  group.add(skirt);
+  const skirtBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  addBoltRing(group, 32, r * 1.1, -h / 2 - 0.35, skirtBoltMat, 0.016);
   const capPts = [];
   capPts.push(new Vector2(0, 0));
-  capPts.push(new Vector2(r * 0.15, 8e-3));
-  capPts.push(new Vector2(r * 0.35, 0.04));
-  capPts.push(new Vector2(r * 0.55, 0.12));
-  capPts.push(new Vector2(r * 0.75, 0.26));
-  capPts.push(new Vector2(r * 0.9, 0.44));
-  capPts.push(new Vector2(r * 0.98, 0.62));
-  capPts.push(new Vector2(r, 0.72));
+  capPts.push(new Vector2(r * 0.08, 5e-3));
+  capPts.push(new Vector2(r * 0.18, 0.02));
+  capPts.push(new Vector2(r * 0.3, 0.05));
+  capPts.push(new Vector2(r * 0.42, 0.1));
+  capPts.push(new Vector2(r * 0.55, 0.18));
+  capPts.push(new Vector2(r * 0.68, 0.28));
+  capPts.push(new Vector2(r * 0.8, 0.4));
+  capPts.push(new Vector2(r * 0.9, 0.54));
+  capPts.push(new Vector2(r * 0.96, 0.66));
+  capPts.push(new Vector2(r * 0.99, 0.74));
+  capPts.push(new Vector2(r, 0.78));
   const topCapGeo = new LatheGeometry(capPts, 56);
   const capMat = new MeshStandardMaterial({
     map: tankTex,
@@ -27025,6 +27432,7 @@ function buildFuelTank(part) {
   const band = new Mesh(bandGeo, new MeshStandardMaterial({ color: 13391138, metalness: 0.45, roughness: 0.4 }));
   band.position.y = h * 0.18;
   band.castShadow = true;
+  band.receiveShadow = true;
   group.add(band);
   const band2 = new Mesh(
     new CylinderGeometry(r * 1.01, r * 1.01, 0.08, 72),
@@ -27033,6 +27441,73 @@ function buildFuelTank(part) {
   band2.position.y = h * 0.18 - 0.15;
   band2.castShadow = true;
   group.add(band2);
+  const hazardTex = texWarningLabel("hazard", 256);
+  const hazardMat = new MeshStandardMaterial({ map: hazardTex, metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.85 });
+  const textTex = texWarningLabel("text", 256);
+  const textMat = new MeshStandardMaterial({ map: textTex, metalness: 0.2, roughness: 0.6, transparent: true, opacity: 0.8 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    group.add(makeLabelDecal(r * 1.012, h * 0.28, a, 0.16, 0.05, hazardMat));
+    group.add(makeLabelDecal(r * 1.012, -h * 0.28, a + Math.PI / 4, 0.12, 0.1, textMat));
+  }
+  if (part.fuelMass > 1e4) {
+    const intTankMat = new MeshStandardMaterial({
+      map: texBrushedMetal("aluminum", 512),
+      color: 11579568,
+      metalness: 0.7,
+      roughness: 0.3
+    });
+    const intTank = new Mesh(new CylinderGeometry(r * 1.03, r * 1.03, 0.25, 72), intTankMat);
+    intTank.position.y = -h * 0.12;
+    intTank.castShadow = true;
+    intTank.receiveShadow = true;
+    group.add(intTank);
+    for (let i = 0; i < 16; i++) {
+      const angle = i / 16 * Math.PI * 2;
+      const rib = new Mesh(new BoxGeometry(0.025, 0.25, 0.04), intTankMat);
+      rib.position.set(Math.cos(angle) * r * 1.04, -h * 0.12, Math.sin(angle) * r * 1.04);
+      rib.lookAt(0, -h * 0.12, 0);
+      group.add(rib);
+    }
+    const portMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.6, roughness: 0.4 });
+    const port = new Mesh(new BoxGeometry(0.12, 0.08, 0.02), portMat);
+    port.position.set(r * 1.04, -h * 0.12, 0);
+    port.lookAt(r * 3, -h * 0.12, 0);
+    group.add(port);
+    addBoltRing(group, 8, r * 1.04, -h * 0.12 + 0.05, new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 }), 6e-3);
+    addBoltRing(group, 8, r * 1.04, -h * 0.12 - 0.05, new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 }), 6e-3);
+  }
+  const pressMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 8947848,
+    metalness: 0.75,
+    roughness: 0.25
+  });
+  const pressPts = [];
+  const pressTurns = 3;
+  const pressSegs = pressTurns * 24;
+  for (let i = 0; i <= pressSegs; i++) {
+    const t = i / pressSegs;
+    const angle = t * Math.PI * 2 * pressTurns;
+    const y = h * 0.4 - t * h * 0.8;
+    pressPts.push(new Vector3(Math.cos(angle) * r * 1.03, y, Math.sin(angle) * r * 1.03));
+  }
+  const pressCurve = new CatmullRomCurve3(pressPts);
+  const pressGeo = new TubeGeometry(pressCurve, 48, 0.018, 8, false);
+  const pressLine = new Mesh(pressGeo, pressMat);
+  pressLine.castShadow = true;
+  group.add(pressLine);
+  const portMat2 = new MeshStandardMaterial({ color: 5596791, metalness: 0.7, roughness: 0.3 });
+  for (const sign2 of [-1, 1]) {
+    const port = new Mesh(new CylinderGeometry(0.04, 0.04, 0.08, 12), portMat2);
+    port.position.set(sign2 * r * 1.03, h * 0.42, 0);
+    port.rotation.z = Math.PI / 2;
+    port.castShadow = true;
+    group.add(port);
+    const cap = new Mesh(new SphereGeometry(0.042, 12, 8), new MeshStandardMaterial({ color: 13378082, metalness: 0.4, roughness: 0.5 }));
+    cap.position.set(sign2 * r * 1.08, h * 0.42, 0);
+    group.add(cap);
+  }
   const conduitMat = new MeshStandardMaterial({
     map: texBrushedMetal("steel", 256),
     color: 8947848,
@@ -27069,6 +27544,126 @@ function buildFuelTank(part) {
   handle.position.set(r * 1.1, h * 0.38, 0);
   handle.rotation.y = Math.PI / 2;
   group.add(handle);
+  if (part.fuelMass > 1e4) {
+    const waistMat = new MeshStandardMaterial({
+      map: tankTex,
+      normalMap: tankNormal,
+      roughnessMap: tankRough,
+      color: 16777215,
+      metalness: isOrange ? 0.1 : 0.3,
+      roughness: isOrange ? 0.75 : 0.4
+    });
+    const waistGeo = new CylinderGeometry(r * 0.97, r * 0.97, 0.3, 72);
+    const waist = new Mesh(waistGeo, waistMat);
+    waist.position.y = 0;
+    waist.castShadow = true;
+    waist.receiveShadow = true;
+    group.add(waist);
+  }
+  const inspCoverMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 8947848, metalness: 0.7, roughness: 0.3 });
+  const inspBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 6;
+    const cover = new Mesh(new CylinderGeometry(0.06, 0.06, 0.015, 16), inspCoverMat);
+    cover.position.set(Math.cos(a) * r * 1.015, h * 0.1, Math.sin(a) * r * 1.015);
+    cover.lookAt(Math.cos(a) * 3, h * 0.1, Math.sin(a) * 3);
+    cover.rotation.x = Math.PI / 2;
+    cover.castShadow = true;
+    group.add(cover);
+    for (let b = 0; b < 6; b++) {
+      const ba = b / 6 * Math.PI * 2;
+      const bolt = new Mesh(new SphereGeometry(6e-3, 6, 4), inspBoltMat);
+      bolt.position.set(
+        Math.cos(a) * r * 1.02 + Math.cos(ba) * 0.045 * Math.cos(a),
+        h * 0.1 + Math.sin(ba) * 0.045,
+        Math.sin(a) * r * 1.02 + Math.cos(ba) * 0.045 * Math.sin(a)
+      );
+      group.add(bolt);
+    }
+  }
+  const loxMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 6719658, metalness: 0.75, roughness: 0.25 });
+  const lh2Mat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 11167334, metalness: 0.75, roughness: 0.25 });
+  for (const [mat, sign2, zOff] of [[loxMat, 1, 0.3], [lh2Mat, -1, -0.3]]) {
+    const linePts = [
+      new Vector3(sign2 * r * 1.05, h * 0.45, zOff),
+      new Vector3(sign2 * r * 1.1, h * 0.25, zOff),
+      new Vector3(sign2 * r * 1.08, 0, zOff),
+      new Vector3(sign2 * r * 1.1, -h * 0.25, zOff),
+      new Vector3(sign2 * r * 1.05, -h * 0.45, zOff)
+    ];
+    const lineCurve = new CatmullRomCurve3(linePts);
+    const lineMesh = new Mesh(new TubeGeometry(lineCurve, 40, 0.022, 10, false), mat);
+    lineMesh.castShadow = true;
+    group.add(lineMesh);
+  }
+  const louverMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.5, roughness: 0.6 });
+  for (const ySign of [1, -1]) {
+    for (const xSign of [1, -1]) {
+      const ventBase = new Mesh(new CylinderGeometry(0.045, 0.045, 0.06, 12), valveMat);
+      ventBase.position.set(xSign * r * 1.03, ySign * h * 0.42, 0.15);
+      ventBase.rotation.z = Math.PI / 2;
+      ventBase.castShadow = true;
+      group.add(ventBase);
+      for (let l = 0; l < 4; l++) {
+        const slat = new Mesh(new BoxGeometry(5e-3, 0.035, 8e-3), louverMat);
+        slat.position.set(xSign * r * 1.06, ySign * h * 0.42 - 0.02 + l * 0.012, 0.15);
+        group.add(slat);
+      }
+    }
+  }
+  const sensorMat = new MeshStandardMaterial({ color: 14527010, metalness: 0.8, roughness: 0.2 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 3;
+    const sensor = new Mesh(new CylinderGeometry(0.025, 0.025, 0.03, 12), sensorMat);
+    sensor.position.set(Math.cos(a) * r * 1.02, -h * 0.05, Math.sin(a) * r * 1.02);
+    sensor.lookAt(Math.cos(a) * 3, -h * 0.05, Math.sin(a) * 3);
+    sensor.rotation.x = Math.PI / 2;
+    group.add(sensor);
+  }
+  const springMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.35 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const seat = new Mesh(new CylinderGeometry(0.05, 0.06, 0.04, 12), springMat);
+    seat.position.set(Math.cos(a) * r * 0.8, -h / 2 - 0.02, Math.sin(a) * r * 0.8);
+    seat.castShadow = true;
+    group.add(seat);
+    for (let s = 0; s < 3; s++) {
+      const coil = new Mesh(new TorusGeometry(0.04, 8e-3, 6, 12), springMat);
+      coil.position.set(Math.cos(a) * r * 0.8, -h / 2 - 0.01 + s * 8e-3, Math.sin(a) * r * 0.8);
+      coil.rotation.x = Math.PI / 2;
+      group.add(coil);
+    }
+  }
+  const labelPanelMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.3, roughness: 0.6 });
+  const labelPanel = new Mesh(new BoxGeometry(0.4, 0.15, 5e-3), labelPanelMat);
+  labelPanel.position.set(r * 1.012, -h * 0.15, 0);
+  labelPanel.lookAt(r * 3, -h * 0.15, 0);
+  group.add(labelPanel);
+  const flagMat = new MeshStandardMaterial({ color: 13378082, metalness: 0.2, roughness: 0.5 });
+  const flagPos = new Mesh(new BoxGeometry(0.12, 0.08, 4e-3), flagMat);
+  flagPos.position.set(r * 1.012, h * 0.05, 0.2);
+  flagPos.lookAt(r * 3, h * 0.05, 0.2);
+  group.add(flagPos);
+  if (isOrange) {
+    const pitMat = new MeshStandardMaterial({ color: 9067040, metalness: 0.05, roughness: 0.95 });
+    for (let i = 0; i < 12; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const yOff = (Math.random() - 0.5) * h * 0.8;
+      const pitR = 0.015 + Math.random() * 0.025;
+      const pit = new Mesh(new SphereGeometry(pitR, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), pitMat);
+      pit.position.set(Math.cos(a) * r * 1.015, yOff, Math.sin(a) * r * 1.015);
+      pit.scale.y = 0.3;
+      group.add(pit);
+    }
+    const patchMat = new MeshStandardMaterial({ color: 12615744, metalness: 0.1, roughness: 0.85 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2 + 0.5;
+      const patch = new Mesh(new CircleGeometry(0.08, 12), patchMat);
+      patch.position.set(Math.cos(a) * r * 1.013, h * 0.22 - i * 0.05, Math.sin(a) * r * 1.013);
+      patch.lookAt(Math.cos(a) * 3, h * 0.22 - i * 0.05, Math.sin(a) * 3);
+      group.add(patch);
+    }
+  }
   group.userData.height = h + r;
   group.userData.radius = r;
   return group;
@@ -27116,11 +27711,37 @@ function buildEngine(part) {
     metalness: 0.75,
     roughness: 0.45
   });
-  const nozzle = new Mesh(nozzleGeo, nozzleMat);
-  nozzle.position.y = -0.15;
-  nozzle.castShadow = true;
-  group.add(nozzle);
-  const ribCount = big ? 24 : med ? 16 : 12;
+  const nozzle2 = new Mesh(nozzleGeo, nozzleMat);
+  nozzle2.position.y = -0.15;
+  nozzle2.castShadow = true;
+  nozzle2.receiveShadow = true;
+  group.add(nozzle2);
+  const slotMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.4, roughness: 0.8 });
+  for (let i = 0; i < 16; i++) {
+    const angle = i / 16 * Math.PI * 2;
+    const slot = new Mesh(new BoxGeometry(0.015, 0.03, 8e-3), slotMat);
+    const slotR = nozzleR * 0.32;
+    slot.position.set(Math.cos(angle) * slotR, nozzleH * 0.05, Math.sin(angle) * slotR);
+    slot.lookAt(0, nozzleH * 0.05, 0);
+    group.add(slot);
+  }
+  const blanketMat = new MeshStandardMaterial({
+    color: 14535850,
+    metalness: 0.05,
+    roughness: 0.85
+  });
+  const blanket = new Mesh(new CylinderGeometry(nozzleR * 0.42, nozzleR * 0.34, 0.38, 40), blanketMat);
+  blanket.position.y = nozzleH / 2 + 0.06;
+  blanket.castShadow = true;
+  group.add(blanket);
+  const blanketBandMat = new MeshStandardMaterial({ color: 11180390, metalness: 0.1, roughness: 0.7 });
+  for (const yOff of [-0.12, 0, 0.12]) {
+    const band = new Mesh(new TorusGeometry(nozzleR * 0.4, 0.012, 6, 32), blanketBandMat);
+    band.position.y = nozzleH / 2 + 0.06 + yOff;
+    band.rotation.x = Math.PI / 2;
+    group.add(band);
+  }
+  const ribCount = big ? 36 : med ? 24 : 16;
   const ribMat = new MeshStandardMaterial({
     map: texBrushedMetal("inconel", 256),
     color: 2763306,
@@ -27129,7 +27750,7 @@ function buildEngine(part) {
   });
   for (let i = 0; i < ribCount; i++) {
     const angle = i / ribCount * Math.PI * 2;
-    const ribGeo = new BoxGeometry(0.025, nozzleH * 0.82, 0.045);
+    const ribGeo = new BoxGeometry(0.018, nozzleH * 0.82, 0.035);
     const rib = new Mesh(ribGeo, ribMat);
     rib.position.set(Math.cos(angle) * nozzleR * 0.9, -0.18, Math.sin(angle) * nozzleR * 0.9);
     rib.lookAt(0, -0.18, 0);
@@ -27280,8 +27901,143 @@ function buildEngine(part) {
   const flange = new Mesh(new CylinderGeometry(nozzleR * 0.4, nozzleR * 0.4, 0.07, 36), flangeMat);
   flange.position.y = nozzleH / 2 + 0.36;
   flange.castShadow = true;
+  flange.receiveShadow = true;
   group.add(flange);
   addBoltRing(group, 16, nozzleR * 0.37, nozzleH / 2 + 0.36, pumpBoltMat, 0.014);
+  const actuatorMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 8947848,
+    metalness: 0.8,
+    roughness: 0.2
+  });
+  const pistonMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.9, roughness: 0.1 });
+  for (let i = 0; i < 2; i++) {
+    const sign2 = i === 0 ? 1 : -1;
+    const cyl = new Mesh(new CylinderGeometry(0.035, 0.035, 0.2, 12), actuatorMat);
+    cyl.position.set(sign2 * nozzleR * 0.3, nozzleH / 2 + 0.3, 0);
+    cyl.rotation.z = sign2 * 0.3;
+    cyl.castShadow = true;
+    group.add(cyl);
+    const rod = new Mesh(new CylinderGeometry(0.018, 0.018, 0.15, 10), pistonMat);
+    rod.position.set(sign2 * nozzleR * 0.35, nozzleH / 2 + 0.22, 0);
+    rod.rotation.z = sign2 * 0.3;
+    group.add(rod);
+    const clevis = new Mesh(new BoxGeometry(0.04, 0.03, 0.06), actuatorMat);
+    clevis.position.set(sign2 * nozzleR * 0.28, nozzleH / 2 + 0.4, 0);
+    group.add(clevis);
+  }
+  const engHazardTex = texWarningLabel("hazard", 256);
+  const engHazardMat = new MeshStandardMaterial({ map: engHazardTex, metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.7 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const label = new Mesh(new PlaneGeometry(0.08, 0.03), engHazardMat);
+    label.position.set(Math.cos(a) * nozzleR * 0.42, nozzleH / 2 + 0.1, Math.sin(a) * nozzleR * 0.42);
+    label.lookAt(0, nozzleH / 2 + 0.1, 0);
+    group.add(label);
+  }
+  const inspectMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.6, roughness: 0.4 });
+  const inspect = new Mesh(new BoxGeometry(0.06, 0.04, 0.01), inspectMat);
+  inspect.position.set(nozzleR * 0.42, nozzleH / 2 + 0.2, 0.08);
+  inspect.lookAt(nozzleR * 3, nozzleH / 2 + 0.2, 0.08);
+  group.add(inspect);
+  for (const bx of [-1, 1]) for (const by of [-1, 1]) {
+    const b = new Mesh(new SphereGeometry(5e-3, 6, 4), pumpBoltMat);
+    b.position.set(nozzleR * 0.42 + bx * 0.025, nozzleH / 2 + 0.2 + by * 0.015, 0.085);
+    group.add(b);
+  }
+  const thermalGradMat = new MeshStandardMaterial({
+    map: texNozzleThermal(1024),
+    emissiveMap: texEmissiveGlow("throat", 512),
+    emissive: 4465322,
+    emissiveIntensity: 0.6,
+    color: 2759210,
+    metalness: 0.7,
+    roughness: 0.5,
+    transparent: true,
+    opacity: 0.4
+  });
+  const thermalOverlay = new Mesh(
+    new CylinderGeometry(nozzleR * 0.34, nozzleR * 0.98, nozzleH * 0.78, 64, 1, true),
+    thermalGradMat
+  );
+  thermalOverlay.position.y = -0.18;
+  group.add(thermalOverlay);
+  const pumpCoverMat = new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 8947848, metalness: 0.8, roughness: 0.2 });
+  const pumpCover = new Mesh(new CylinderGeometry(0.14, 0.14, 0.04, 20), pumpCoverMat);
+  pumpCover.position.set(nozzleR * 0.42 - 0.15, nozzleH / 2 + 0.24, 0);
+  pumpCover.rotation.z = Math.PI / 2;
+  pumpCover.castShadow = true;
+  group.add(pumpCover);
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    const pb = new Mesh(new SphereGeometry(0.01, 8, 6), pumpBoltMat);
+    pb.position.set(nozzleR * 0.42 - 0.17, nozzleH / 2 + 0.24 + Math.cos(a) * 0.12, Math.sin(a) * 0.12);
+    group.add(pb);
+  }
+  const exhPts = [
+    new Vector3(nozzleR * 0.42 + 0.15, nozzleH / 2 + 0.24, 0),
+    new Vector3(nozzleR * 0.6, nozzleH / 2 + 0.05, 0),
+    new Vector3(nozzleR * 0.7, 0, 0),
+    new Vector3(nozzleR * 0.6, -nozzleH * 0.2, 0)
+  ];
+  const exhCurve = new CatmullRomCurve3(exhPts);
+  const exhPipe = new Mesh(new TubeGeometry(exhCurve, 24, 0.025, 8, false), pumpMat);
+  exhPipe.castShadow = true;
+  group.add(exhPipe);
+  const gimbalSocketMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 4473924, metalness: 0.85, roughness: 0.2 });
+  const gimbalSocket = new Mesh(new SphereGeometry(nozzleR * 0.24, 20, 16), gimbalSocketMat);
+  gimbalSocket.position.y = nozzleH / 2 + 0.04;
+  gimbalSocket.scale.y = 0.35;
+  gimbalSocket.castShadow = true;
+  group.add(gimbalSocket);
+  for (let i = 0; i < 2; i++) {
+    const sign2 = i === 0 ? 1 : -1;
+    const cyl = new Mesh(new CylinderGeometry(0.03, 0.03, 0.18, 12), actuatorMat);
+    cyl.position.set(0, nozzleH / 2 + 0.3, sign2 * nozzleR * 0.3);
+    cyl.rotation.x = sign2 * 0.3;
+    cyl.castShadow = true;
+    group.add(cyl);
+    const rod = new Mesh(new CylinderGeometry(0.016, 0.016, 0.13, 10), pistonMat);
+    rod.position.set(0, nozzleH / 2 + 0.22, sign2 * nozzleR * 0.35);
+    rod.rotation.x = sign2 * 0.3;
+    group.add(rod);
+  }
+  const fuelHoleMat = new MeshStandardMaterial({ color: 1718890, metalness: 0.3, roughness: 0.6, emissive: 662074, emissiveIntensity: 0.2 });
+  const oxHoleMat = new MeshStandardMaterial({ color: 6953498, metalness: 0.3, roughness: 0.6, emissive: 3803658, emissiveIntensity: 0.2 });
+  for (let ring = 0; ring < 4; ring++) {
+    const holeR = nozzleR * (0.08 + ring * 0.07);
+    const holeCount = 8 + ring * 8;
+    for (let i = 0; i < holeCount; i++) {
+      const a = i / holeCount * Math.PI * 2;
+      const isFuel = (i + ring) % 2 === 0;
+      const marker = new Mesh(new CylinderGeometry(6e-3, 6e-3, 5e-3, 8), isFuel ? fuelHoleMat : oxHoleMat);
+      marker.position.set(Math.cos(a) * holeR, nozzleH / 2 + 0.285, Math.sin(a) * holeR);
+      group.add(marker);
+    }
+  }
+  const sparkMat = new MeshStandardMaterial({ color: 13412898, metalness: 0.7, roughness: 0.3, emissive: 6702080, emissiveIntensity: 0.5 });
+  const sparkPlug = new Mesh(new CylinderGeometry(0.015, 0.02, 0.06, 12), sparkMat);
+  sparkPlug.position.y = nozzleH / 2 + 0.32;
+  sparkPlug.castShadow = true;
+  group.add(sparkPlug);
+  const prechamberMat = new MeshStandardMaterial({ map: texBrushedMetal("inconel", 256), color: 5588019, metalness: 0.8, roughness: 0.3 });
+  const prechamber = new Mesh(new SphereGeometry(0.04, 12, 10), prechamberMat);
+  prechamber.position.y = nozzleH / 2 + 0.29;
+  group.add(prechamber);
+  const manifoldMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 8947848, metalness: 0.75, roughness: 0.25 });
+  const manifoldRing = new Mesh(new TorusGeometry(nozzleR * 0.36, 0.022, 10, 40), manifoldMat);
+  manifoldRing.position.y = nozzleH / 2 + 0.15;
+  manifoldRing.rotation.x = Math.PI / 2;
+  manifoldRing.castShadow = true;
+  group.add(manifoldRing);
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const port = new Mesh(new CylinderGeometry(0.012, 0.012, 0.06, 10), manifoldMat);
+    port.position.set(Math.cos(a) * nozzleR * 0.36, nozzleH / 2 + 0.15, Math.sin(a) * nozzleR * 0.36);
+    port.lookAt(Math.cos(a) * 3, nozzleH / 2 + 0.15, Math.sin(a) * 3);
+    port.rotation.x = Math.PI / 2;
+    group.add(port);
+  }
   group.userData.height = nozzleH + 0.6;
   group.userData.radius = nozzleR;
   return group;
@@ -27307,6 +28063,7 @@ function buildBooster(part) {
   });
   const body = new Mesh(bodyGeo, bodyMat);
   body.castShadow = true;
+  body.receiveShadow = true;
   group.add(body);
   const nosePts = [];
   nosePts.push(new Vector2(0, h / 2 + r * 1.9));
@@ -27374,15 +28131,28 @@ function buildBooster(part) {
   }
   const segMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 512), color: 6710886, metalness: 0.7, roughness: 0.3 });
   const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  const insulMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.1, roughness: 0.9 });
   const segCount = h > 5 ? 4 : 3;
   for (let i = 0; i < segCount; i++) {
     const segY = -h / 2 + h / (segCount + 1) * (i + 1);
+    const insul = new Mesh(new CylinderGeometry(r * 0.99, r * 0.99, 0.08, 56), insulMat);
+    insul.position.y = segY;
+    insul.castShadow = true;
+    group.add(insul);
     const segRing = new Mesh(new TorusGeometry(r * 1.03, 0.05, 10, 48), segMat);
     segRing.position.y = segY;
     segRing.rotation.x = Math.PI / 2;
     segRing.castShadow = true;
+    segRing.receiveShadow = true;
     group.add(segRing);
     addBoltRing(group, 24, r * 1.04, segY, boltMat, 0.018);
+  }
+  const srbHazardTex = texWarningLabel("hazard", 256);
+  const srbHazardMat = new MeshStandardMaterial({ map: srbHazardTex, metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.75 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    group.add(makeLabelDecal(r * 1.04, h * 0.1, a, 0.14, 0.04, srbHazardMat));
+    group.add(makeLabelDecal(r * 1.04, -h * 0.1, a + Math.PI / 4, 0.14, 0.04, srbHazardMat));
   }
   const tvcMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 7829367, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < 2; i++) {
@@ -27435,6 +28205,76 @@ function buildBooster(part) {
   topRing.rotation.x = Math.PI / 2;
   topRing.castShadow = true;
   group.add(topRing);
+  const oringMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.3, roughness: 0.8 });
+  for (let i = 0; i < segCount; i++) {
+    const segY = -h / 2 + h / (segCount + 1) * (i + 1);
+    for (const yOff of [-0.02, 0.02]) {
+      const oring = new Mesh(new TorusGeometry(r * 1.01, 6e-3, 6, 48), oringMat);
+      oring.position.y = segY + yOff;
+      oring.rotation.x = Math.PI / 2;
+      group.add(oring);
+    }
+  }
+  const fwdSkirtMat = new MeshStandardMaterial({ map: texBrushedMetal("white", 256), color: 14737632, metalness: 0.6, roughness: 0.28 });
+  const fwdSkirtPts = [
+    new Vector2(0, h / 2 + 0.02),
+    new Vector2(r, h / 2 + 0.02),
+    new Vector2(r * 1.02, h / 2 + 0.08),
+    new Vector2(r * 0.95, h / 2 + 0.12)
+  ];
+  const fwdSkirtGeo = new LatheGeometry(fwdSkirtPts, 48);
+  const fwdSkirt = new Mesh(fwdSkirtGeo, fwdSkirtMat);
+  fwdSkirt.castShadow = true;
+  group.add(fwdSkirt);
+  const chuteBandMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
+  const chuteBand = new Mesh(new TorusGeometry(r * 0.4, 0.015, 8, 24), chuteBandMat);
+  chuteBand.position.y = h / 2 + r * 0.85;
+  chuteBand.rotation.x = Math.PI / 2;
+  group.add(chuteBand);
+  const aftSupportMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.75, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const bracket = new Mesh(new BoxGeometry(0.06, 0.35, 0.04), aftSupportMat);
+    bracket.position.set(Math.cos(a) * r * 0.7, -h / 2 - 0.25, Math.sin(a) * r * 0.7);
+    bracket.lookAt(Math.cos(a) * 3, -h / 2 - 0.25, Math.sin(a) * 3);
+    bracket.castShadow = true;
+    group.add(bracket);
+  }
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const sepMotor = new Mesh(new CylinderGeometry(0.035, 0.03, 0.1, 10), aftSupportMat);
+    sepMotor.position.set(Math.cos(angle) * r * 1.02, h * 0.35, Math.sin(angle) * r * 1.02);
+    sepMotor.lookAt(Math.cos(angle) * 5, h * 0.35 + 0.1, Math.sin(angle) * 5);
+    sepMotor.castShadow = true;
+    group.add(sepMotor);
+  }
+  const weldLineMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.5, roughness: 0.45 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const weldLine = new Mesh(new BoxGeometry(6e-3, h * 0.96, 0.01), weldLineMat);
+    weldLine.position.set(Math.cos(angle) * r * 1.001, 0, Math.sin(angle) * r * 1.001);
+    weldLine.lookAt(0, 0, 0);
+    group.add(weldLine);
+  }
+  const refractoryMat = new MeshStandardMaterial({ color: 3811866, metalness: 0.4, roughness: 0.7, emissive: 1706498, emissiveIntensity: 0.2 });
+  const refractoryRing = new Mesh(new TorusGeometry(r * 0.2, 0.018, 8, 32), refractoryMat);
+  refractoryRing.position.y = -h / 2 - 0.38;
+  refractoryRing.rotation.x = Math.PI / 2;
+  group.add(refractoryRing);
+  for (let i = 0; i < 2; i++) {
+    const sign2 = i === 0 ? 1 : -1;
+    const rod = new Mesh(
+      new CylinderGeometry(0.022, 0.022, 0.18, 10),
+      new MeshStandardMaterial({ color: 13421772, metalness: 0.95, roughness: 0.05 })
+    );
+    rod.position.set(sign2 * r * 0.72, -h / 2 - 0.08, 0);
+    rod.rotation.z = sign2 * 0.5;
+    rod.castShadow = true;
+    group.add(rod);
+    const clevis = new Mesh(new BoxGeometry(0.04, 0.03, 0.05), tvcMat);
+    clevis.position.set(sign2 * r * 0.78, -h / 2 + 0.02, 0);
+    group.add(clevis);
+  }
   group.userData.height = h + r * 1.9 + 0.5;
   group.userData.radius = r;
   return group;
@@ -27443,7 +28283,7 @@ function buildDecoupler(part) {
   const group = new Group();
   const r = part.mass > 500 ? 1.25 : 0.625;
   const h = 0.38;
-  const ringGeo = new CylinderGeometry(r, r, h, 56, 1, true);
+  const ringGeo = new CylinderGeometry(r, r, h, 64, 1, true);
   const ringMat = new MeshStandardMaterial({
     map: texBrushedMetal("aluminum", 1024),
     normalMap: texNormalDetail("rivets", 512),
@@ -27455,6 +28295,7 @@ function buildDecoupler(part) {
   });
   const ring = new Mesh(ringGeo, ringMat);
   ring.castShadow = true;
+  ring.receiveShadow = true;
   group.add(ring);
   const capMat = new MeshStandardMaterial({
     map: texBrushedMetal("steel", 512),
@@ -27463,20 +28304,37 @@ function buildDecoupler(part) {
     roughness: 0.35,
     side: DoubleSide
   });
-  const topCap = new Mesh(new RingGeometry(r * 0.7, r, 56), capMat);
+  const topCap = new Mesh(new RingGeometry(r * 0.7, r, 64), capMat);
   topCap.position.y = h / 2;
   topCap.rotation.x = -Math.PI / 2;
+  topCap.receiveShadow = true;
   group.add(topCap);
-  const botCap = new Mesh(new RingGeometry(r * 0.7, r, 56), capMat);
+  const botCap = new Mesh(new RingGeometry(r * 0.7, r, 64), capMat);
   botCap.position.y = -h / 2;
   botCap.rotation.x = Math.PI / 2;
+  botCap.receiveShadow = true;
   group.add(botCap);
-  const bandMat = new MeshStandardMaterial({ color: 16737792, metalness: 0.4, roughness: 0.5 });
-  const band = new Mesh(new CylinderGeometry(r * 1.02, r * 1.02, 0.08, 56), bandMat);
+  const bandMat = new MeshStandardMaterial({ color: 16737792, metalness: 0.4, roughness: 0.5, emissive: 4460800, emissiveIntensity: 0.1 });
+  const band = new Mesh(new CylinderGeometry(r * 1.02, r * 1.02, 0.08, 64), bandMat);
   band.castShadow = true;
+  band.receiveShadow = true;
   group.add(band);
   const boltMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.7, roughness: 0.3 });
-  addBoltRing(group, 16, r * 0.85, 0, boltMat, 0.035);
+  addBoltRing(group, 24, r * 0.88, 0, boltMat, 0.035);
+  const springMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.7, roughness: 0.3 });
+  for (let i = 0; i < 6; i++) {
+    const angle = i / 6 * Math.PI * 2 + Math.PI / 12;
+    const pusher = new Mesh(new CylinderGeometry(0.04, 0.04, h * 0.9, 12), springMat);
+    pusher.position.set(Math.cos(angle) * r * 0.78, 0, Math.sin(angle) * r * 0.78);
+    pusher.castShadow = true;
+    group.add(pusher);
+    for (let j = 0; j < 4; j++) {
+      const coil = new Mesh(new TorusGeometry(0.035, 8e-3, 6, 12), springMat);
+      coil.position.set(Math.cos(angle) * r * 0.78, -h * 0.3 + j * (h * 0.2), Math.sin(angle) * r * 0.78);
+      coil.rotation.x = Math.PI / 2;
+      group.add(coil);
+    }
+  }
   const portMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.7, roughness: 0.4 });
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
@@ -27487,10 +28345,35 @@ function buildDecoupler(part) {
     port.castShadow = true;
     group.add(port);
   }
-  const grooveMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.6 });
-  const groove = new Mesh(new TorusGeometry(r * 0.98, 0.025, 8, 56), grooveMat);
+  const grooveMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.5, roughness: 0.6 });
+  const groove = new Mesh(new TorusGeometry(r * 0.98, 0.025, 8, 64), grooveMat);
   groove.rotation.x = Math.PI / 2;
   group.add(groove);
+  const groove2 = new Mesh(new TorusGeometry(r * 0.98, 0.015, 6, 64), grooveMat);
+  groove2.position.y = 0.04;
+  groove2.rotation.x = Math.PI / 2;
+  group.add(groove2);
+  const decHazardMat = new MeshStandardMaterial({ map: texWarningLabel("hazard", 256), metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.8 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    group.add(makeLabelDecal(r * 1.03, 0, a, 0.1, 0.03, decHazardMat));
+  }
+  const pistonHousingMat = new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 10066329, metalness: 0.7, roughness: 0.3 });
+  const pistonHousing = new Mesh(new CylinderGeometry(r * 0.35, r * 0.35, 0.06, 24), pistonHousingMat);
+  pistonHousing.castShadow = true;
+  group.add(pistonHousing);
+  const explBoltMat = new MeshStandardMaterial({ color: 13404160, metalness: 0.7, roughness: 0.35, emissive: 4460800, emissiveIntensity: 0.1 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const eBolt = new Mesh(new CylinderGeometry(0.02, 0.022, 0.05, 12), explBoltMat);
+    eBolt.position.set(Math.cos(a) * r * 0.85, 0, Math.sin(a) * r * 0.85);
+    eBolt.castShadow = true;
+    group.add(eBolt);
+  }
+  const sealRingMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.2, roughness: 0.9 });
+  const sealRing = new Mesh(new TorusGeometry(r * 0.95, 8e-3, 6, 48), sealRingMat);
+  sealRing.rotation.x = Math.PI / 2;
+  group.add(sealRing);
   group.userData.height = h;
   group.userData.radius = r;
   return group;
@@ -27502,40 +28385,88 @@ function buildParachute(part) {
   const canMat = new MeshStandardMaterial({
     map: texBrushedMetal("aluminum", 1024),
     normalMap: texNormalDetail("rivets", 512),
+    roughnessMap: texRoughnessMap(0.35, 1024),
     color: 15658734,
     metalness: 0.55,
     roughness: 0.35
   });
-  const can = new Mesh(new CylinderGeometry(r, r, h, 28), canMat);
+  const can = new Mesh(new CylinderGeometry(r, r, h, 32), canMat);
   can.castShadow = true;
+  can.receiveShadow = true;
   group.add(can);
+  const ribMat = new MeshStandardMaterial({ color: 11184810, metalness: 0.65, roughness: 0.35 });
+  for (let i = 0; i < 8; i++) {
+    const angle = i / 8 * Math.PI * 2;
+    const rib = new Mesh(new BoxGeometry(0.015, h * 0.9, 0.025), ribMat);
+    rib.position.set(Math.cos(angle) * r * 1.01, 0, Math.sin(angle) * r * 1.01);
+    rib.lookAt(0, 0, 0);
+    group.add(rib);
+  }
   const coneMat = new MeshStandardMaterial({
     map: texBrushedMetal("white", 256),
-    color: 13382451,
+    color: 13378082,
     metalness: 0.4,
     roughness: 0.5
   });
-  const cone = new Mesh(new ConeGeometry(r * 0.9, 0.2, 28), coneMat);
+  const cone = new Mesh(new ConeGeometry(r * 0.9, 0.2, 32), coneMat);
   cone.position.y = h / 2 + 0.1;
   cone.castShadow = true;
   group.add(cone);
+  const tipMat = new MeshStandardMaterial({ color: 15790320, metalness: 0.3, roughness: 0.5 });
+  const tip = new Mesh(new ConeGeometry(r * 0.15, 0.06, 16), tipMat);
+  tip.position.y = h / 2 + 0.22;
+  group.add(tip);
   const pilotChute = new Mesh(new SphereGeometry(0.06, 12, 8), coneMat);
-  pilotChute.position.y = h / 2 + 0.24;
+  pilotChute.position.y = h / 2 + 0.28;
   pilotChute.scale.y = 0.6;
   group.add(pilotChute);
   const handleMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 6710886, metalness: 0.6, roughness: 0.4 });
-  const handle = new Mesh(new BoxGeometry(0.08, 0.12, 0.05), handleMat);
+  const handle = new Mesh(new TorusGeometry(0.04, 0.01, 8, 16), handleMat);
   handle.position.set(r * 0.95, 0, 0);
-  handle.castShadow = true;
+  handle.rotation.y = Math.PI / 2;
   group.add(handle);
+  const ventMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.4, roughness: 0.7 });
+  for (let i = 0; i < 6; i++) {
+    const angle = i / 6 * Math.PI * 2;
+    const vent = new Mesh(new CylinderGeometry(0.012, 0.012, 0.02, 8), ventMat);
+    vent.position.set(Math.cos(angle) * r * 0.95, h / 2 - 0.02, Math.sin(angle) * r * 0.95);
+    vent.rotation.x = Math.PI / 2;
+    vent.rotation.y = -angle;
+    group.add(vent);
+  }
   const flangeMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 10066329, metalness: 0.6, roughness: 0.35 });
-  const flange = new Mesh(new CylinderGeometry(r * 1.1, r * 1.1, 0.05, 28), flangeMat);
+  const flange = new Mesh(new CylinderGeometry(r * 1.1, r * 1.1, 0.05, 32), flangeMat);
   flange.position.y = -h / 2 - 0.025;
   flange.castShadow = true;
+  flange.receiveShadow = true;
   group.add(flange);
   const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
-  addBoltRing(group, 12, r * 1.05, -h / 2 - 0.025, boltMat, 0.012);
-  group.userData.height = h + 0.24;
+  addBoltRing(group, 16, r * 1.05, -h / 2 - 0.025, boltMat, 0.012);
+  const chHazardMat = new MeshStandardMaterial({ map: texWarningLabel("hazard", 256), metalness: 0.2, roughness: 0.7, transparent: true, opacity: 0.75 });
+  group.add(makeLabelDecal(r * 1.02, h * 0.1, 0, 0.1, 0.03, chHazardMat));
+  const creaseMat = new MeshStandardMaterial({ color: 16746564, metalness: 0.1, roughness: 0.85, side: DoubleSide });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const crease = new Mesh(new BoxGeometry(8e-3, h * 0.5, r * 0.04), creaseMat);
+    crease.position.set(Math.cos(a) * r * 0.8, h * 0.05, Math.sin(a) * r * 0.8);
+    crease.lookAt(0, h * 0.05, 0);
+    group.add(crease);
+  }
+  const strapMat = new MeshStandardMaterial({ color: 5583650, metalness: 0.2, roughness: 0.7 });
+  for (const ang of [Math.PI / 4, -Math.PI / 4]) {
+    const strap = new Mesh(new BoxGeometry(r * 1.6, 0.015, 0.01), strapMat);
+    strap.position.y = -h / 2 - 0.04;
+    strap.rotation.y = ang;
+    group.add(strap);
+  }
+  const deploySpringMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.25 });
+  for (let s = 0; s < 4; s++) {
+    const coil = new Mesh(new TorusGeometry(r * 0.5, 0.012, 6, 20), deploySpringMat);
+    coil.position.y = -h / 2 + s * 0.015;
+    coil.rotation.x = Math.PI / 2;
+    group.add(coil);
+  }
+  group.userData.height = h + 0.28;
   group.userData.radius = r;
   return group;
 }
@@ -27545,22 +28476,6 @@ function buildAeroFin(part) {
   const span = 1 * scale;
   const root = 1.2 * scale;
   const thick = 0.05;
-  const nacaProfile = (chord, t, thickness) => {
-    const shape = new Shape();
-    const n = 30;
-    for (let i = 0; i <= n; i++) {
-      const x = i / n * chord;
-      const yt = thickness * 5 * t * (0.2969 * Math.sqrt(x / chord) - 0.126 * (x / chord) - 0.3516 * Math.pow(x / chord, 2) + 0.2843 * Math.pow(x / chord, 3) - 0.1015 * Math.pow(x / chord, 4));
-      if (i === 0) shape.moveTo(x, yt);
-      else shape.lineTo(x, yt);
-    }
-    for (let i = n; i >= 0; i--) {
-      const x = i / n * chord;
-      const yt = -thickness * 5 * t * (0.2969 * Math.sqrt(x / chord) - 0.126 * (x / chord) - 0.3516 * Math.pow(x / chord, 2) + 0.2843 * Math.pow(x / chord, 3) - 0.1015 * Math.pow(x / chord, 4));
-      shape.lineTo(x, yt);
-    }
-    return shape;
-  };
   const planform = new Shape();
   planform.moveTo(0, 0);
   planform.lineTo(root, 0);
@@ -27586,7 +28501,24 @@ function buildAeroFin(part) {
   fin.rotation.x = -Math.PI / 2;
   fin.position.z = -thick / 2;
   fin.castShadow = true;
+  fin.receiveShadow = true;
   group.add(fin);
+  const rootMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 256),
+    color: 8947848,
+    metalness: 0.8,
+    roughness: 0.2
+  });
+  const rootPlate = new Mesh(new BoxGeometry(0.04, thick * 1.5, root * 0.95), rootMat);
+  rootPlate.position.set(-root * 0.02, 0, 0);
+  rootPlate.castShadow = true;
+  group.add(rootPlate);
+  const finBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const bolt = new Mesh(new SphereGeometry(0.012, 8, 6), finBoltMat);
+    bolt.position.set(0, 0, i * (root * 0.22) - root * 0.33);
+    group.add(bolt);
+  }
   const ctrlShape = new Shape();
   ctrlShape.moveTo(root * 0.75, 0);
   ctrlShape.lineTo(root, 0);
@@ -27610,6 +28542,16 @@ function buildAeroFin(part) {
   hinge.position.set(root * 0.73, span * 0.2, 0);
   hinge.rotation.x = Math.PI / 2;
   group.add(hinge);
+  const doublerMat = new MeshStandardMaterial({ map: texBrushedMetal("titanium", 256), color: 11184810, metalness: 0.8, roughness: 0.2 });
+  const doubler = new Mesh(new BoxGeometry(0.015, thick * 2, root * 0.5), doublerMat);
+  doubler.position.set(0, 0, root * 0.1);
+  doubler.castShadow = true;
+  group.add(doubler);
+  const gapSealMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.3, roughness: 0.7 });
+  const gapSeal = new Mesh(new BoxGeometry(3e-3, thick * 1.2, span * 0.45), gapSealMat);
+  gapSeal.position.set(root * 0.735, 0, span * 0.2);
+  gapSeal.rotation.x = Math.PI / 2;
+  group.add(gapSeal);
   group.userData.height = 0.07 * scale;
   group.userData.radius = root;
   return group;
@@ -27619,33 +28561,38 @@ function buildRCSBlock(part) {
   const baseMat = new MeshStandardMaterial({
     map: texBrushedMetal("steel", 1024),
     normalMap: texNormalDetail("rivets", 512),
+    roughnessMap: texRoughnessMap(0.35, 1024),
     color: 6710886,
     metalness: 0.65,
     roughness: 0.38
   });
-  const base = new Mesh(new BoxGeometry(0.2, 0.08, 0.2), baseMat);
+  const base = new Mesh(new CylinderGeometry(0.11, 0.11, 0.08, 6), baseMat);
   base.castShadow = true;
+  base.receiveShadow = true;
   group.add(base);
   const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
   for (const bx of [-1, 1]) {
     for (const bz of [-1, 1]) {
       const bolt = new Mesh(new SphereGeometry(0.012, 8, 6), boltMat);
       bolt.position.set(bx * 0.08, -0.03, bz * 0.08);
+      bolt.castShadow = true;
       group.add(bolt);
     }
   }
   const nozPts = [
     new Vector2(0, 0),
     new Vector2(0.035, 0),
-    new Vector2(0.04, 0.015),
+    new Vector2(0.04, 0.012),
+    new Vector2(0.038, 0.018),
     new Vector2(0.03, 0.035),
-    new Vector2(0.02, 0.055),
-    new Vector2(0, 0.055)
+    new Vector2(0.022, 0.055),
+    new Vector2(0.02, 0.065),
+    new Vector2(0, 0.065)
   ];
-  const nozGeo = new LatheGeometry(nozPts, 12);
+  const nozGeo = new LatheGeometry(nozPts, 16);
   const nozMat = new MeshStandardMaterial({
-    map: texBrushedMetal("copper", 256),
-    color: 8947848,
+    map: texNozzleThermal(256),
+    color: 8939076,
     metalness: 0.75,
     roughness: 0.28
   });
@@ -27655,6 +28602,10 @@ function buildRCSBlock(part) {
     metalness: 0.65,
     roughness: 0.38
   });
+  const manifold = new Mesh(new BoxGeometry(0.06, 0.06, 0.06), pipeMat);
+  manifold.position.y = 0.035;
+  manifold.castShadow = true;
+  group.add(manifold);
   for (let i = 0; i < 4; i++) {
     const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
     const noz = new Mesh(nozGeo, nozMat);
@@ -27663,12 +28614,34 @@ function buildRCSBlock(part) {
     noz.rotation.x = Math.PI / 2;
     noz.castShadow = true;
     group.add(noz);
-    const pipe = new Mesh(new CylinderGeometry(0.01, 0.01, 0.08, 8), pipeMat);
-    pipe.position.set(Math.cos(angle) * 0.06, 0.035, Math.sin(angle) * 0.06);
-    pipe.rotation.z = Math.PI / 2;
-    pipe.rotation.y = -angle;
+    const pipePts = [
+      new Vector3(0, 0.045, 0),
+      new Vector3(Math.cos(angle) * 0.04, 0.05, Math.sin(angle) * 0.04),
+      new Vector3(Math.cos(angle) * 0.07, 0.06, Math.sin(angle) * 0.07)
+    ];
+    const pipeCurve = new CatmullRomCurve3(pipePts);
+    const pipe = new Mesh(new TubeGeometry(pipeCurve, 8, 8e-3, 6, false), pipeMat);
+    pipe.castShadow = true;
     group.add(pipe);
   }
+  const insulMat = new MeshStandardMaterial({ color: 14535850, metalness: 0.05, roughness: 0.85 });
+  const insul = new Mesh(new BoxGeometry(0.062, 0.04, 0.062), insulMat);
+  insul.position.y = 0.025;
+  group.add(insul);
+  const coverMat = new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 13421772, metalness: 0.7, roughness: 0.25 });
+  const cover = new Mesh(new SphereGeometry(0.05, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), coverMat);
+  cover.position.y = 0.075;
+  cover.scale.y = 0.5;
+  cover.castShadow = true;
+  group.add(cover);
+  const flangeRing = new Mesh(
+    new TorusGeometry(0.11, 0.014, 8, 24),
+    new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 7829367, metalness: 0.8, roughness: 0.2 })
+  );
+  flangeRing.position.y = -0.04;
+  flangeRing.rotation.x = Math.PI / 2;
+  flangeRing.castShadow = true;
+  group.add(flangeRing);
   group.userData.height = 0.18;
   group.userData.radius = 0.13;
   return group;
@@ -27678,13 +28651,21 @@ function buildSolarPanel(part) {
   const baseMat = new MeshStandardMaterial({
     map: texBrushedMetal("dark", 1024),
     normalMap: texNormalDetail("rivets", 512),
+    roughnessMap: texRoughnessMap(0.4, 1024),
     color: 5592405,
     metalness: 0.6,
     roughness: 0.4
   });
   const base = new Mesh(new BoxGeometry(0.16, 0.1, 0.16), baseMat);
   base.castShadow = true;
+  base.receiveShadow = true;
   group.add(base);
+  const motorMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 8947848, metalness: 0.8, roughness: 0.2 });
+  const motor = new Mesh(new CylinderGeometry(0.025, 0.025, 0.08, 12), motorMat);
+  motor.position.set(0, 0.06, 0);
+  motor.rotation.z = Math.PI / 2;
+  motor.castShadow = true;
+  group.add(motor);
   const armMat = new MeshStandardMaterial({
     map: texBrushedMetal("steel", 256),
     color: 8947848,
@@ -27728,12 +28709,47 @@ function buildSolarPanel(part) {
   });
   const back = new Mesh(new BoxGeometry(0.95, 0.014, 0.42), backMat);
   back.position.set(0.82, -0.02, 0);
+  back.castShadow = true;
+  back.receiveShadow = true;
   group.add(back);
+  const cableMat = new MeshStandardMaterial({ color: 2236996, metalness: 0.3, roughness: 0.6 });
+  const cablePts = [
+    new Vector3(0.08, 0.04, 0),
+    new Vector3(0.14, 0.03, 0),
+    new Vector3(0.2, 0.02, 0),
+    new Vector3(0.3, 0.01, 0)
+  ];
+  const cableCurve = new CatmullRomCurve3(cablePts);
+  const cable = new Mesh(new TubeGeometry(cableCurve, 12, 6e-3, 6, false), cableMat);
+  group.add(cable);
   const frameMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
   for (const sign2 of [-1, 1]) {
     const frameEdge = new Mesh(new BoxGeometry(0.95, 0.03, 0.015), frameMat);
     frameEdge.position.set(0.82, 0, sign2 * 0.21);
+    frameEdge.castShadow = true;
     group.add(frameEdge);
+  }
+  for (const sign2 of [-1, 1]) {
+    const frameEnd = new Mesh(new BoxGeometry(0.015, 0.03, 0.42), frameMat);
+    frameEnd.position.set(0.82 + sign2 * 0.475, 0, 0);
+    frameEnd.castShadow = true;
+    group.add(frameEnd);
+  }
+  const hingeKnuckleMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 8947848, metalness: 0.85, roughness: 0.15 });
+  const hingeKnuckle = new Mesh(new CylinderGeometry(0.022, 0.022, 0.14, 12), hingeKnuckleMat);
+  hingeKnuckle.position.set(0.32, 0, 0);
+  hingeKnuckle.rotation.z = Math.PI / 2;
+  hingeKnuckle.castShadow = true;
+  group.add(hingeKnuckle);
+  const backplateMat = new MeshStandardMaterial({ color: 2236979, metalness: 0.3, roughness: 0.6 });
+  const backplate = new Mesh(new BoxGeometry(0.93, 5e-3, 0.4), backplateMat);
+  backplate.position.set(0.82, -0.012, 0);
+  group.add(backplate);
+  const dividerMat = new MeshStandardMaterial({ color: 10066329, metalness: 0.6, roughness: 0.3 });
+  for (let i = 0; i < 3; i++) {
+    const divider = new Mesh(new BoxGeometry(4e-3, 4e-3, 0.4), dividerMat);
+    divider.position.set(0.82 + (i - 1) * 0.25, 2e-3, 0);
+    group.add(divider);
   }
   group.userData.height = 0.14;
   group.userData.radius = 0.12;
@@ -27764,43 +28780,85 @@ function buildLandingLeg(part) {
   thigh.position.set(0.22, -0.11, 0);
   thigh.rotation.z = -0.6;
   thigh.castShadow = true;
+  thigh.receiveShadow = true;
   group.add(thigh);
   const knee = new Mesh(new SphereGeometry(0.058, 14, 10), metalMat);
   knee.position.set(0.48, -0.32, 0);
   knee.castShadow = true;
   group.add(knee);
+  const kneeCover = new Mesh(new CylinderGeometry(0.055, 0.055, 0.03, 12), darkMat);
+  kneeCover.position.set(0.52, -0.32, 0);
+  kneeCover.rotation.z = 0.4;
+  group.add(kneeCover);
   const shin = new Mesh(new CylinderGeometry(0.036, 0.028, 0.58, 12), metalMat);
   shin.position.set(0.57, -0.62, 0);
   shin.rotation.z = 0.4;
   shin.castShadow = true;
+  shin.receiveShadow = true;
   group.add(shin);
   const absorber = new Mesh(new CylinderGeometry(0.028, 0.028, 0.4, 12), cylMat);
   absorber.position.set(0.3, -0.2, 0.03);
   absorber.rotation.z = -0.5;
   absorber.castShadow = true;
   group.add(absorber);
-  const piston = new Mesh(new CylinderGeometry(0.016, 0.016, 0.3, 10), darkMat);
+  const cylHead = new Mesh(new CylinderGeometry(0.03, 0.03, 0.04, 12), cylMat);
+  cylHead.position.set(0.26, -0.17, 0.03);
+  cylHead.rotation.z = -0.5;
+  group.add(cylHead);
+  const piston = new Mesh(new CylinderGeometry(0.016, 0.016, 0.3, 10), new MeshStandardMaterial({ color: 13421772, metalness: 0.95, roughness: 0.05 }));
   piston.position.set(0.34, -0.27, 0.03);
   piston.rotation.z = -0.5;
   group.add(piston);
+  const clevis = new Mesh(new BoxGeometry(0.02, 0.03, 0.03), cylMat);
+  clevis.position.set(0.44, -0.33, 0.03);
+  clevis.rotation.z = -0.5;
+  group.add(clevis);
   for (let i = 0; i < 6; i++) {
     const spring = new Mesh(new TorusGeometry(0.03, 0.01, 6, 14), darkMat);
     spring.position.set(0.3 + i * 0.024, -0.14 - i * 0.035, 0.03);
     spring.rotation.y = Math.PI / 2;
     group.add(spring);
   }
-  const foot = new Mesh(new CylinderGeometry(0.14, 0.14, 0.028, 20), metalMat);
+  const foot = new Mesh(new CylinderGeometry(0.14, 0.16, 0.03, 20), metalMat);
   foot.position.set(0.78, -0.9, 0);
   foot.castShadow = true;
+  foot.receiveShadow = true;
   group.add(foot);
-  const footEdge = new Mesh(new TorusGeometry(0.14, 0.016, 8, 20), darkMat);
+  const footEdge = new Mesh(new TorusGeometry(0.15, 0.014, 8, 20), darkMat);
   footEdge.position.set(0.78, -0.91, 0);
   footEdge.rotation.x = Math.PI / 2;
   group.add(footEdge);
+  const crushMat = new MeshStandardMaterial({ color: 14527078, metalness: 0.1, roughness: 0.9 });
+  const crush = new Mesh(new CylinderGeometry(0.11, 0.11, 0.015, 14), crushMat);
+  crush.position.set(0.78, -0.915, 0);
+  group.add(crush);
   const bracket = new Mesh(new BoxGeometry(0.08, 0.12, 0.1), metalMat);
   bracket.position.set(0.02, -0.02, 0);
   bracket.castShadow = true;
   group.add(bracket);
+  const honeyMat = new MeshStandardMaterial({ color: 13412966, metalness: 0.1, roughness: 0.85 });
+  for (let ring = 0; ring < 3; ring++) {
+    const cellR = 0.04 + ring * 0.035;
+    const cellCount = 6 + ring * 6;
+    for (let i = 0; i < cellCount; i++) {
+      const a = i / cellCount * Math.PI * 2;
+      const cell = new Mesh(new CylinderGeometry(0.012, 0.012, 6e-3, 6), honeyMat);
+      cell.position.set(0.78 + Math.cos(a) * cellR, -0.925, Math.sin(a) * cellR);
+      group.add(cell);
+    }
+  }
+  const secStrutMat = new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 10066329, metalness: 0.7, roughness: 0.3 });
+  const secStrut = new Mesh(new CylinderGeometry(0.018, 0.018, 0.52, 8), secStrutMat);
+  secStrut.position.set(0.63, -0.47, 0);
+  secStrut.rotation.z = 0.85;
+  secStrut.castShadow = true;
+  group.add(secStrut);
+  const depMotorMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.8, roughness: 0.2 });
+  const depMotor = new Mesh(new CylinderGeometry(0.025, 0.025, 0.08, 10), depMotorMat);
+  depMotor.position.set(0.06, -0.04, 0);
+  depMotor.rotation.z = -0.6;
+  depMotor.castShadow = true;
+  group.add(depMotor);
   group.userData.height = 1;
   group.userData.radius = 0.18;
   return group;
@@ -27833,6 +28891,7 @@ function buildScienceInstrument(part) {
     const stem = new Mesh(new CylinderGeometry(0.038, 0.038, 0.48, 16), mat);
     stem.position.y = 0.24;
     stem.castShadow = true;
+    stem.receiveShadow = true;
     group.add(stem);
     const bulb = new Mesh(new SphereGeometry(0.075, 14, 10), darkMat);
     bulb.position.y = 0.52;
@@ -27840,6 +28899,7 @@ function buildScienceInstrument(part) {
     group.add(bulb);
     const baseBox = new Mesh(new BoxGeometry(0.14, 0.06, 0.1), mat);
     baseBox.castShadow = true;
+    baseBox.receiveShadow = true;
     group.add(baseBox);
     for (let i = 0; i < 3; i++) {
       const port = new Mesh(new CylinderGeometry(0.015, 0.015, 0.03, 8), darkMat);
@@ -27851,12 +28911,18 @@ function buildScienceInstrument(part) {
   } else if (name.includes("sensor") || name.includes("science") || name.includes("\u4F20\u611F\u5668") || name.includes("\u79D1\u5B66")) {
     const box = new Mesh(new BoxGeometry(0.24, 0.18, 0.16), mat);
     box.castShadow = true;
+    box.receiveShadow = true;
     group.add(box);
     const lens = new Mesh(new CylinderGeometry(0.038, 0.038, 0.05, 16), darkMat);
     lens.position.z = 0.1;
     lens.rotation.x = Math.PI / 2;
     lens.castShadow = true;
     group.add(lens);
+    const lensGlass = new MeshPhysicalMaterial({ color: 3368618, metalness: 0.1, roughness: 0.05, transmission: 0.9, transparent: true });
+    const lensCover = new Mesh(new CylinderGeometry(0.035, 0.035, 5e-3, 16), lensGlass);
+    lensCover.position.z = 0.128;
+    lensCover.rotation.x = Math.PI / 2;
+    group.add(lensCover);
     const ant = new Mesh(new CylinderGeometry(9e-3, 9e-3, 0.24, 8), mat);
     ant.position.y = 0.2;
     ant.castShadow = true;
@@ -27913,6 +28979,17 @@ function buildScienceInstrument(part) {
     group.add(ant);
     group.userData.height = 0.3;
   }
+  const dataPortMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.3, roughness: 0.7 });
+  const dataPort = new Mesh(new BoxGeometry(0.04, 0.02, 8e-3), dataPortMat);
+  dataPort.position.set(0, -group.userData.height / 2, 0.09);
+  group.add(dataPort);
+  const probeMat = new MeshStandardMaterial({ color: 13412898, metalness: 0.7, roughness: 0.25 });
+  for (let i = 0; i < 3; i++) {
+    const probe = new Mesh(new CylinderGeometry(8e-3, 6e-3, 0.04, 8), probeMat);
+    probe.position.set(-0.04 + i * 0.04, -group.userData.height / 2 + 0.03, 0.095);
+    probe.rotation.x = Math.PI / 2;
+    group.add(probe);
+  }
   group.userData.radius = 0.15;
   return group;
 }
@@ -27933,10 +29010,19 @@ function buildCommAntenna(part) {
   });
   const base = new Mesh(new CylinderGeometry(0.08, 0.1, 0.08, 16), metalMat);
   base.castShadow = true;
+  base.receiveShadow = true;
   group.add(base);
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(0.012, 8, 6), boltMat);
+    bolt.position.set(Math.cos(a) * 0.08, -0.035, Math.sin(a) * 0.08);
+    group.add(bolt);
+  }
   const gimbalBall = new Mesh(new SphereGeometry(0.05, 12, 10), metalMat);
   gimbalBall.position.y = 0.06;
   gimbalBall.scale.y = 0.6;
+  gimbalBall.castShadow = true;
   group.add(gimbalBall);
   const segs = [0.044, 0.034, 0.024];
   let yOff = 0.08;
@@ -27949,12 +29035,14 @@ function buildCommAntenna(part) {
   }
   const dishPts = [];
   dishPts.push(new Vector2(0, 0));
-  dishPts.push(new Vector2(0.06, 0.024));
+  dishPts.push(new Vector2(0.04, 0.012));
+  dishPts.push(new Vector2(0.08, 0.03));
   dishPts.push(new Vector2(0.12, 0.06));
-  dishPts.push(new Vector2(0.18, 0.12));
-  dishPts.push(new Vector2(0.23, 0.18));
+  dishPts.push(new Vector2(0.16, 0.1));
+  dishPts.push(new Vector2(0.2, 0.15));
+  dishPts.push(new Vector2(0.23, 0.2));
   dishPts.push(new Vector2(0.26, 0.24));
-  const dishGeo = new LatheGeometry(dishPts, 40);
+  const dishGeo = new LatheGeometry(dishPts, 48);
   const dishMat = new MeshStandardMaterial({
     map: texBrushedMetal("white", 512),
     color: 11184810,
@@ -27965,11 +29053,23 @@ function buildCommAntenna(part) {
   const dish = new Mesh(dishGeo, dishMat);
   dish.position.y = yOff;
   dish.castShadow = true;
+  dish.receiveShadow = true;
   group.add(dish);
+  const ribMat = new MeshStandardMaterial({ color: 7829367, metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2;
+    const rib = new Mesh(new BoxGeometry(0.22, 0.02, 8e-3), ribMat);
+    rib.position.set(Math.cos(a) * 0.11, yOff + 0.02, Math.sin(a) * 0.11);
+    rib.rotation.y = a;
+    group.add(rib);
+  }
   const horn = new Mesh(new ConeGeometry(0.03, 0.1, 12), darkMat);
   horn.position.y = yOff + 0.14;
   horn.castShadow = true;
   group.add(horn);
+  const waveguide = new Mesh(new CylinderGeometry(0.012, 0.012, 0.06, 8), darkMat);
+  waveguide.position.y = yOff + 0.03;
+  group.add(waveguide);
   const strutMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
   for (let i = 0; i < 3; i++) {
     const angle = i / 3 * Math.PI * 2;
@@ -27978,6 +29078,30 @@ function buildCommAntenna(part) {
     strut.lookAt(0, yOff + 0.14, 0);
     strut.rotation.x = Math.PI / 2;
     group.add(strut);
+  }
+  const polarizerMat = new MeshStandardMaterial({ color: 14540270, metalness: 0.1, roughness: 0.3, transparent: true, opacity: 0.6, side: DoubleSide });
+  const polarizer = new Mesh(new CircleGeometry(0.04, 16), polarizerMat);
+  polarizer.position.y = yOff + 0.19;
+  polarizer.rotation.x = -Math.PI / 2;
+  group.add(polarizer);
+  for (let c = 0; c < 3; c++) {
+    const corr = new Mesh(new TorusGeometry(0.028 - c * 6e-3, 3e-3, 6, 12), darkMat);
+    corr.position.y = yOff + 0.11 + c * 0.025;
+    corr.rotation.x = Math.PI / 2;
+    group.add(corr);
+  }
+  const tripMat = new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 10066329, metalness: 0.75, roughness: 0.25 });
+  for (let i = 0; i < 3; i++) {
+    const angle = i / 3 * Math.PI * 2 + Math.PI / 6;
+    const legPts = [
+      new Vector3(0, yOff - 0.05, 0),
+      new Vector3(Math.cos(angle) * 0.12, yOff + 0.02, Math.sin(angle) * 0.12),
+      new Vector3(Math.cos(angle) * 0.25, yOff - 0.02, Math.sin(angle) * 0.25)
+    ];
+    const legCurve = new CatmullRomCurve3(legPts);
+    const leg = new Mesh(new TubeGeometry(legCurve, 12, 6e-3, 6, false), tripMat);
+    leg.castShadow = true;
+    group.add(leg);
   }
   group.userData.height = yOff + 0.28;
   group.userData.radius = 0.26;
@@ -27995,7 +29119,15 @@ function buildDockingPort(part) {
   });
   const base = new Mesh(new CylinderGeometry(r, r, 0.08, 36), baseMat);
   base.castShadow = true;
+  base.receiveShadow = true;
   group.add(base);
+  const dockBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(0.014, 8, 6), dockBoltMat);
+    bolt.position.set(Math.cos(a) * r * 0.92, -0.035, Math.sin(a) * r * 0.92);
+    group.add(bolt);
+  }
   const goldRing = new Mesh(
     new TorusGeometry(r * 0.75, 0.048, 12, 36),
     new MeshStandardMaterial({ color: 16755200, metalness: 0.95, roughness: 0.15 })
@@ -28048,6 +29180,28 @@ function buildDockingPort(part) {
   }
   const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
   addBoltRing(group, 12, r * 0.95, -0.04, boltMat, 0.015);
+  const alignCone = new Mesh(
+    new ConeGeometry(r * 0.12, 0.08, 16),
+    new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 11184810, metalness: 0.8, roughness: 0.2 })
+  );
+  alignCone.position.y = 0.18;
+  alignCone.castShadow = true;
+  group.add(alignCone);
+  const latchMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.8, roughness: 0.25 });
+  for (let i = 0; i < 3; i++) {
+    const a = i / 3 * Math.PI * 2 + Math.PI / 6;
+    const latch = new Mesh(new BoxGeometry(0.03, 0.04, 0.015), latchMat);
+    latch.position.set(Math.cos(a) * r * 0.45, 0.08, Math.sin(a) * r * 0.45);
+    latch.lookAt(Math.cos(a) * 3, 0.08, Math.sin(a) * 3);
+    group.add(latch);
+  }
+  const amberLedMat = new MeshStandardMaterial({ color: 16755200, emissive: 16746496, emissiveIntensity: 1, metalness: 0.3, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const led = new Mesh(new SphereGeometry(0.016, 8, 6), amberLedMat);
+    led.position.set(Math.cos(a) * r * 0.65, 0.045, Math.sin(a) * r * 0.65);
+    group.add(led);
+  }
   group.userData.height = 0.24;
   group.userData.radius = r;
   return group;
@@ -28063,11 +29217,32 @@ function buildStructuralTube(part) {
     metalness: 0.65,
     roughness: 0.38
   });
+  const flangeMat = new MeshStandardMaterial({
+    map: texBrushedMetal("steel", 512),
+    color: 7829367,
+    metalness: 0.75,
+    roughness: 0.28
+  });
+  const boltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (const sign2 of [1, -1]) {
+    const flange = new Mesh(new CylinderGeometry(r * 0.82, r * 0.82, 0.04, 36), flangeMat);
+    flange.position.y = sign2 * (h / 2 - 0.02);
+    flange.castShadow = true;
+    flange.receiveShadow = true;
+    group.add(flange);
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      const bolt = new Mesh(new SphereGeometry(0.014, 8, 6), boltMat);
+      bolt.position.set(Math.cos(a) * r * 0.78, sign2 * (h / 2 - 0.02), Math.sin(a) * r * 0.78);
+      group.add(bolt);
+    }
+  }
   for (const sign2 of [1, -1]) {
     const ring = new Mesh(new TorusGeometry(r * 0.75, 0.028, 10, 40), metalMat);
     ring.position.y = sign2 * h / 2;
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
+    ring.receiveShadow = true;
     group.add(ring);
   }
   for (let i = 0; i < 4; i++) {
@@ -28118,6 +29293,22 @@ function buildStructuralTube(part) {
     node.castShadow = true;
     group.add(node);
   }
+  const gussetMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 6710886, metalness: 0.75, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const gussetT = new Mesh(new BoxGeometry(0.04, 0.04, 8e-3), gussetMat);
+    gussetT.position.set(Math.cos(angle) * r * 0.55, h / 2 - 0.06, Math.sin(angle) * r * 0.55);
+    gussetT.lookAt(0, h / 2 - 0.06, 0);
+    group.add(gussetT);
+    const gussetB = new Mesh(new BoxGeometry(0.04, 0.04, 8e-3), gussetMat);
+    gussetB.position.set(Math.cos(angle) * r * 0.55, -h / 2 + 0.06, Math.sin(angle) * r * 0.55);
+    gussetB.lookAt(0, -h / 2 + 0.06, 0);
+    group.add(gussetB);
+  }
+  const midRing = new Mesh(new TorusGeometry(r * 0.75, 0.015, 8, 40), braceMat);
+  midRing.rotation.x = Math.PI / 2;
+  midRing.castShadow = true;
+  group.add(midRing);
   group.userData.height = h;
   group.userData.radius = r * 0.75;
   return group;
@@ -28149,6 +29340,7 @@ function buildAdapter(part) {
   });
   const adapter = new Mesh(adapterGeo, adapterMat);
   adapter.castShadow = true;
+  adapter.receiveShadow = true;
   group.add(adapter);
   const bandMat = new MeshStandardMaterial({
     map: texBrushedMetal("steel", 512),
@@ -28182,6 +29374,8 @@ function buildAdapter(part) {
     const midR = (topR + botR) / 2;
     line.position.set(Math.cos(angle) * midR * 0.95, 0, Math.sin(angle) * midR * 0.95);
     line.lookAt(0, 0, 0);
+    line.castShadow = true;
+    line.receiveShadow = true;
     group.add(line);
   }
   group.userData.height = h;
@@ -28310,10 +29504,11 @@ function buildFusionReactor(part) {
     metalness: 0.85,
     roughness: 0.35
   });
-  const frame = new Mesh(new CylinderGeometry(r, r * 1.05, 0.15, 24), frameMat);
-  frame.position.y = -h / 2 + 0.08;
-  frame.castShadow = true;
-  group.add(frame);
+  const frame2 = new Mesh(new CylinderGeometry(r, r * 1.05, 0.15, 24), frameMat);
+  frame2.position.y = -h / 2 + 0.08;
+  frame2.castShadow = true;
+  frame2.receiveShadow = true;
+  group.add(frame2);
   const torusMat = new MeshStandardMaterial({
     map: makeMetalTexture("titanium"),
     metalness: 0.8,
@@ -28324,6 +29519,7 @@ function buildFusionReactor(part) {
   torus.rotation.x = Math.PI / 2;
   torus.position.y = 0;
   torus.castShadow = true;
+  torus.receiveShadow = true;
   group.add(torus);
   const plasmaMat = new MeshStandardMaterial({
     color: 11202303,
@@ -28365,6 +29561,7 @@ function buildFusionReactor(part) {
   const topPlate = new Mesh(new CylinderGeometry(r * 0.9, r * 0.9, 0.08, 24), frameMat);
   topPlate.position.y = h / 2 - 0.04;
   topPlate.castShadow = true;
+  topPlate.receiveShadow = true;
   group.add(topPlate);
   const stripeMat = new MeshStandardMaterial({ color: 16755200, emissive: 4465152, metalness: 0.3, roughness: 0.6 });
   for (let i = 0; i < 8; i++) {
@@ -28374,6 +29571,46 @@ function buildFusionReactor(part) {
     stripe.rotation.y = angle;
     group.add(stripe);
   }
+  const reactorBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(0.016, 8, 6), reactorBoltMat);
+    bolt.position.set(Math.cos(a) * r * 0.82, h / 2 - 0.02, Math.sin(a) * r * 0.82);
+    group.add(bolt);
+  }
+  const plasmaWinMat = new MeshPhysicalMaterial({
+    color: 8969727,
+    metalness: 0,
+    roughness: 0.02,
+    transmission: 0.85,
+    thickness: 0.1,
+    ior: 1.52,
+    emissive: 2245802,
+    emissiveIntensity: 0.3
+  });
+  const plasmaWin = new Mesh(new SphereGeometry(0.06, 12, 10), plasmaWinMat);
+  plasmaWin.position.set(r * 0.95, 0, 0);
+  group.add(plasmaWin);
+  const winFrameMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), color: 5592405, metalness: 0.8, roughness: 0.25 });
+  const winFrame = new Mesh(new TorusGeometry(0.07, 0.012, 8, 16), winFrameMat);
+  winFrame.position.set(r * 0.95, 0, 0);
+  winFrame.rotation.y = Math.PI / 2;
+  group.add(winFrame);
+  const shieldMat = new MeshStandardMaterial({ color: 14540256, metalness: 0.1, roughness: 0.8 });
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2 + Math.PI / 12;
+    const shield = new Mesh(new BoxGeometry(0.08, h * 0.75, 0.04), shieldMat);
+    shield.position.set(Math.cos(a) * r * 1.08, 0, Math.sin(a) * r * 1.08);
+    shield.lookAt(0, 0, 0);
+    shield.castShadow = true;
+    group.add(shield);
+  }
+  const coolManifoldMat = new MeshStandardMaterial({ map: makeMetalTexture("copper"), color: 11167300, metalness: 0.85, roughness: 0.3 });
+  const coolRing = new Mesh(new TorusGeometry(r * 1, 0.025, 10, 40), coolManifoldMat);
+  coolRing.position.y = -h * 0.2;
+  coolRing.rotation.x = Math.PI / 2;
+  coolRing.castShadow = true;
+  group.add(coolRing);
   group.userData.height = h;
   group.userData.radius = r;
   return group;
@@ -28391,6 +29628,7 @@ function buildWarpDrive(part) {
   });
   const hub = new Mesh(new CylinderGeometry(r * 0.25, r * 0.3, h, 24), hubMat);
   hub.castShadow = true;
+  hub.receiveShadow = true;
   group.add(hub);
   const ringMat = new MeshStandardMaterial({
     map: makeMetalTexture("titanium"),
@@ -28451,11 +29689,53 @@ function buildWarpDrive(part) {
   const topCollar = new Mesh(new CylinderGeometry(r * 0.28, r * 0.25, 0.1, 24), collarMat);
   topCollar.position.y = h / 2 + 0.05;
   topCollar.castShadow = true;
+  topCollar.receiveShadow = true;
   group.add(topCollar);
   const botCollar = new Mesh(new CylinderGeometry(r * 0.25, r * 0.28, 0.1, 24), collarMat);
   botCollar.position.y = -h / 2 - 0.05;
   botCollar.castShadow = true;
+  botCollar.receiveShadow = true;
   group.add(botCollar);
+  const warpBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (const sign2 of [1, -1]) {
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2;
+      const bolt = new Mesh(new SphereGeometry(0.014, 8, 6), warpBoltMat);
+      bolt.position.set(Math.cos(a) * r * 0.27, sign2 * (h / 2 + 0.1), Math.sin(a) * r * 0.27);
+      group.add(bolt);
+    }
+  }
+  const finMat = new MeshStandardMaterial({ map: makeMetalTexture("titanium"), color: 8947848, metalness: 0.8, roughness: 0.2 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2;
+    const fin = new Mesh(new BoxGeometry(0.03, 0.15, r * 0.3), finMat);
+    fin.position.set(Math.cos(a) * r * 0.8, 0, Math.sin(a) * r * 0.8);
+    fin.lookAt(Math.cos(a) * 3, 0, Math.sin(a) * 3);
+    fin.castShadow = true;
+    group.add(fin);
+  }
+  const containerMat = new MeshPhysicalMaterial({
+    color: 10040319,
+    metalness: 0.2,
+    roughness: 0.05,
+    transmission: 0.5,
+    thickness: 0.08,
+    ior: 1.8,
+    emissive: 6689194,
+    emissiveIntensity: 0.6,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.05
+  });
+  const container2 = new Mesh(new OctahedronGeometry(r * 0.12, 0), containerMat);
+  container2.position.y = 0;
+  group.add(container2);
+  const emitterMat = new MeshStandardMaterial({ color: 14527231, emissive: 10044620, emissiveIntensity: 1, metalness: 0.5, roughness: 0.2 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const emitter = new Mesh(new SphereGeometry(0.025, 10, 8), emitterMat);
+    emitter.position.set(Math.cos(a) * r * 0.88, 0, Math.sin(a) * r * 0.88);
+    group.add(emitter);
+  }
   group.userData.height = h + 0.2;
   group.userData.radius = r;
   return group;
@@ -28474,6 +29754,7 @@ function buildRadiator(part) {
   });
   const base = new Mesh(new BoxGeometry(0.2, 0.15, 0.3), baseMat);
   base.castShadow = true;
+  base.receiveShadow = true;
   group.add(base);
   const hingeMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.9, roughness: 0.2 });
   const hinge = new Mesh(new CylinderGeometry(0.04, 0.04, 0.25, 12), hingeMat);
@@ -28512,6 +29793,7 @@ function buildRadiator(part) {
   const panel = new Mesh(new BoxGeometry(panelLen, panelT, panelW), panelMat);
   panel.position.set(panelLen / 2 + 0.1, 0, 0);
   panel.castShadow = true;
+  panel.receiveShadow = true;
   group.add(panel);
   const lineMat = new MeshStandardMaterial({ color: 4482730, metalness: 0.6, roughness: 0.4 });
   const line1 = new Mesh(new CylinderGeometry(0.015, 0.015, panelLen, 8), lineMat);
@@ -28534,6 +29816,31 @@ function buildRadiator(part) {
   panel2.position.set(-(panelLen / 2 + 0.1), 0, 0);
   panel2.castShadow = true;
   group.add(panel2);
+  const heatPipeMat = new MeshStandardMaterial({ map: makeMetalTexture("copper"), color: 11167300, metalness: 0.85, roughness: 0.25 });
+  for (const sign2 of [1, -1]) {
+    const pipePts = [
+      new Vector3(sign2 * (panelLen / 2 + 0.1), 0, panelW / 2),
+      new Vector3(sign2 * (panelLen / 2 + 0.1), 0.015, 0),
+      new Vector3(sign2 * (panelLen / 2 + 0.1), 0, -panelW / 2)
+    ];
+    const pipeCurve = new CatmullRomCurve3(pipePts);
+    const heatPipe = new Mesh(new TubeGeometry(pipeCurve, 20, 0.012, 8, false), heatPipeMat);
+    heatPipe.castShadow = true;
+    group.add(heatPipe);
+    const pipePts2 = [
+      new Vector3(-sign2 * (panelLen / 2 + 0.1), 0, panelW / 2),
+      new Vector3(-sign2 * (panelLen / 2 + 0.1), 0.015, 0),
+      new Vector3(-sign2 * (panelLen / 2 + 0.1), 0, -panelW / 2)
+    ];
+    const pipeCurve2 = new CatmullRomCurve3(pipePts2);
+    const heatPipe2 = new Mesh(new TubeGeometry(pipeCurve2, 20, 0.012, 8, false), heatPipeMat);
+    heatPipe2.castShadow = true;
+    group.add(heatPipe2);
+  }
+  const lockPinMat = new MeshStandardMaterial({ color: 13412864, metalness: 0.7, roughness: 0.3 });
+  const lockPin = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.04, 8), lockPinMat);
+  lockPin.position.set(0, 0.03, 0);
+  group.add(lockPin);
   group.userData.height = 0.15;
   group.userData.radius = panelLen;
   return group;
@@ -28552,6 +29859,7 @@ function buildMiningRig(part) {
   const body = new Mesh(new CylinderGeometry(r * 0.9, r, h * 0.5, 16), bodyMat);
   body.position.y = h * 0.15;
   body.castShadow = true;
+  body.receiveShadow = true;
   group.add(body);
   const stripeMat = new MeshStandardMaterial({ color: 16763904, metalness: 0.4, roughness: 0.5 });
   for (let i = 0; i < 8; i++) {
@@ -28610,6 +29918,35 @@ function buildMiningRig(part) {
   topRing.rotation.x = Math.PI / 2;
   topRing.castShadow = true;
   group.add(topRing);
+  const augerMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.25 });
+  for (let s = 0; s < 8; s++) {
+    const augerSeg = new Mesh(new TorusGeometry(0.04, 8e-3, 6, 12), augerMat);
+    augerSeg.position.set(r * 0.9, 0.15 - s * 0.04, 0);
+    augerSeg.rotation.x = Math.PI / 2;
+    augerSeg.rotation.z = s * 0.4;
+    group.add(augerSeg);
+  }
+  for (let ring = 1; ring <= 2; ring++) {
+    const ringR = r * (0.6 - ring * 0.15);
+    const teethOnRing = 6;
+    for (let i = 0; i < teethOnRing; i++) {
+      const a = i / teethOnRing * Math.PI * 2;
+      const tooth = new Mesh(new ConeGeometry(0.03, 0.08, 4), teethMat);
+      tooth.position.set(Math.cos(a) * ringR, -h * 0.3, Math.sin(a) * ringR);
+      tooth.rotation.x = Math.PI;
+      tooth.castShadow = true;
+      group.add(tooth);
+    }
+  }
+  const legMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), color: 5592405, metalness: 0.75, roughness: 0.3 });
+  for (let i = 0; i < 3; i++) {
+    const a = i / 3 * Math.PI * 2 + Math.PI / 6;
+    const leg = new Mesh(new BoxGeometry(0.04, h * 0.4, 0.04), legMat);
+    leg.position.set(Math.cos(a) * r * 0.95, -h * 0.1, Math.sin(a) * r * 0.95);
+    leg.lookAt(Math.cos(a) * 3, -h * 0.5, Math.sin(a) * 3);
+    leg.castShadow = true;
+    group.add(leg);
+  }
   group.userData.height = h;
   group.userData.radius = r;
   return group;
@@ -28627,6 +29964,7 @@ function buildColonyModule(part) {
   });
   const habitat = new Mesh(new CylinderGeometry(r, r, h, 24), habitatMat);
   habitat.castShadow = true;
+  habitat.receiveShadow = true;
   group.add(habitat);
   const windowMat = new MeshStandardMaterial({
     color: 8965375,
@@ -28647,13 +29985,13 @@ function buildColonyModule(part) {
       win.position.set(Math.cos(angle) * r * 1.01, yPos, Math.sin(angle) * r * 1.01);
       win.lookAt(Math.cos(angle) * (r * 2), yPos, Math.sin(angle) * (r * 2));
       group.add(win);
-      const frame = new Mesh(
+      const frame2 = new Mesh(
         new TorusGeometry(r * 0.06, 0.01, 6, 16),
         new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.8, roughness: 0.3 })
       );
-      frame.position.copy(win.position);
-      frame.lookAt(Math.cos(angle) * (r * 2), yPos, Math.sin(angle) * (r * 2));
-      group.add(frame);
+      frame2.position.copy(win.position);
+      frame2.lookAt(Math.cos(angle) * (r * 2), yPos, Math.sin(angle) * (r * 2));
+      group.add(frame2);
     }
   }
   const solarMat = new MeshStandardMaterial({
@@ -28712,11 +30050,62 @@ function buildColonyModule(part) {
   const topCap = new Mesh(new CylinderGeometry(r * 1.02, r, 0.1, 24), capMat);
   topCap.position.y = h / 2 + 0.05;
   topCap.castShadow = true;
+  topCap.receiveShadow = true;
   group.add(topCap);
   const botCap = new Mesh(new CylinderGeometry(r, r * 1.02, 0.1, 24), capMat);
   botCap.position.y = -h / 2 - 0.05;
   botCap.castShadow = true;
+  botCap.receiveShadow = true;
   group.add(botCap);
+  const colonyBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (const sign2 of [1, -1]) {
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      const bolt = new Mesh(new SphereGeometry(0.016, 8, 6), colonyBoltMat);
+      bolt.position.set(Math.cos(a) * r, sign2 * (h / 2 + 0.1), Math.sin(a) * r);
+      group.add(bolt);
+    }
+  }
+  const domeMat = new MeshPhysicalMaterial({
+    color: 15654344,
+    metalness: 0.1,
+    roughness: 0.4,
+    transmission: 0.15,
+    thickness: 0.05,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.4
+  });
+  const dome = new Mesh(new SphereGeometry(r * 0.55, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
+  dome.position.y = h / 2 + 0.05;
+  dome.scale.y = 0.5;
+  dome.castShadow = true;
+  group.add(dome);
+  const domeRibMat = new MeshStandardMaterial({ map: makeMetalTexture("aluminum"), color: 11184810, metalness: 0.6, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const rib = new Mesh(new TorusGeometry(r * 0.45, 6e-3, 6, 16, 0, Math.PI / 2), domeRibMat);
+    rib.position.y = h / 2 + 0.05;
+    rib.rotation.y = a;
+    rib.rotation.x = Math.PI / 2;
+    group.add(rib);
+  }
+  const gasketMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.2, roughness: 0.9 });
+  for (let i = 0; i < 2; i++) {
+    const angle = i * Math.PI;
+    const gasket = new Mesh(new TorusGeometry(r * 0.18, 8e-3, 6, 16), gasketMat);
+    gasket.position.set(Math.cos(angle) * r * 1.03, -h * 0.1, Math.sin(angle) * r * 1.03);
+    gasket.lookAt(0, -h * 0.1, 0);
+    group.add(gasket);
+  }
+  const cableMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.3, roughness: 0.7 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const cable = new Mesh(new CylinderGeometry(5e-3, 5e-3, h * 0.4, 6), cableMat);
+    cable.position.set(Math.cos(a) * r * 1.02, 0, Math.sin(a) * r * 1.02);
+    cable.lookAt(0, 0, 0);
+    cable.rotation.x = Math.PI / 2;
+    group.add(cable);
+  }
   group.userData.height = h + 0.2;
   group.userData.radius = r;
   return group;
@@ -28746,10 +30135,11 @@ function buildAntimatterEngine(part) {
     metalness: 0.75,
     roughness: 0.35
   });
-  const nozzle = new Mesh(nozzleGeo, nozzleMat);
-  nozzle.position.y = -0.1;
-  nozzle.castShadow = true;
-  group.add(nozzle);
+  const nozzle2 = new Mesh(nozzleGeo, nozzleMat);
+  nozzle2.position.y = -0.1;
+  nozzle2.castShadow = true;
+  nozzle2.receiveShadow = true;
+  group.add(nozzle2);
   const glowMat = new MeshStandardMaterial({
     color: 6719743,
     emissive: 4482815,
@@ -28796,7 +30186,15 @@ function buildAntimatterEngine(part) {
   const collar = new Mesh(new CylinderGeometry(r * 0.3, r * 0.28, 0.12, 24), collarMat);
   collar.position.y = h / 2 + 0.05;
   collar.castShadow = true;
+  collar.receiveShadow = true;
   group.add(collar);
+  const amBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(0.014, 8, 6), amBoltMat);
+    bolt.position.set(Math.cos(a) * r * 0.29, h / 2 + 0.11, Math.sin(a) * r * 0.29);
+    group.add(bolt);
+  }
   const exitRing = new Mesh(
     new TorusGeometry(r * 1.01, 0.03, 8, 48),
     new MeshStandardMaterial({ map: makeMetalTexture("steel"), metalness: 0.85, roughness: 0.3 })
@@ -28835,10 +30233,11 @@ function buildPlasmaEngine(part) {
     metalness: 0.8,
     roughness: 0.3
   });
-  const nozzle = new Mesh(nozzleGeo, nozzleMat);
-  nozzle.position.y = -0.1;
-  nozzle.castShadow = true;
-  group.add(nozzle);
+  const nozzle2 = new Mesh(nozzleGeo, nozzleMat);
+  nozzle2.position.y = -0.1;
+  nozzle2.castShadow = true;
+  nozzle2.receiveShadow = true;
+  group.add(nozzle2);
   const plasmaMat = new MeshStandardMaterial({
     color: 16737996,
     emissive: 13386922,
@@ -28879,7 +30278,15 @@ function buildPlasmaEngine(part) {
   const injector = new Mesh(new CylinderGeometry(r * 0.25, r * 0.22, 0.2, 20), injectorMat);
   injector.position.y = h / 2 + 0.1;
   injector.castShadow = true;
+  injector.receiveShadow = true;
   group.add(injector);
+  const plasmaBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const bolt = new Mesh(new SphereGeometry(0.012, 8, 6), plasmaBoltMat);
+    bolt.position.set(Math.cos(a) * r * 0.24, h / 2 + 0.21, Math.sin(a) * r * 0.24);
+    group.add(bolt);
+  }
   const antennaMat = new MeshStandardMaterial({ color: 13421772, metalness: 0.9, roughness: 0.2 });
   const antenna = new Mesh(new CylinderGeometry(0.012, 0.012, 0.3, 6), antennaMat);
   antenna.position.y = h / 2 + 0.3;
@@ -29076,10 +30483,10 @@ function createSpaceCenterScene() {
   const vabWinMat = new MeshStandardMaterial({ color: 4491519, emissive: 2245734, emissiveIntensity: 0.5, roughness: 0.2, metalness: 0.8 });
   const vabFrameMat = new MeshStandardMaterial({ color: 5592422, metalness: 0.6, roughness: 0.4 });
   for (let i = 0; i < 6; i++) {
-    const frame = new Mesh(new BoxGeometry(1.1, 0.9, 0.12), vabFrameMat);
-    frame.position.set(-12 + i * 1.5, 8, 9.1);
-    frame.castShadow = true;
-    group.add(frame);
+    const frame2 = new Mesh(new BoxGeometry(1.1, 0.9, 0.12), vabFrameMat);
+    frame2.position.set(-12 + i * 1.5, 8, 9.1);
+    frame2.castShadow = true;
+    group.add(frame2);
     const win = new Mesh(new BoxGeometry(1, 0.8, 0.1), vabWinMat);
     win.position.set(-12 + i * 1.5, 8, 9.15);
     group.add(win);
@@ -30433,7 +31840,7 @@ var GameUI = class {
       sas: false,
       brakes: false,
       solar: false,
-      antenna: false,
+      antennas: false,
       cargo: false,
       abort: false
     };
@@ -30476,20 +31883,6 @@ var GameUI = class {
         .map-me-col { display: flex; flex-direction: column; gap: 2px; align-items: center; }
         .map-me-direction { font-size: 8px; color: #778899; margin-bottom: 2px; }
         .map-me-row { display: flex; align-items: center; gap: 3px; }
-        .map-me-section { display: flex; align-items: center; gap: 4px; margin: 4px 0; font-size: 9px; }
-        .map-me-label { width: 50px; }
-        .map-me-btn { width: 22px; height: 18px; background: rgba(30,45,70,0.8); border: 1px solid rgba(60,90,130,0.6); color: #aaccff; border-radius: 3px; cursor: pointer; font-size: 11px; }
-        .map-me-btn:hover { background: rgba(50,80,120,0.9); }
-        .map-me-dv { flex: 1; text-align: center; color: #c0d0e0; font-size: 9px; }
-        .map-me-total { margin-top: 4px; font-size: 9px; color: #ffdd44; border-top: 1px solid rgba(50,70,100,0.4); padding-top: 4px; }
-        .map-me-clear { width: 100%; margin-top: 4px; padding: 4px; background: rgba(60,30,30,0.6); border: 1px solid rgba(120,50,50,0.6); color: #ff8866; border-radius: 3px; cursor: pointer; font-size: 9px; }
-        .map-approach { background: rgba(8,14,24,0.9); border: 1px solid rgba(42,64,96,0.7); border-radius: 6px; padding: 6px 8px; margin-top: 6px; min-width: 180px; }
-        .map-ap-title { color: #44ff88; font-size: 9px; font-weight: bold; margin-bottom: 3px; }
-        .map-ap-row { display: flex; justify-content: space-between; font-size: 9px; color: #8899aa; }
-        .map-soi { background: rgba(40,20,10,0.9); border: 1px solid rgba(180,100,40,0.6); border-radius: 6px; padding: 6px 8px; margin-top: 6px; min-width: 180px; }
-        .map-soi-title { color: #ffaa44; font-size: 9px; font-weight: bold; margin-bottom: 3px; }
-        .map-soi-row { display: flex; justify-content: space-between; font-size: 9px; color: #ccaa88; }
-50,70,100,0.4); padding-bottom: 3px; }
         .map-me-section { display: flex; align-items: center; gap: 4px; margin: 4px 0; font-size: 9px; }
         .map-me-label { width: 50px; }
         .map-me-btn { width: 22px; height: 18px; background: rgba(30,45,70,0.8); border: 1px solid rgba(60,90,130,0.6); color: #aaccff; border-radius: 3px; cursor: pointer; font-size: 11px; }
@@ -30993,13 +32386,13 @@ var GameUI = class {
     const panel = document.getElementById("hud-resource-panel");
     if (!panel) return;
     const defs = [
-      { valKey: "liquidFuel", maxKey: "liquidFuelMax", label: "\u6DB2\u4F53\u71C3\u6599", icon: "\u26FD", color: "#dd9933" },
-      { valKey: "oxidizer", maxKey: "oxidizerMax", label: "\u6C27\u5316\u5242", icon: "\u{1F535}", color: "#3399dd" },
-      { valKey: "electric", maxKey: "electricMax", label: "\u7535\u529B", icon: "\u26A1", color: "#ffdd33" },
-      { valKey: "monoprop", maxKey: "monopropMax", label: "\u5355\u7EC4\u5143", icon: "\u{1F7E1}", color: "#ddaa33" },
-      { valKey: "intakeAir", maxKey: "intakeAirMax", label: "\u8FDB\u6C14", icon: "\u{1F4A8}", color: "#88ccff" },
-      { valKey: "solidFuel", maxKey: "solidFuelMax", label: "\u56FA\u4F53\u71C3\u6599", icon: "\u{1F7E4}", color: "#aa6633" },
-      { valKey: "warpFuel", maxKey: "warpFuelMax", label: "\u66F2\u901F\u71C3\u6599", icon: "\u2728", color: "#aa44ff" }
+      { valKey: "liquidFuel", maxKey: "maxLF", label: "\u6DB2\u4F53\u71C3\u6599", icon: "\u26FD", color: "#dd9933" },
+      { valKey: "oxidizer", maxKey: "maxOX", label: "\u6C27\u5316\u5242", icon: "\u{1F535}", color: "#3399dd" },
+      { valKey: "electricCharge", maxKey: "maxEC", label: "\u7535\u529B", icon: "\u26A1", color: "#ffdd33" },
+      { valKey: "monoPropellant", maxKey: "maxMP", label: "\u5355\u7EC4\u5143", icon: "\u{1F7E1}", color: "#ddaa33" },
+      { valKey: "intakeAir", maxKey: "maxIA", label: "\u8FDB\u6C14", icon: "\u{1F4A8}", color: "#88ccff" },
+      { valKey: "solidFuel", maxKey: "maxSF", label: "\u56FA\u4F53\u71C3\u6599", icon: "\u{1F7E4}", color: "#aa6633" },
+      { valKey: "warpFuel", maxKey: "maxWF", label: "\u66F2\u901F\u71C3\u6599", icon: "\u2728", color: "#aa44ff" }
     ];
     panel.innerHTML = defs.map((d) => {
       const val = this.resources[d.valKey];
@@ -31343,7 +32736,7 @@ var GameUI = class {
     } else {
       this.clearAlert("low-fuel");
     }
-    if (this.resources.electric / this.resources.electricMax < 0.1) {
+    if (this.resources.electricCharge / this.resources.maxEC < 0.1) {
       this.triggerAlert("low-ec", "\u7535\u529B\u4E0D\u8DB3", "warn");
     } else {
       this.clearAlert("low-ec");
@@ -32318,6 +33711,15 @@ var Game = class {
   /** Public flag so UI can read map-mode state (UI references game.isMapMode). */
   get isMapMode() {
     return this.cameraMode === "map" || this.gameState === "map";
+  }
+  set isMapMode(value) {
+    if (value) {
+      this.cameraMode = "map";
+      this.gameState = "map";
+    } else {
+      if (this.cameraMode === "map") this.cameraMode = "auto";
+      if (this.gameState === "map") this.gameState = "flight";
+    }
   }
   // === 公开API ===
   showHUD() {
@@ -34538,6 +35940,12 @@ var VAB3DPreview = class {
     const topLight = new DirectionalLight(16777215, 0.5);
     topLight.position.set(0, 25, 0);
     this.scene.add(topLight);
+    const frontFill = new DirectionalLight(14544639, 0.3);
+    frontFill.position.set(0, 8, 20);
+    this.scene.add(frontFill);
+    const bounceLight = new DirectionalLight(4478310, 0.2);
+    bounceLight.position.set(0, -10, 5);
+    this.scene.add(bounceLight);
     this.createVABFloor();
     this.rocketGroup = new Group();
     this.scene.add(this.rocketGroup);
@@ -34649,33 +36057,33 @@ var VAB3DPreview = class {
   getPartDimensions(part) {
     switch (part.type) {
       case "command": {
-        if (part.id.includes("probe")) return { height: 0.5, radius: 0.35 };
-        if (part.id.includes("mk3") || part.mass > 3e3) return { height: 1.6, radius: 0.85 };
-        if (part.id.includes("mk2") || part.mass > 1500) return { height: 1.3, radius: 0.65 };
-        if (part.id.includes("cabin")) return { height: 1, radius: 0.55 };
-        if (part.id.includes("cockpit")) return { height: 0.9, radius: 0.5 };
-        return { height: 1.2, radius: 0.55 };
+        if (part.id.includes("probe")) return { height: 0.5, radius: 0.3125 };
+        if (part.id.includes("mk3") || part.mass > 3e3) return { height: 1.6, radius: 0.9375 };
+        if (part.id.includes("mk2") || part.mass > 1500) return { height: 1.3, radius: 0.625 };
+        if (part.id.includes("cabin")) return { height: 1, radius: 0.625 };
+        if (part.id.includes("cockpit")) return { height: 0.9, radius: 0.625 };
+        return { height: 1.2, radius: 0.625 };
       }
       case "fuel": {
-        if (part.fuelMass > 3e4) return { height: 3.2, radius: 0.85 };
-        if (part.fuelMass > 15e3) return { height: 2.6, radius: 0.75 };
-        if (part.fuelMass > 5e3) return { height: 1.9, radius: 0.65 };
-        if (part.fuelMass > 1e3) return { height: 1.3, radius: 0.55 };
-        return { height: 0.9, radius: 0.45 };
+        if (part.fuelMass > 3e4) return { height: 3.2, radius: 1.875 };
+        if (part.fuelMass > 15e3) return { height: 2.6, radius: 1.25 };
+        if (part.fuelMass > 5e3) return { height: 1.9, radius: 1.25 };
+        if (part.fuelMass > 1e3) return { height: 1.3, radius: 0.625 };
+        return { height: 0.9, radius: 0.3125 };
       }
       case "engine": {
-        if (part.thrust > 2e6) return { height: 2.8, radius: 1.05 };
-        if (part.thrust > 1e6) return { height: 2.4, radius: 0.9 };
-        if (part.thrust > 5e5) return { height: 2.1, radius: 0.8 };
-        if (part.thrust > 2e5) return { height: 1.9, radius: 0.7 };
-        if (part.thrust > 5e4) return { height: 1.5, radius: 0.55 };
-        if (part.thrust > 1e3) return { height: 1.2, radius: 0.45 };
-        return { height: 0.8, radius: 0.3 };
+        if (part.thrust > 2e6) return { height: 2.8, radius: 1.875 };
+        if (part.thrust > 1e6) return { height: 2.4, radius: 1.25 };
+        if (part.thrust > 5e5) return { height: 2.1, radius: 1.25 };
+        if (part.thrust > 2e5) return { height: 1.9, radius: 0.625 };
+        if (part.thrust > 5e4) return { height: 1.5, radius: 0.625 };
+        if (part.thrust > 1e3) return { height: 1.2, radius: 0.3125 };
+        return { height: 0.8, radius: 0.3125 };
       }
       case "booster": {
-        if (part.thrust > 2e6) return { height: 4.5, radius: 0.5 };
-        if (part.thrust > 5e5) return { height: 3.5, radius: 0.4 };
-        return { height: 2.8, radius: 0.3 };
+        if (part.thrust > 2e6) return { height: 4.5, radius: 0.625 };
+        if (part.thrust > 5e5) return { height: 3.5, radius: 0.3125 };
+        return { height: 2.8, radius: 0.3125 };
       }
       case "parachute":
         return { height: 0.6, radius: 0.2 };
@@ -34720,33 +36128,33 @@ var VAB3DPreview = class {
         return { height: 0.3, radius: 0.2 };
       }
       case "fusion": {
-        if (part.mass > 1e4) return { height: 2.5, radius: 1 };
-        if (part.mass > 5e3) return { height: 2, radius: 0.85 };
-        return { height: 1.5, radius: 0.7 };
+        if (part.mass > 1e4) return { height: 2.5, radius: 1.25 };
+        if (part.mass > 5e3) return { height: 2, radius: 0.9375 };
+        return { height: 1.5, radius: 0.9375 };
       }
       case "warp": {
-        if (part.mass > 15e3) return { height: 3, radius: 1.2 };
-        return { height: 2, radius: 0.9 };
+        if (part.mass > 15e3) return { height: 3, radius: 1.25 };
+        return { height: 2, radius: 0.9375 };
       }
       case "radiator": {
-        if (part.mass > 1e3) return { height: 0.3, radius: 1.5 };
-        return { height: 0.2, radius: 1 };
+        if (part.mass > 1e3) return { height: 2, radius: 1.5 };
+        return { height: 1.5, radius: 1 };
       }
       case "mining": {
-        if (part.mass > 2e3) return { height: 2, radius: 0.8 };
-        return { height: 1.5, radius: 0.6 };
+        if (part.mass > 2e3) return { height: 2, radius: 0.9375 };
+        return { height: 1.5, radius: 0.625 };
       }
       case "colony": {
-        if (part.mass > 6e3) return { height: 2.5, radius: 1.2 };
-        return { height: 2, radius: 1 };
+        if (part.mass > 6e3) return { height: 2.5, radius: 1.875 };
+        return { height: 2, radius: 1.25 };
       }
       case "antimatter": {
-        if (part.thrust > 0) return { height: 2.5, radius: 0.9 };
-        return { height: 2, radius: 0.7 };
+        if (part.thrust > 0) return { height: 2.5, radius: 1.25 };
+        return { height: 2, radius: 0.9375 };
       }
       case "plasma": {
-        if (part.thrust > 0) return { height: 2, radius: 0.6 };
-        return { height: 1.5, radius: 0.5 };
+        if (part.thrust > 0) return { height: 2, radius: 0.9375 };
+        return { height: 1.5, radius: 0.625 };
       }
       default:
         return { height: 0.5, radius: 0.3 };
@@ -34756,54 +36164,85 @@ var VAB3DPreview = class {
   // 零件网格创建 - 总调度
   // ============================================
   createPartMesh(part) {
+    let result;
     switch (part.type) {
       case "command":
-        return this.createCommandPod(part);
+        result = this.createCommandPod(part);
+        break;
       case "fuel":
-        return this.createFuelTank(part);
+        result = this.createFuelTank(part);
+        break;
       case "engine":
-        return this.createEngine(part);
+        result = this.createEngine(part);
+        break;
       case "booster":
-        return this.createBooster(part);
+        result = this.createBooster(part);
+        break;
       case "parachute":
-        return this.createParachute(part);
+        result = this.createParachute(part);
+        break;
       case "aero":
-        return this.createAeroPart(part);
+        result = this.createAeroPart(part);
+        break;
       case "rcs":
-        return this.createRCSPart(part);
+        result = this.createRCSPart(part);
+        break;
       case "solar":
-        return this.createSolarPart(part);
+        result = this.createSolarPart(part);
+        break;
       case "antenna":
-        return this.createAntennaPart(part);
+        result = this.createAntennaPart(part);
+        break;
       case "science":
-        return this.createSciencePart(part);
+        result = this.createSciencePart(part);
+        break;
       case "landing":
-        return this.createLandingPart(part);
+        result = this.createLandingPart(part);
+        break;
       case "decoupler":
-        return this.createDecoupler(part);
+        result = this.createDecoupler(part);
+        break;
       case "adapter":
-        return this.createAdapter(part);
+        result = this.createAdapter(part);
+        break;
       case "structural":
-        return this.createStructural(part);
+        result = this.createStructural(part);
+        break;
       case "utility":
-        return this.createUtility(part);
+        result = this.createUtility(part);
+        break;
       case "fusion":
-        return this.createFusionPart(part);
+        result = this.createFusionPart(part);
+        break;
       case "warp":
-        return this.createWarpPart(part);
+        result = this.createWarpPart(part);
+        break;
       case "radiator":
-        return this.createRadiatorPart(part);
+        result = this.createRadiatorPart(part);
+        break;
       case "mining":
-        return this.createMiningPart(part);
+        result = this.createMiningPart(part);
+        break;
       case "colony":
-        return this.createColonyPart(part);
+        result = this.createColonyPart(part);
+        break;
       case "antimatter":
-        return this.createAntimatterPart(part);
+        result = this.createAntimatterPart(part);
+        break;
       case "plasma":
-        return this.createPlasmaPart(part);
+        result = this.createPlasmaPart(part);
+        break;
       default:
-        return this.createGenericPart(part);
+        result = this.createGenericPart(part);
+        break;
     }
+    result.group.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    return result;
   }
   // ============================================
   // 指挥舱模型 (Command Pods)
@@ -34813,21 +36252,21 @@ var VAB3DPreview = class {
     const isProbe = part.id.includes("probe");
     const isCabin = part.id.includes("cabin");
     const isCockpit = part.id.includes("cockpit");
-    let cmdHeight = 1.2, cmdRadius = 0.55;
+    let cmdHeight = 1.2, cmdRadius = 0.625;
     if (part.id.includes("mk3") || part.mass > 3e3) {
-      cmdRadius = 0.85;
+      cmdRadius = 0.9375;
       cmdHeight = 1.6;
     } else if (part.id.includes("mk2") || part.mass > 1500) {
-      cmdRadius = 0.65;
+      cmdRadius = 0.625;
       cmdHeight = 1.3;
     } else if (isCabin) {
       cmdHeight = 1;
-      cmdRadius = 0.55;
+      cmdRadius = 0.625;
     } else if (isCockpit) {
       cmdHeight = 0.9;
-      cmdRadius = 0.5;
+      cmdRadius = 0.625;
     } else if (isProbe) {
-      cmdRadius = 0.35;
+      cmdRadius = 0.3125;
       cmdHeight = 0.5;
     }
     if (isProbe) {
@@ -34869,6 +36308,32 @@ var VAB3DPreview = class {
       );
       antTip.position.y = cmdHeight / 2 + 0.45;
       group.add(antTip);
+      const probeBase = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.95, cmdRadius * 1.05, 0.06, 8),
+        this.mats.dark
+      );
+      probeBase.position.y = -cmdHeight / 2 - 0.01;
+      probeBase.castShadow = true;
+      group.add(probeBase);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.015, 0.015, 0.02, 6),
+          this.mats.copper
+        );
+        bolt.position.set(
+          Math.cos(angle) * cmdRadius * 0.8,
+          -cmdHeight / 2 - 0.02,
+          Math.sin(angle) * cmdRadius * 0.8
+        );
+        group.add(bolt);
+      }
+      const led = new Mesh(
+        new SphereGeometry(0.015, 6, 4),
+        new MeshStandardMaterial({ color: 65280, emissive: 17408, emissiveIntensity: 0.8 })
+      );
+      led.position.set(cmdRadius * 0.6, cmdHeight * 0.2, 0);
+      group.add(led);
     } else if (isCabin) {
       const body = new Mesh(
         new CylinderGeometry(cmdRadius, cmdRadius * 0.95, cmdHeight, 24),
@@ -34884,16 +36349,62 @@ var VAB3DPreview = class {
       topCap.castShadow = true;
       group.add(topCap);
       const winCount = part.mass > 1e3 ? 3 : 2;
+      const cabinGlassMat = new MeshPhysicalMaterial({
+        color: 3368618,
+        roughness: 0.05,
+        metalness: 0.1,
+        transmission: 0.9,
+        transparent: true,
+        opacity: 0.7,
+        clearcoat: 1,
+        clearcoatRoughness: 0.05,
+        ior: 1.5
+      });
       for (let i = 0; i < winCount; i++) {
         const angle = i / winCount * Math.PI * 2;
+        const frame2 = new Mesh(
+          new BoxGeometry(cmdRadius * 0.35, cmdRadius * 0.28, 0.02),
+          this.mats.dark
+        );
+        frame2.position.set(Math.cos(angle) * cmdRadius * 0.92, cmdHeight * 0.1, Math.sin(angle) * cmdRadius * 0.92);
+        frame2.rotation.y = -angle;
+        group.add(frame2);
         const win = new Mesh(
           new SphereGeometry(cmdRadius * 0.15, 12, 8),
-          this.mats.glass
+          cabinGlassMat
         );
         win.position.set(Math.cos(angle) * cmdRadius * 0.75, cmdHeight * 0.1, Math.sin(angle) * cmdRadius * 0.75);
         win.scale.set(1, 0.6, 0.5);
         group.add(win);
+        for (let j = 0; j < 4; j++) {
+          const ba = j / 4 * Math.PI * 2 + Math.PI / 4;
+          const wbolt = new Mesh(
+            new CylinderGeometry(5e-3, 5e-3, 8e-3, 5),
+            this.mats.copper
+          );
+          wbolt.position.set(
+            Math.cos(angle) * cmdRadius * 0.92 + Math.cos(ba) * 0.06,
+            cmdHeight * 0.1 + Math.sin(ba) * 0.05,
+            Math.sin(angle) * cmdRadius * 0.92
+          );
+          wbolt.rotation.y = -angle;
+          group.add(wbolt);
+        }
       }
+      const topHatch = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.3, cmdRadius * 0.35, 0.06, 16),
+        this.mats.dark
+      );
+      topHatch.position.y = cmdHeight / 2 + 0.03;
+      topHatch.castShadow = true;
+      group.add(topHatch);
+      const cabinHinge = new Mesh(
+        new CylinderGeometry(0.01, 0.01, 0.06, 6),
+        this.mats.dark
+      );
+      cabinHinge.rotation.z = Math.PI / 2;
+      cabinHinge.position.set(0, cmdHeight / 2 + 0.04, cmdRadius * 0.3);
+      group.add(cabinHinge);
       const heatShield = new Mesh(
         new CylinderGeometry(cmdRadius * 1.1, cmdRadius * 0.9, 0.12, 24),
         this.mats.dark
@@ -34901,12 +36412,56 @@ var VAB3DPreview = class {
       heatShield.position.y = -cmdHeight / 2 + 0.04;
       heatShield.castShadow = true;
       group.add(heatShield);
+      for (let i = 0; i < 8; i++) {
+        const ga = i / 8 * Math.PI * 2;
+        const groove = new Mesh(
+          new BoxGeometry(0.01, 0.08, 0.01),
+          this.mats.copper
+        );
+        groove.position.set(Math.cos(ga) * cmdRadius * 1, -cmdHeight / 2 + 0.02, Math.sin(ga) * cmdRadius * 1);
+        groove.rotation.y = -ga;
+        group.add(groove);
+      }
       const baseRing = new Mesh(
         new CylinderGeometry(cmdRadius * 1.02, cmdRadius * 0.98, 0.08, 24),
         this.mats.accent
       );
       baseRing.position.y = -cmdHeight / 2 - 0.02;
       group.add(baseRing);
+      for (let i = 0; i < 12; i++) {
+        const ba = i / 12 * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.01, 0.01, 0.015, 6),
+          this.mats.copper
+        );
+        bolt.position.set(Math.cos(ba) * cmdRadius * 0.98, -cmdHeight / 2 - 0.02, Math.sin(ba) * cmdRadius * 0.98);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.rotation.y = -ba;
+        group.add(bolt);
+      }
+      const cabinHatch = new Mesh(
+        new BoxGeometry(cmdRadius * 0.25, cmdRadius * 0.35, 0.015),
+        this.mats.dark
+      );
+      cabinHatch.position.set(cmdRadius * 0.92, 0, 0);
+      group.add(cabinHatch);
+      const cabinHandle = new Mesh(
+        new CylinderGeometry(0.015, 0.015, 0.04, 6),
+        this.mats.accent
+      );
+      cabinHandle.rotation.z = Math.PI / 2;
+      cabinHandle.position.set(cmdRadius * 0.98, 0, 0);
+      group.add(cabinHandle);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+        const rcsBlock = new Mesh(
+          new BoxGeometry(0.06, 0.06, 0.04),
+          this.mats.rcs
+        );
+        rcsBlock.position.set(Math.cos(angle) * cmdRadius * 0.98, cmdHeight * 0.3, Math.sin(angle) * cmdRadius * 0.98);
+        rcsBlock.rotation.y = -angle;
+        group.add(rcsBlock);
+      }
     } else {
       const isMk3 = part.id.includes("mk3") || part.mass > 3e3;
       const isMk2 = part.id.includes("mk2") || part.mass > 1500;
@@ -34995,17 +36550,17 @@ var VAB3DPreview = class {
         win.rotation.x = Math.PI / 2;
         win.rotation.y = -angle;
         group.add(win);
-        const frame = new Mesh(
+        const frame2 = new Mesh(
           new BoxGeometry(cmdRadius * 0.32, cmdRadius * 0.28, 0.02),
           this.mats.dark
         );
-        frame.position.set(
+        frame2.position.set(
           Math.cos(angle) * cmdRadius * 0.72,
           cmdHeight * 0.1,
           Math.sin(angle) * cmdRadius * 0.72
         );
-        frame.rotation.y = -angle;
-        group.add(frame);
+        frame2.rotation.y = -angle;
+        group.add(frame2);
       }
       const panelLineCount = 4;
       for (let i = 0; i < panelLineCount; i++) {
@@ -35079,6 +36634,158 @@ var VAB3DPreview = class {
       );
       baseRing.position.y = -cmdHeight / 2 - 0.04;
       group.add(baseRing);
+      const hatchFrame = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.15, cmdRadius * 0.15, 0.03, 16, 1, false, 0, Math.PI * 0.5),
+        this.mats.dark
+      );
+      hatchFrame.position.set(0, -cmdHeight * 0.15, cmdRadius * 0.92);
+      hatchFrame.castShadow = true;
+      group.add(hatchFrame);
+      const hatchHandle = new Mesh(
+        new BoxGeometry(0.02, 0.06, 0.02),
+        this.mats.accent
+      );
+      hatchHandle.position.set(0, -cmdHeight * 0.15, cmdRadius * 0.96);
+      group.add(hatchHandle);
+      const warnSegs = 12;
+      for (let i = 0; i < warnSegs; i++) {
+        const angle = i / warnSegs * Math.PI * 2;
+        const isYellow = i % 2 === 0;
+        const seg = new Mesh(
+          new BoxGeometry(0.06, 0.04, 0.015),
+          isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+        );
+        seg.position.set(
+          Math.cos(angle) * cmdRadius * 1.01,
+          -cmdHeight * 0.32,
+          Math.sin(angle) * cmdRadius * 1.01
+        );
+        seg.rotation.y = -angle;
+        group.add(seg);
+      }
+      const chutFairing = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.3, cmdRadius * 0.18, 0.1, 12),
+        this.mats.command
+      );
+      chutFairing.position.y = cmdHeight / 2 - 0.02;
+      chutFairing.castShadow = true;
+      group.add(chutFairing);
+      const chutSeam = new Mesh(
+        new TorusGeometry(cmdRadius * 0.22, 8e-3, 5, 16),
+        this.mats.dark
+      );
+      chutSeam.rotation.x = Math.PI / 2;
+      chutSeam.position.y = cmdHeight / 2 - 0.04;
+      group.add(chutSeam);
+      const dockRingBase = new Mesh(
+        new CylinderGeometry(cmdRadius * 1.05, cmdRadius * 1, 0.04, 24),
+        this.mats.dark
+      );
+      dockRingBase.position.y = -cmdHeight / 2 - shieldH - 0.02;
+      dockRingBase.castShadow = true;
+      group.add(dockRingBase);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2;
+        const petal = new Mesh(
+          new BoxGeometry(0.04, 0.02, cmdRadius * 0.12),
+          this.mats.accent
+        );
+        petal.position.set(
+          Math.cos(angle) * cmdRadius * 0.95,
+          -cmdHeight / 2 - shieldH - 0.03,
+          Math.sin(angle) * cmdRadius * 0.95
+        );
+        petal.rotation.y = -angle;
+        group.add(petal);
+      }
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+        const dockLED = new Mesh(
+          new SphereGeometry(0.012, 6, 4),
+          new MeshStandardMaterial({ color: 65280, emissive: 65280, emissiveIntensity: 1 })
+        );
+        dockLED.position.set(
+          Math.cos(angle) * cmdRadius * 1,
+          -cmdHeight / 2 - shieldH - 0.04,
+          Math.sin(angle) * cmdRadius * 1
+        );
+        group.add(dockLED);
+      }
+      const heatShieldEmissive = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.85, cmdRadius * 0.7, 0.015, 24),
+        new MeshStandardMaterial({ color: 6689024, emissive: 3342336, emissiveIntensity: 0.4, roughness: 0.95, metalness: 0.1 })
+      );
+      heatShieldEmissive.position.y = -cmdHeight / 2 - shieldH + 5e-3;
+      group.add(heatShieldEmissive);
+      if (isMk2 || isMk3) {
+        for (let i = 0; i < (isMk3 ? 4 : 4); i++) {
+          const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+          for (const nyOff of [cmdHeight * 0.28, cmdHeight * 0.22]) {
+            const rcsPts = [
+              new Vector2(0.01, 0),
+              new Vector2(0.018, 0.02),
+              new Vector2(0.022, 0.04)
+            ];
+            const rcsNoz = new Mesh(
+              new LatheGeometry(rcsPts, 8),
+              this.mats.dark
+            );
+            rcsNoz.position.set(
+              Math.cos(angle) * (cmdRadius + 0.06),
+              nyOff,
+              Math.sin(angle) * (cmdRadius + 0.06)
+            );
+            rcsNoz.rotation.y = -angle;
+            rcsNoz.rotation.z = Math.PI / 2;
+            group.add(rcsNoz);
+          }
+        }
+      }
+      for (let i = 0; i < winCount; i++) {
+        const angle = i / winCount * Math.PI * 2 - Math.PI / 2;
+        for (let j = 0; j < 4; j++) {
+          const ba = j / 4 * Math.PI * 2 + Math.PI / 4;
+          const br = cmdRadius * 0.12;
+          const bolt = new Mesh(
+            new CylinderGeometry(5e-3, 5e-3, 8e-3, 5),
+            this.mats.copper
+          );
+          bolt.position.set(
+            Math.cos(angle) * cmdRadius * 0.72 + Math.cos(ba) * br * 0.8,
+            cmdHeight * 0.1 + Math.sin(ba) * br * 0.6,
+            Math.sin(angle) * cmdRadius * 0.72
+          );
+          bolt.rotation.y = -angle;
+          group.add(bolt);
+        }
+      }
+      const flagPos = new Mesh(
+        new BoxGeometry(cmdRadius * 0.2, cmdRadius * 0.12, 5e-3),
+        new MeshStandardMaterial({ color: 2245802, roughness: 0.5, metalness: 0.3 })
+      );
+      flagPos.position.set(0, cmdHeight * 0.28, cmdRadius * 0.9);
+      group.add(flagPos);
+      for (const hx of [-cmdRadius * 0.08, cmdRadius * 0.08]) {
+        const hinge = new Mesh(
+          new CylinderGeometry(8e-3, 8e-3, 0.04, 6),
+          this.mats.dark
+        );
+        hinge.position.set(hx, -cmdHeight * 0.18, cmdRadius * 0.94);
+        group.add(hinge);
+      }
+      const pWheel = new Mesh(
+        new CylinderGeometry(0.02, 0.02, 8e-3, 8),
+        this.mats.copper
+      );
+      pWheel.rotation.x = Math.PI / 2;
+      pWheel.position.set(0, -cmdHeight * 0.12, cmdRadius * 0.96);
+      group.add(pWheel);
+      const heatShieldGlow = new Mesh(
+        new CylinderGeometry(cmdRadius * 0.85, cmdRadius * 0.7, 0.015, 24),
+        new MeshStandardMaterial({ color: 6689024, emissive: 3342336, emissiveIntensity: 0.4, roughness: 0.95, metalness: 0.1 })
+      );
+      heatShieldGlow.position.y = -cmdHeight / 2 - shieldH + 5e-3;
+      group.add(heatShieldGlow);
     }
     return { group, height: cmdHeight, radius: cmdRadius };
   }
@@ -35087,27 +36794,27 @@ var VAB3DPreview = class {
   // ============================================
   createFuelTank(part) {
     const group = new Group();
-    let tankHeight = 1.3, tankRadius = 0.55;
+    let tankHeight = 1.3, tankRadius = 0.625;
     let tankMat = this.mats.fuelWhite;
     if (part.fuelMass > 3e4) {
       tankHeight = 3.2;
-      tankRadius = 0.85;
+      tankRadius = 1.875;
       tankMat = this.mats.fuelOrange;
     } else if (part.fuelMass > 15e3) {
       tankHeight = 2.6;
-      tankRadius = 0.75;
+      tankRadius = 1.25;
       tankMat = this.mats.fuelOrange;
     } else if (part.fuelMass > 5e3) {
       tankHeight = 1.9;
-      tankRadius = 0.65;
+      tankRadius = 1.25;
       tankMat = this.mats.fuelWhite;
     } else if (part.fuelMass > 1e3) {
       tankHeight = 1.3;
-      tankRadius = 0.55;
+      tankRadius = 0.625;
       tankMat = this.mats.fuelWhite;
     } else {
       tankHeight = 0.9;
-      tankRadius = 0.45;
+      tankRadius = 0.3125;
       tankMat = this.mats.fuelGray;
     }
     const tankPoints = [];
@@ -35135,6 +36842,16 @@ var VAB3DPreview = class {
     tank.castShadow = true;
     tank.receiveShadow = true;
     group.add(tank);
+    for (const yOff of [tankHeight / 2 + tankRadius * 0.15, -tankHeight / 2 - tankRadius * 0.15]) {
+      const flange = new Mesh(
+        new TorusGeometry(tankRadius * 0.98, 0.02, 6, 32),
+        this.mats.dark
+      );
+      flange.rotation.x = Math.PI / 2;
+      flange.position.y = yOff;
+      flange.castShadow = true;
+      group.add(flange);
+    }
     const ringCount = tankHeight > 2.5 ? 3 : 2;
     for (let i = 0; i < ringCount; i++) {
       const yOff = -tankHeight / 2 + (i + 1) * (tankHeight / (ringCount + 1));
@@ -35203,6 +36920,25 @@ var VAB3DPreview = class {
         group.add(stiff);
       }
     }
+    if (part.fuelMass > 15e3) {
+      const patchCount = Math.floor(tankRadius * tankHeight * 8);
+      for (let i = 0; i < patchCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const yOff = (Math.random() - 0.5) * tankHeight * 0.8;
+        const patch = new Mesh(
+          new CircleGeometry(0.02 + Math.random() * 0.03, 6),
+          new MeshStandardMaterial({ color: 11162897, roughness: 0.5, metalness: 0.3 })
+        );
+        patch.position.set(
+          Math.cos(angle) * (tankRadius + 5e-3),
+          yOff,
+          Math.sin(angle) * (tankRadius + 5e-3)
+        );
+        patch.lookAt(0, yOff, 0);
+        patch.rotateY(Math.PI);
+        group.add(patch);
+      }
+    }
     const weldCount = Math.max(2, Math.floor(tankHeight / 0.35));
     for (let i = 0; i < weldCount; i++) {
       const yOff = -tankHeight / 2 + (i + 0.5) * (tankHeight / weldCount);
@@ -35232,6 +36968,220 @@ var VAB3DPreview = class {
       seg.rotation.y = -angle;
       group.add(seg);
     }
+    if (tankHeight > 2) {
+      const hazardY = -tankHeight / 2 + 0.2;
+      const hazardSegs = Math.max(8, Math.floor(tankRadius * 12));
+      for (let i = 0; i < hazardSegs; i++) {
+        const angle = i / hazardSegs * Math.PI * 2;
+        const isYellow = i % 2 === 0;
+        const seg = new Mesh(
+          new BoxGeometry(0.08, 0.05, 0.015),
+          isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+        );
+        seg.position.set(
+          Math.cos(angle) * (tankRadius + 0.015),
+          hazardY,
+          Math.sin(angle) * (tankRadius + 0.015)
+        );
+        seg.rotation.y = -angle;
+        group.add(seg);
+      }
+    }
+    const boltRingCount = Math.max(8, Math.floor(tankRadius * 16));
+    for (const yOff of [tankHeight / 2 - 0.04, -tankHeight / 2 + 0.04]) {
+      for (let i = 0; i < boltRingCount; i++) {
+        const angle = i / boltRingCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.012, 0.012, 0.02, 6),
+          this.mats.dark
+        );
+        bolt.position.set(
+          Math.cos(angle) * tankRadius * 1,
+          yOff,
+          Math.sin(angle) * tankRadius * 1
+        );
+        bolt.rotation.x = Math.PI / 2;
+        bolt.rotation.y = -angle;
+        group.add(bolt);
+      }
+    }
+    const panelMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.3, metalness: 0.5 });
+    const idPanel = new Mesh(
+      new BoxGeometry(tankRadius * 0.3, tankRadius * 0.15, 0.01),
+      panelMat
+    );
+    idPanel.position.set(tankRadius + 5e-3, tankHeight * 0.05, 0);
+    idPanel.rotation.y = Math.PI / 2;
+    group.add(idPanel);
+    const panelBorder = new Mesh(
+      new BoxGeometry(tankRadius * 0.32, 0.01, 0.012),
+      this.mats.dark
+    );
+    panelBorder.position.set(tankRadius + 5e-3, tankHeight * 0.05 + tankRadius * 0.08, 0);
+    panelBorder.rotation.y = Math.PI / 2;
+    group.add(panelBorder);
+    const panelBorder2 = new Mesh(
+      new BoxGeometry(tankRadius * 0.32, 0.01, 0.012),
+      this.mats.dark
+    );
+    panelBorder2.position.set(tankRadius + 5e-3, tankHeight * 0.05 - tankRadius * 0.08, 0);
+    panelBorder2.rotation.y = Math.PI / 2;
+    group.add(panelBorder2);
+    for (let tube = 0; tube < 2; tube++) {
+      const tubeAngle = tube === 0 ? Math.PI / 3 : -Math.PI / 3;
+      const tubePts = [];
+      const tubeSegs = 8;
+      for (let i = 0; i <= tubeSegs; i++) {
+        const t = i / tubeSegs;
+        const y = -tankHeight / 2 + 0.1 + t * (tankHeight - 0.2);
+        const sway = Math.sin(t * Math.PI) * 0.03;
+        const r = tankRadius + 0.025 + sway;
+        tubePts.push(new Vector3(Math.cos(tubeAngle) * r, y, Math.sin(tubeAngle) * r));
+      }
+      const tubeCurve = new CatmullRomCurve3(tubePts);
+      const feedTube = new Mesh(
+        new TubeGeometry(tubeCurve, 16, 0.012, 6, false),
+        this.mats.copper
+      );
+      feedTube.castShadow = true;
+      group.add(feedTube);
+      for (let b = 1; b <= 3; b++) {
+        const bt = b / 4;
+        const by = -tankHeight / 2 + 0.1 + bt * (tankHeight - 0.2);
+        const clamp2 = new Mesh(
+          new BoxGeometry(0.02, 0.02, 0.02),
+          this.mats.dark
+        );
+        clamp2.position.set(
+          Math.cos(tubeAngle) * (tankRadius + 0.03),
+          by,
+          Math.sin(tubeAngle) * (tankRadius + 0.03)
+        );
+        clamp2.rotation.y = -tubeAngle;
+        group.add(clamp2);
+      }
+    }
+    for (const vy of [tankHeight / 2 - 0.1, -tankHeight / 2 + 0.1]) {
+      for (let i = 0; i < 2; i++) {
+        const va = i / 2 * Math.PI * 2 + Math.PI / 2;
+        const valveBody = new Mesh(
+          new CylinderGeometry(0.025, 0.025, 0.04, 8),
+          this.mats.copper
+        );
+        valveBody.position.set(
+          Math.cos(va) * (tankRadius + 0.02),
+          vy,
+          Math.sin(va) * (tankRadius + 0.02)
+        );
+        valveBody.rotation.y = -va;
+        valveBody.rotation.z = Math.PI / 2;
+        valveBody.castShadow = true;
+        group.add(valveBody);
+        const valveCap = new Mesh(
+          new CylinderGeometry(0.018, 0.025, 0.015, 8),
+          this.mats.dark
+        );
+        valveCap.position.set(
+          Math.cos(va) * (tankRadius + 0.045),
+          vy,
+          Math.sin(va) * (tankRadius + 0.045)
+        );
+        valveCap.rotation.z = Math.PI / 2;
+        valveCap.rotation.y = -va;
+        group.add(valveCap);
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+      const cover = new Mesh(
+        new CylinderGeometry(0.06, 0.06, 0.015, 12),
+        this.mats.dark
+      );
+      cover.position.set(
+        Math.cos(angle) * (tankRadius + 8e-3),
+        tankHeight * 0.35,
+        Math.sin(angle) * (tankRadius + 8e-3)
+      );
+      cover.rotation.y = -angle;
+      cover.rotation.z = Math.PI / 2;
+      group.add(cover);
+      for (let j = 0; j < 4; j++) {
+        const ba = j / 4 * Math.PI * 2 + Math.PI / 4;
+        const br = 0.045;
+        const cbolt = new Mesh(
+          new CylinderGeometry(6e-3, 6e-3, 0.01, 5),
+          this.mats.copper
+        );
+        cbolt.position.set(
+          Math.cos(angle) * (tankRadius + 0.015),
+          tankHeight * 0.35 + Math.cos(ba) * br,
+          Math.sin(angle) * (tankRadius + 0.015) + Math.sin(ba) * br
+        );
+        cbolt.rotation.y = -angle;
+        group.add(cbolt);
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const springSeat = new Mesh(
+        new CylinderGeometry(0.03, 0.025, 0.02, 8),
+        this.mats.dark
+      );
+      springSeat.position.set(
+        Math.cos(angle) * tankRadius * 0.7,
+        -tankHeight / 2 - tankRadius * 0.15 - 0.01,
+        Math.sin(angle) * tankRadius * 0.7
+      );
+      group.add(springSeat);
+    }
+    const topWarnSegs = Math.max(8, Math.floor(tankRadius * 12));
+    for (let i = 0; i < topWarnSegs; i++) {
+      const angle = i / topWarnSegs * Math.PI * 2;
+      const isYellow = i % 2 === 0;
+      const tSeg = new Mesh(
+        new BoxGeometry(0.06, 0.04, 0.012),
+        isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+      );
+      tSeg.position.set(
+        Math.cos(angle) * (tankRadius + 0.015),
+        tankHeight / 2 - 0.12,
+        Math.sin(angle) * (tankRadius + 0.015)
+      );
+      tSeg.rotation.y = -angle;
+      group.add(tSeg);
+    }
+    const flangeBoltCount = Math.max(16, Math.floor(tankRadius * 24));
+    for (const fy of [tankHeight / 2 + tankRadius * 0.14, -tankHeight / 2 - tankRadius * 0.14]) {
+      for (let i = 0; i < flangeBoltCount; i++) {
+        const angle = i / flangeBoltCount * Math.PI * 2;
+        const flangeBolt = new Mesh(
+          new CylinderGeometry(0.01, 0.01, 0.015, 6),
+          this.mats.copper
+        );
+        flangeBolt.position.set(
+          Math.cos(angle) * tankRadius * 0.96,
+          fy,
+          Math.sin(angle) * tankRadius * 0.96
+        );
+        flangeBolt.rotation.x = Math.PI / 2;
+        flangeBolt.rotation.y = -angle;
+        group.add(flangeBolt);
+      }
+    }
+    const labelBand = new Mesh(
+      new CylinderGeometry(tankRadius * 1.012, tankRadius * 1.012, tankHeight * 0.08, 36, 1, true, 0, Math.PI * 0.3),
+      this.mats.dark
+    );
+    labelBand.position.y = -tankHeight * 0.1;
+    group.add(labelBand);
+    for (const ly of [-tankHeight * 0.1 + tankHeight * 0.045, -tankHeight * 0.1 - tankHeight * 0.045]) {
+      const lBorder = new Mesh(
+        new CylinderGeometry(tankRadius * 1.015, tankRadius * 1.015, 8e-3, 36, 1, true, 0, Math.PI * 0.3),
+        this.mats.fuelWhite
+      );
+      lBorder.position.y = ly;
+      group.add(lBorder);
+    }
     return { group, height: tankHeight, radius: tankRadius };
   }
   // ============================================
@@ -35239,43 +37189,43 @@ var VAB3DPreview = class {
   // ============================================
   createEngine(part) {
     const group = new Group();
-    let bodyR = 0.45, bodyH = 1, nozzleR = 0.6, nozzleH = 0.9;
+    let bodyR = 0.625, bodyH = 1, nozzleR = 0.625, nozzleH = 0.9;
     let nozzleCount = 1;
     if (part.thrust > 2e6) {
-      bodyR = 0.7;
+      bodyR = 1.875;
       bodyH = 1.5;
-      nozzleR = 1.05;
+      nozzleR = 1.875;
       nozzleH = 1.3;
       nozzleCount = part.id.includes("mammoth") ? 4 : part.id.includes("twin") ? 2 : 1;
     } else if (part.thrust > 1e6) {
-      bodyR = 0.6;
+      bodyR = 1.25;
       bodyH = 1.3;
-      nozzleR = 0.9;
+      nozzleR = 1.25;
       nozzleH = 1.1;
     } else if (part.thrust > 5e5) {
-      bodyR = 0.55;
+      bodyR = 1.25;
       bodyH = 1.1;
-      nozzleR = 0.8;
+      nozzleR = 1.25;
       nozzleH = 1;
     } else if (part.thrust > 2e5) {
-      bodyR = 0.5;
+      bodyR = 0.625;
       bodyH = 0.95;
-      nozzleR = 0.7;
+      nozzleR = 0.625;
       nozzleH = 0.85;
     } else if (part.thrust > 5e4) {
-      bodyR = 0.4;
+      bodyR = 0.625;
       bodyH = 0.75;
-      nozzleR = 0.55;
+      nozzleR = 0.625;
       nozzleH = 0.65;
     } else if (part.thrust > 1e3) {
-      bodyR = 0.3;
+      bodyR = 0.3125;
       bodyH = 0.55;
-      nozzleR = 0.4;
+      nozzleR = 0.3125;
       nozzleH = 0.5;
     } else {
-      bodyR = 0.2;
+      bodyR = 0.3125;
       bodyH = 0.35;
-      nozzleR = 0.25;
+      nozzleR = 0.3125;
       nozzleH = 0.3;
     }
     const isIon = part.id.includes("ion") || part.id.includes("dawn");
@@ -35290,18 +37240,30 @@ var VAB3DPreview = class {
       group.add(body);
       const grid = new Mesh(
         new CircleGeometry(nozzleR, 24),
-        new MeshStandardMaterial({ color: 4482730, emissive: 2245768, roughness: 0.3, metalness: 0.8, side: DoubleSide })
+        new MeshStandardMaterial({ color: 4482730, emissive: 2245768, emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.8, side: DoubleSide })
       );
       grid.rotation.x = Math.PI / 2;
       grid.position.y = -nozzleH / 2 + 0.01;
       group.add(grid);
+      const holeCount = 12;
+      for (let i = 0; i < holeCount; i++) {
+        const angle = i / holeCount * Math.PI * 2;
+        const r = nozzleR * 0.4;
+        const hole = new Mesh(
+          new CircleGeometry(0.03, 6),
+          this.mats.dark
+        );
+        hole.position.set(Math.cos(angle) * r, -nozzleH / 2 + 0.02, Math.sin(angle) * r);
+        hole.rotation.x = Math.PI / 2;
+        group.add(hole);
+      }
       const noz = new Mesh(
         new CylinderGeometry(nozzleR, nozzleR * 0.7, nozzleH, 24, 1, true),
         this.mats.nozzle
       );
       noz.position.y = -nozzleH / 2 + nozzleH / 2;
       noz.castShadow = true;
-      group.add(noz);
+      group.add(nozzle);
       const gimbal = new Mesh(
         new TorusGeometry(bodyR * 1.1, 0.04, 8, 20),
         this.mats.accent
@@ -35309,6 +37271,19 @@ var VAB3DPreview = class {
       gimbal.rotation.x = Math.PI / 2;
       gimbal.position.y = bodyH + nozzleH / 2 - 0.05;
       group.add(gimbal);
+      const cable = new Mesh(
+        new CylinderGeometry(0.02, 0.02, bodyH * 0.8, 6),
+        this.mats.copper
+      );
+      cable.position.set(bodyR * 0.9, nozzleH / 2 + bodyH * 0.1, 0);
+      cable.rotation.z = Math.PI / 6;
+      group.add(cable);
+      const bracket = new Mesh(
+        new BoxGeometry(0.08, 0.1, 0.1),
+        this.mats.dark
+      );
+      bracket.position.set(bodyR * 0.95, nozzleH / 2 + bodyH * 0.6, 0);
+      group.add(bracket);
     } else if (nozzleCount === 1) {
       const body = new Mesh(
         new CylinderGeometry(bodyR * 0.85, bodyR, bodyH, 24),
@@ -35317,6 +37292,28 @@ var VAB3DPreview = class {
       body.position.y = nozzleH / 2;
       body.castShadow = true;
       group.add(body);
+      const bodyPanelCount = 6;
+      for (let i = 0; i < bodyPanelCount; i++) {
+        const angle = i / bodyPanelCount * Math.PI * 2 + Math.PI / bodyPanelCount;
+        const seam = new Mesh(
+          new BoxGeometry(0.01, bodyH * 0.85, 0.01),
+          this.mats.dark
+        );
+        seam.position.set(
+          Math.cos(angle) * bodyR * 0.92,
+          nozzleH / 2,
+          Math.sin(angle) * bodyR * 0.92
+        );
+        seam.rotation.y = -angle;
+        group.add(seam);
+      }
+      const warnPanel = new Mesh(
+        new BoxGeometry(bodyR * 0.4, bodyR * 0.15, 0.01),
+        new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 })
+      );
+      warnPanel.position.set(bodyR * 0.86, nozzleH / 2 + bodyH * 0.1, 0);
+      warnPanel.rotation.y = 0;
+      group.add(warnPanel);
       const gimbal = new Mesh(
         new TorusGeometry(bodyR * 0.9, 0.05, 8, 24),
         this.mats.accent
@@ -35387,16 +37384,16 @@ var VAB3DPreview = class {
         nozzlePoints.push(new Vector2(Math.max(0.01, r), y));
       }
       const nozzleGeo = new LatheGeometry(nozzlePoints, 32);
-      const nozzle = new Mesh(nozzleGeo, this.mats.nozzle);
-      nozzle.position.y = nozzleH / 2 - 0.02;
-      nozzle.castShadow = true;
-      group.add(nozzle);
+      const nozzle2 = new Mesh(nozzleGeo, this.mats.nozzle);
+      nozzle2.position.y = nozzleH / 2 - 0.02;
+      nozzle2.castShadow = true;
+      group.add(nozzle2);
       const ribCount = 12;
       for (let i = 0; i < ribCount; i++) {
         const angle = i / ribCount * Math.PI * 2;
         const rib = new Mesh(
           new BoxGeometry(8e-3, nozzleH * 0.6, 8e-3),
-          this.mats.dark
+          this.mats.copper
         );
         rib.position.set(
           Math.cos(angle) * throatR * 0.9,
@@ -35405,6 +37402,17 @@ var VAB3DPreview = class {
         );
         rib.rotation.y = -angle;
         group.add(rib);
+      }
+      for (const t of [0.3, 0.65]) {
+        const bandR = throatR + (nozzleR - throatR) * Math.pow(t, 0.6);
+        const bandY = nozzleH / 2 - 0.02 - convergH - t * divergH;
+        const band = new Mesh(
+          new TorusGeometry(bandR * 1.02, 0.015, 5, 28),
+          this.mats.dark
+        );
+        band.rotation.x = Math.PI / 2;
+        band.position.y = bandY;
+        group.add(band);
       }
       const turbopump = new Mesh(
         new CylinderGeometry(bodyR * 0.2, bodyR * 0.22, bodyH * 0.5, 12),
@@ -35421,6 +37429,47 @@ var VAB3DPreview = class {
       throatRing.rotation.x = Math.PI / 2;
       throatRing.position.y = nozzleH / 2 - 0.02 - convergH;
       group.add(throatRing);
+      for (let i = 0; i < 2; i++) {
+        const angle = i === 0 ? 0 : Math.PI;
+        const actuator = new Mesh(
+          new CylinderGeometry(0.04, 0.04, bodyH * 0.4, 10),
+          this.mats.engineBody
+        );
+        actuator.position.set(
+          Math.cos(angle) * bodyR * 1.1,
+          nozzleH / 2 + bodyH * 0.55,
+          Math.sin(angle) * bodyR * 1.1
+        );
+        actuator.castShadow = true;
+        group.add(actuator);
+        const piston = new Mesh(
+          new CylinderGeometry(0.02, 0.02, bodyH * 0.3, 8),
+          this.mats.copper
+        );
+        piston.position.set(
+          Math.cos(angle) * bodyR * 1.1,
+          nozzleH / 2 + bodyH * 0.3,
+          Math.sin(angle) * bodyR * 1.1
+        );
+        group.add(piston);
+        const clevis = new Mesh(
+          new BoxGeometry(0.08, 0.06, 0.06),
+          this.mats.dark
+        );
+        clevis.position.set(
+          Math.cos(angle) * bodyR * 1.1,
+          nozzleH / 2 + bodyH * 0.8,
+          Math.sin(angle) * bodyR * 1.1
+        );
+        group.add(clevis);
+      }
+      const conduit = new Mesh(
+        new CylinderGeometry(0.015, 0.015, bodyH * 0.5, 6),
+        this.mats.copper
+      );
+      conduit.position.set(bodyR * 0.85, nozzleH / 2 - bodyH * 0.1, 0);
+      conduit.rotation.z = Math.PI / 8;
+      group.add(conduit);
     } else {
       const mainBody = new Mesh(
         new CylinderGeometry(bodyR, bodyR, bodyH, 24),
@@ -35457,10 +37506,10 @@ var VAB3DPreview = class {
           nozzlePoints.push(new Vector2(r, y));
         }
         const nozzleGeo = new LatheGeometry(nozzlePoints, 20);
-        const nozzle = new Mesh(nozzleGeo, this.mats.nozzle);
-        nozzle.position.set(px2, nozzleH / 2 + bodyH * 0.1 - 0.02, pz2);
-        nozzle.castShadow = true;
-        group.add(nozzle);
+        const nozzle2 = new Mesh(nozzleGeo, this.mats.nozzle);
+        nozzle2.position.set(px2, nozzleH / 2 + bodyH * 0.1 - 0.02, pz2);
+        nozzle2.castShadow = true;
+        group.add(nozzle2);
       }
       for (const [px2, pz2] of positions) {
         const pipe = new Mesh(
@@ -35469,6 +37518,141 @@ var VAB3DPreview = class {
         );
         pipe.position.set(px2 * 0.5, nozzleH / 2 + bodyH * 0.4, pz2 * 0.5);
         group.add(pipe);
+      }
+      const manifold = new Mesh(
+        new BoxGeometry(bodyR * 1.4, bodyH * 0.3, bodyR * 1.4),
+        this.mats.engineBody
+      );
+      manifold.position.y = nozzleH / 2 + bodyH * 0.55;
+      manifold.castShadow = true;
+      group.add(manifold);
+      const topPlate = new Mesh(
+        new CylinderGeometry(bodyR * 1.1, bodyR * 1.1, 0.06, 24),
+        this.mats.dark
+      );
+      topPlate.position.y = nozzleH / 2 + bodyH * 0.75;
+      topPlate.castShadow = true;
+      group.add(topPlate);
+      const plateBoltCount = 8;
+      for (let i = 0; i < plateBoltCount; i++) {
+        const angle = i / plateBoltCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.015, 0.015, 0.02, 6),
+          this.mats.copper
+        );
+        bolt.position.set(
+          Math.cos(angle) * bodyR * 0.9,
+          nozzleH / 2 + bodyH * 0.78,
+          Math.sin(angle) * bodyR * 0.9
+        );
+        group.add(bolt);
+      }
+    }
+    if (!isIon) {
+      const regenRibCount = 14;
+      const throatR_eng = bodyR * 0.45;
+      for (let i = 0; i < regenRibCount; i++) {
+        const angle = i / regenRibCount * Math.PI * 2;
+        const rib = new Mesh(
+          new BoxGeometry(0.01, nozzleH * 0.5, 0.012),
+          this.mats.copper
+        );
+        rib.position.set(
+          Math.cos(angle) * (nozzleR * 0.6),
+          nozzleH / 2 - nozzleH * 0.3,
+          Math.sin(angle) * (nozzleR * 0.6)
+        );
+        rib.rotation.y = -angle;
+        group.add(rib);
+      }
+      const throatGlow = new Mesh(
+        new TorusGeometry(bodyR * 0.45 * 1.05, 0.015, 6, 20),
+        new MeshStandardMaterial({ color: 4491519, emissive: 2245802, emissiveIntensity: 0.8, roughness: 0.3, metalness: 0.5 })
+      );
+      throatGlow.rotation.x = Math.PI / 2;
+      throatGlow.position.y = nozzleH / 2 - nozzleH * 0.3;
+      group.add(throatGlow);
+      const exitGlow = new Mesh(
+        new TorusGeometry(nozzleR * 1, 0.01, 5, 24),
+        new MeshStandardMaterial({ color: 8921600, emissive: 4460800, emissiveIntensity: 0.3, roughness: 0.8, metalness: 0.3 })
+      );
+      exitGlow.rotation.x = Math.PI / 2;
+      exitGlow.position.y = nozzleH / 2 - nozzleH * 0.95;
+      group.add(exitGlow);
+      for (let ring = 0; ring < 3; ring++) {
+        const ringR = bodyR * 0.3 + ring * bodyR * 0.15;
+        const holeCount = 8 + ring * 4;
+        for (let i = 0; i < holeCount; i++) {
+          const angle = i / holeCount * Math.PI * 2;
+          const hole = new Mesh(
+            new CylinderGeometry(8e-3, 8e-3, 0.015, 5),
+            this.mats.dark
+          );
+          hole.position.set(
+            Math.cos(angle) * ringR,
+            nozzleH / 2 - bodyH * 0.32 + 0.01,
+            Math.sin(angle) * ringR
+          );
+          group.add(hole);
+        }
+      }
+      const manifoldRing = new Mesh(
+        new TorusGeometry(bodyR * 0.9, 0.025, 6, 20),
+        this.mats.copper
+      );
+      manifoldRing.rotation.x = Math.PI / 2;
+      manifoldRing.position.y = nozzleH / 2 - bodyH * 0.28;
+      group.add(manifoldRing);
+      for (let i = 0; i < 8; i++) {
+        const angle = i / 8 * Math.PI * 2;
+        const port = new Mesh(
+          new CylinderGeometry(0.012, 0.012, 0.03, 6),
+          this.mats.dark
+        );
+        port.position.set(
+          Math.cos(angle) * bodyR * 0.92,
+          nozzleH / 2 - bodyH * 0.28,
+          Math.sin(angle) * bodyR * 0.92
+        );
+        port.rotation.x = Math.PI / 2;
+        port.rotation.y = -angle;
+        group.add(port);
+      }
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2;
+        const tpBolt = new Mesh(
+          new CylinderGeometry(8e-3, 8e-3, 0.012, 5),
+          this.mats.copper
+        );
+        tpBolt.position.set(
+          bodyR * 0.9 + Math.cos(angle) * bodyR * 0.12,
+          nozzleH / 2 + bodyH * 0.2,
+          Math.sin(angle) * bodyR * 0.12
+        );
+        tpBolt.rotation.z = Math.PI / 2;
+        group.add(tpBolt);
+      }
+      const gimbalBall = new Mesh(
+        new SphereGeometry(bodyR * 0.35, 12, 8),
+        this.mats.dark
+      );
+      gimbalBall.position.y = bodyH + nozzleH / 2 + 0.02;
+      gimbalBall.castShadow = true;
+      group.add(gimbalBall);
+      for (let i = 0; i < 12; i++) {
+        const angle = i / 12 * Math.PI * 2;
+        const flBolt = new Mesh(
+          new CylinderGeometry(0.012, 0.012, 0.02, 6),
+          this.mats.copper
+        );
+        flBolt.position.set(
+          Math.cos(angle) * bodyR * 0.8,
+          bodyH + nozzleH / 2 - 0.02,
+          Math.sin(angle) * bodyR * 0.8
+        );
+        flBolt.rotation.x = Math.PI / 2;
+        flBolt.rotation.y = -angle;
+        group.add(flBolt);
       }
     }
     const offsetGroup = new Group();
@@ -35481,13 +37665,13 @@ var VAB3DPreview = class {
   // ============================================
   createBooster(part) {
     const group = new Group();
-    let bHeight = 2.8, bRadius = 0.3;
+    let bHeight = 2.8, bRadius = 0.3125;
     if (part.thrust > 2e6) {
       bHeight = 4.5;
-      bRadius = 0.5;
+      bRadius = 0.625;
     } else if (part.thrust > 5e5) {
       bHeight = 3.5;
-      bRadius = 0.4;
+      bRadius = 0.3125;
     }
     const body = new Mesh(
       new CylinderGeometry(bRadius, bRadius, bHeight, 20),
@@ -35496,6 +37680,38 @@ var VAB3DPreview = class {
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
+    const segCount = Math.max(2, Math.floor(bHeight / 1.2));
+    for (let i = 1; i < segCount; i++) {
+      const y = -bHeight / 2 + i * (bHeight / segCount);
+      const joint = new Mesh(
+        new CylinderGeometry(bRadius * 1.04, bRadius * 1.04, 0.06, 20),
+        this.mats.dark
+      );
+      joint.position.y = y;
+      joint.castShadow = true;
+      group.add(joint);
+      const boltCount = Math.max(8, Math.floor(bRadius * 20));
+      for (let j = 0; j < boltCount; j++) {
+        const angle = j / boltCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new SphereGeometry(0.015, 6, 4),
+          this.mats.copper
+        );
+        bolt.position.set(Math.cos(angle) * bRadius * 1.05, y, Math.sin(angle) * bRadius * 1.05);
+        group.add(bolt);
+      }
+    }
+    const panelCount = 6;
+    for (let i = 0; i < panelCount; i++) {
+      const angle = i / panelCount * Math.PI * 2;
+      const panel = new Mesh(
+        new BoxGeometry(0.015, bHeight * 0.95, 0.01),
+        this.mats.dark
+      );
+      panel.position.set(Math.cos(angle) * (bRadius + 5e-3), 0, Math.sin(angle) * (bRadius + 5e-3));
+      panel.rotation.y = -angle + Math.PI / 2;
+      group.add(panel);
+    }
     const bandCount = Math.floor(bHeight / 0.8);
     for (let i = 0; i < bandCount; i++) {
       const y = -bHeight / 2 + (i + 1) * (bHeight / (bandCount + 1));
@@ -35527,6 +37743,26 @@ var VAB3DPreview = class {
     );
     noseRing.position.y = bHeight / 2 + 0.04;
     group.add(noseRing);
+    const igniter = new Mesh(
+      new CylinderGeometry(0.03, 0.04, 0.08, 8),
+      this.mats.copper
+    );
+    igniter.position.y = bHeight / 2 + noseH + 0.04;
+    igniter.castShadow = true;
+    group.add(igniter);
+    const hazardY = -bHeight / 2 + 0.15;
+    const hazardSegs = Math.max(8, Math.floor(bRadius * 20));
+    for (let i = 0; i < hazardSegs; i++) {
+      const angle = i / hazardSegs * Math.PI * 2;
+      const isYellow = i % 2 === 0;
+      const seg = new Mesh(
+        new BoxGeometry(0.06, 0.04, 0.01),
+        isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+      );
+      seg.position.set(Math.cos(angle) * (bRadius + 8e-3), hazardY, Math.sin(angle) * (bRadius + 8e-3));
+      seg.rotation.y = -angle;
+      group.add(seg);
+    }
     for (let i = 0; i < 2; i++) {
       const angle = i === 0 ? 0 : Math.PI;
       const sepNoz = new Mesh(
@@ -35543,18 +37779,39 @@ var VAB3DPreview = class {
       group.add(sepNoz);
     }
     const nozzlePoints = [];
-    const segs = 8;
-    for (let i = 0; i <= segs; i++) {
-      const t = i / segs;
-      const y = -t * 0.4;
-      const r = bRadius * 0.6 + (bRadius * 0.9 - bRadius * 0.6) * Math.pow(t, 0.5);
-      nozzlePoints.push(new Vector2(r, y));
+    const segs = 12;
+    for (let i = 0; i <= segs / 2; i++) {
+      const t = i / (segs / 2);
+      const y = -t * 0.15;
+      const r = bRadius * 0.6 + (bRadius * 0.3 - bRadius * 0.6) * (1 - Math.cos(t * Math.PI)) / 2;
+      nozzlePoints.push(new Vector2(Math.max(0.01, r), y));
     }
-    const nozzleGeo = new LatheGeometry(nozzlePoints, 16);
-    const nozzle = new Mesh(nozzleGeo, this.mats.nozzle);
-    nozzle.position.y = -bHeight / 2 + 0.02;
-    nozzle.castShadow = true;
-    group.add(nozzle);
+    const throatR = bRadius * 0.3;
+    for (let i = 1; i <= segs / 2; i++) {
+      const t = i / (segs / 2);
+      const y = -0.15 - t * 0.25;
+      const r = throatR + (bRadius * 0.9 - throatR) * Math.pow(t, 0.55);
+      nozzlePoints.push(new Vector2(Math.max(0.01, r), y));
+    }
+    const nozzleGeo = new LatheGeometry(nozzlePoints, 20);
+    const nozzle2 = new Mesh(nozzleGeo, this.mats.nozzle);
+    nozzle2.position.y = -bHeight / 2 + 0.02;
+    nozzle2.castShadow = true;
+    group.add(nozzle2);
+    const throatRing = new Mesh(
+      new TorusGeometry(throatR * 1.02, 0.02, 5, 16),
+      this.mats.dark
+    );
+    throatRing.rotation.x = Math.PI / 2;
+    throatRing.position.y = -bHeight / 2 + 0.02 - 0.15;
+    group.add(throatRing);
+    const nozBand = new Mesh(
+      new TorusGeometry(bRadius * 0.75, 0.015, 5, 16),
+      this.mats.dark
+    );
+    nozBand.rotation.x = Math.PI / 2;
+    nozBand.position.y = -bHeight / 2 + 0.02 - 0.3;
+    group.add(nozBand);
     const nozRing = new Mesh(
       new CylinderGeometry(bRadius * 0.7, bRadius * 0.7, 0.06, 16),
       this.mats.dark
@@ -35570,7 +37827,124 @@ var VAB3DPreview = class {
       strut.position.set(bRadius + 0.15, y, 0);
       strut.castShadow = true;
       group.add(strut);
+      const fitting = new Mesh(
+        new CylinderGeometry(0.04, 0.04, 0.08, 8),
+        this.mats.dark
+      );
+      fitting.position.set(bRadius + 0.02, y, 0);
+      fitting.rotation.z = Math.PI / 2;
+      group.add(fitting);
+      const strutBolt = new Mesh(
+        new CylinderGeometry(0.015, 0.015, 0.04, 6),
+        this.mats.copper
+      );
+      strutBolt.position.set(bRadius + 0.02, y, 0);
+      strutBolt.rotation.z = Math.PI / 2;
+      group.add(strutBolt);
     }
+    const accessPort = new Mesh(
+      new CylinderGeometry(0.06, 0.06, 0.02, 12),
+      this.mats.dark
+    );
+    accessPort.position.set(bRadius + 5e-3, bHeight * 0.35, 0);
+    accessPort.rotation.z = Math.PI / 2;
+    group.add(accessPort);
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+      const weld = new Mesh(
+        new BoxGeometry(8e-3, bHeight * 0.97, 0.015),
+        new MeshStandardMaterial({ color: 13421772, roughness: 0.3, metalness: 0.6 })
+      );
+      weld.position.set(Math.cos(angle) * (bRadius + 2e-3), 0, Math.sin(angle) * (bRadius + 2e-3));
+      weld.rotation.y = -angle + Math.PI / 2;
+      group.add(weld);
+    }
+    const subThroatRing = new Mesh(
+      new TorusGeometry(throatR * 1.1, 0.03, 6, 16),
+      this.mats.copper
+    );
+    subThroatRing.rotation.x = Math.PI / 2;
+    subThroatRing.position.y = -bHeight / 2 + 0.02 - 0.15;
+    group.add(subThroatRing);
+    for (let i = 0; i < 2; i++) {
+      const angle = i === 0 ? Math.PI / 2 : -Math.PI / 2;
+      const tvcCyl = new Mesh(
+        new CylinderGeometry(0.03, 0.03, 0.15, 8),
+        this.mats.engineBody
+      );
+      tvcCyl.position.set(
+        Math.cos(angle) * bRadius * 0.5,
+        -bHeight / 2 + 0.02 - 0.1,
+        Math.sin(angle) * bRadius * 0.5
+      );
+      tvcCyl.rotation.z = Math.PI / 4;
+      tvcCyl.rotation.y = -angle;
+      group.add(tvcCyl);
+      const tvcRod = new Mesh(
+        new CylinderGeometry(0.015, 0.015, 0.08, 6),
+        this.mats.copper
+      );
+      tvcRod.position.set(
+        Math.cos(angle) * bRadius * 0.6,
+        -bHeight / 2 + 0.02 - 0.05,
+        Math.sin(angle) * bRadius * 0.6
+      );
+      tvcRod.rotation.z = Math.PI / 4;
+      tvcRod.rotation.y = -angle;
+      group.add(tvcRod);
+    }
+    const noseHousingSeam = new Mesh(
+      new TorusGeometry(bRadius * 1.01, 0.015, 5, 16),
+      this.mats.dark
+    );
+    noseHousingSeam.rotation.x = Math.PI / 2;
+    noseHousingSeam.position.y = bHeight / 2 + 0.12;
+    group.add(noseHousingSeam);
+    const aftSkirt = new Mesh(
+      new CylinderGeometry(bRadius * 1.05, bRadius * 0.95, 0.1, 20),
+      this.mats.booster
+    );
+    aftSkirt.position.y = -bHeight / 2 - 0.04;
+    aftSkirt.castShadow = true;
+    group.add(aftSkirt);
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const sepNoz = new Mesh(
+        new ConeGeometry(0.025, 0.06, 6),
+        this.mats.dark
+      );
+      sepNoz.position.set(
+        Math.cos(angle) * bRadius * 1.1,
+        -bHeight / 2 - 0.08,
+        Math.sin(angle) * bRadius * 1.1
+      );
+      sepNoz.rotation.y = -angle;
+      sepNoz.rotation.z = Math.PI / 2;
+      group.add(sepNoz);
+    }
+    const segIdColors = [13395490, 3368652, 2271812];
+    for (let i = 1; i < Math.max(2, Math.floor(bHeight / 1.2)); i++) {
+      const y = -bHeight / 2 + i * (bHeight / Math.max(2, Math.floor(bHeight / 1.2)));
+      const idBand = new Mesh(
+        new CylinderGeometry(bRadius * 1.03, bRadius * 1.03, 0.015, 16),
+        new MeshStandardMaterial({ color: segIdColors[i % 3], roughness: 0.4, metalness: 0.4 })
+      );
+      idBand.position.y = y + 0.04;
+      group.add(idBand);
+    }
+    const mountTab = new Mesh(
+      new BoxGeometry(0.04, 0.06, bRadius * 0.6),
+      this.mats.structural
+    );
+    mountTab.position.set(bRadius + 0.02, 0, 0);
+    group.add(mountTab);
+    const mountTabBolt = new Mesh(
+      new CylinderGeometry(0.012, 0.012, 0.025, 6),
+      this.mats.copper
+    );
+    mountTabBolt.rotation.z = Math.PI / 2;
+    mountTabBolt.position.set(bRadius + 0.04, 0, 0);
+    group.add(mountTabBolt);
     const totalH = bHeight + noseH + 0.4;
     return { group, height: totalH, radius: bRadius };
   }
@@ -35619,6 +37993,73 @@ var VAB3DPreview = class {
     );
     baseRing.position.y = -canH / 2 - 0.01;
     group.add(baseRing);
+    const chuteBoltCount = 6;
+    for (let i = 0; i < chuteBoltCount; i++) {
+      const angle = i / chuteBoltCount * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.01, 0.01, 0.02, 6),
+        this.mats.dark
+      );
+      bolt.position.set(Math.cos(angle) * canR * 0.95, -canH / 2 - 0.01, Math.sin(angle) * canR * 0.95);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+      const stripe = new Mesh(
+        new BoxGeometry(canR * 0.2, canH * 0.3, 8e-3),
+        isDrogue ? this.mats.accent : this.mats.copper
+      );
+      stripe.position.set(Math.cos(angle) * canR * 0.98, 0, Math.sin(angle) * canR * 0.98);
+      stripe.rotation.y = -angle;
+      group.add(stripe);
+    }
+    const vent = new Mesh(
+      new CylinderGeometry(0.015, 0.02, 0.04, 8),
+      this.mats.dark
+    );
+    vent.position.y = canH / 2 + 0.26;
+    group.add(vent);
+    const seam = new Mesh(
+      new BoxGeometry(8e-3, canH * 0.9, 0.01),
+      this.mats.dark
+    );
+    seam.position.set(canR * 0.99, 0, 0);
+    group.add(seam);
+    const foldedCanopy = new Mesh(
+      new SphereGeometry(canR * 0.7, 12, 8, 0, Math.PI * 2, 0, Math.PI / 3),
+      this.mats.parachute
+    );
+    foldedCanopy.position.y = canH / 2 + 0.28;
+    foldedCanopy.scale.set(1, 0.4, 1);
+    group.add(foldedCanopy);
+    for (let i = 0; i < 2; i++) {
+      const angle = i === 0 ? 0.1 : -0.1;
+      const strap = new Mesh(
+        new CylinderGeometry(4e-3, 4e-3, 0.08, 4),
+        this.mats.dark
+      );
+      strap.position.set(Math.sin(angle) * canR * 0.3, canH / 2 + 0.18, 0);
+      strap.rotation.z = angle;
+      group.add(strap);
+    }
+    for (let i = 0; i < 3; i++) {
+      const spring = new Mesh(
+        new TorusGeometry(canR * 0.5, 6e-3, 4, 8),
+        this.mats.copper
+      );
+      spring.rotation.x = Math.PI / 2;
+      spring.position.y = canH / 2 - 0.05 - i * 0.02;
+      group.add(spring);
+    }
+    const reliefValve = new Mesh(
+      new CylinderGeometry(0.015, 0.015, 0.03, 6),
+      this.mats.copper
+    );
+    reliefValve.rotation.z = Math.PI / 2;
+    reliefValve.position.set(canR + 0.01, -canH * 0.2, 0);
+    group.add(reliefValve);
     return { group, height: canH + 0.25, radius: canR * 1.15 };
   }
   // ============================================
@@ -35627,39 +38068,75 @@ var VAB3DPreview = class {
   createAeroPart(part) {
     const group = new Group();
     if (part.id.includes("heatshield")) {
-      const radius = part.id.includes("mk2") ? 0.7 : part.id.includes("mk3") ? 0.9 : 0.55;
+      const radius = part.id.includes("mk2") ? 0.7 : part.id.includes("mk3") ? 0.9 : 0.625;
+      const shieldPoints = [];
+      const shieldSegs = 10;
+      for (let i = 0; i <= shieldSegs; i++) {
+        const t = i / shieldSegs;
+        const r = radius * (1 - t * 0.15);
+        const y = -0.1 * Math.sin(t * Math.PI * 0.5);
+        shieldPoints.push(new Vector2(Math.max(0.01, r), y));
+      }
+      shieldPoints.push(new Vector2(radius * 0.1, 0.08));
+      shieldPoints.push(new Vector2(0.01, 0.1));
       const shield = new Mesh(
-        new CylinderGeometry(radius, radius * 0.8, 0.2, 32),
+        new LatheGeometry(shieldPoints, 32),
         new MeshStandardMaterial({ color: 3811866, roughness: 0.9, metalness: 0.1 })
       );
       shield.castShadow = true;
       shield.receiveShadow = true;
       group.add(shield);
-      for (let i = 0; i < 8; i++) {
-        const angle = i / 8 * Math.PI * 2;
-        const r = radius * 0.5;
-        const spot = new Mesh(
-          new SphereGeometry(0.04, 6, 4),
+      const channelCount = 12;
+      for (let i = 0; i < channelCount; i++) {
+        const angle = i / channelCount * Math.PI * 2;
+        const channel = new Mesh(
+          new BoxGeometry(0.02, 0.02, radius * 0.6),
           this.mats.dark
         );
-        spot.position.set(Math.cos(angle) * r, 0.1, Math.sin(angle) * r);
-        group.add(spot);
+        channel.position.set(
+          Math.cos(angle) * radius * 0.3,
+          -0.05,
+          Math.sin(angle) * radius * 0.3
+        );
+        channel.rotation.y = -angle;
+        group.add(channel);
       }
       const topRing = new Mesh(
-        new CylinderGeometry(radius * 0.85, radius, 0.06, 32),
+        new CylinderGeometry(radius * 0.85, radius * 0.95, 0.08, 32),
         this.mats.dark
       );
-      topRing.position.y = -0.1;
+      topRing.position.y = 0.06;
+      topRing.castShadow = true;
       group.add(topRing);
+      const hsBoltCount = Math.max(8, Math.floor(radius * 16));
+      for (let i = 0; i < hsBoltCount; i++) {
+        const angle = i / hsBoltCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.012, 0.012, 0.02, 6),
+          this.mats.copper
+        );
+        bolt.position.set(Math.cos(angle) * radius * 0.8, 0.1, Math.sin(angle) * radius * 0.8);
+        group.add(bolt);
+      }
       return { group, height: 0.3, radius };
     } else if (part.id.includes("nosecone") || part.id.includes("nose")) {
-      const radius = 0.5;
+      const radius = 0.625;
       const coneH = 0.8;
+      const nosePts = [];
+      const noseSegs = 12;
+      for (let i = 0; i <= noseSegs; i++) {
+        const t = i / noseSegs;
+        const r = radius * Math.sqrt(1 - t * t * 0.95);
+        const y = -coneH / 2 + t * coneH;
+        nosePts.push(new Vector2(Math.max(0.01, r), y));
+      }
+      nosePts.push(new Vector2(0.01, coneH / 2 + 0.02));
       const cone = new Mesh(
-        new ConeGeometry(radius, coneH, 28),
+        new LatheGeometry(nosePts, 28),
         this.mats.aero
       );
       cone.castShadow = true;
+      cone.receiveShadow = true;
       group.add(cone);
       const baseRing = new Mesh(
         new CylinderGeometry(radius * 1.02, radius, 0.1, 28),
@@ -35668,12 +38145,31 @@ var VAB3DPreview = class {
       baseRing.position.y = -coneH / 2 + 0.05;
       baseRing.castShadow = true;
       group.add(baseRing);
+      const ncBoltCount = 10;
+      for (let i = 0; i < ncBoltCount; i++) {
+        const angle = i / ncBoltCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.012, 0.012, 0.02, 6),
+          this.mats.copper
+        );
+        bolt.position.set(Math.cos(angle) * radius * 0.95, -coneH / 2 + 0.05, Math.sin(angle) * radius * 0.95);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.rotation.y = -angle;
+        group.add(bolt);
+      }
       const tip = new Mesh(
         new SphereGeometry(0.04, 8, 6),
         this.mats.accent
       );
       tip.position.y = coneH / 2;
       group.add(tip);
+      const seam = new Mesh(
+        new BoxGeometry(0.01, coneH * 0.8, 8e-3),
+        this.mats.dark
+      );
+      seam.position.set(radius * 0.95, 0, 0);
+      seam.rotation.y = Math.PI / 2;
+      group.add(seam);
       return { group, height: coneH, radius };
     } else {
       const isDelta = part.id.includes("delta");
@@ -35732,6 +38228,41 @@ var VAB3DPreview = class {
       );
       rootStrip.position.x = -0.02;
       group.add(rootStrip);
+      const gussetShape = new Shape();
+      gussetShape.moveTo(0, -finH / 2);
+      gussetShape.lineTo(0, -finH / 2 + finH * 0.25);
+      gussetShape.lineTo(finW * 0.3, -finH / 2);
+      gussetShape.closePath();
+      const gussetGeo = new ExtrudeGeometry(gussetShape, {
+        depth: finThick * 1.3,
+        bevelEnabled: false
+      });
+      gussetGeo.translate(0, 0, -finThick * 0.65);
+      const gusset = new Mesh(gussetGeo, this.mats.structural);
+      gusset.castShadow = true;
+      group.add(gusset);
+      const hingeLine = new Mesh(
+        new CylinderGeometry(5e-3, 5e-3, finH * 0.3, 6),
+        this.mats.dark
+      );
+      hingeLine.position.set(finW * 0.48, -finH / 2 + 0.1, 0);
+      hingeLine.rotation.z = Math.PI / 2;
+      group.add(hingeLine);
+      const gapLine = new Mesh(
+        new BoxGeometry(3e-3, finH * 0.35, finThick * 1.3),
+        this.mats.dark
+      );
+      gapLine.position.set(finW * 0.47, -finH / 2 + 0.13, 0);
+      group.add(gapLine);
+      for (let i = 0; i < 3; i++) {
+        const rBolt = new Mesh(
+          new CylinderGeometry(8e-3, 8e-3, 0.02, 6),
+          this.mats.copper
+        );
+        rBolt.position.set(-0.02, -finH / 2 + 0.15 + i * (finH * 0.25), 0);
+        rBolt.rotation.z = Math.PI / 2;
+        group.add(rBolt);
+      }
       return { group, height: finH, radius: finW };
     }
   }
@@ -35741,14 +38272,25 @@ var VAB3DPreview = class {
   createRCSPart(part) {
     const group = new Group();
     if (part.id.includes("tank")) {
-      const radius = part.id.includes("large") ? 0.3 : 0.2;
+      const radius = part.id.includes("large") ? 0.3125 : 0.3125;
+      const tankH = part.id.includes("large") ? 0.6 : 0.4;
       const tank = new Mesh(
-        new CylinderGeometry(radius, radius, 0.5, 16),
+        new CylinderGeometry(radius, radius, tankH, 16),
         this.mats.fuelGray
       );
       tank.castShadow = true;
+      tank.receiveShadow = true;
       group.add(tank);
-      for (const yOff of [0.15, -0.15]) {
+      for (const yOff of [tankH / 2, -tankH / 2]) {
+        const flange = new Mesh(
+          new CylinderGeometry(radius * 1.03, radius * 1, 0.04, 16),
+          this.mats.dark
+        );
+        flange.position.y = yOff - 0.02;
+        flange.castShadow = true;
+        group.add(flange);
+      }
+      for (const yOff of [tankH * 0.25, -tankH * 0.25]) {
         const band = new Mesh(
           new CylinderGeometry(radius * 1.03, radius * 1.03, 0.05, 16),
           this.mats.dark
@@ -35756,14 +38298,38 @@ var VAB3DPreview = class {
         band.position.y = yOff;
         group.add(band);
       }
-      return { group, height: 0.5, radius };
+      const boltCount = 8;
+      for (let i = 0; i < boltCount; i++) {
+        const angle = i / boltCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.01, 0.01, 0.02, 6),
+          this.mats.copper
+        );
+        bolt.position.set(Math.cos(angle) * radius * 0.9, tankH / 2 - 0.01, Math.sin(angle) * radius * 0.9);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.rotation.y = -angle;
+        group.add(bolt);
+      }
+      const warnBand = new Mesh(
+        new CylinderGeometry(radius * 1.04, radius * 1.04, 0.02, 16),
+        new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 })
+      );
+      warnBand.position.y = -tankH * 0.15;
+      group.add(warnBand);
+      return { group, height: tankH, radius: radius * 1.04 };
     }
     const body = new Mesh(
-      new BoxGeometry(0.15, 0.15, 0.15),
+      new BoxGeometry(0.15, 0.12, 0.15),
       this.mats.rcs
     );
     body.castShadow = true;
     group.add(body);
+    const rcsMount = new Mesh(
+      new CylinderGeometry(0.06, 0.07, 0.03, 10),
+      this.mats.dark
+    );
+    rcsMount.position.y = 0.07;
+    group.add(rcsMount);
     const nozGeo = new ConeGeometry(0.03, 0.06, 6);
     const directions = [
       [1, 0, 0, -Math.PI / 2],
@@ -35782,6 +38348,45 @@ var VAB3DPreview = class {
       noz.rotation.y = rotY;
       group.add(noz);
     }
+    for (const [dx, dy, dz, rotY] of directions) {
+      const rcsProfile = [
+        new Vector2(0.01, 0),
+        new Vector2(0.018, 0.01),
+        new Vector2(0.022, 0.025),
+        new Vector2(0.015, 0.03)
+      ];
+      const rcsNoz = new Mesh(
+        new LatheGeometry(rcsProfile, 8),
+        this.mats.copper
+      );
+      rcsNoz.position.set(dx * 0.1, 0, dz * 0.1);
+      rcsNoz.rotation.z = Math.PI / 2;
+      rcsNoz.rotation.y = rotY;
+      group.add(rcsNoz);
+    }
+    const guardFrame = new Mesh(
+      new BoxGeometry(0.16, 0.01, 0.16),
+      this.mats.dark
+    );
+    guardFrame.position.y = 0.07;
+    group.add(guardFrame);
+    const rcsFlange = new Mesh(
+      new CylinderGeometry(0.07, 0.06, 0.015, 10),
+      this.mats.dark
+    );
+    rcsFlange.position.y = -0.07;
+    group.add(rcsFlange);
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const fbolt = new Mesh(
+        new CylinderGeometry(6e-3, 6e-3, 0.01, 5),
+        this.mats.copper
+      );
+      fbolt.position.set(Math.cos(angle) * 0.055, -0.075, Math.sin(angle) * 0.055);
+      fbolt.rotation.x = Math.PI / 2;
+      fbolt.rotation.y = -angle;
+      group.add(fbolt);
+    }
     return { group, height: 0.2, radius: 0.12 };
   }
   // ============================================
@@ -35796,19 +38401,50 @@ var VAB3DPreview = class {
         this.mats.fuelGray
       );
       body.castShadow = true;
+      body.receiveShadow = true;
       group.add(body);
       const led = new Mesh(
         new SphereGeometry(0.02, 8, 6),
-        new MeshStandardMaterial({ color: 65280, emissive: 17408 })
+        new MeshStandardMaterial({ color: 65280, emissive: 17408, emissiveIntensity: 0.8 })
       );
       led.position.set(0, size * 0.3, size * 0.5);
       group.add(led);
+      const led2 = new Mesh(
+        new SphereGeometry(0.015, 8, 6),
+        new MeshStandardMaterial({ color: 16755200, emissive: 4465152, emissiveIntensity: 0.5 })
+      );
+      led2.position.set(size * 0.15, size * 0.3, size * 0.5);
+      group.add(led2);
       const term = new Mesh(
         new BoxGeometry(size * 0.8, 0.04, size * 0.3),
         this.mats.copper
       );
       term.position.y = -size * 0.3 - 0.02;
       group.add(term);
+      for (const xOff of [-size * 0.2, size * 0.2]) {
+        const post = new Mesh(
+          new CylinderGeometry(0.015, 0.015, 0.04, 8),
+          this.mats.copper
+        );
+        post.position.set(xOff, -size * 0.3, 0);
+        group.add(post);
+      }
+      for (let i = 0; i < 3; i++) {
+        const vent = new Mesh(
+          new BoxGeometry(size * 0.6, 0.01, 0.01),
+          this.mats.dark
+        );
+        vent.position.set(0, -size * 0.1 + i * 0.08, size * 0.5);
+        group.add(vent);
+      }
+      for (const xOff of [-size * 0.35, size * 0.35]) {
+        const tab = new Mesh(
+          new BoxGeometry(0.05, 0.02, size * 0.3),
+          this.mats.dark
+        );
+        tab.position.set(xOff, -size * 0.32, 0);
+        group.add(tab);
+      }
       return { group, height: size * 0.6, radius: size * 0.7 };
     } else if (part.id.includes("rtg")) {
       const body = new Mesh(
@@ -35827,6 +38463,13 @@ var VAB3DPreview = class {
         fin.rotation.y = -angle;
         fin.castShadow = true;
         group.add(fin);
+        const finEdge = new Mesh(
+          new BoxGeometry(0.2, 0.02, 0.025),
+          this.mats.copper
+        );
+        finEdge.position.set(Math.cos(angle) * 0.18, 0.24, Math.sin(angle) * 0.18);
+        finEdge.rotation.y = -angle;
+        group.add(finEdge);
       }
       const cap = new Mesh(
         new CylinderGeometry(0.16, 0.15, 0.05, 16),
@@ -35834,6 +38477,18 @@ var VAB3DPreview = class {
       );
       cap.position.y = 0.32;
       group.add(cap);
+      const warnLabel = new Mesh(
+        new CylinderGeometry(0.04, 0.04, 5e-3, 3),
+        new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 })
+      );
+      warnLabel.position.y = 0.345;
+      group.add(warnLabel);
+      const rtgBase = new Mesh(
+        new CylinderGeometry(0.17, 0.16, 0.04, 16),
+        this.mats.dark
+      );
+      rtgBase.position.y = -0.32;
+      group.add(rtgBase);
       return { group, height: 0.65, radius: 0.3 };
     } else if (part.id.includes("fuel_cell")) {
       const body = new Mesh(
@@ -35934,6 +38589,46 @@ var VAB3DPreview = class {
       edge.position.set(xOff, 0, 0);
       group.add(edge);
     }
+    const hingeMotor = new Mesh(
+      new CylinderGeometry(0.035, 0.035, 0.06, 10),
+      this.mats.dark
+    );
+    hingeMotor.rotation.z = Math.PI / 2;
+    hingeMotor.position.x = 0.3;
+    group.add(hingeMotor);
+    const motorBolt = new Mesh(
+      new CylinderGeometry(8e-3, 8e-3, 0.01, 6),
+      this.mats.copper
+    );
+    motorBolt.rotation.z = Math.PI / 2;
+    motorBolt.position.x = 0.33;
+    group.add(motorBolt);
+    const backRib = new Mesh(
+      new BoxGeometry(panelW * 0.95, 0.015, 8e-3),
+      this.mats.solarFrame
+    );
+    backRib.position.set(0.3 + panelW / 2 + 0.02, -0.018, 0);
+    group.add(backRib);
+    for (let i = 0; i < 3; i++) {
+      const strip = new Mesh(
+        new BoxGeometry(3e-3, 0.024, panelD * 0.95),
+        this.mats.solarFrame
+      );
+      const stripX = 0.3 + 0.02 + panelW * (0.25 + i * 0.25);
+      strip.position.set(stripX, 1e-3, 0);
+      group.add(strip);
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const mbolt = new Mesh(
+        new CylinderGeometry(6e-3, 6e-3, 0.01, 5),
+        this.mats.copper
+      );
+      mbolt.position.set(Math.cos(angle) * 0.04, -0.07, Math.sin(angle) * 0.04);
+      mbolt.rotation.x = Math.PI / 2;
+      mbolt.rotation.y = -angle;
+      group.add(mbolt);
+    }
     return { group, height: 0.1, radius: 0.3 + panelW / 2 };
   }
   // ============================================
@@ -35947,6 +38642,23 @@ var VAB3DPreview = class {
     );
     base.castShadow = true;
     group.add(base);
+    const basePlate = new Mesh(
+      new CylinderGeometry(0.06, 0.06, 0.02, 12),
+      this.mats.dark
+    );
+    basePlate.position.y = -0.05;
+    group.add(basePlate);
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const bolt = new Mesh(
+        new CylinderGeometry(8e-3, 8e-3, 0.015, 6),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * 0.045, -0.06, Math.sin(angle) * 0.045);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
     if (part.id.includes("whip") || !part.id.includes("dish") && !part.id.includes("ra") && !part.id.includes("88")) {
       const segHeights = [0.25, 0.22, 0.2];
       const segRadii = [0.02, 0.016, 0.012];
@@ -36038,6 +38750,38 @@ var VAB3DPreview = class {
         strut.rotateX(Math.PI / 2);
         group.add(strut);
       }
+      const polarizer = new Mesh(
+        new CylinderGeometry(0.025, 0.025, 0.01, 8),
+        this.mats.accent
+      );
+      polarizer.position.y = mastH + 0.04 + dishSize * 0.6;
+      group.add(polarizer);
+      const dishEdge = new Mesh(
+        new TorusGeometry(dishSize, 0.012, 5, 20),
+        this.mats.dark
+      );
+      dishEdge.position.y = mastH + 0.04;
+      group.add(dishEdge);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2;
+        const seam = new Mesh(
+          new BoxGeometry(4e-3, 3e-3, dishSize * 0.8),
+          this.mats.dark
+        );
+        seam.position.set(
+          Math.cos(angle) * dishSize * 0.3,
+          mastH + 0.04 + 5e-3,
+          Math.sin(angle) * dishSize * 0.3
+        );
+        seam.rotation.y = -angle;
+        group.add(seam);
+      }
+      const junction = new Mesh(
+        new SphereGeometry(0.015, 8, 6),
+        this.mats.dark
+      );
+      junction.position.y = mastH + 0.04 + dishSize * 0.5;
+      group.add(junction);
       return { group, height: mastH + dishSize + 0.1, radius: dishSize };
     }
   }
@@ -36056,6 +38800,13 @@ var VAB3DPreview = class {
       group.add(body2);
       for (let i = 0; i < 3; i++) {
         const angle = i / 3 * Math.PI * 2;
+        const frame2 = new Mesh(
+          new BoxGeometry(0.18, 0.14, 0.02),
+          this.mats.dark
+        );
+        frame2.position.set(Math.cos(angle) * 0.68, 0.2, Math.sin(angle) * 0.68);
+        frame2.rotation.y = -angle;
+        group.add(frame2);
         const win = new Mesh(
           new SphereGeometry(0.1, 12, 8),
           this.mats.glass
@@ -36070,14 +38821,41 @@ var VAB3DPreview = class {
           this.mats.dark
         );
         ring.position.y = yOff;
+        ring.castShadow = true;
         group.add(ring);
       }
+      const hatch = new Mesh(
+        new BoxGeometry(0.15, 0.2, 0.02),
+        this.mats.dark
+      );
+      hatch.position.set(0, -0.15, 0.71);
+      group.add(hatch);
       const ant = new Mesh(
         new CylinderGeometry(0.01, 0.01, 0.3, 6),
         this.mats.antenna
       );
       ant.position.y = 0.85;
+      ant.castShadow = true;
       group.add(ant);
+      const antTip = new Mesh(
+        new SphereGeometry(0.015, 6, 4),
+        this.mats.accent
+      );
+      antTip.position.y = 1;
+      group.add(antTip);
+      for (const yOff of [0.74, -0.74]) {
+        for (let i = 0; i < 10; i++) {
+          const angle = i / 10 * Math.PI * 2;
+          const bolt = new Mesh(
+            new CylinderGeometry(0.012, 0.012, 0.02, 6),
+            this.mats.copper
+          );
+          bolt.position.set(Math.cos(angle) * 0.7, yOff, Math.sin(angle) * 0.7);
+          bolt.rotation.x = Math.PI / 2;
+          bolt.rotation.y = -angle;
+          group.add(bolt);
+        }
+      }
       return { group, height: 1.5, radius: 0.72 };
     }
     const isSensor = part.id.includes("sensor") || part.id.includes("accel") || part.id.includes("gravity");
@@ -36089,20 +38867,42 @@ var VAB3DPreview = class {
       this.mats.science
     );
     body.castShadow = true;
+    body.receiveShadow = true;
     group.add(body);
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const corner = new Mesh(
+        new BoxGeometry(0.02, boxSize * 0.9, 0.02),
+        this.mats.dark
+      );
+      corner.position.set(
+        Math.cos(angle) * boxSize * 0.72,
+        0,
+        Math.sin(angle) * boxSize * 0.72
+      );
+      corner.rotation.y = -angle;
+      group.add(corner);
+    }
     if (isSensor || part.id.includes("barometer") || part.id.includes("thermo") || part.id.includes("atmo")) {
+      const lensHousing = new Mesh(
+        new CylinderGeometry(0.055, 0.06, 0.04, 12),
+        this.mats.dark
+      );
+      lensHousing.rotation.x = Math.PI / 2;
+      lensHousing.position.z = boxSize / 2 + 0.02;
+      group.add(lensHousing);
       const lens = new Mesh(
         new CylinderGeometry(0.04, 0.05, 0.06, 12),
         this.mats.glass
       );
       lens.rotation.x = Math.PI / 2;
-      lens.position.z = boxSize / 2 + 0.03;
+      lens.position.z = boxSize / 2 + 0.04;
       group.add(lens);
       const lensRing = new Mesh(
-        new TorusGeometry(0.045, 0.01, 6, 12),
-        this.mats.dark
+        new TorusGeometry(0.05, 8e-3, 6, 12),
+        this.mats.copper
       );
-      lensRing.position.z = boxSize / 2 + 0.04;
+      lensRing.position.z = boxSize / 2 + 0.05;
       group.add(lensRing);
     }
     if (isGoop) {
@@ -36128,6 +38928,44 @@ var VAB3DPreview = class {
     );
     antStub.position.y = boxSize / 2 + 0.07;
     group.add(antStub);
+    if (isSensor || part.id.includes("barometer") || part.id.includes("thermo") || part.id.includes("atmo")) {
+      const dome = new Mesh(
+        new SphereGeometry(0.08, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+        new MeshStandardMaterial({ color: 11193599, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.3 })
+      );
+      dome.position.z = boxSize / 2 + 0.05;
+      group.add(dome);
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2;
+      const sensor = new Mesh(
+        new CylinderGeometry(5e-3, 5e-3, 0.06, 5),
+        this.mats.copper
+      );
+      sensor.position.set(Math.cos(angle) * boxSize * 0.3, boxSize / 2 + 0.16, Math.sin(angle) * boxSize * 0.3);
+      group.add(sensor);
+    }
+    const dataPort = new Mesh(
+      new BoxGeometry(0.04, 0.02, 0.015),
+      this.mats.dark
+    );
+    dataPort.position.set(-boxSize / 2 - 8e-3, 0, 0);
+    group.add(dataPort);
+    for (let i = 0; i < 4; i++) {
+      const pin = new Mesh(
+        new CylinderGeometry(3e-3, 3e-3, 8e-3, 5),
+        this.mats.copper
+      );
+      pin.rotation.z = Math.PI / 2;
+      pin.position.set(-boxSize / 2 - 0.014, -0.01 + i * 7e-3, 0);
+      group.add(pin);
+    }
+    const sciFlange = new Mesh(
+      new CylinderGeometry(boxSize * 0.5, boxSize * 0.45, 0.02, 12),
+      this.mats.dark
+    );
+    sciFlange.position.y = -boxSize / 2 - 0.01;
+    group.add(sciFlange);
     return { group, height: boxSize, radius: boxSize * 0.7 };
   }
   // ============================================
@@ -36186,16 +39024,25 @@ var VAB3DPreview = class {
       const y = t * 0.04;
       footPoints.push(new Vector2(Math.max(0.01, r), y));
     }
+    footPoints.push(new Vector2(footR * 1.05, 0.02));
+    footPoints.push(new Vector2(footR * 1.05, 0));
     const footGeo = new LatheGeometry(footPoints, 16);
     const foot = new Mesh(footGeo, this.mats.dark);
     foot.position.set(upperLen * 0.6 + lowerLen * 0.7 + 0.02, -upperLen * 0.6 - lowerLen * 0.7 - 0.04, 0);
     foot.castShadow = true;
     group.add(foot);
+    const footBolt = new Mesh(
+      new CylinderGeometry(0.02 * scale, 0.02 * scale, 0.02, 6),
+      this.mats.copper
+    );
+    footBolt.position.set(upperLen * 0.6 + lowerLen * 0.7 + 0.02, -upperLen * 0.6 - lowerLen * 0.7 - 0.02, 0);
+    group.add(footBolt);
     const mount = new Mesh(
       new BoxGeometry(0.08 * scale, 0.1 * scale, 0.08 * scale),
       this.mats.structural
     );
     mount.position.set(0, 0.1 * scale, 0);
+    mount.castShadow = true;
     group.add(mount);
     const hinge = new Mesh(
       new CylinderGeometry(0.02 * scale, 0.02 * scale, 0.1 * scale, 8),
@@ -36204,6 +39051,56 @@ var VAB3DPreview = class {
     hinge.position.set(0, 0.05 * scale, 0);
     hinge.rotation.z = Math.PI / 2;
     group.add(hinge);
+    const springMat = this.mats.copper;
+    const springSegs = 5;
+    for (let i = 0; i < springSegs; i++) {
+      const ring = new Mesh(
+        new TorusGeometry(lowerR * 0.7, 8e-3, 4, 8),
+        springMat
+      );
+      ring.position.set(
+        upperLen * 0.2 + i * 0.015,
+        -upperLen * 0.35 - i * 0.015,
+        0.05
+      );
+      ring.rotation.z = -Math.PI / 4;
+      ring.rotation.y = Math.PI / 2;
+      group.add(ring);
+    }
+    const secStrut = new Mesh(
+      new CylinderGeometry(0.015 * scale, 0.015 * scale, upperLen * 0.7, 6),
+      this.mats.landing
+    );
+    secStrut.position.set(upperLen * 0.35, -upperLen * 0.5, -0.03);
+    secStrut.rotation.z = Math.PI / 6;
+    group.add(secStrut);
+    for (let i = 0; i < 6; i++) {
+      const angle = i / 6 * Math.PI * 2;
+      const cell = new Mesh(
+        new CylinderGeometry(0.015 * scale, 0.015 * scale, 0.01, 6),
+        this.mats.copper
+      );
+      const fx = upperLen * 0.6 + lowerLen * 0.7 + 0.02;
+      const fy = -upperLen * 0.6 - lowerLen * 0.7 - 0.035;
+      cell.position.set(fx + Math.cos(angle) * footR * 0.4, fy, Math.sin(angle) * footR * 0.4);
+      group.add(cell);
+    }
+    const motor = new Mesh(
+      new CylinderGeometry(0.03 * scale, 0.03 * scale, 0.05 * scale, 10),
+      this.mats.dark
+    );
+    motor.position.set(0, 0.08 * scale, 0);
+    motor.rotation.z = Math.PI / 2;
+    group.add(motor);
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2;
+      const mbolt = new Mesh(
+        new CylinderGeometry(6e-3 * scale, 6e-3 * scale, 0.01, 5),
+        this.mats.copper
+      );
+      mbolt.position.set(0.025 * scale, 0.08 * scale + Math.cos(angle) * 0.02, Math.sin(angle) * 0.02);
+      group.add(mbolt);
+    }
     const totalH = upperLen * 0.6 + lowerLen * 0.7 + 0.1;
     const totalR = upperLen * 0.6 + lowerLen * 0.7 + footR;
     return { group, height: totalH, radius: totalR };
@@ -36279,6 +39176,60 @@ var VAB3DPreview = class {
       bolt.position.set(Math.cos(angle) * decR * 0.9, 0, Math.sin(angle) * decR * 0.9);
       group.add(bolt);
     }
+    const decPanelCount = isHeavy ? 12 : 8;
+    for (let i = 0; i < decPanelCount; i++) {
+      const angle = i / decPanelCount * Math.PI * 2 + Math.PI / decPanelCount;
+      const panel = new Mesh(
+        new BoxGeometry(0.02, decH * 0.8, 0.01),
+        this.mats.dark
+      );
+      panel.position.set(Math.cos(angle) * decR * 1, 0, Math.sin(angle) * decR * 1);
+      panel.rotation.y = -angle;
+      group.add(panel);
+    }
+    const warnSegs = Math.max(8, Math.floor(decR * 16));
+    for (let i = 0; i < warnSegs; i++) {
+      const angle = i / warnSegs * Math.PI * 2;
+      const isYellow = i % 2 === 0;
+      const seg = new Mesh(
+        new BoxGeometry(0.05, 0.03, 0.01),
+        isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+      );
+      seg.position.set(Math.cos(angle) * (decR + 0.01), -0.08, Math.sin(angle) * (decR + 0.01));
+      seg.rotation.y = -angle;
+      group.add(seg);
+    }
+    for (const yOff of [decH / 2 - 0.02, -decH / 2 + 0.02]) {
+      const flangeBoltCount = Math.max(8, Math.floor(decR * 16));
+      for (let i = 0; i < flangeBoltCount; i++) {
+        const angle = i / flangeBoltCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.012, 0.012, 0.02, 6),
+          this.mats.dark
+        );
+        bolt.position.set(Math.cos(angle) * decR * 0.95, yOff, Math.sin(angle) * decR * 0.95);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.rotation.y = -angle;
+        group.add(bolt);
+      }
+    }
+    const piston = new Mesh(
+      new CylinderGeometry(decR * 0.15, decR * 0.15, decH * 0.7, 12),
+      this.mats.copper
+    );
+    piston.castShadow = true;
+    group.add(piston);
+    const pistonHead = new Mesh(
+      new CylinderGeometry(decR * 0.2, decR * 0.18, 0.03, 12),
+      this.mats.dark
+    );
+    group.add(pistonHead);
+    const sealRing = new Mesh(
+      new TorusGeometry(decR * 0.95, 0.015, 6, 24),
+      new MeshStandardMaterial({ color: 8939076, roughness: 0.8, metalness: 0.1 })
+    );
+    sealRing.rotation.x = Math.PI / 2;
+    group.add(sealRing);
     return { group, height: decH, radius: decR };
   }
   // ============================================
@@ -36295,6 +39246,7 @@ var VAB3DPreview = class {
         this.mats.structural
       );
       body.castShadow = true;
+      body.receiveShadow = true;
       group.add(body);
       const topRing = new Mesh(
         new CylinderGeometry(adR * 0.82, adR * 0.8, 0.06, 28),
@@ -36310,6 +39262,27 @@ var VAB3DPreview = class {
         );
         mount.position.set(px2, -adH / 2 + 0.04, pz2);
         group.add(mount);
+        for (let j = 0; j < 6; j++) {
+          const angle = j / 6 * Math.PI * 2;
+          const bolt = new Mesh(
+            new CylinderGeometry(8e-3, 8e-3, 0.015, 6),
+            this.mats.copper
+          );
+          bolt.position.set(px2 + Math.cos(angle) * 0.12, -adH / 2 + 0.04, pz2 + Math.sin(angle) * 0.12);
+          bolt.rotation.x = Math.PI / 2;
+          bolt.rotation.y = -angle;
+          group.add(bolt);
+        }
+      }
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2;
+        const panel = new Mesh(
+          new BoxGeometry(0.015, adH * 0.85, 0.01),
+          this.mats.dark
+        );
+        panel.position.set(Math.cos(angle) * adR * 0.95, 0, Math.sin(angle) * adR * 0.95);
+        panel.rotation.y = -angle;
+        group.add(panel);
       }
     } else {
       const body = new Mesh(
@@ -36338,6 +39311,30 @@ var VAB3DPreview = class {
       );
       midRing.rotation.x = Math.PI / 2;
       group.add(midRing);
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2;
+        const stiff = new Mesh(
+          new BoxGeometry(0.02, adH * 0.85, 0.015),
+          this.mats.dark
+        );
+        const midR = adR * 0.78;
+        stiff.position.set(Math.cos(angle) * midR, 0, Math.sin(angle) * midR);
+        stiff.rotation.y = -angle;
+        group.add(stiff);
+      }
+      for (const [r, yOff] of [[0.42, 0.27], [0.57, -0.27]]) {
+        for (let i = 0; i < 12; i++) {
+          const angle = i / 12 * Math.PI * 2;
+          const bolt = new Mesh(
+            new CylinderGeometry(0.01, 0.01, 0.015, 6),
+            this.mats.copper
+          );
+          bolt.position.set(Math.cos(angle) * (r - 0.03), yOff, Math.sin(angle) * (r - 0.03));
+          bolt.rotation.x = Math.PI / 2;
+          bolt.rotation.y = -angle;
+          group.add(bolt);
+        }
+      }
     }
     return { group, height: adH, radius: adR };
   }
@@ -36379,6 +39376,19 @@ var VAB3DPreview = class {
         ring.position.y = yOff;
         group.add(ring);
       }
+      for (const yOff of [tubeH / 2 - 0.03, -tubeH / 2 + 0.03]) {
+        for (let b = 0; b < 8; b++) {
+          const bAngle = b / 8 * Math.PI * 2;
+          const bolt = new Mesh(
+            new CylinderGeometry(0.01, 0.01, 0.02, 6),
+            this.mats.copper
+          );
+          bolt.position.set(Math.cos(bAngle) * tubeR * 1, yOff, Math.sin(bAngle) * tubeR * 1);
+          bolt.rotation.x = Math.PI / 2;
+          bolt.rotation.y = -bAngle;
+          group.add(bolt);
+        }
+      }
       return { group, height: tubeH, radius: tubeR };
     } else if (part.id.includes("adapter")) {
       const body = new Mesh(
@@ -36386,6 +39396,7 @@ var VAB3DPreview = class {
         this.mats.structural
       );
       body.castShadow = true;
+      body.receiveShadow = true;
       group.add(body);
       for (const [r, yOff] of [[0.42, 0.27], [0.57, -0.27]]) {
         const ring = new Mesh(
@@ -36394,6 +39405,29 @@ var VAB3DPreview = class {
         );
         ring.position.y = yOff;
         group.add(ring);
+      }
+      for (const [r, yOff] of [[0.42, 0.27], [0.57, -0.27]]) {
+        for (let b = 0; b < 10; b++) {
+          const bAngle = b / 10 * Math.PI * 2;
+          const bolt = new Mesh(
+            new CylinderGeometry(0.01, 0.01, 0.02, 6),
+            this.mats.copper
+          );
+          bolt.position.set(Math.cos(bAngle) * (r - 0.02), yOff, Math.sin(bAngle) * (r - 0.02));
+          bolt.rotation.x = Math.PI / 2;
+          bolt.rotation.y = -bAngle;
+          group.add(bolt);
+        }
+      }
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2;
+        const seam = new Mesh(
+          new BoxGeometry(0.01, 0.5, 0.01),
+          this.mats.dark
+        );
+        seam.position.set(Math.cos(angle) * 0.47, 0, Math.sin(angle) * 0.47);
+        seam.rotation.y = -angle;
+        group.add(seam);
       }
       return { group, height: 0.6, radius: 0.57 };
     } else if (part.id.includes("octagon")) {
@@ -36443,6 +39477,34 @@ var VAB3DPreview = class {
     strut.position.set(armLen / 2, -armThick * 0.5, 0);
     strut.rotation.z = Math.PI / 6;
     group.add(strut);
+    const strut2 = new Mesh(
+      new CylinderGeometry(0.015, 0.015, armLen * 0.9, 6),
+      this.mats.dark
+    );
+    strut2.position.set(armLen / 2, armThick * 0.5, 0);
+    strut2.rotation.z = -Math.PI / 6;
+    group.add(strut2);
+    for (const ny of [-armThick * 0.3, armThick * 0.3]) {
+      const node = new Mesh(
+        new CylinderGeometry(0.025, 0.025, 0.01, 8),
+        this.mats.dark
+      );
+      node.position.set(armLen / 2, ny, 0);
+      node.rotation.z = Math.PI / 2;
+      group.add(node);
+    }
+    for (const xOff of [0, armLen]) {
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2;
+        const sbolt = new Mesh(
+          new CylinderGeometry(6e-3, 6e-3, 0.01, 5),
+          this.mats.copper
+        );
+        sbolt.position.set(xOff, Math.cos(angle) * armThick, Math.sin(angle) * armThick);
+        sbolt.rotation.z = Math.PI / 2;
+        group.add(sbolt);
+      }
+    }
     return { group, height: armThick * 2, radius: armLen };
   }
   // ============================================
@@ -36482,6 +39544,55 @@ var VAB3DPreview = class {
         petal.position.set(Math.cos(angle) * portR * 0.5, 0.11, Math.sin(angle) * portR * 0.5);
         petal.rotation.y = -angle;
         group.add(petal);
+      }
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+        const led = new Mesh(
+          new SphereGeometry(0.012, 6, 4),
+          new MeshStandardMaterial({ color: 65280, emissive: 17408, emissiveIntensity: 0.8 })
+        );
+        led.position.set(Math.cos(angle) * portR * 0.6, 0.09, Math.sin(angle) * portR * 0.6);
+        group.add(led);
+      }
+      const dockFlange = new Mesh(
+        new CylinderGeometry(portR * 1.05, portR * 0.95, 0.04, 20),
+        this.mats.dark
+      );
+      dockFlange.position.y = -0.08;
+      group.add(dockFlange);
+      const dockBoltCount = 8;
+      for (let i = 0; i < dockBoltCount; i++) {
+        const angle = i / dockBoltCount * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.01, 0.01, 0.015, 6),
+          this.mats.copper
+        );
+        bolt.position.set(Math.cos(angle) * portR * 0.95, -0.08, Math.sin(angle) * portR * 0.95);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.rotation.y = -angle;
+        group.add(bolt);
+      }
+      const toolSlot = new Mesh(
+        new BoxGeometry(0.04, 0.08, 0.01),
+        this.mats.dark
+      );
+      toolSlot.position.set(portR * 0.9, -0.02, 0);
+      group.add(toolSlot);
+      const captureRing = new Mesh(
+        new TorusGeometry(portR * 0.45, 0.02, 6, 16),
+        this.mats.dark
+      );
+      captureRing.rotation.x = Math.PI / 2;
+      captureRing.position.y = 0.1;
+      group.add(captureRing);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2;
+        const led = new Mesh(
+          new SphereGeometry(0.01, 6, 4),
+          new MeshStandardMaterial({ color: 16755200, emissive: 16737792, emissiveIntensity: 0.6 })
+        );
+        led.position.set(Math.cos(angle) * portR * 0.8, 0.06, Math.sin(angle) * portR * 0.8);
+        group.add(led);
       }
       return { group, height: 0.15, radius: portR };
     } else if (part.id.includes("ladder")) {
@@ -36574,13 +39685,68 @@ var VAB3DPreview = class {
   // ============================================
   createGenericPart(part) {
     const group = new Group();
+    const dims = this.getPartDimensions(part);
     const body = new Mesh(
-      new CylinderGeometry(0.4, 0.4, 0.8, 20),
+      new CylinderGeometry(dims.radius, dims.radius, dims.height * 0.8, 20),
       this.mats.structural
     );
     body.castShadow = true;
+    body.receiveShadow = true;
     group.add(body);
-    return { group, height: 0.8, radius: 0.4 };
+    for (const yOff of [dims.height * 0.4 - 0.03, -dims.height * 0.4 + 0.03]) {
+      const cap = new Mesh(
+        new CylinderGeometry(dims.radius * 1.02, dims.radius, 0.05, 20),
+        this.mats.dark
+      );
+      cap.position.y = yOff;
+      group.add(cap);
+    }
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.01, 0.01, 0.02, 6),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * dims.radius * 0.92, dims.height * 0.4 - 0.03, Math.sin(angle) * dims.radius * 0.92);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const seam = new Mesh(
+        new BoxGeometry(0.01, dims.height * 0.7, 0.01),
+        this.mats.dark
+      );
+      seam.position.set(Math.cos(angle) * dims.radius * 0.99, 0, Math.sin(angle) * dims.radius * 0.99);
+      seam.rotation.y = -angle;
+      group.add(seam);
+    }
+    const plasmaWindow = new Mesh(
+      new CircleGeometry(dims.radius * 0.15, 16),
+      new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 0.7, transparent: true, opacity: 0.6, side: DoubleSide })
+    );
+    plasmaWindow.position.set(dims.radius * 0.98, 0, 0);
+    plasmaWindow.rotation.y = Math.PI / 2;
+    group.add(plasmaWindow);
+    const pwindowFrame = new Mesh(
+      new TorusGeometry(dims.radius * 0.16, 0.01, 6, 16),
+      this.mats.dark
+    );
+    pwindowFrame.position.set(dims.radius * 0.98, 0, 0);
+    pwindowFrame.rotation.y = Math.PI / 2;
+    group.add(pwindowFrame);
+    for (let i = 0; i < 2; i++) {
+      const yOff = (i === 0 ? 1 : -1) * dims.height * 0.2;
+      const coil = new Mesh(
+        new TorusGeometry(dims.radius * 1.02, 0.015, 6, 24),
+        this.mats.copper
+      );
+      coil.rotation.x = Math.PI / 2;
+      coil.position.y = yOff;
+      group.add(coil);
+    }
+    return { group, height: dims.height, radius: dims.radius };
   }
   // ============================================
   // KSPIE 扩展零件 - 聚变引擎/反应堆
@@ -36597,32 +39763,167 @@ var VAB3DPreview = class {
       chamber.rotation.x = Math.PI / 2;
       chamber.castShadow = true;
       group.add(chamber);
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2;
+        const coil = new Mesh(
+          new TorusGeometry(dims.radius * 0.35, 0.06, 8, 16),
+          this.mats.copper
+        );
+        coil.position.set(Math.cos(angle) * dims.radius * 0.7, 0, Math.sin(angle) * dims.radius * 0.7);
+        coil.rotation.y = -angle;
+        coil.castShadow = true;
+        group.add(coil);
+      }
       const core = new Mesh(
         new SphereGeometry(dims.radius * 0.25, 16, 12),
-        new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 0.6 })
+        new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 0.8, transparent: true, opacity: 0.9 })
       );
       group.add(core);
+      const shell = new Mesh(
+        new CylinderGeometry(dims.radius, dims.radius, dims.height * 0.8, 24, 1, true),
+        this.mats.structural
+      );
+      shell.castShadow = true;
+      group.add(shell);
+      const topFlange = new Mesh(
+        new CylinderGeometry(dims.radius * 1.02, dims.radius, 0.06, 24),
+        this.mats.dark
+      );
+      topFlange.position.y = dims.height * 0.4;
+      topFlange.castShadow = true;
+      group.add(topFlange);
+      for (let i = 0; i < 12; i++) {
+        const angle = i / 12 * Math.PI * 2;
+        const bolt = new Mesh(
+          new CylinderGeometry(0.015, 0.015, 0.02, 6),
+          this.mats.copper
+        );
+        bolt.position.set(Math.cos(angle) * dims.radius * 0.95, dims.height * 0.42, Math.sin(angle) * dims.radius * 0.95);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.rotation.y = -angle;
+        group.add(bolt);
+      }
+      const botFlange = new Mesh(
+        new CylinderGeometry(dims.radius, dims.radius * 1.02, 0.06, 24),
+        this.mats.dark
+      );
+      botFlange.position.y = -dims.height * 0.4;
+      group.add(botFlange);
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+        const pipe = new Mesh(
+          new CylinderGeometry(0.03, 0.03, dims.height * 0.7, 8),
+          this.mats.copper
+        );
+        pipe.position.set(Math.cos(angle) * dims.radius * 0.95, 0, Math.sin(angle) * dims.radius * 0.95);
+        pipe.castShadow = true;
+        group.add(pipe);
+      }
+      const warnSegs = 12;
+      for (let i = 0; i < warnSegs; i++) {
+        const angle = i / warnSegs * Math.PI * 2;
+        const isYellow = i % 2 === 0;
+        const seg = new Mesh(
+          new BoxGeometry(0.06, 0.04, 0.01),
+          isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+        );
+        seg.position.set(Math.cos(angle) * (dims.radius + 0.01), dims.height * 0.25, Math.sin(angle) * (dims.radius + 0.01));
+        seg.rotation.y = -angle;
+        group.add(seg);
+      }
     } else {
       const body = new Mesh(
-        new CylinderGeometry(dims.radius, dims.radius * 0.6, dims.height, 24),
+        new CylinderGeometry(dims.radius, dims.radius * 0.7, dims.height * 0.6, 24),
         new MeshStandardMaterial({ color: 5596791, metalness: 0.9, roughness: 0.2 })
       );
+      body.position.y = dims.height * 0.15;
       body.castShadow = true;
       group.add(body);
-      const nozzle = new Mesh(
-        new CylinderGeometry(dims.radius * 0.6, dims.radius * 0.9, dims.height * 0.4, 24),
+      const gimbal = new Mesh(
+        new TorusGeometry(dims.radius * 0.95, 0.05, 8, 24),
+        this.mats.accent
+      );
+      gimbal.rotation.x = Math.PI / 2;
+      gimbal.position.y = dims.height * 0.45;
+      group.add(gimbal);
+      const topPlate = new Mesh(
+        new CylinderGeometry(dims.radius * 0.9, dims.radius * 0.95, 0.08, 24),
+        this.mats.dark
+      );
+      topPlate.position.y = dims.height * 0.42;
+      group.add(topPlate);
+      for (let i = 0; i < 3; i++) {
+        const ring = new Mesh(
+          new TorusGeometry(dims.radius * 0.95, 0.03, 8, 24),
+          new MeshStandardMaterial({ color: 4491519, emissive: 2254540, emissiveIntensity: 0.6, metalness: 0.8 })
+        );
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = dims.height * 0.3 - i * dims.height * 0.12;
+        group.add(ring);
+      }
+      const nozzlePoints = [];
+      const nSegs = 14;
+      const throatR = dims.radius * 0.3;
+      for (let i = 0; i <= nSegs / 2; i++) {
+        const t = i / (nSegs / 2);
+        const y = -dims.height * 0.15 - t * dims.height * 0.1;
+        const r = dims.radius * 0.55 + (throatR - dims.radius * 0.55) * (1 - Math.cos(t * Math.PI)) / 2;
+        nozzlePoints.push(new Vector2(Math.max(0.01, r), y));
+      }
+      for (let i = 1; i <= nSegs / 2; i++) {
+        const t = i / (nSegs / 2);
+        const y = -dims.height * 0.25 - t * dims.height * 0.25;
+        const r = throatR + (dims.radius * 0.8 - throatR) * Math.pow(t, 0.6);
+        nozzlePoints.push(new Vector2(Math.max(0.01, r), y));
+      }
+      const nozzle2 = new Mesh(
+        new LatheGeometry(nozzlePoints, 28),
         new MeshStandardMaterial({ color: 3359829, metalness: 0.9, roughness: 0.3 })
       );
-      nozzle.position.y = -dims.height * 0.6;
-      nozzle.castShadow = true;
-      group.add(nozzle);
+      nozzle2.castShadow = true;
+      group.add(nozzle2);
       const glow = new Mesh(
         new CylinderGeometry(dims.radius * 0.5, dims.radius * 0.5, 0.1, 16),
         new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 1, transparent: true, opacity: 0.8 })
       );
-      glow.position.y = -dims.height * 0.8;
+      glow.position.y = -dims.height * 0.5;
       group.add(glow);
+      const trail = new Mesh(
+        new ConeGeometry(dims.radius * 0.45, dims.height * 0.15, 16),
+        new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 1.2, transparent: true, opacity: 0.5 })
+      );
+      trail.position.y = -dims.height * 0.6;
+      group.add(trail);
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2;
+        const seam = new Mesh(
+          new BoxGeometry(0.01, dims.height * 0.5, 0.01),
+          this.mats.dark
+        );
+        seam.position.set(Math.cos(angle) * dims.radius * 0.98, dims.height * 0.15, Math.sin(angle) * dims.radius * 0.98);
+        seam.rotation.y = -angle;
+        group.add(seam);
+      }
+      const conduit = new Mesh(
+        new CylinderGeometry(0.03, 0.03, dims.height * 0.4, 8),
+        this.mats.copper
+      );
+      conduit.position.set(dims.radius * 0.95, dims.height * 0.25, 0);
+      conduit.rotation.z = Math.PI / 8;
+      group.add(conduit);
     }
+    const exoticVessel = new Mesh(
+      new SphereGeometry(dims.radius * 0.18, 12, 8),
+      new MeshStandardMaterial({ color: 10053375, emissive: 6697898, emissiveIntensity: 0.8, transparent: true, opacity: 0.7 })
+    );
+    exoticVessel.position.y = dims.height * 0.15;
+    group.add(exoticVessel);
+    const pulseRing = new Mesh(
+      new TorusGeometry(dims.radius * 0.5, 0.015, 8, 20),
+      new MeshStandardMaterial({ color: 13408767, emissive: 10044637, emissiveIntensity: 1, metalness: 0.6 })
+    );
+    pulseRing.position.y = dims.height * 0.15;
+    group.add(pulseRing);
     return { group, height: dims.height, radius: dims.radius };
   }
   // ============================================
@@ -36631,31 +39932,105 @@ var VAB3DPreview = class {
   createWarpPart(part) {
     const group = new Group();
     const dims = this.getPartDimensions(part);
-    const ring1 = new Mesh(
-      new TorusGeometry(dims.radius, dims.radius * 0.15, 12, 48),
-      new MeshStandardMaterial({ color: 10062079, metalness: 0.9, roughness: 0.1, emissive: 4465322, emissiveIntensity: 0.4 })
-    );
-    ring1.castShadow = true;
-    group.add(ring1);
-    const ring2 = new Mesh(
-      new TorusGeometry(dims.radius * 0.7, dims.radius * 0.1, 12, 48),
-      new MeshStandardMaterial({ color: 13413119, metalness: 0.9, roughness: 0.1, emissive: 6702284, emissiveIntensity: 0.5 })
-    );
-    ring2.rotation.x = Math.PI / 2;
-    group.add(ring2);
     const core = new Mesh(
-      new IcosahedronGeometry(dims.radius * 0.3, 1),
-      new MeshStandardMaterial({ color: 14540287, emissive: 11184895, emissiveIntensity: 0.8, metalness: 0.5, roughness: 0.3 })
+      new CylinderGeometry(dims.radius * 0.35, dims.radius * 0.35, dims.height * 0.85, 16),
+      new MeshStandardMaterial({ color: 4473958, metalness: 0.9, roughness: 0.15 })
     );
+    core.castShadow = true;
     group.add(core);
+    const coreGlow = new Mesh(
+      new CylinderGeometry(dims.radius * 0.37, dims.radius * 0.37, dims.height * 0.12, 16),
+      new MeshStandardMaterial({ color: 13408767, emissive: 6697898, emissiveIntensity: 0.9, transparent: true, opacity: 0.8 })
+    );
+    group.add(coreGlow);
+    const crystal = new Mesh(
+      new IcosahedronGeometry(dims.radius * 0.28, 1),
+      new MeshStandardMaterial({ color: 14540287, emissive: 11184895, emissiveIntensity: 0.6, metalness: 0.4, roughness: 0.3 })
+    );
+    group.add(crystal);
     for (let i = 0; i < 2; i++) {
+      const ringR = i === 0 ? dims.radius * 0.95 : dims.radius * 0.7;
+      const ring = new Mesh(
+        new TorusGeometry(ringR, 0.06, 12, 32),
+        new MeshStandardMaterial({ color: 10062079, metalness: 0.9, roughness: 0.15, emissive: 4465322, emissiveIntensity: 0.3 })
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = dims.height * 0.2 - i * dims.height * 0.4;
+      ring.castShadow = true;
+      group.add(ring);
+      for (let j = 0; j < 8; j++) {
+        const angle = j / 8 * Math.PI * 2;
+        const winding = new Mesh(
+          new BoxGeometry(0.04, 0.06, 0.05),
+          this.mats.copper
+        );
+        winding.position.set(
+          Math.cos(angle) * ringR,
+          dims.height * 0.2 - i * dims.height * 0.4,
+          Math.sin(angle) * ringR
+        );
+        winding.lookAt(0, dims.height * 0.2 - i * dims.height * 0.4, 0);
+        group.add(winding);
+      }
+    }
+    for (let side = -1; side <= 1; side += 2) {
       const nacelle = new Mesh(
         new CapsuleGeometry(dims.radius * 0.12, dims.height * 0.6, 8, 16),
         new MeshStandardMaterial({ color: 7833787, metalness: 0.9, roughness: 0.2 })
       );
-      nacelle.position.set((i === 0 ? -1 : 1) * dims.radius * 1.1, 0, 0);
+      nacelle.rotation.z = Math.PI / 2;
+      nacelle.position.x = side * dims.radius * 1.15;
       nacelle.castShadow = true;
       group.add(nacelle);
+      const tip = new Mesh(
+        new SphereGeometry(dims.radius * 0.12, 12, 8),
+        new MeshStandardMaterial({ color: 13408767, emissive: 10044637, emissiveIntensity: 1, transparent: true, opacity: 0.8 })
+      );
+      tip.position.set(side * dims.radius * 1.45, 0, 0);
+      group.add(tip);
+      const strut = new Mesh(
+        new BoxGeometry(dims.radius * 0.9, 0.05, 0.08),
+        this.mats.structural
+      );
+      strut.position.set(side * dims.radius * 0.55, 0, 0);
+      group.add(strut);
+    }
+    const topRing = new Mesh(
+      new CylinderGeometry(dims.radius * 0.45, dims.radius * 0.4, 0.08, 16),
+      this.mats.dark
+    );
+    topRing.position.y = dims.height * 0.45;
+    group.add(topRing);
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.012, 0.012, 0.02, 6),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * dims.radius * 0.37, dims.height * 0.48, Math.sin(angle) * dims.radius * 0.37);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 8;
+      const seam = new Mesh(
+        new BoxGeometry(0.01, dims.height * 0.75, 0.01),
+        this.mats.dark
+      );
+      seam.position.set(Math.cos(angle) * dims.radius * 0.35, 0, Math.sin(angle) * dims.radius * 0.35);
+      seam.rotation.y = -angle;
+      group.add(seam);
+    }
+    for (let i = 0; i < 3; i++) {
+      const yOff = (i - 1) * dims.height * 0.25;
+      const pipe = new Mesh(
+        new CylinderGeometry(0.012, 0.012, dims.radius * 0.7, 6),
+        this.mats.copper
+      );
+      pipe.position.set(0, yOff, 0);
+      pipe.rotation.z = Math.PI / 2;
+      group.add(pipe);
     }
     return { group, height: dims.height, radius: dims.radius };
   }
@@ -36666,22 +40041,100 @@ var VAB3DPreview = class {
     const group = new Group();
     const dims = this.getPartDimensions(part);
     const hub = new Mesh(
-      new CylinderGeometry(0.2, 0.2, 0.3, 12),
+      new CylinderGeometry(0.15, 0.18, 0.35, 16),
       this.mats.structural
     );
     hub.castShadow = true;
     group.add(hub);
-    const panelCount = part.mass > 1e3 ? 4 : 2;
-    for (let i = 0; i < panelCount; i++) {
-      const panel = new Mesh(
-        new BoxGeometry(dims.radius * 0.9, dims.height, dims.radius * 0.05),
-        new MeshStandardMaterial({ color: 14540253, metalness: 0.3, roughness: 0.6, emissive: 4482730, emissiveIntensity: 0.15 })
+    const topCap = new Mesh(
+      new CylinderGeometry(0.12, 0.15, 0.06, 16),
+      this.mats.dark
+    );
+    topCap.position.y = 0.2;
+    group.add(topCap);
+    const botCap = new Mesh(
+      new CylinderGeometry(0.15, 0.12, 0.06, 16),
+      this.mats.dark
+    );
+    botCap.position.y = -0.2;
+    group.add(botCap);
+    for (let i = 0; i < 6; i++) {
+      const angle = i / 6 * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.01, 0.01, 0.015, 6),
+        this.mats.copper
       );
+      bolt.position.set(Math.cos(angle) * 0.09, 0.22, Math.sin(angle) * 0.09);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
+    const panelCount = part.mass > 1e3 ? 4 : 2;
+    const panelMat = new MeshStandardMaterial({ color: 14540253, metalness: 0.3, roughness: 0.6, emissive: 4482730, emissiveIntensity: 0.12 });
+    for (let i = 0; i < panelCount; i++) {
       const angle = i / panelCount * Math.PI * 2;
-      panel.position.set(Math.cos(angle) * dims.radius * 0.5, 0, Math.sin(angle) * dims.radius * 0.5);
+      const arm = new Mesh(
+        new BoxGeometry(dims.radius * 0.4, 0.04, 0.04),
+        this.mats.structural
+      );
+      arm.position.set(Math.cos(angle) * dims.radius * 0.2, 0, Math.sin(angle) * dims.radius * 0.2);
+      arm.rotation.y = -angle;
+      group.add(arm);
+      const panel = new Mesh(
+        new BoxGeometry(dims.radius * 0.9, dims.height, dims.radius * 0.04),
+        panelMat
+      );
+      panel.position.set(Math.cos(angle) * dims.radius * 0.55, 0, Math.sin(angle) * dims.radius * 0.55);
       panel.rotation.y = angle;
       panel.castShadow = true;
       group.add(panel);
+      const frameTop = new Mesh(
+        new BoxGeometry(dims.radius * 0.9, 0.03, 0.06),
+        this.mats.dark
+      );
+      frameTop.position.set(Math.cos(angle) * dims.radius * 0.55, dims.height * 0.48, Math.sin(angle) * dims.radius * 0.55);
+      frameTop.rotation.y = angle;
+      group.add(frameTop);
+      const frameBot = new Mesh(
+        new BoxGeometry(dims.radius * 0.9, 0.03, 0.06),
+        this.mats.dark
+      );
+      frameBot.position.set(Math.cos(angle) * dims.radius * 0.55, -dims.height * 0.48, Math.sin(angle) * dims.radius * 0.55);
+      frameBot.rotation.y = angle;
+      group.add(frameBot);
+      for (let h = 0; h < 3; h++) {
+        const pipeY = dims.height * (-0.25 + h * 0.25);
+        const pipe = new Mesh(
+          new BoxGeometry(dims.radius * 0.85, 8e-3, 8e-3),
+          this.mats.copper
+        );
+        pipe.position.set(Math.cos(angle) * (dims.radius * 0.55 + 0.01), pipeY, Math.sin(angle) * (dims.radius * 0.55 + 0.01));
+        pipe.rotation.y = angle;
+        group.add(pipe);
+      }
+      for (let g = 0; g < 5; g++) {
+        const gridX = dims.radius * (-0.35 + g * 0.175);
+        const fin = new Mesh(
+          new BoxGeometry(8e-3, dims.height * 0.9, 6e-3),
+          this.mats.dark
+        );
+        const localX = Math.cos(angle) * dims.radius * 0.55 + gridX * Math.cos(angle);
+        const localZ = Math.sin(angle) * dims.radius * 0.55 + gridX * Math.sin(angle);
+        fin.position.set(localX, 0, localZ);
+        fin.rotation.y = angle;
+        group.add(fin);
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const hinge = new Mesh(
+        new CylinderGeometry(0.025, 0.025, 0.06, 8),
+        this.mats.dark
+      );
+      hinge.position.set(Math.cos(angle) * dims.radius * 0.4, -dims.height * 0.35, Math.sin(angle) * dims.radius * 0.4);
+      hinge.rotation.z = Math.PI / 2;
+      hinge.rotation.y = -angle;
+      group.add(hinge);
     }
     return { group, height: dims.height, radius: dims.radius };
   }
@@ -36692,26 +40145,131 @@ var VAB3DPreview = class {
     const group = new Group();
     const dims = this.getPartDimensions(part);
     const body = new Mesh(
-      new CylinderGeometry(dims.radius, dims.radius * 0.8, dims.height * 0.6, 16),
+      new CylinderGeometry(dims.radius, dims.radius * 0.8, dims.height * 0.55, 20),
       new MeshStandardMaterial({ color: 8939076, metalness: 0.7, roughness: 0.4 })
     );
+    body.position.y = dims.height * 0.1;
     body.castShadow = true;
+    body.receiveShadow = true;
     group.add(body);
-    const drill = new Mesh(
-      new ConeGeometry(dims.radius * 0.6, dims.height * 0.4, 12),
-      new MeshStandardMaterial({ color: 11184810, metalness: 0.9, roughness: 0.2 })
+    const topFlange = new Mesh(
+      new CylinderGeometry(dims.radius * 1.02, dims.radius, 0.06, 20),
+      this.mats.dark
     );
-    drill.position.y = -dims.height * 0.5;
+    topFlange.position.y = dims.height * 0.38;
+    group.add(topFlange);
+    for (let i = 0; i < 10; i++) {
+      const angle = i / 10 * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.012, 0.012, 0.02, 6),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * dims.radius * 0.95, dims.height * 0.4, Math.sin(angle) * dims.radius * 0.95);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const seam = new Mesh(
+        new BoxGeometry(0.01, dims.height * 0.45, 0.01),
+        this.mats.dark
+      );
+      seam.position.set(Math.cos(angle) * dims.radius * 0.98, dims.height * 0.1, Math.sin(angle) * dims.radius * 0.98);
+      seam.rotation.y = -angle;
+      group.add(seam);
+    }
+    const conveyor = new Mesh(
+      new TorusGeometry(dims.radius * 0.95, 0.04, 6, 20),
+      this.mats.dark
+    );
+    conveyor.rotation.x = Math.PI / 2;
+    conveyor.position.y = dims.height * 0.15;
+    group.add(conveyor);
+    const drillHousing = new Mesh(
+      new CylinderGeometry(dims.radius * 0.8, dims.radius * 0.55, dims.height * 0.15, 16),
+      this.mats.dark
+    );
+    drillHousing.position.y = -dims.height * 0.2;
+    group.add(drillHousing);
+    const drill = new Mesh(
+      new ConeGeometry(dims.radius * 0.55, dims.height * 0.35, 16),
+      new MeshStandardMaterial({ color: 11184810, metalness: 0.95, roughness: 0.15 })
+    );
+    drill.position.y = -dims.height * 0.45;
     drill.castShadow = true;
     group.add(drill);
+    for (let i = 0; i < 3; i++) {
+      const flight = new Mesh(
+        new TorusGeometry(dims.radius * 0.4, 0.02, 6, 16),
+        this.mats.copper
+      );
+      flight.rotation.x = Math.PI / 2;
+      flight.position.y = -dims.height * 0.35 - i * dims.height * 0.08;
+      flight.scale.y = 0.3;
+      group.add(flight);
+    }
+    const drillTip = new Mesh(
+      new ConeGeometry(dims.radius * 0.12, dims.height * 0.08, 8),
+      this.mats.accent
+    );
+    drillTip.position.y = -dims.height * 0.66;
+    group.add(drillTip);
     for (let i = 0; i < 2; i++) {
+      const sx = (i === 0 ? -1 : 1) * dims.radius * 0.85;
       const tank = new Mesh(
-        new CylinderGeometry(dims.radius * 0.2, dims.radius * 0.2, dims.height * 0.5, 10),
+        new CylinderGeometry(dims.radius * 0.2, dims.radius * 0.2, dims.height * 0.5, 12),
         new MeshStandardMaterial({ color: 6702131, metalness: 0.6, roughness: 0.5 })
       );
-      tank.position.set((i === 0 ? -1 : 1) * dims.radius * 0.85, 0, 0);
+      tank.position.set(sx, dims.height * 0.05, 0);
       tank.castShadow = true;
       group.add(tank);
+      const capTop = new Mesh(
+        new CylinderGeometry(dims.radius * 0.22, dims.radius * 0.2, 0.03, 12),
+        this.mats.dark
+      );
+      capTop.position.set(sx, dims.height * 0.3, 0);
+      group.add(capTop);
+      const capBot = new Mesh(
+        new CylinderGeometry(dims.radius * 0.2, dims.radius * 0.22, 0.03, 12),
+        this.mats.dark
+      );
+      capBot.position.set(sx, -dims.height * 0.2, 0);
+      group.add(capBot);
+      const bracket = new Mesh(
+        new BoxGeometry(0.06, dims.height * 0.3, 0.08),
+        this.mats.structural
+      );
+      bracket.position.set(sx * 0.55, dims.height * 0.05, 0);
+      group.add(bracket);
+    }
+    const warnSegs = 10;
+    for (let i = 0; i < warnSegs; i++) {
+      const angle = i / warnSegs * Math.PI * 2;
+      const isYellow = i % 2 === 0;
+      const seg = new Mesh(
+        new BoxGeometry(0.06, 0.04, 0.01),
+        isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+      );
+      seg.position.set(Math.cos(angle) * (dims.radius + 0.01), dims.height * 0.25, Math.sin(angle) * (dims.radius + 0.01));
+      seg.rotation.y = -angle;
+      group.add(seg);
+    }
+    const hopper = new Mesh(
+      new CylinderGeometry(dims.radius * 0.2, dims.radius * 0.12, dims.height * 0.2, 8),
+      this.mats.metal
+    );
+    hopper.position.set(dims.radius * 0.6, -dims.height * 0.15, 0);
+    hopper.rotation.z = Math.PI / 12;
+    group.add(hopper);
+    for (let i = 0; i < 2; i++) {
+      const sign2 = i === 0 ? 1 : -1;
+      const bracket = new Mesh(
+        new BoxGeometry(0.02, 0.08, 0.04),
+        this.mats.dark
+      );
+      bracket.position.set(sign2 * dims.radius * 0.5, -dims.height * 0.3, 0);
+      group.add(bracket);
     }
     return { group, height: dims.height, radius: dims.radius };
   }
@@ -36727,19 +40285,100 @@ var VAB3DPreview = class {
     );
     dome.castShadow = true;
     group.add(dome);
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2;
+      const rib = new Mesh(
+        new TorusGeometry(dims.radius * 0.7, 0.02, 6, 16, Math.PI),
+        this.mats.dark
+      );
+      rib.rotation.z = Math.PI / 2;
+      rib.rotation.y = angle;
+      group.add(rib);
+    }
     const base = new Mesh(
       new CylinderGeometry(dims.radius, dims.radius, 0.2, 24),
       new MeshStandardMaterial({ color: 10061943, metalness: 0.6, roughness: 0.4 })
     );
     base.castShadow = true;
     group.add(base);
+    const baseFlange = new Mesh(
+      new CylinderGeometry(dims.radius * 1.05, dims.radius * 1, 0.06, 24),
+      this.mats.dark
+    );
+    baseFlange.position.y = -0.13;
+    group.add(baseFlange);
+    for (let i = 0; i < 12; i++) {
+      const angle = i / 12 * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.012, 0.012, 0.02, 6),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * dims.radius * 0.98, -0.13, Math.sin(angle) * dims.radius * 0.98);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
     const windowMat = new MeshStandardMaterial({ color: 16768392, emissive: 16755268, emissiveIntensity: 0.5 });
-    for (let i = 0; i < 6; i++) {
-      const win = new Mesh(new CircleGeometry(0.08, 8), windowMat);
-      const angle = i / 6 * Math.PI * 2;
-      win.position.set(Math.cos(angle) * dims.radius * 0.9, 0.3, Math.sin(angle) * dims.radius * 0.9);
-      win.lookAt(Math.cos(angle) * 5, 0.3, Math.sin(angle) * 5);
+    const winCount = 8;
+    for (let i = 0; i < winCount; i++) {
+      const angle = i / winCount * Math.PI * 2;
+      const frame2 = new Mesh(
+        new TorusGeometry(0.05, 0.01, 6, 12),
+        this.mats.dark
+      );
+      frame2.position.set(Math.cos(angle) * dims.radius * 0.92, 0.05, Math.sin(angle) * dims.radius * 0.92);
+      frame2.lookAt(Math.cos(angle) * 5, 0.05, Math.sin(angle) * 5);
+      group.add(frame2);
+      const win = new Mesh(new CircleGeometry(0.04, 12), windowMat);
+      win.position.set(Math.cos(angle) * dims.radius * 0.92, 0.05, Math.sin(angle) * dims.radius * 0.92);
+      win.lookAt(Math.cos(angle) * 5, 0.05, Math.sin(angle) * 5);
       group.add(win);
+    }
+    const antenna = new Mesh(
+      new CylinderGeometry(0.015, 0.015, 0.3, 6),
+      this.mats.antenna
+    );
+    antenna.position.y = dims.radius + 0.15;
+    group.add(antenna);
+    const antennaTip = new Mesh(
+      new SphereGeometry(0.03, 8, 6),
+      this.mats.accent
+    );
+    antennaTip.position.y = dims.radius + 0.3;
+    group.add(antennaTip);
+    const airlock = new Mesh(
+      new BoxGeometry(0.15, 0.25, 0.02),
+      this.mats.dark
+    );
+    airlock.position.set(dims.radius * 0.95, 0, 0);
+    group.add(airlock);
+    const handle = new Mesh(
+      new TorusGeometry(0.03, 8e-3, 6, 12),
+      this.mats.copper
+    );
+    handle.position.set(dims.radius * 0.97, 0, 0);
+    handle.rotation.y = Math.PI / 2;
+    group.add(handle);
+    for (let i = 0; i < 6; i++) {
+      const angle = i / 6 * Math.PI * 2;
+      const rib = new Mesh(
+        new CylinderGeometry(8e-3, 8e-3, dims.radius * 0.9, 4),
+        this.mats.dark
+      );
+      rib.position.set(Math.cos(angle) * dims.radius * 0.45, 0, Math.sin(angle) * dims.radius * 0.45);
+      rib.rotation.z = Math.cos(angle) * 0.3;
+      rib.rotation.x = Math.sin(angle) * 0.3;
+      group.add(rib);
+    }
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * Math.PI * 2 + Math.PI / 8;
+      const porthole = new Mesh(
+        new CircleGeometry(0.03, 8),
+        new MeshStandardMaterial({ color: 4491434, emissive: 2245734, emissiveIntensity: 0.3, metalness: 0.5, roughness: 0.2 })
+      );
+      porthole.position.set(Math.cos(angle) * dims.radius * 0.99, -dims.radius * 0.3, Math.sin(angle) * dims.radius * 0.99);
+      porthole.rotation.y = -angle + Math.PI / 2;
+      group.add(porthole);
     }
     return { group, height: dims.height, radius: dims.radius };
   }
@@ -36750,70 +40389,264 @@ var VAB3DPreview = class {
     const group = new Group();
     const dims = this.getPartDimensions(part);
     const isEngine = part.thrust > 0;
+    const cage = new Mesh(
+      new CylinderGeometry(dims.radius, dims.radius, dims.height * 0.8, 16, 1, true),
+      new MeshStandardMaterial({ color: 4478310, metalness: 0.85, roughness: 0.25, side: DoubleSide })
+    );
+    cage.castShadow = true;
+    group.add(cage);
     const vessel = new Mesh(
-      new SphereGeometry(dims.radius * 0.7, 20, 16),
+      new SphereGeometry(dims.radius * 0.65, 24, 16),
       new MeshStandardMaterial({ color: 2236996, metalness: 0.9, roughness: 0.1 })
     );
     vessel.castShadow = true;
     group.add(vessel);
-    for (let i = 0; i < 3; i++) {
-      const ring = new Mesh(
-        new TorusGeometry(dims.radius * 0.75, 0.04, 8, 32),
-        new MeshStandardMaterial({ color: 4500223, emissive: 2254540, emissiveIntensity: 0.6, metalness: 0.8 })
-      );
-      ring.position.y = (i - 1) * dims.height * 0.2;
-      group.add(ring);
-    }
-    if (isEngine) {
-      const nozzle = new Mesh(
-        new ConeGeometry(dims.radius * 0.5, dims.height * 0.4, 12),
-        new MeshStandardMaterial({ color: 3359829, metalness: 0.9, roughness: 0.2 })
-      );
-      nozzle.position.y = -dims.height * 0.5;
-      nozzle.castShadow = true;
-      group.add(nozzle);
-    }
     const glow = new Mesh(
-      new SphereGeometry(dims.radius * 0.3, 12, 8),
+      new SphereGeometry(dims.radius * 0.28, 16, 12),
       new MeshStandardMaterial({ color: 16729343, emissive: 13378252, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 })
     );
     group.add(glow);
+    for (let i = 0; i < 3; i++) {
+      const ring = new Mesh(
+        new TorusGeometry(dims.radius * 0.72, 0.04, 8, 32),
+        new MeshStandardMaterial({ color: 4500223, emissive: 2254540, emissiveIntensity: 0.6, metalness: 0.8 })
+      );
+      if (i === 0) ring.rotation.x = Math.PI / 2;
+      if (i === 1) ring.rotation.y = Math.PI / 2;
+      ring.position.y = (i - 1) * dims.height * 0.15;
+      group.add(ring);
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const strut = new Mesh(
+        new BoxGeometry(0.03, dims.height * 0.85, 0.03),
+        this.mats.structural
+      );
+      strut.position.set(Math.cos(angle) * dims.radius * 1.02, 0, Math.sin(angle) * dims.radius * 1.02);
+      strut.rotation.y = -angle;
+      group.add(strut);
+    }
+    const topPlate = new Mesh(
+      new CylinderGeometry(dims.radius * 1.02, dims.radius, 0.08, 16),
+      this.mats.dark
+    );
+    topPlate.position.y = dims.height * 0.44;
+    group.add(topPlate);
+    for (let i = 0; i < 10; i++) {
+      const angle = i / 10 * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.012, 0.012, 0.02, 6),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * dims.radius * 0.92, dims.height * 0.47, Math.sin(angle) * dims.radius * 0.92);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
+    const botPlate = new Mesh(
+      new CylinderGeometry(dims.radius, dims.radius * 1.02, 0.08, 16),
+      this.mats.dark
+    );
+    botPlate.position.y = -dims.height * 0.44;
+    group.add(botPlate);
+    if (isEngine) {
+      const nozzlePts = [];
+      for (let i = 0; i <= 10; i++) {
+        const t = i / 10;
+        const y = -dims.height * 0.48 - t * dims.height * 0.15;
+        const r = dims.radius * 0.3 + (dims.radius * 0.6 - dims.radius * 0.3) * Math.pow(t, 0.5);
+        nozzlePts.push(new Vector2(Math.max(0.01, r), y));
+      }
+      const nozzle2 = new Mesh(
+        new LatheGeometry(nozzlePts, 24),
+        new MeshStandardMaterial({ color: 3359829, metalness: 0.9, roughness: 0.2 })
+      );
+      nozzle2.castShadow = true;
+      group.add(nozzle2);
+      const engineGlow = new Mesh(
+        new CylinderGeometry(dims.radius * 0.25, dims.radius * 0.25, 0.08, 12),
+        new MeshStandardMaterial({ color: 16729343, emissive: 13378252, emissiveIntensity: 1.2, transparent: true, opacity: 0.8 })
+      );
+      engineGlow.position.y = -dims.height * 0.7;
+      group.add(engineGlow);
+      const trail = new Mesh(
+        new ConeGeometry(dims.radius * 0.22, dims.height * 0.1, 12),
+        new MeshStandardMaterial({ color: 16738047, emissive: 13382604, emissiveIntensity: 1, transparent: true, opacity: 0.5 })
+      );
+      trail.position.y = -dims.height * 0.78;
+      group.add(trail);
+    }
+    const warnSegs = 8;
+    for (let i = 0; i < warnSegs; i++) {
+      const angle = i / warnSegs * Math.PI * 2;
+      const isMag = i % 2 === 0;
+      const seg = new Mesh(
+        new BoxGeometry(0.05, 0.04, 0.01),
+        isMag ? new MeshStandardMaterial({ color: 16720486, roughness: 0.4, metalness: 0.3, emissive: 11145523, emissiveIntensity: 0.3 }) : this.mats.dark
+      );
+      seg.position.set(Math.cos(angle) * (dims.radius + 0.02), dims.height * 0.3, Math.sin(angle) * (dims.radius + 0.02));
+      seg.rotation.y = -angle;
+      group.add(seg);
+    }
+    const confRing = new Mesh(
+      new TorusGeometry(dims.radius * 0.5, 0.03, 8, 24),
+      new MeshStandardMaterial({ color: 6719743, emissive: 3359914, emissiveIntensity: 0.5, metalness: 0.7, roughness: 0.3 })
+    );
+    confRing.position.y = dims.height * 0.1;
+    confRing.rotation.x = Math.PI / 2;
+    group.add(confRing);
+    const confRing2 = new Mesh(
+      new TorusGeometry(dims.radius * 0.45, 0.025, 6, 20),
+      new MeshStandardMaterial({ color: 8956671, emissive: 4482764, emissiveIntensity: 0.4, metalness: 0.7, roughness: 0.3 })
+    );
+    confRing2.position.y = dims.height * 0.1;
+    group.add(confRing2);
     return { group, height: dims.height, radius: dims.radius };
   }
-  // ============================================
-  // KSPIE 扩展零件 - 等离子引擎
-  // ============================================
   createPlasmaPart(part) {
     const group = new Group();
     const dims = this.getPartDimensions(part);
     const body = new Mesh(
-      new CylinderGeometry(dims.radius * 0.9, dims.radius * 0.7, dims.height * 0.7, 20),
+      new CylinderGeometry(dims.radius * 0.9, dims.radius * 0.65, dims.height * 0.55, 24),
       new MeshStandardMaterial({ color: 3368601, metalness: 0.9, roughness: 0.15 })
     );
+    body.position.y = dims.height * 0.15;
     body.castShadow = true;
+    body.receiveShadow = true;
     group.add(body);
+    const topRing = new Mesh(
+      new CylinderGeometry(dims.radius * 0.92, dims.radius * 0.9, 0.08, 24),
+      this.mats.dark
+    );
+    topRing.position.y = dims.height * 0.42;
+    group.add(topRing);
+    for (let i = 0; i < 10; i++) {
+      const angle = i / 10 * Math.PI * 2;
+      const bolt = new Mesh(
+        new CylinderGeometry(0.012, 0.012, 0.02, 6),
+        this.mats.copper
+      );
+      bolt.position.set(Math.cos(angle) * dims.radius * 0.82, dims.height * 0.45, Math.sin(angle) * dims.radius * 0.82);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.rotation.y = -angle;
+      group.add(bolt);
+    }
+    const gimbal = new Mesh(
+      new TorusGeometry(dims.radius * 0.8, 0.04, 8, 24),
+      this.mats.accent
+    );
+    gimbal.rotation.x = Math.PI / 2;
+    gimbal.position.y = dims.height * 0.35;
+    group.add(gimbal);
     const chamber = new Mesh(
-      new SphereGeometry(dims.radius * 0.45, 16, 12),
+      new SphereGeometry(dims.radius * 0.42, 16, 12),
       new MeshStandardMaterial({ color: 43775, emissive: 26367, emissiveIntensity: 1.2, transparent: true, opacity: 0.6 })
     );
-    chamber.position.y = dims.height * 0.1;
+    chamber.position.y = dims.height * 0.08;
     group.add(chamber);
-    const nozzle = new Mesh(
-      new CylinderGeometry(dims.radius * 0.5, dims.radius * 0.8, dims.height * 0.3, 16),
+    const chamberRing = new Mesh(
+      new TorusGeometry(dims.radius * 0.55, 0.05, 8, 24),
+      this.mats.copper
+    );
+    chamberRing.rotation.x = Math.PI / 2;
+    chamberRing.position.y = dims.height * 0.08;
+    group.add(chamberRing);
+    for (let i = 0; i < 3; i++) {
+      const coil = new Mesh(
+        new TorusGeometry(dims.radius * 0.6 - i * 0.05, 0.03, 6, 20),
+        new MeshStandardMaterial({ color: 4491468, emissive: 2245768, emissiveIntensity: 0.4, metalness: 0.8 })
+      );
+      coil.rotation.x = Math.PI / 2;
+      coil.position.y = dims.height * 0.05 - i * dims.height * 0.06;
+      group.add(coil);
+    }
+    const nozzlePts = [];
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6;
+      const y = -dims.height * 0.15 - t * dims.height * 0.08;
+      const r = dims.radius * 0.55 + (dims.radius * 0.25 - dims.radius * 0.55) * (1 - Math.cos(t * Math.PI)) / 2;
+      nozzlePts.push(new Vector2(Math.max(0.01, r), y));
+    }
+    for (let i = 1; i <= 8; i++) {
+      const t = i / 8;
+      const y = -dims.height * 0.23 - t * dims.height * 0.2;
+      const r = dims.radius * 0.25 + (dims.radius * 0.6 - dims.radius * 0.25) * Math.pow(t, 0.6);
+      nozzlePts.push(new Vector2(Math.max(0.01, r), y));
+    }
+    const nozzle2 = new Mesh(
+      new LatheGeometry(nozzlePts, 24),
       new MeshStandardMaterial({ color: 2245734, metalness: 0.9, roughness: 0.2 })
     );
-    nozzle.position.y = -dims.height * 0.5;
-    nozzle.castShadow = true;
-    group.add(nozzle);
+    nozzle2.castShadow = true;
+    group.add(nozzle2);
+    for (let i = 0; i < 3; i++) {
+      const ring = new Mesh(
+        new TorusGeometry(dims.radius * (0.3 + i * 0.08), 0.015, 6, 16),
+        this.mats.dark
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = -dims.height * (0.25 + i * 0.05);
+      group.add(ring);
+    }
+    const exhaustGlow = new Mesh(
+      new CylinderGeometry(dims.radius * 0.35, dims.radius * 0.35, 0.08, 12),
+      new MeshStandardMaterial({ color: 4508927, emissive: 39423, emissiveIntensity: 1.5, transparent: true, opacity: 0.8 })
+    );
+    exhaustGlow.position.y = -dims.height * 0.45;
+    group.add(exhaustGlow);
     const trail = new Mesh(
-      new ConeGeometry(dims.radius * 0.5, dims.height * 0.2, 12),
+      new ConeGeometry(dims.radius * 0.4, dims.height * 0.2, 12),
       new MeshStandardMaterial({ color: 4508927, emissive: 39423, emissiveIntensity: 1.5, transparent: true, opacity: 0.5 })
     );
-    trail.position.y = -dims.height * 0.75;
+    trail.position.y = -dims.height * 0.55;
     group.add(trail);
+    for (let i = 0; i < 6; i++) {
+      const angle = i / 6 * Math.PI * 2;
+      const seam = new Mesh(
+        new BoxGeometry(0.01, dims.height * 0.45, 0.01),
+        this.mats.dark
+      );
+      seam.position.set(Math.cos(angle) * dims.radius * 0.88, dims.height * 0.15, Math.sin(angle) * dims.radius * 0.88);
+      seam.rotation.y = -angle;
+      group.add(seam);
+    }
+    const conduit = new Mesh(
+      new CylinderGeometry(0.025, 0.025, dims.height * 0.35, 8),
+      this.mats.copper
+    );
+    conduit.position.set(dims.radius * 0.85, dims.height * 0.25, 0);
+    conduit.rotation.z = Math.PI / 10;
+    group.add(conduit);
+    const warnSegs = 8;
+    for (let i = 0; i < warnSegs; i++) {
+      const angle = i / warnSegs * Math.PI * 2;
+      const isYellow = i % 2 === 0;
+      const seg = new Mesh(
+        new BoxGeometry(0.05, 0.03, 0.01),
+        isYellow ? new MeshStandardMaterial({ color: 14535680, roughness: 0.4, metalness: 0.3 }) : this.mats.dark
+      );
+      seg.position.set(Math.cos(angle) * (dims.radius * 0.9 + 0.01), dims.height * 0.3, Math.sin(angle) * (dims.radius * 0.9 + 0.01));
+      seg.rotation.y = -angle;
+      group.add(seg);
+    }
+    for (let i = 0; i < 3; i++) {
+      const yOff = -dims.height * 0.1 - i * dims.height * 0.12;
+      const coil = new Mesh(
+        new TorusGeometry(dims.radius * 0.35 + i * 0.02, 0.015, 6, 16),
+        new MeshStandardMaterial({ color: 6702250, emissive: 4465288, emissiveIntensity: 0.4, metalness: 0.6, roughness: 0.3 })
+      );
+      coil.position.y = yOff;
+      coil.rotation.x = Math.PI / 2;
+      group.add(coil);
+    }
+    const trailWisp = new Mesh(
+      new ConeGeometry(dims.radius * 0.15, dims.height * 0.15, 8),
+      new MeshStandardMaterial({ color: 11167487, emissive: 8930508, emissiveIntensity: 0.6, transparent: true, opacity: 0.3 })
+    );
+    trailWisp.position.y = -dims.height * 0.55;
+    group.add(trailWisp);
     return { group, height: dims.height, radius: dims.radius };
   }
-  // ============================================
   // KSP 式建造系统 - 核心方法
   // ============================================
   // 放置零件 (核心方法)
