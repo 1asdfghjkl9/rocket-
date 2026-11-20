@@ -23210,7 +23210,6 @@ var WARP_FUEL_PER_SEC = 0.5;
 var WARP_UNLOCK_COST = 1e3;
 var CHUNK_SIZE_LY = 5;
 var CHUNK_SIZE_M = CHUNK_SIZE_LY * LY;
-var MAX_LOADED_CHUNKS = 1e3;
 var STARS_PER_CHUNK_MIN = 3;
 var STARS_PER_CHUNK_MAX = 200;
 var GALACTIC_RADIUS_LY = 5e4;
@@ -30826,7 +30825,8 @@ var Rocket = class _Rocket {
       }];
     }
     this.initResources(parts);
-    this.initEngines(parts);
+    this.initPartStates(parts);
+    this.rebuildActiveEngines();
   }
   static {
     // ── Rotation tuning (KSP-style) ──────────────────────────────────
@@ -31010,8 +31010,17 @@ var Rocket = class _Rocket {
       });
       if (maxGimbal > this.maxThrustVectorAngle) this.maxThrustVectorAngle = maxGimbal;
     }
+  }
+  /**
+   * Initialise per-part heat state, parachutes, and landing gear from all
+   * parts. Called once during construction; NOT called on staging (staged
+   * parts become debris and are removed from the vessel).
+   */
+  initPartStates(parts) {
     this.partHeat.clear();
     this.parachutes = [];
+    this.landingGear = [];
+    if (!parts) return;
     for (const p of parts) {
       let maxTemp = 1200;
       if (p.type === "command") maxTemp = 1500;
@@ -31844,6 +31853,39 @@ var GameUI = class {
       cargo: false,
       abort: false
     };
+    // 警报系统
+    this.activeAlerts = /* @__PURE__ */ new Map();
+    // 任务追踪
+    this.missions = [
+      { id: "first_flight", title: "\u9996\u6B21\u98DE\u884C", objective: "\u8FBE\u5230 10km \u9AD8\u5EA6", reward: 10, progress: 0 },
+      { id: "first_orbit", title: "\u9996\u6B21\u5165\u8F68", objective: "\u8FBE\u5230 100km \u9AD8\u5EA6", reward: 25, progress: 0 },
+      { id: "mun_flyby", title: "Mun \u98DE\u8D8A", objective: "\u98DE\u8D8A Mun", reward: 50, progress: 0 },
+      { id: "mun_landing", title: "Mun \u7740\u9646", objective: "\u5728 Mun \u4E0A\u7740\u9646", reward: 100, progress: 0 },
+      { id: "science_1", title: "\u79D1\u5B66\u7814\u7A76 I", objective: "\u6536\u96C6 50 \u79D1\u5B66\u70B9", reward: 20, progress: 0 }
+    ];
+    // 乘员
+    this.crew = [];
+    // 相机模式
+    this.cameraModes = [
+      { key: "follow", label: "\u8DDF\u968F", icon: "\u{1F680}" },
+      { key: "map", label: "\u5730\u56FE", icon: "\u{1F5FA}\uFE0F" },
+      { key: "free", label: "\u81EA\u7531", icon: "\u{1F3A5}" }
+    ];
+    this.cameraMode = "follow";
+    // 时间加速控制状态
+    this.warpMode = "physical";
+    this.warpLimited = false;
+    this.warpLimitReason = "";
+    // 飞行器信息
+    this.vesselInfo = { name: "", partCount: 0, crewCount: 0 };
+    // 科研实验
+    this.experiments = [
+      { id: "crew_report", name: "\u4E58\u5458\u62A5\u544A", points: 5, done: false },
+      { id: "eva_report", name: "\u8231\u5916\u6D3B\u52A8\u62A5\u544A", points: 10, done: false },
+      { id: "surface_sample", name: "\u8868\u9762\u91C7\u6837", points: 15, done: false },
+      { id: "atmo_measure", name: "\u5927\u6C14\u6D4B\u91CF", points: 8, done: false },
+      { id: "gravity_scan", name: "\u91CD\u529B\u626B\u63CF", points: 12, done: false }
+    ];
     this.game = game;
     this.container = document.getElementById("hud-container") || document.createElement("div");
     this.container.id = "hud-container";
@@ -32489,7 +32531,7 @@ var GameUI = class {
     const incDeg = (orbit.inclination * 180 / Math.PI).toFixed(2);
     const ecc = orbit.eccentricity.toFixed(4);
     const smaKm = (orbit.semiMajorAxis / 1e3).toFixed(1);
-    const n = orbit.meanMotion;
+    const n = orbit.orbitalPeriod > 0 ? 2 * Math.PI / orbit.orbitalPeriod : 0;
     const period = n > 0 ? 2 * Math.PI / n : 0;
     const phase = period > 0 ? gameTime % period : 0;
     const timeToAp = period > 0 ? (Math.PI - phase + period) % period : 0;
@@ -33360,13 +33402,11 @@ var StarChunkManager = class {
         }
       }
     }
-    if (this.chunks.size > MAX_LOADED_CHUNKS) {
-      for (const [key, chunk] of this.chunks) {
-        if (!needed.has(key)) {
-          if (chunk.points) this.scene.remove(chunk.points);
-          chunk.dispose();
-          this.chunks.delete(key);
-        }
+    for (const [key, chunk] of this.chunks) {
+      if (!needed.has(key)) {
+        if (chunk.points) this.scene.remove(chunk.points);
+        chunk.dispose();
+        this.chunks.delete(key);
       }
     }
   }
@@ -33730,6 +33770,7 @@ var Game = class {
   showSpaceCenter() {
     this.gameState = "spacecenter";
     this.hud.hide();
+    this.hudVisible = false;
   }
   update(dt) {
     this.updateGame(dt);
@@ -33743,6 +33784,7 @@ var Game = class {
     this.updateHUD();
   }
   animate() {
+    if (this.isRunning && this.animationId) return;
     this.gameLoop();
   }
   onKeyDown(e) {
@@ -33768,7 +33810,7 @@ var Game = class {
     this.cleanupTrisolarisSystem();
     this.starChunkManager?.dispose();
     this.scene.traverse((obj) => {
-      if (obj instanceof Mesh) {
+      if (obj instanceof Mesh || obj instanceof Line || obj instanceof Points) {
         obj.geometry?.dispose();
         const mat = obj.material;
         if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
@@ -34238,8 +34280,9 @@ var Game = class {
     }
   }
   toggleMapView() {
-    if (this.gameState === "map") {
+    if (this.gameState === "map" || this.cameraMode === "map") {
       this.gameState = "flight";
+      if (this.cameraMode === "map") this.cameraMode = "auto";
       this.hud.showNotification("\u98DE\u884C\u89C6\u56FE");
     } else {
       this.gameState = "map";
@@ -34476,11 +34519,22 @@ var Game = class {
       const mesh = this.bodyMeshes.get(name);
       if (mesh) {
         this.scene.remove(mesh);
+        mesh.geometry?.dispose();
+        const mat = mesh.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else if (mat) mat.dispose();
         this.bodyMeshes.delete(name);
       }
       const glow = this.bodyGlows.get(name);
       if (glow) {
         this.scene.remove(glow);
+        glow.traverse((obj) => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+            else obj.material.dispose();
+          }
+        });
         this.bodyGlows.delete(name);
       }
     }
@@ -35133,6 +35187,7 @@ ${ach.description}`, 8e3);
       this.rocket.rcsEnabled = state.rcsEnabled;
       this.rocket.lightsOn = state.lightsOn;
       this.rocket.skinTemperature = state.skinTemperature || 300;
+      this.rocketThermal.temperature = this.rocket.skinTemperature;
       this.unlockedAchievements = new Set(state.achievements || []);
       this.hud.showNotification("\u2705 \u5FEB\u901F\u8BFB\u53D6\u6210\u529F", 2e3);
     } catch (e) {
@@ -35322,6 +35377,9 @@ ${ach.description}`, 8e3);
       if (this.warpDrive.isActive) {
         const pos = this.warpDrive.getCurrentPosition();
         this.rocket.body.position.copy(pos);
+        this.rocket.body.velocity.set(0, 0, 0);
+      } else if (arrived) {
+        this.rocket.body.position.copy(this.warpDrive.endPos);
         this.rocket.body.velocity.set(0, 0, 0);
       }
       if (arrived) {
@@ -40257,7 +40315,7 @@ var VAB3DPreview = class {
     }
     const hopper = new Mesh(
       new CylinderGeometry(dims.radius * 0.2, dims.radius * 0.12, dims.height * 0.2, 8),
-      this.mats.metal
+      this.mats.structural
     );
     hopper.position.set(dims.radius * 0.6, -dims.height * 0.15, 0);
     hopper.rotation.z = Math.PI / 12;
@@ -41124,6 +41182,7 @@ var VAB3DPreview = class {
       this.disposeObject3D(p.mesh);
     }
     this.placedParts = [];
+    const placedWithData = [];
     for (const item of data) {
       const part = ROCKET_PARTS.find((p) => p.id === item.partId);
       if (!part) continue;
@@ -41148,19 +41207,22 @@ var VAB3DPreview = class {
         radius
       };
       this.placedParts.push(placed);
+      placedWithData.push({ placed, symmetryCount: item.symmetryCount });
     }
-    const radialParts = this.placedParts.filter((p) => !p.isStack);
-    const yGroups = /* @__PURE__ */ new Map();
-    for (const p of radialParts) {
-      const key = Math.round(p.position.y * 100);
-      if (!yGroups.has(key)) yGroups.set(key, []);
-      yGroups.get(key).push(p);
-    }
-    for (const group of yGroups.values()) {
-      if (group.length > 1) {
-        for (const p of group) {
-          p.symmetryParts = group.filter((other) => other !== p);
+    let idx = 0;
+    while (idx < placedWithData.length) {
+      const sc = placedWithData[idx].symmetryCount;
+      if (sc > 0) {
+        const groupSize = sc + 1;
+        const groupParts = placedWithData.slice(idx, idx + groupSize).map((d) => d.placed);
+        if (groupParts.length === groupSize) {
+          for (const p of groupParts) {
+            p.symmetryParts = groupParts.filter((other) => other !== p);
+          }
         }
+        idx += groupSize;
+      } else {
+        idx++;
       }
     }
     this.adjustCamera();
@@ -41320,79 +41382,6 @@ var VAB3DPreview = class {
       }
     });
   }
-  // Add extra building details that complement the base createSpaceCenterScene()
-  augmentSpaceCenter() {
-    const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.7 });
-    const darkMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
-    const glassMat = new MeshStandardMaterial({ color: 4491519, emissive: 2245734, roughness: 0.2, metalness: 0.8 });
-    const whiteMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.5, metalness: 0.3 });
-    for (let i = 0; i < 3; i++) {
-      const duct = new Mesh(new CylinderGeometry(0.4, 0.4, 0.8, 10), metalMat);
-      duct.position.set(-17 + i * 2, 10.8, 5);
-      this.centerGroup.add(duct);
-    }
-    for (let i = 0; i < 4; i++) {
-      const win = new Mesh(new BoxGeometry(0.1, 0.6, 0.8), glassMat);
-      win.position.set(-21.1, 3 + i * 1.5, 5);
-      this.centerGroup.add(win);
-    }
-    const vabAnt2 = new Mesh(new CylinderGeometry(0.03, 0.04, 1.5, 6), metalMat);
-    vabAnt2.position.set(-13, 12.5, 5);
-    this.centerGroup.add(vabAnt2);
-    const vabAnt2Ball = new Mesh(new SphereGeometry(0.08, 8, 6), darkMat);
-    vabAnt2Ball.position.set(-13, 13.3, 5);
-    this.centerGroup.add(vabAnt2Ball);
-    const gantryArm = new Mesh(new BoxGeometry(2, 0.15, 0.3), metalMat);
-    gantryArm.position.set(15, 9, 5);
-    this.centerGroup.add(gantryArm);
-    for (const yLevel of [3, 7, 10]) {
-      for (let i = 0; i < 4; i++) {
-        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-        const angle2 = (i + 1) / 4 * Math.PI * 2 + Math.PI / 4;
-        const len = 2 * Math.sqrt(2 - 2 * Math.cos(Math.PI / 2));
-        const brace = new Mesh(new CylinderGeometry(0.03, 0.03, Math.max(0.1, len), 5), metalMat);
-        const mx = 15 + Math.cos((angle + angle2) / 2) * 2;
-        const mz = 5 + Math.sin((angle + angle2) / 2) * 2;
-        brace.position.set(mx, yLevel, mz);
-        brace.lookAt(15, yLevel, 5);
-        brace.rotation.x = Math.PI / 2;
-        this.centerGroup.add(brace);
-      }
-    }
-    for (let i = 0; i < 4; i++) {
-      const angle = i / 4 * Math.PI * 2;
-      const clamp2 = new Mesh(new BoxGeometry(0.3, 0.4, 0.3), darkMat);
-      clamp2.position.set(15 + Math.cos(angle) * 1.2, 0.7, 5 + Math.sin(angle) * 1.2);
-      this.centerGroup.add(clamp2);
-    }
-    const dish2Pole = new Mesh(new CylinderGeometry(0.05, 0.05, 2.5, 8), metalMat);
-    dish2Pole.position.set(-23, 4.25, -13);
-    this.centerGroup.add(dish2Pole);
-    const dish2Geo = new SphereGeometry(0.8, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-    const dish2 = new Mesh(dish2Geo, new MeshStandardMaterial({ color: 14540270, roughness: 0.3, metalness: 0.6, side: DoubleSide }));
-    dish2.position.set(-23, 5.5, -13);
-    dish2.rotation.x = -0.7;
-    dish2.rotation.y = 0.5;
-    this.centerGroup.add(dish2);
-    const feed2 = new Mesh(new ConeGeometry(0.05, 0.15, 8), darkMat);
-    feed2.position.set(-23, 5.9, -13);
-    feed2.rotation.x = -0.7;
-    this.centerGroup.add(feed2);
-    for (const zEnd of [-38, 0]) {
-      for (let i = 0; i < 6; i++) {
-        const stripe = new Mesh(new BoxGeometry(0.3, 0.02, 1.5), whiteMat);
-        stripe.position.set(-1.5 + i * 0.6, 0.11, zEnd + (zEnd < 0 ? 1 : -1));
-        this.centerGroup.add(stripe);
-      }
-    }
-    for (const xOff of [-1.9, 1.9]) {
-      for (let i = 0; i < 20; i++) {
-        const edge = new Mesh(new BoxGeometry(0.1, 0.02, 1.8), whiteMat);
-        edge.position.set(xOff, 0.11, -38 + i * 2 + 1);
-        this.centerGroup.add(edge);
-      }
-    }
-  }
   dispose() {
     this.disposed = true;
     if (this.animationId) cancelAnimationFrame(this.animationId);
@@ -41529,6 +41518,79 @@ var SpaceCenter3DScene = class {
     };
     window.addEventListener("resize", this.onResize);
     this.animate();
+  }
+  // Add extra building details that complement the base createSpaceCenterScene()
+  augmentSpaceCenter() {
+    const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.7 });
+    const darkMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
+    const glassMat = new MeshStandardMaterial({ color: 4491519, emissive: 2245734, roughness: 0.2, metalness: 0.8 });
+    const whiteMat = new MeshStandardMaterial({ color: 15658734, roughness: 0.5, metalness: 0.3 });
+    for (let i = 0; i < 3; i++) {
+      const duct = new Mesh(new CylinderGeometry(0.4, 0.4, 0.8, 10), metalMat);
+      duct.position.set(-17 + i * 2, 10.8, 5);
+      this.centerGroup.add(duct);
+    }
+    for (let i = 0; i < 4; i++) {
+      const win = new Mesh(new BoxGeometry(0.1, 0.6, 0.8), glassMat);
+      win.position.set(-21.1, 3 + i * 1.5, 5);
+      this.centerGroup.add(win);
+    }
+    const vabAnt2 = new Mesh(new CylinderGeometry(0.03, 0.04, 1.5, 6), metalMat);
+    vabAnt2.position.set(-13, 12.5, 5);
+    this.centerGroup.add(vabAnt2);
+    const vabAnt2Ball = new Mesh(new SphereGeometry(0.08, 8, 6), darkMat);
+    vabAnt2Ball.position.set(-13, 13.3, 5);
+    this.centerGroup.add(vabAnt2Ball);
+    const gantryArm = new Mesh(new BoxGeometry(2, 0.15, 0.3), metalMat);
+    gantryArm.position.set(15, 9, 5);
+    this.centerGroup.add(gantryArm);
+    for (const yLevel of [3, 7, 10]) {
+      for (let i = 0; i < 4; i++) {
+        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+        const angle2 = (i + 1) / 4 * Math.PI * 2 + Math.PI / 4;
+        const len = 2 * Math.sqrt(2 - 2 * Math.cos(Math.PI / 2));
+        const brace = new Mesh(new CylinderGeometry(0.03, 0.03, Math.max(0.1, len), 5), metalMat);
+        const mx = 15 + Math.cos((angle + angle2) / 2) * 2;
+        const mz = 5 + Math.sin((angle + angle2) / 2) * 2;
+        brace.position.set(mx, yLevel, mz);
+        brace.lookAt(15, yLevel, 5);
+        brace.rotation.x = Math.PI / 2;
+        this.centerGroup.add(brace);
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      const angle = i / 4 * Math.PI * 2;
+      const clamp2 = new Mesh(new BoxGeometry(0.3, 0.4, 0.3), darkMat);
+      clamp2.position.set(15 + Math.cos(angle) * 1.2, 0.7, 5 + Math.sin(angle) * 1.2);
+      this.centerGroup.add(clamp2);
+    }
+    const dish2Pole = new Mesh(new CylinderGeometry(0.05, 0.05, 2.5, 8), metalMat);
+    dish2Pole.position.set(-23, 4.25, -13);
+    this.centerGroup.add(dish2Pole);
+    const dish2Geo = new SphereGeometry(0.8, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+    const dish2 = new Mesh(dish2Geo, new MeshStandardMaterial({ color: 14540270, roughness: 0.3, metalness: 0.6, side: DoubleSide }));
+    dish2.position.set(-23, 5.5, -13);
+    dish2.rotation.x = -0.7;
+    dish2.rotation.y = 0.5;
+    this.centerGroup.add(dish2);
+    const feed2 = new Mesh(new ConeGeometry(0.05, 0.15, 8), darkMat);
+    feed2.position.set(-23, 5.9, -13);
+    feed2.rotation.x = -0.7;
+    this.centerGroup.add(feed2);
+    for (const zEnd of [-38, 0]) {
+      for (let i = 0; i < 6; i++) {
+        const stripe = new Mesh(new BoxGeometry(0.3, 0.02, 1.5), whiteMat);
+        stripe.position.set(-1.5 + i * 0.6, 0.11, zEnd + (zEnd < 0 ? 1 : -1));
+        this.centerGroup.add(stripe);
+      }
+    }
+    for (const xOff of [-1.9, 1.9]) {
+      for (let i = 0; i < 20; i++) {
+        const edge = new Mesh(new BoxGeometry(0.1, 0.02, 1.8), whiteMat);
+        edge.position.set(xOff, 0.11, -38 + i * 2 + 1);
+        this.centerGroup.add(edge);
+      }
+    }
   }
   dispose() {
     this.disposed = true;
@@ -42095,7 +42157,7 @@ var SpaceCenter = class {
     });
     angleBtn.addEventListener("click", () => {
       const angles = [5, 15, 22.5, 45, 90];
-      const cur = this.vabPreview ? this.vabPreview.angleSnap : 15;
+      const cur = this.vabPreview ? this.vabPreview.getAngleSnap() : 15;
       const idx = angles.indexOf(cur);
       const next = angles[(idx + 1) % angles.length];
       if (this.vabPreview) this.vabPreview.setAngleSnap(next);
