@@ -22515,6 +22515,66 @@ var LightShadow = class {
     return object;
   }
 };
+var SpotLightShadow = class extends LightShadow {
+  constructor() {
+    super(new PerspectiveCamera(50, 1, 0.5, 500));
+    this.isSpotLightShadow = true;
+    this.focus = 1;
+  }
+  updateMatrices(light) {
+    const camera = this.camera;
+    const fov2 = RAD2DEG * 2 * light.angle * this.focus;
+    const aspect2 = this.mapSize.width / this.mapSize.height;
+    const far = light.distance || camera.far;
+    if (fov2 !== camera.fov || aspect2 !== camera.aspect || far !== camera.far) {
+      camera.fov = fov2;
+      camera.aspect = aspect2;
+      camera.far = far;
+      camera.updateProjectionMatrix();
+    }
+    super.updateMatrices(light);
+  }
+  copy(source) {
+    super.copy(source);
+    this.focus = source.focus;
+    return this;
+  }
+};
+var SpotLight = class extends Light {
+  constructor(color, intensity, distance = 0, angle = Math.PI / 3, penumbra = 0, decay = 2) {
+    super(color, intensity);
+    this.isSpotLight = true;
+    this.type = "SpotLight";
+    this.position.copy(Object3D.DEFAULT_UP);
+    this.updateMatrix();
+    this.target = new Object3D();
+    this.distance = distance;
+    this.angle = angle;
+    this.penumbra = penumbra;
+    this.decay = decay;
+    this.map = null;
+    this.shadow = new SpotLightShadow();
+  }
+  get power() {
+    return this.intensity * Math.PI;
+  }
+  set power(power) {
+    this.intensity = power / Math.PI;
+  }
+  dispose() {
+    this.shadow.dispose();
+  }
+  copy(source, recursive) {
+    super.copy(source, recursive);
+    this.distance = source.distance;
+    this.angle = source.angle;
+    this.penumbra = source.penumbra;
+    this.decay = source.decay;
+    this.target = source.target.clone();
+    this.shadow = source.shadow.clone();
+    return this;
+  }
+};
 var _projScreenMatrix = /* @__PURE__ */ new Matrix4();
 var _lightPositionWorld = /* @__PURE__ */ new Vector3();
 var _lookTarget = /* @__PURE__ */ new Vector3();
@@ -23447,6 +23507,18 @@ var ACHIEVEMENTS = [
   { id: "all_planets", name: "\u592A\u9633\u7CFB\u5927\u6EE1\u8D2F", description: "\u5728\u592A\u9633\u7CFB\u6240\u6709\u884C\u661F\u4E0A\u5B8C\u6210\u7740\u9646", icon: "\u{1F3C6}" },
   { id: "trappist_arrival", name: "TRAPPIST\u63A2\u9669\u5BB6", description: "\u62B5\u8FBETRAPPIST-1\u661F\u7CFB\u5E76\u63A2\u8BBF\u5176\u4E03\u9897\u884C\u661F\u4E4B\u4E00", icon: "\u{1F5FA}\uFE0F" }
 ];
+var TECH_TREE = [
+  { id: "basic_rocketry", name: "\u57FA\u7840\u706B\u7BAD\u6280\u672F", cost: 5, unlocked: true, prereq: [], parts: ["capsule_mk1", "fuel_small", "engine_chem"], description: "\u5165\u95E8\u7EA7\u706B\u7BAD\u96F6\u4EF6" },
+  { id: "stability", name: "\u7A33\u5B9A\u6027\u5DE5\u7A0B", cost: 10, unlocked: false, prereq: ["basic_rocketry"], parts: ["rcs_thruster", "sas_basic"], description: "RCS\u63A8\u529B\u5668\u548CSAS\u7A33\u5B9A\u5668" },
+  { id: " survivability", name: "\u751F\u5B58\u6280\u672F", cost: 15, unlocked: false, prereq: ["basic_rocketry"], parts: ["parachute", "heatshield_basic"], description: "\u964D\u843D\u4F1E\u548C\u9694\u70ED\u76FE" },
+  { id: "advanced_rocketry", name: "\u9AD8\u7EA7\u706B\u7BAD\u6280\u672F", cost: 30, unlocked: false, prereq: ["basic_rocketry"], parts: ["fuel_medium", "engine_chem_vac"], description: "\u66F4\u5927\u71C3\u6599\u7BB1\u548C\u771F\u7A7A\u4F18\u5316\u5F15\u64CE" },
+  { id: "flight_control", name: "\u98DE\u884C\u63A7\u5236", cost: 25, unlocked: false, prereq: ["stability"], parts: ["probe_core", "antenna_basic"], description: "\u65E0\u4EBA\u63A7\u5236\u548C\u901A\u4FE1" },
+  { id: "space_exploration", name: "\u592A\u7A7A\u63A2\u7D22", cost: 45, unlocked: false, prereq: ["advanced_rocketry", "survivability"], parts: ["solar_panel", "battery_pack"], description: "\u592A\u9633\u80FD\u548C\u7535\u529B\u7CFB\u7EDF" },
+  { id: "propulsion_systems", name: "\u63A8\u8FDB\u7CFB\u7EDF", cost: 60, unlocked: false, prereq: ["advanced_rocketry"], parts: ["engine_ion", "engine_nuclear"], parts2: [], description: "\u79BB\u5B50\u548C\u6838\u70ED\u5F15\u64CE" },
+  { id: "landing_techniques", name: "\u7740\u9646\u6280\u672F", cost: 40, unlocked: false, prereq: ["flight_control"], parts: ["landing_legs", "landing_strut"], description: "\u7740\u9646\u67B6\u548C\u652F\u6491\u7ED3\u6784" },
+  { id: "advanced_propulsion", name: "\u9AD8\u7EA7\u63A8\u8FDB", cost: 90, unlocked: false, prereq: ["propulsion_systems"], parts: ["engine_fusion", "engine_plasma"], description: "\u805A\u53D8\u548C\u7B49\u79BB\u5B50\u5F15\u64CE" },
+  { id: "interstellar_travel", name: "\u661F\u9645\u65C5\u884C", cost: 200, unlocked: false, prereq: ["advanced_propulsion"], parts: ["warp_drive", "antimatter_engine"], description: "\u66F2\u901F\u5F15\u64CE\u548C\u53CD\u7269\u8D28\u63A8\u8FDB" }
+];
 var ROCKET_PARTS = [
   // ===== 指挥舱 (Command Pods) =====
   { id: "capsule_mk1", name: "Mk1 \u6307\u6325\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5355\u5EA7\u518D\u5165\u8FD4\u56DE\u8231\uFF0C\u7ECF\u5178\u6C34\u661F\u8BA1\u5212\u98CE\u683C" },
@@ -23628,6 +23700,21 @@ var ROCKET_PARTS = [
 ];
 
 // src/game/physics.ts
+var DEFAULT_DRAG_POLAR = [
+  { mach: 0, cd: 0.2 },
+  { mach: 0.5, cd: 0.22 },
+  { mach: 0.8, cd: 0.3 },
+  { mach: 0.9, cd: 0.42 },
+  { mach: 1, cd: 0.55 },
+  { mach: 1.1, cd: 0.58 },
+  { mach: 1.5, cd: 0.48 },
+  { mach: 2, cd: 0.38 },
+  { mach: 3, cd: 0.28 },
+  { mach: 5, cd: 0.22 },
+  { mach: 8, cd: 0.18 },
+  { mach: 15, cd: 0.15 },
+  { mach: 25, cd: 0.13 }
+];
 var NBodySystem = class _NBodySystem {
   constructor() {
     this.bodies = [];
@@ -23661,6 +23748,16 @@ var NBodySystem = class _NBodySystem {
      * that body; outside it the parent takes over (patched conics).
      */
     this.soiRadii = /* @__PURE__ */ new Map();
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 4-6] Enhanced atmospheric model: layers, wind shear, composition
+    // ════════════════════════════════════════════════════════════════════
+    /** Cache of atmospheric layers per body name. */
+    this.atmosphereLayers = /* @__PURE__ */ new Map();
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 13-15] Terrain height, landing stability, impact force
+    // ════════════════════════════════════════════════════════════════════
+    /** Registry of terrain height functions per body name. */
+    this.terrainFns = /* @__PURE__ */ new Map();
   }
   addBody(body) {
     this.bodies.push(body);
@@ -23803,10 +23900,17 @@ var NBodySystem = class _NBodySystem {
     const altitude = dist - parent.radius;
     const rho = this.atmosphericDensity(parentName, altitude);
     if (rho <= 0) return new Vector3();
+    const atm = this.atmospheres.get(parentName);
     const vSq = body.velocity.lengthSq();
     if (vSq < 1e-6) return new Vector3();
     const v = Math.sqrt(vSq);
-    const dragMag = 0.5 * rho * vSq * aero.dragCoefficient * aero.referenceArea / Math.max(body.mass, 1);
+    const compMult = this.compositionDragMultiplier(parentName);
+    const temp = this.atmosphericTemperature(parentName, altitude);
+    const cSound = this.speedOfSound(temp, atm.molarMass);
+    const mach = cSound > 0 ? v / cSound : 0;
+    const cdMach = this.machDragCoefficient(mach);
+    const effectiveCd = aero.dragCoefficient * compMult * cdMach / 0.2;
+    const dragMag = 0.5 * rho * vSq * effectiveCd * aero.referenceArea / Math.max(body.mass, 1);
     return body.velocity.clone().multiplyScalar(-dragMag / v);
   }
   static {
@@ -23927,6 +24031,489 @@ var NBodySystem = class _NBodySystem {
         acc.z += force * dz / dist;
       }
     }
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 1-3] N-Body gravity, Lagrange points, perturbation accumulation
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 1] Compute gravitational acceleration on a test position from ALL
+   * bodies in the system (true N-body, not 2-body). Used for trajectory
+   * prediction that accounts for Moon/Sun perturbations simultaneously.
+   */
+  computeNBodyAcceleration(pos, excludeName) {
+    const acc = new Vector3();
+    for (const body of this.bodies) {
+      if (body.name === excludeName) continue;
+      const dx = body.position.x - pos.x;
+      const dy = body.position.y - pos.y;
+      const dz = body.position.z - pos.z;
+      const distSq = dx * dx + dy * dy + dz * dz;
+      if (distSq < 1) continue;
+      const dist = Math.sqrt(distSq);
+      const force = G * body.mass / distSq;
+      acc.x += force * dx / dist;
+      acc.y += force * dy / dist;
+      acc.z += force * dz / dist;
+    }
+    return acc;
+  }
+  /**
+   * [Iter 2] Compute the five Lagrange points (L1–L5) for a two-body system
+   * (primary + secondary). Uses the standard restricted three-body problem
+   * formulas. L1–L3 are found via Newton iteration on the collinear equation;
+   * L4–L5 are at equilateral triangle positions.
+   *
+   * @param primary   The more massive body (e.g. Earth).
+   * @param secondary The less massive body (e.g. Moon).
+   * @returns Array of 5 LagrangePointResult with world-space positions.
+   */
+  computeLagrangePoints(primary, secondary) {
+    const M = primary.mass;
+    const m = secondary.mass;
+    const totalMass = M + m;
+    const muRatio = m / totalMass;
+    const sep = primary.position.distanceTo(secondary.position);
+    const dir = secondary.position.clone().sub(primary.position).normalize();
+    const along = (f) => primary.position.clone().addScaledVector(dir, f * sep);
+    const perpDir = new Vector3(0, 1, 0).cross(dir);
+    if (perpDir.lengthSq() < 1e-10) perpDir.set(1, 0, 0);
+    perpDir.normalize();
+    let gamma1 = 1 - Math.pow(muRatio / 3, 1 / 3);
+    for (let i = 0; i < 30; i++) {
+      const r1 = 1 - muRatio - gamma1;
+      const r2 = gamma1 - muRatio;
+      const f = (1 - muRatio) / (r1 * r1) - muRatio / (r2 * r2) - gamma1;
+      const fp = -2 * (1 - muRatio) / (r1 * r1 * r1) - 2 * muRatio / (r2 * r2 * r2) - 1;
+      const dgamma = f / fp;
+      gamma1 -= dgamma;
+      if (Math.abs(dgamma) < 1e-12) break;
+    }
+    let gamma2 = 1 + Math.pow(muRatio / 3, 1 / 3);
+    for (let i = 0; i < 30; i++) {
+      const r1 = gamma2 - (1 - muRatio);
+      const r2 = gamma2 - muRatio;
+      const f = (1 - muRatio) / (r1 * r1) + muRatio / (r2 * r2) - gamma2;
+      const fp = -2 * (1 - muRatio) / (r1 * r1 * r1) - 2 * muRatio / (r2 * r2 * r2) - 1;
+      const dgamma = f / fp;
+      gamma2 -= dgamma;
+      if (Math.abs(dgamma) < 1e-12) break;
+    }
+    let gamma3 = -(1 + 5 * muRatio / 12);
+    for (let i = 0; i < 30; i++) {
+      const r1 = Math.abs(gamma3 + (1 - muRatio));
+      const r2 = Math.abs(gamma3 + muRatio);
+      const f = -(1 - muRatio) / (r1 * r1) + muRatio / (r2 * r2) - gamma3;
+      const fp = -2 * (1 - muRatio) / (r1 * r1 * r1) - 2 * muRatio / (r2 * r2 * r2) - 1;
+      const dgamma = f / fp;
+      gamma3 -= dgamma;
+      if (Math.abs(dgamma) < 1e-12) break;
+    }
+    const cos60 = 0.5;
+    const sin60 = Math.sqrt(3) / 2;
+    const posL4 = primary.position.clone().addScaledVector(dir, sep * (1 - muRatio - cos60 * muRatio + cos60)).addScaledVector(perpDir, sep * sin60);
+    const baryCenter = primary.position.clone().addScaledVector(dir, (1 - muRatio) * sep);
+    const posL4v2 = baryCenter.clone().addScaledVector(dir, sep * cos60 * 0.5).addScaledVector(perpDir, sep * sin60 * 0.5);
+    const posL5v2 = baryCenter.clone().addScaledVector(dir, sep * cos60 * 0.5).addScaledVector(perpDir, -sep * sin60 * 0.5);
+    return [
+      { position: along(gamma1), label: "L1", stability: "unstable" },
+      { position: along(gamma2), label: "L2", stability: "unstable" },
+      { position: along(gamma3), label: "L3", stability: "unstable" },
+      { position: posL4v2, label: "L4", stability: "stable" },
+      { position: posL5v2, label: "L5", stability: "stable" }
+    ];
+  }
+  /**
+   * [Iter 3] Compute accumulated orbital perturbation drift over time.
+   * Returns the secular rate of change of the semi-major axis due to third-body
+   * perturbations (simplified Lagrange planetary equation for da/dt).
+   *
+   * @param elements   Orbital elements of the satellite.
+   * @param parentMass Mass of the primary body (kg).
+   * @param perturber  Perturbing body (e.g. Moon perturbing GEO sat).
+   * @param satPos     Satellite position (world).
+   * @param satVel     Satellite velocity (world).
+   * @returns da/dt in m/s (secular drift rate of semi-major axis).
+   */
+  computeSecularDaDt(elements, parentMass, perturber, satPos, satVel) {
+    const mu = G * parentMass;
+    const muP = G * perturber.mass;
+    const a = elements.semiMajorAxis;
+    if (a <= 0 || elements.eccentricity >= 1) return 0;
+    const n = Math.sqrt(mu / (a * a * a));
+    const dPert = satPos.distanceTo(perturber.position);
+    if (dPert < 1) return 0;
+    const daDt = 2 * muP / (dPert * dPert * dPert) * a * a / (n * dPert);
+    return daDt;
+  }
+  /**
+   * [Iter 4] Get or build atmospheric layers for a body. Earth-like bodies get
+   * troposphere/stratosphere/mesosphere/thermosphere; others get a simplified
+   * single-layer model. Layers affect temperature lapse and wind profiles.
+   */
+  getAtmosphereLayers(bodyName) {
+    const cached = this.atmosphereLayers.get(bodyName);
+    if (cached) return cached;
+    const atm = this.atmospheres.get(bodyName);
+    if (!atm) return [];
+    let layers;
+    if (bodyName === "Earth") {
+      layers = [
+        { name: "\u5BF9\u6D41\u5C42", baseAltitude: 0, topAltitude: 12e3, baseTemp: 288, lapseRate: -65e-4, windBase: 15 },
+        { name: "\u5E73\u6D41\u5C42", baseAltitude: 12e3, topAltitude: 5e4, baseTemp: 217, lapseRate: 1e-3, windBase: 30 },
+        { name: "\u4E2D\u95F4\u5C42", baseAltitude: 5e4, topAltitude: 85e3, baseTemp: 270, lapseRate: -28e-4, windBase: 10 },
+        { name: "\u70ED\u5C42", baseAltitude: 85e3, topAltitude: atm.atmosphereHeight, baseTemp: 180, lapseRate: 0.01, windBase: 2 }
+      ];
+    } else if (bodyName === "Venus" || bodyName === "Titan") {
+      layers = [
+        { name: "\u5BF9\u6D41\u5C42", baseAltitude: 0, topAltitude: atm.atmosphereHeight * 0.6, baseTemp: 735, lapseRate: -8e-3, windBase: 1 },
+        { name: "\u9AD8\u7A7A\u5C42", baseAltitude: atm.atmosphereHeight * 0.6, topAltitude: atm.atmosphereHeight, baseTemp: 300, lapseRate: -2e-3, windBase: 5 }
+      ];
+    } else if (bodyName === "Mars") {
+      layers = [
+        { name: "\u5BF9\u6D41\u5C42", baseAltitude: 0, topAltitude: 4e4, baseTemp: 243, lapseRate: -45e-4, windBase: 20 },
+        { name: "\u5916\u5C42", baseAltitude: 4e4, topAltitude: atm.atmosphereHeight, baseTemp: 150, lapseRate: 1e-3, windBase: 5 }
+      ];
+    } else {
+      layers = [
+        { name: "\u4E0A\u5C42", baseAltitude: 0, topAltitude: atm.scaleHeight * 3, baseTemp: 165, lapseRate: -2e-3, windBase: 40 },
+        { name: "\u6DF1\u5C42", baseAltitude: atm.scaleHeight * 3, topAltitude: atm.atmosphereHeight, baseTemp: 300, lapseRate: 3e-3, windBase: 80 }
+      ];
+    }
+    this.atmosphereLayers.set(bodyName, layers);
+    return layers;
+  }
+  /**
+   * [Iter 4] Temperature at a given altitude in a body's atmosphere, using
+   * the layered lapse-rate model. Falls back to the isothermal approximation.
+   */
+  atmosphericTemperature(bodyName, altitude) {
+    const layers = this.getAtmosphereLayers(bodyName);
+    if (layers.length === 0) return 273;
+    if (altitude <= 0) return layers[0].baseTemp;
+    let temp = layers[0].baseTemp;
+    let h = 0;
+    for (const layer of layers) {
+      if (altitude <= layer.topAltitude) {
+        temp = layer.baseTemp + layer.lapseRate * (altitude - layer.baseAltitude);
+        break;
+      }
+      temp = layer.baseTemp + layer.lapseRate * (layer.topAltitude - layer.baseAltitude);
+      h = layer.topAltitude;
+    }
+    return Math.max(3, temp);
+  }
+  /**
+   * [Iter 5] Wind vector at a given altitude. Models wind shear (velocity
+   * gradient with altitude) and gust turbulence. Uses a simplified power-law
+   * wind profile: v(h) = v_ref * (h / h_ref)^α, with random gusts.
+   *
+   * @param bodyName    Body with atmosphere.
+   * @param altitude    Altitude above surface (m).
+   * @param time        Current simulation time (s) for gust variation.
+   * @param seedOffset  Per-craft seed to desync turbulence.
+   * @returns Wind velocity vector (m/s) in world space (tangential).
+   */
+  windVector(bodyName, altitude, time, seedOffset = 0) {
+    const layers = this.getAtmosphereLayers(bodyName);
+    if (layers.length === 0 || altitude <= 0) return new Vector3();
+    let baseWind = layers[0].windBase;
+    for (const layer of layers) {
+      if (altitude <= layer.topAltitude) {
+        baseWind = layer.windBase;
+        break;
+      }
+    }
+    const hRef = 10;
+    const alpha = 0.15;
+    const windMag = baseWind * Math.pow(Math.max(altitude, hRef) / hRef, alpha);
+    const gust = Math.sin(time * 0.7 + seedOffset) * 0.3 + Math.sin(time * 1.3 + seedOffset * 1.7) * 0.2;
+    const effectiveMag = windMag * (1 + gust);
+    return new Vector3(effectiveMag, 0, 0);
+  }
+  /**
+   * [Iter 6] Composition-dependent drag multiplier. Different atmospheric
+   * compositions have different molecular weights, which affect the drag
+   * coefficient at a given density (Knudsen/Reynolds effects). Returns a
+   * multiplier on the base Cd.
+   */
+  compositionDragMultiplier(bodyName) {
+    const atm = this.atmospheres.get(bodyName);
+    if (!atm) return 1;
+    if (atm.composition.includes("CO2")) return 1.15;
+    if (atm.composition.includes("H2")) return 0.85;
+    if (atm.composition.includes("N2/O2")) return 1;
+    return 1;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 7-9] Thermal conduction, radiators, equilibrium prediction
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 7] Conductive heat transfer between adjacent thermal nodes (parts).
+   * Models Fourier's law: Q = k * A * ΔT / d. Here simplified to a per-node
+   * pairwise exchange with a conductivity-weighted rate.
+   *
+   * @param nodes  Array of thermal nodes (parts) with temperatures.
+   * @param adjacency  Adjacency list: adjacency[i] = [j, k, ...] connected nodes.
+   * @param dt     Time step (s).
+   */
+  conductiveHeatFlow(nodes, adjacency, dt) {
+    if (nodes.length === 0) return;
+    const deltaT = new Float64Array(nodes.length);
+    for (let i = 0; i < nodes.length; i++) {
+      const ni = nodes[i];
+      const neighbors = adjacency[i];
+      if (!neighbors) continue;
+      for (const j of neighbors) {
+        if (j <= i) continue;
+        const nj = nodes[j];
+        const dT = nj.temperature - ni.temperature;
+        if (Math.abs(dT) < 0.01) continue;
+        const kEff = 2 * ni.conductivity * nj.conductivity / (ni.conductivity + nj.conductivity + 1e-10);
+        const Q = kEff * dT;
+        const dTi = Q * dt / ni.heatCapacity;
+        const dTj = -Q * dt / nj.heatCapacity;
+        deltaT[i] += dTi;
+        deltaT[j] += dTj;
+      }
+    }
+    for (let i = 0; i < nodes.length; i++) {
+      nodes[i].temperature += deltaT[i];
+      if (nodes[i].temperature < 2.7) nodes[i].temperature = 2.7;
+    }
+  }
+  /**
+   * [Iter 8] Active radiator cooling. Each node with radiatorPower > 0
+   * actively rejects heat. Radiator efficiency drops if the node is in
+   * atmosphere (convective heating competes). Models Stefan-Boltzmann
+   * radiation from radiator surface plus pumped-fluid cooling.
+   *
+   * @param nodes       Thermal nodes.
+   * @param dt          Time step (s).
+   * @param inAtmosphere Whether the craft is in atmosphere (reduces radiator efficiency).
+   * @param ambientTemp Ambient temperature (K) for convective coupling.
+   */
+  radiatorCooling(nodes, dt, inAtmosphere, ambientTemp) {
+    const sigma = 567e-10;
+    const atmEfficiency = inAtmosphere ? 0.3 : 1;
+    for (const node of nodes) {
+      if (node.radiatorPower <= 0) continue;
+      const radPower = node.radiatorPower * atmEfficiency;
+      const T4 = node.temperature * node.temperature * node.temperature * node.temperature;
+      const radQ = radPower * Math.min(1, T4 / 1e10);
+      let convQ = 0;
+      if (inAtmosphere) {
+        convQ = 50 * (ambientTemp - node.temperature);
+      }
+      const netQ = radQ - convQ;
+      const dT = netQ * dt / node.heatCapacity;
+      node.temperature -= dT;
+      if (node.temperature < 2.7) node.temperature = 2.7;
+    }
+  }
+  /**
+   * [Iter 9] Predict equilibrium (steady-state) temperature for a thermal
+   * node given constant heat input. Solves Q_in = Q_rad + Q_conv for T.
+   * Uses the Stefan-Boltzmann law: Q_in = ε*σ*A*T⁴ + h*(T - T_ambient).
+   *
+   * @param heatInput    Constant heat input (W).
+   * @param emissivity   Surface emissivity (0..1).
+   * @param area         Radiating area (m²).
+   * @param ambientTemp  Ambient temperature (K).
+   * @param hConv        Convective heat transfer coefficient (W/(m²·K)).
+   * @returns Equilibrium temperature (K).
+   */
+  predictEquilibriumTemperature(heatInput, emissivity, area2, ambientTemp, hConv = 0) {
+    const sigma = 567e-10;
+    let T = Math.max(300, ambientTemp);
+    for (let i = 0; i < 50; i++) {
+      const f = emissivity * sigma * area2 * T * T * T * T + hConv * area2 * (T - ambientTemp) - heatInput;
+      const fp = 4 * emissivity * sigma * area2 * T * T * T + hConv * area2;
+      const dT = f / fp;
+      T -= dT;
+      if (Math.abs(dT) < 0.01) break;
+    }
+    return Math.max(2.7, T);
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 10-12] Mach-dependent drag, stall recovery, dynamic pressure
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 10] Look up the drag coefficient for a given Mach number using a
+   * realistic drag polar (Cd vs Mach). Interpolates linearly between table
+   * points. The transonic drag rise (Mach 0.8–1.2) is captured.
+   *
+   * @param mach      Mach number (v / c_sound).
+   * @param polar     Optional custom drag polar table. Uses DEFAULT_DRAG_POLAR if omitted.
+   * @returns Drag coefficient at this Mach number.
+   */
+  machDragCoefficient(mach, polar) {
+    const table = polar ?? DEFAULT_DRAG_POLAR;
+    if (mach <= table[0].mach) return table[0].cd;
+    if (mach >= table[table.length - 1].mach) return table[table.length - 1].cd;
+    for (let i = 0; i < table.length - 1; i++) {
+      if (mach >= table[i].mach && mach <= table[i + 1].mach) {
+        const t = (mach - table[i].mach) / (table[i + 1].mach - table[i].mach);
+        return table[i].cd + t * (table[i + 1].cd - table[i].cd);
+      }
+    }
+    return table[table.length - 1].cd;
+  }
+  /**
+   * [Iter 10] Speed of sound in a gas at a given temperature.
+   * c = sqrt(γ * R * T / M), where γ=1.4 (diatomic), R=8.314 J/(mol·K).
+   *
+   * @param temp       Temperature (K).
+   * @param molarMass  Molar mass (kg/mol). Default: Earth air 0.02896.
+   * @returns Speed of sound (m/s).
+   */
+  speedOfSound(temp, molarMass = 0.02896) {
+    const gamma = 1.4;
+    const R = 8.314;
+    return Math.sqrt(gamma * R * temp / molarMass);
+  }
+  /**
+   * [Iter 11] Compute post-stall lift recovery factor. When the angle of
+   * attack is beyond the stall angle, lift drops sharply. As the AoA returns
+   * below the stall angle, lift recovers with a hysteresis delay. This models
+   * the real-world phenomenon where a wing doesn't instantly regain full lift.
+   *
+   * @param alpha           Current angle of attack (rad).
+   * @param stallAngle      Stall angle (rad), typically ~15°.
+   * @param prevFactor      Previous recovery factor (0..1) for hysteresis.
+   * @param dt              Time step (s).
+   * @returns New recovery factor (0..1).
+   */
+  stallRecoveryFactor(alpha, stallAngle, prevFactor, dt) {
+    const absA = Math.abs(alpha);
+    if (absA <= stallAngle * 0.8) {
+      return Math.min(1, prevFactor + 3 * dt);
+    } else if (absA <= stallAngle) {
+      return Math.min(1, prevFactor + 0.5 * dt);
+    } else {
+      const over = absA - stallAngle;
+      const target = Math.max(0.1, 1 - over / stallAngle);
+      return Math.max(target, prevFactor - 5 * dt);
+    }
+  }
+  /**
+   * [Iter 12] Compute dynamic pressure q = 0.5 * ρ * v² and check against
+   * max-Q limits. Returns the dynamic pressure and whether the craft is
+   * in a critical max-Q regime.
+   *
+   * @param rho      Atmospheric density (kg/m³).
+   * @param velocity Speed (m/s).
+   * @param maxQLimit Maximum design dynamic pressure (Pa). Typical launch: ~30-40 kPa.
+   * @returns { q: dynamic pressure (Pa), isCritical: whether q > 80% of limit }
+   */
+  dynamicPressure(rho, velocity, maxQLimit = 35e3) {
+    const q = 0.5 * rho * velocity * velocity;
+    return { q, isCritical: q > maxQLimit * 0.8 };
+  }
+  /**
+   * [Iter 13] Register a terrain height function for a body. The function
+   * takes (latitude, longitude) and returns terrain elevation above the
+   * reference radius in metres. If none is registered, the surface is a
+   * perfect sphere (height = 0 everywhere).
+   */
+  setTerrainFunction(bodyName, fn) {
+    this.terrainFns.set(bodyName, fn);
+  }
+  /**
+   * [Iter 13] Query terrain elevation at a given latitude/longitude on a body.
+   * Returns 0 if no terrain function is registered (flat sphere).
+   *
+   * @param bodyName  Name of the body.
+   * @param lat       Latitude (rad).
+   * @param lon       Longitude (rad).
+   * @returns Terrain elevation above reference radius (m).
+   */
+  terrainHeight(bodyName, lat, lon) {
+    const fn = this.terrainFns.get(bodyName);
+    if (!fn) return 0;
+    return fn(lat, lon);
+  }
+  /**
+   * [Iter 13] Convert a world-space position to latitude/longitude relative
+   * to a body. Assumes the body's north pole is along +Y.
+   */
+  positionToLatLon(pos, bodyPos) {
+    const dx = pos.x - bodyPos.x;
+    const dy = pos.y - bodyPos.y;
+    const dz = pos.z - bodyPos.z;
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const lat = Math.asin(Math.max(-1, Math.min(1, dy / r)));
+    const lon = Math.atan2(dz, dx);
+    return { lat, lon, alt: r };
+  }
+  /**
+   * [Iter 14] Compute landing stability. A craft is stable on the ground if
+   * its center of mass (COM) projects inside the support polygon formed by
+   * the landing gear contact points. Returns a stability metric (0..1) and
+   * a boolean indicating whether the craft will tip over.
+   *
+   * @param comWorld       Center of mass in world space.
+   * @param contactPoints  Array of landing gear contact points in world space.
+   * @param upDir          Local "up" direction (towards sky) in world space.
+   * @returns { stability: 0..1, willTip: boolean, tipDir: tipping direction (or zero) }
+   */
+  landingStability(comWorld, contactPoints, upDir) {
+    if (contactPoints.length < 2) {
+      return { stability: 0, willTip: true, tipDir: new Vector3() };
+    }
+    const avgContact = new Vector3();
+    for (const p of contactPoints) avgContact.add(p);
+    avgContact.divideScalar(contactPoints.length);
+    const comRel = comWorld.clone().sub(avgContact);
+    const comHorizontal = comRel.clone().sub(upDir.clone().multiplyScalar(comRel.dot(upDir)));
+    let minDist = Infinity;
+    let tipDir = new Vector3();
+    for (let i = 0; i < contactPoints.length; i++) {
+      const a = contactPoints[i];
+      const b = contactPoints[(i + 1) % contactPoints.length];
+      const edge = b.clone().sub(a);
+      const edgeLen = edge.length();
+      if (edgeLen < 1e-6) continue;
+      const normal = edge.clone().cross(upDir).normalize();
+      const toCom = comWorld.clone().sub(a);
+      const dist = toCom.dot(normal);
+      if (dist > 0) {
+        const absDist = Math.abs(dist);
+        if (absDist < minDist) {
+          minDist = absDist;
+          tipDir = normal.clone().multiplyScalar(-1);
+        }
+      } else {
+        const absDist = Math.abs(dist);
+        if (absDist < minDist) {
+          minDist = absDist;
+        }
+      }
+    }
+    const willTip = minDist < 0;
+    let avgRadius = 0;
+    for (const p of contactPoints) avgRadius += p.distanceTo(avgContact);
+    avgRadius /= contactPoints.length;
+    const stability = avgRadius > 0 ? Math.max(0, Math.min(1, minDist / avgRadius)) : 0;
+    return { stability, willTip, tipDir };
+  }
+  /**
+   * [Iter 15] Compute the impact force on a part during a hard landing.
+   * Uses the impulse-momentum theorem: F = m * Δv / Δt, where Δt is the
+   * stopping time (determined by gear stroke / crush distance).
+   *
+   * @param mass         Mass of the part being impacted (kg).
+   * @param impactSpeed  Vertical speed at impact (m/s, positive = downward).
+   * @param crushDistance Gear stroke or crush distance (m). Default 0.5m.
+   * @returns { force: impact force (N), gForce: equivalent g-load, willBreak: whether part fails }
+   */
+  landingImpactForce(mass, impactSpeed, crushDistance = 0.5) {
+    if (impactSpeed <= 0) return { force: 0, gForce: 0, willBreak: false };
+    const stopTime = Math.max(1e-3, 2 * crushDistance / impactSpeed);
+    const force = mass * impactSpeed / stopTime;
+    const g = 9.81;
+    const gForce = force / (mass * g);
+    const willBreak = gForce > 15;
+    return { force, gForce, willBreak };
   }
   /** Velocity Verlet integration step */
   step(dt) {
@@ -27279,6 +27866,102 @@ function buildCommandPod(part) {
     led.position.set(Math.cos(a) * r * 0.92, -h / 2 - 0.02, Math.sin(a) * r * 0.92);
     group.add(led);
   }
+  if (mk === 2 || mk === 3) {
+    const sphereR = mk === 2 ? r * 0.4 : r * 0.36;
+    const apexY = mk === 2 ? h / 2 + 0.06 : h / 2 + 0.08;
+    const apexCap = new Mesh(
+      new SphereGeometry(sphereR, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.35),
+      new MeshStandardMaterial({
+        map: texBrushedMetal("titanium", 256),
+        color: 11184810,
+        metalness: 0.88,
+        roughness: 0.15,
+        envMapIntensity: 1.5
+      })
+    );
+    apexCap.position.y = apexY;
+    apexCap.castShadow = true;
+    group.add(apexCap);
+    const apexSeal = new Mesh(
+      new TorusGeometry(sphereR * 0.65, 0.012, 8, 28),
+      new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 8947848, metalness: 0.85, roughness: 0.2 })
+    );
+    apexSeal.position.y = apexY - 0.01;
+    apexSeal.rotation.x = Math.PI / 2;
+    group.add(apexSeal);
+  }
+  const reflCoatMat = new MeshPhysicalMaterial({
+    color: 662058,
+    metalness: 0.3,
+    roughness: 0.01,
+    transmission: 0.3,
+    thickness: 0.02,
+    ior: 1.38,
+    clearcoat: 1,
+    clearcoatRoughness: 0,
+    envMapIntensity: 3,
+    // 模拟环境贴图反射强度
+    emissive: 530480,
+    emissiveIntensity: 0.15
+  });
+  for (const angle of [0, Math.PI]) {
+    const goldFilm = new Mesh(new BoxGeometry(winSize * 1.08, winSize * 0.8, 8e-3), reflCoatMat);
+    goldFilm.position.copy(frame.position);
+    goldFilm.position.x += Math.cos(angle) * 0.032;
+    goldFilm.position.z += Math.sin(angle) * 0.032;
+    goldFilm.lookAt(0, winY, 0);
+    group.add(goldFilm);
+  }
+  const oringRubberMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.1, roughness: 0.95 });
+  const oringGrooveMat = new MeshStandardMaterial({ color: 5592405, metalness: 0.7, roughness: 0.4 });
+  for (const ringOff of [0.21, 0.24]) {
+    const oring = new Mesh(new TorusGeometry(ringOff, 5e-3, 6, 24), oringRubberMat);
+    oring.position.set(r * 0.99, -h * 0.12, 0);
+    oring.lookAt(r * 3, -h * 0.12, 0);
+    group.add(oring);
+  }
+  const grooveOuter = new Mesh(new TorusGeometry(0.225, 0.01, 6, 24), oringGrooveMat);
+  grooveOuter.position.set(r * 0.99, -h * 0.12, 0);
+  grooveOuter.lookAt(r * 3, -h * 0.12, 0);
+  group.add(grooveOuter);
+  const meshWireMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.6, roughness: 0.5, side: DoubleSide });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const nozzleX = Math.cos(angle) * (r * 0.95 + 0.08);
+    const nozzleZ = Math.sin(angle) * (r * 0.95 + 0.08);
+    for (let g = 0; g < 2; g++) {
+      const wire = new Mesh(new BoxGeometry(0.038, 2e-3, 2e-3), meshWireMat);
+      wire.position.set(nozzleX + Math.cos(angle) * 0.03, h * 0.3, nozzleZ + Math.sin(angle) * 0.03);
+      wire.lookAt(Math.cos(angle) * 5, h * 0.3, Math.sin(angle) * 5);
+      wire.rotation.x += g * Math.PI / 2;
+      group.add(wire);
+    }
+    for (let s = 0; s < 4; s++) {
+      const spoke = new Mesh(new BoxGeometry(2e-3, 2e-3, 0.018), meshWireMat);
+      spoke.position.set(nozzleX + Math.cos(angle) * 0.03, h * 0.3, nozzleZ + Math.sin(angle) * 0.03);
+      spoke.lookAt(Math.cos(angle) * 5, h * 0.3, Math.sin(angle) * 5);
+      spoke.rotation.x += s * Math.PI / 4;
+      group.add(spoke);
+    }
+  }
+  const beaconLight = new Mesh(
+    new SphereGeometry(0.018, 10, 8),
+    new MeshStandardMaterial({ color: 16711680, emissive: 16711680, emissiveIntensity: 2, metalness: 0.2, roughness: 0.3 })
+  );
+  beaconLight.position.set(0, h / 2 + 0.14, 0);
+  group.add(beaconLight);
+  const beaconLens = new Mesh(
+    new SphereGeometry(0.024, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    new MeshPhysicalMaterial({ color: 16724736, metalness: 0.1, roughness: 0.05, transmission: 0.6, thickness: 0.01, ior: 1.5, emissive: 16716032, emissiveIntensity: 0.5 })
+  );
+  beaconLens.position.set(0, h / 2 + 0.14, 0);
+  group.add(beaconLens);
+  const beaconMat2 = beaconLight.material;
+  beaconLight.onBeforeRender = () => {
+    const t = performance.now() / 1e3 % 1.5;
+    const flashing = t < 0.15 || t > 0.25 && t < 0.4;
+    beaconMat2.emissiveIntensity = flashing ? 3 : 0.2;
+  };
   group.userData.height = h + 0.35;
   group.userData.radius = r;
   return group;
@@ -27663,6 +28346,110 @@ function buildFuelTank(part) {
       group.add(patch);
     }
   }
+  const ellipsoidMat = new MeshStandardMaterial({
+    map: tankTex,
+    normalMap: tankNormal,
+    roughnessMap: tankRough,
+    color: 16777215,
+    metalness: isOrange ? 0.1 : 0.3,
+    roughness: isOrange ? 0.75 : 0.4
+  });
+  const ellipPts = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20 * Math.PI / 2;
+    ellipPts.push(new Vector2(r * Math.sin(t), r * 0.5 * (1 - Math.cos(t))));
+  }
+  const ellipRing = new Mesh(
+    new TorusGeometry(r * 0.98, 0.018, 8, 48),
+    ellipsoidMat
+  );
+  ellipRing.position.y = h / 2 + 5e-3;
+  ellipRing.rotation.x = Math.PI / 2;
+  ellipRing.castShadow = true;
+  group.add(ellipRing);
+  const ellipRingBot = new Mesh(
+    new TorusGeometry(r * 0.98, 0.018, 8, 48),
+    ellipsoidMat
+  );
+  ellipRingBot.position.y = -h / 2 - 5e-3;
+  ellipRingBot.rotation.x = Math.PI / 2;
+  ellipRingBot.castShadow = true;
+  group.add(ellipRingBot);
+  const bracketPipeMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 7829367, metalness: 0.75, roughness: 0.3 });
+  const clampMat = new MeshStandardMaterial({ color: 4473924, metalness: 0.6, roughness: 0.5 });
+  for (let i = 0; i < 5; i++) {
+    const clampY = -h * 0.35 + i * (h * 0.7 / 4);
+    const bracket = new Mesh(new BoxGeometry(0.04, 0.06, 0.03), bracketPipeMat);
+    bracket.position.set(r * 1.04, clampY, 0.08);
+    bracket.castShadow = true;
+    group.add(bracket);
+    const clamp2 = new Mesh(new TorusGeometry(0.022, 6e-3, 6, 12, Math.PI), clampMat);
+    clamp2.position.set(r * 1.06, clampY, 0.08);
+    clamp2.rotation.y = Math.PI / 2;
+    group.add(clamp2);
+    const clampBolt = new Mesh(new SphereGeometry(6e-3, 6, 4), clampMat);
+    clampBolt.position.set(r * 1.08, clampY + 0.02, 0.08);
+    group.add(clampBolt);
+  }
+  if (isOrange) {
+    const microPitMat = new MeshStandardMaterial({ color: 10119728, metalness: 0.05, roughness: 0.95 });
+    for (let i = 0; i < 40; i++) {
+      const a = (i * 0.618 + 0.1) * Math.PI * 2 % (Math.PI * 2);
+      const yOff = i * 37 % 100 / 100 * h - h / 2;
+      const pitR = 6e-3 + i * 13 % 7 * 2e-3;
+      const pit = new Mesh(
+        new SphereGeometry(pitR, 6, 4, 0, Math.PI * 2, 0, Math.PI / 2),
+        microPitMat
+      );
+      pit.position.set(Math.cos(a) * r * 1.012, yOff, Math.sin(a) * r * 1.012);
+      pit.scale.y = 0.2;
+      group.add(pit);
+    }
+    const sprayMat = new MeshStandardMaterial({ color: 11565120, metalness: 0.05, roughness: 0.9, transparent: true, opacity: 0.3 });
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2;
+      const streak = new Mesh(new PlaneGeometry(0.6, 0.04), sprayMat);
+      streak.position.set(Math.cos(a) * r * 1.013, h * 0.1 + i * 0.05, Math.sin(a) * r * 1.013);
+      streak.lookAt(0, h * 0.1 + i * 0.05, 0);
+      group.add(streak);
+    }
+  }
+  const probeMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 10066329, metalness: 0.8, roughness: 0.2 });
+  const probeHeadMat = new MeshStandardMaterial({ color: 14527010, metalness: 0.7, roughness: 0.3 });
+  for (const probeAngle of [Math.PI / 3, -Math.PI / 3]) {
+    const probeRod = new Mesh(new CylinderGeometry(6e-3, 6e-3, 0.15, 8), probeMat);
+    probeRod.position.set(Math.cos(probeAngle) * (r + 0.06), 0, Math.sin(probeAngle) * (r + 0.06));
+    probeRod.lookAt(Math.cos(probeAngle) * 3, 0, Math.sin(probeAngle) * 3);
+    probeRod.rotation.x = Math.PI / 2;
+    group.add(probeRod);
+    const probeHead = new Mesh(new CylinderGeometry(0.015, 0.012, 0.04, 10), probeHeadMat);
+    probeHead.position.set(Math.cos(probeAngle) * (r + 0.14), 0, Math.sin(probeAngle) * (r + 0.14));
+    probeHead.lookAt(Math.cos(probeAngle) * 3, 0, Math.sin(probeAngle) * 3);
+    probeHead.rotation.x = Math.PI / 2;
+    probeHead.castShadow = true;
+    group.add(probeHead);
+    const probeWin = new Mesh(
+      new CircleGeometry(8e-3, 8),
+      new MeshStandardMaterial({ color: 65382, emissive: 43588, emissiveIntensity: 0.5 })
+    );
+    probeWin.position.set(Math.cos(probeAngle) * (r + 0.16), 0, Math.sin(probeAngle) * (r + 0.16));
+    probeWin.lookAt(Math.cos(probeAngle) * 4, 0, Math.sin(probeAngle) * 4);
+    group.add(probeWin);
+  }
+  const boltHoleMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.4, roughness: 0.8 });
+  const sepBoltCount = sizeClass === 3 ? 24 : sizeClass === 2 ? 18 : 12;
+  for (let i = 0; i < sepBoltCount; i++) {
+    const a = i / sepBoltCount * Math.PI * 2;
+    const boltHole = new Mesh(new CylinderGeometry(0.014, 0.014, 0.025, 8), boltHoleMat);
+    boltHole.position.set(Math.cos(a) * r * 1.04, -h / 2 - 0.58, Math.sin(a) * r * 1.04);
+    group.add(boltHole);
+    const chamfer = new Mesh(
+      new CylinderGeometry(0.018, 0.014, 6e-3, 8),
+      new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.6 })
+    );
+    chamfer.position.set(Math.cos(a) * r * 1.04, -h / 2 - 0.57, Math.sin(a) * r * 1.04);
+    group.add(chamfer);
+  }
   group.userData.height = h + r;
   group.userData.radius = r;
   return group;
@@ -28037,6 +28824,102 @@ function buildEngine(part) {
     port.rotation.x = Math.PI / 2;
     group.add(port);
   }
+  const delavalPts = [
+    new Vector2(0, -nozzleH / 2 + nozzleH * 0.05),
+    // 出口端中心
+    new Vector2(nozzleR * 0.96, -nozzleH / 2 + nozzleH * 0.05),
+    // 出口壁
+    new Vector2(nozzleR * 0.88, -nozzleH / 2 + nozzleH * 0.12),
+    // 扩张段
+    new Vector2(nozzleR * 0.7, -nozzleH / 2 + nozzleH * 0.22),
+    new Vector2(nozzleR * 0.5, -nozzleH / 2 + nozzleH * 0.35),
+    new Vector2(nozzleR * 0.35, -nozzleH / 2 + nozzleH * 0.5),
+    // 接近喉部
+    new Vector2(nozzleR * 0.26, -nozzleH / 2 + nozzleH * 0.62),
+    // 喉部最窄处
+    new Vector2(nozzleR * 0.28, -nozzleH / 2 + nozzleH * 0.7),
+    // 喉部后收敛
+    new Vector2(nozzleR * 0.34, -nozzleH / 2 + nozzleH * 0.8),
+    // 收敛段
+    new Vector2(nozzleR * 0.38, -nozzleH / 2 + nozzleH * 0.88),
+    new Vector2(0, -nozzleH / 2 + nozzleH * 0.9)
+  ];
+  const delavalGeo = new LatheGeometry(delavalPts, 48);
+  const delavalInnerMat = new MeshStandardMaterial({
+    map: texNozzleThermal(512),
+    emissiveMap: texEmissiveGlow("throat", 512),
+    color: 1710634,
+    metalness: 0.6,
+    roughness: 0.6,
+    emissive: 4465322,
+    emissiveIntensity: 0.8,
+    side: BackSide
+    // 内壁可见
+  });
+  const delavalInner = new Mesh(delavalGeo, delavalInnerMat);
+  delavalInner.position.y = -0.15;
+  group.add(delavalInner);
+  const channelEndMat = new MeshStandardMaterial({ map: texBrushedMetal("inconel", 256), color: 3815994, metalness: 0.7, roughness: 0.5 });
+  for (let i = 0; i < (big ? 36 : med ? 24 : 16); i++) {
+    const angle = i / (big ? 36 : med ? 24 : 16) * Math.PI * 2;
+    const channel = new Mesh(new BoxGeometry(0.012, 0.04, 0.02), channelEndMat);
+    channel.position.set(Math.cos(angle) * nozzleR * 0.94, -nozzleH / 2 + nozzleH * 0.06, Math.sin(angle) * nozzleR * 0.94);
+    channel.lookAt(0, -nozzleH / 2 + nozzleH * 0.06, 0);
+    group.add(channel);
+  }
+  const elbowMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 6710886, metalness: 0.75, roughness: 0.3 });
+  const elbowPts1 = [
+    new Vector3(nozzleR * 0.42 + 0.15, nozzleH / 2 + 0.24, 0.12),
+    new Vector3(nozzleR * 0.55, nozzleH / 2 + 0.2, 0.14),
+    new Vector3(nozzleR * 0.6, nozzleH / 2 + 0.12, 0.16)
+  ];
+  const elbowCurve1 = new CatmullRomCurve3(elbowPts1);
+  const elbow1 = new Mesh(new TubeGeometry(elbowCurve1, 12, 0.022, 8, false), elbowMat);
+  elbow1.castShadow = true;
+  group.add(elbow1);
+  for (let r_i = 0; r_i < 4; r_i++) {
+    const corrugation = new Mesh(new TorusGeometry(0.022, 4e-3, 6, 12), elbowMat);
+    corrugation.position.set(
+      nozzleR * 0.5 + r_i * 0.025,
+      nozzleH / 2 + 0.22 - r_i * 0.015,
+      0.13
+    );
+    corrugation.rotation.y = Math.PI / 2;
+    corrugation.rotation.z = 0.4;
+    group.add(corrugation);
+  }
+  const gimbalBootMat = new MeshStandardMaterial({ color: 2763306, metalness: 0.2, roughness: 0.8 });
+  for (let i = 0; i < 6; i++) {
+    const bootRing = new Mesh(
+      new TorusGeometry(nozzleR * (0.22 + i * 5e-3), 0.014 + i * 1e-3, 8, 24),
+      gimbalBootMat
+    );
+    bootRing.position.y = nozzleH / 2 + 0.02 + i * 0.012;
+    bootRing.rotation.x = Math.PI / 2;
+    group.add(bootRing);
+  }
+  const fuelJetMat = new MeshStandardMaterial({ color: 1723018, metalness: 0.4, roughness: 0.5, emissive: 663632, emissiveIntensity: 0.3 });
+  const oxJetMat = new MeshStandardMaterial({ color: 9050650, metalness: 0.4, roughness: 0.5, emissive: 5246986, emissiveIntensity: 0.3 });
+  for (let ring = 0; ring < 6; ring++) {
+    const jetR = nozzleR * (0.05 + ring * 0.055);
+    const jetCount = 6 + ring * 6;
+    for (let i = 0; i < jetCount; i++) {
+      const a = i / jetCount * Math.PI * 2;
+      const isFuel = (i + ring) % 2 === 0;
+      const jet = new Mesh(
+        new CylinderGeometry(5e-3, 7e-3, 0.01, 6),
+        isFuel ? fuelJetMat : oxJetMat
+      );
+      jet.position.set(Math.cos(a) * jetR, nozzleH / 2 + 0.288, Math.sin(a) * jetR);
+      group.add(jet);
+      const countersink = new Mesh(
+        new CylinderGeometry(9e-3, 5e-3, 4e-3, 8),
+        new MeshStandardMaterial({ color: 3355443, metalness: 0.6, roughness: 0.4 })
+      );
+      countersink.position.set(Math.cos(a) * jetR, nozzleH / 2 + 0.283, Math.sin(a) * jetR);
+      group.add(countersink);
+    }
+  }
   group.userData.height = nozzleH + 0.6;
   group.userData.radius = nozzleR;
   return group;
@@ -28273,6 +29156,131 @@ function buildBooster(part) {
     const clevis = new Mesh(new BoxGeometry(0.04, 0.03, 0.05), tvcMat);
     clevis.position.set(sign2 * r * 0.78, -h / 2 + 0.02, 0);
     group.add(clevis);
+  }
+  const srbJointMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 512), color: 5592405, metalness: 0.75, roughness: 0.3 });
+  const oringRubberSRB = new MeshStandardMaterial({ color: 1708552, metalness: 0.1, roughness: 0.95 });
+  for (let i = 0; i < segCount; i++) {
+    const segY = -h / 2 + h / (segCount + 1) * (i + 1);
+    const jointFlange = new Mesh(
+      new CylinderGeometry(r * 1.06, r * 1.04, 0.06, 56),
+      srbJointMat
+    );
+    jointFlange.position.y = segY;
+    jointFlange.castShadow = true;
+    jointFlange.receiveShadow = true;
+    group.add(jointFlange);
+    for (const oringY of [segY - 0.015, segY + 0.015]) {
+      const oringSlot = new Mesh(
+        new TorusGeometry(r * 1.065, 4e-3, 6, 48),
+        oringRubberSRB
+      );
+      oringSlot.position.y = oringY;
+      oringSlot.rotation.x = Math.PI / 2;
+      group.add(oringSlot);
+    }
+    const jointBoltCount = h > 5 ? 36 : 24;
+    for (let j = 0; j < jointBoltCount; j++) {
+      const ja = j / jointBoltCount * Math.PI * 2;
+      const jbolt = new Mesh(
+        new CylinderGeometry(8e-3, 8e-3, 0.04, 6),
+        new MeshStandardMaterial({ color: 2763306, metalness: 0.8, roughness: 0.3 })
+      );
+      jbolt.position.set(Math.cos(ja) * r * 1.07, segY, Math.sin(ja) * r * 1.07);
+      jbolt.lookAt(Math.cos(ja) * 3, segY, Math.sin(ja) * 3);
+      jbolt.rotation.x = Math.PI / 2;
+      group.add(jbolt);
+    }
+  }
+  const graphiteMat = new MeshStandardMaterial({
+    color: 2763306,
+    metalness: 0.3,
+    roughness: 0.8,
+    emissive: 1706498,
+    emissiveIntensity: 0.15
+  });
+  const graphiteLiner = new Mesh(
+    new TorusGeometry(r * 0.2, 0.025, 10, 32),
+    graphiteMat
+  );
+  graphiteLiner.position.y = -h / 2 - 0.38;
+  graphiteLiner.rotation.x = Math.PI / 2;
+  group.add(graphiteLiner);
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2;
+    const pin = new Mesh(
+      new CylinderGeometry(6e-3, 6e-3, 0.03, 6),
+      new MeshStandardMaterial({ color: 8947848, metalness: 0.8, roughness: 0.2 })
+    );
+    pin.position.set(Math.cos(a) * r * 0.2, -h / 2 - 0.38, Math.sin(a) * r * 0.2);
+    pin.rotation.x = Math.PI / 2;
+    group.add(pin);
+  }
+  const sepLineDitchMat = new MeshStandardMaterial({ color: 1710618, metalness: 0.2, roughness: 0.8 });
+  const chuteSepRing = new Mesh(
+    new TorusGeometry(r * 0.38, 6e-3, 6, 32),
+    sepLineDitchMat
+  );
+  chuteSepRing.position.y = h / 2 + r * 1;
+  chuteSepRing.rotation.x = Math.PI / 2;
+  group.add(chuteSepRing);
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2;
+    const marker = new Mesh(
+      new ConeGeometry(0.015, 0.02, 3),
+      new MeshStandardMaterial({ color: 16729088, emissive: 4460800, metalness: 0.3, roughness: 0.5 })
+    );
+    marker.position.set(Math.cos(a) * r * 0.4, h / 2 + r * 1, Math.sin(a) * r * 0.4);
+    marker.rotation.x = Math.PI;
+    group.add(marker);
+  }
+  const sepMountMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.75, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const mountBase = new Mesh(new CylinderGeometry(0.05, 0.06, 0.04, 12), sepMountMat);
+    mountBase.position.set(Math.cos(angle) * r * 0.9, -h / 2 - 0.05, Math.sin(angle) * r * 0.9);
+    mountBase.lookAt(Math.cos(angle) * 3, -h / 2 + 0.05, Math.sin(angle) * 3);
+    mountBase.castShadow = true;
+    group.add(mountBase);
+    for (let b = 0; b < 4; b++) {
+      const ba = b / 4 * Math.PI * 2;
+      const mountBolt = new Mesh(
+        new SphereGeometry(7e-3, 6, 4),
+        new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 })
+      );
+      mountBolt.position.set(
+        Math.cos(angle) * r * 0.9 + Math.cos(ba) * 0.03,
+        -h / 2 - 0.05 + Math.sin(angle) * 0 + 0.02,
+        Math.sin(angle) * r * 0.9 + Math.sin(ba) * 0.03
+      );
+      group.add(mountBolt);
+    }
+    const threadPort = new Mesh(
+      new CylinderGeometry(0.022, 0.022, 0.03, 10),
+      new MeshStandardMaterial({ color: 2236962, metalness: 0.5, roughness: 0.7 })
+    );
+    threadPort.position.set(Math.cos(angle) * r * 0.9, -h / 2 - 0.08, Math.sin(angle) * r * 0.9);
+    threadPort.lookAt(Math.cos(angle) * 3, -h / 2 - 0.2, Math.sin(angle) * 3);
+    threadPort.rotation.x = Math.PI / 2;
+    group.add(threadPort);
+  }
+  const weldSeamMat = new MeshStandardMaterial({ color: 13420680, metalness: 0.4, roughness: 0.5, emissive: 4465152, emissiveIntensity: 0.05 });
+  const hazMat = new MeshStandardMaterial({ color: 14535320, metalness: 0.2, roughness: 0.6, transparent: true, opacity: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const angle = i / 4 * Math.PI * 2;
+    const weld = new Mesh(new BoxGeometry(5e-3, h * 0.94, 8e-3), weldSeamMat);
+    weld.position.set(Math.cos(angle) * r * 1.002, 0, Math.sin(angle) * r * 1.002);
+    weld.lookAt(0, 0, 0);
+    group.add(weld);
+    for (const side of [-1, 1]) {
+      const haz = new Mesh(new BoxGeometry(0.012, h * 0.94, 3e-3), hazMat);
+      haz.position.set(
+        Math.cos(angle + side * 0.015) * r * 1.001,
+        0,
+        Math.sin(angle + side * 0.015) * r * 1.001
+      );
+      haz.lookAt(0, 0, 0);
+      group.add(haz);
+    }
   }
   group.userData.height = h + r * 1.9 + 0.5;
   group.userData.radius = r;
@@ -28858,6 +29866,58 @@ function buildLandingLeg(part) {
   depMotor.rotation.z = -0.6;
   depMotor.castShadow = true;
   group.add(depMotor);
+  const honeycombCellMat = new MeshStandardMaterial({ color: 13412966, metalness: 0.1, roughness: 0.85, emissive: 4465152, emissiveIntensity: 0.05 });
+  const bufferShellMat = new MeshPhysicalMaterial({
+    color: 8956671,
+    metalness: 0.1,
+    roughness: 0.05,
+    transmission: 0.7,
+    thickness: 0.01,
+    ior: 1.4,
+    transparent: true,
+    opacity: 0.35
+  });
+  const bufferShell = new Mesh(new CylinderGeometry(0.034, 0.034, 0.22, 16, 1, true), bufferShellMat);
+  bufferShell.position.set(0.32, -0.24, 0.03);
+  bufferShell.rotation.z = -0.5;
+  group.add(bufferShell);
+  for (let layer = 0; layer < 5; layer++) {
+    const layerY = -0.15 - layer * 0.035;
+    for (let ring = 0; ring < 2; ring++) {
+      const cellR = 0.012 + ring * 0.014;
+      const cellCount = 6 + ring * 4;
+      for (let i = 0; i < cellCount; i++) {
+        const a = i / cellCount * Math.PI * 2;
+        const cell = new Mesh(
+          new CylinderGeometry(5e-3, 5e-3, 0.03, 6),
+          honeycombCellMat
+        );
+        cell.position.set(
+          0.32 + Math.cos(a) * cellR * Math.cos(-0.5),
+          layerY + Math.cos(a) * cellR * Math.sin(-0.5),
+          0.03 + Math.sin(a) * cellR
+        );
+        cell.rotation.z = -0.5;
+        group.add(cell);
+      }
+    }
+  }
+  for (const endY of [-0.13, -0.33]) {
+    const endCap = new Mesh(
+      new CylinderGeometry(0.036, 0.036, 0.012, 12),
+      new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 8947848, metalness: 0.8, roughness: 0.2 })
+    );
+    endCap.position.set(0.32 + (endY + 0.23) * Math.sin(0.5), endY, 0.03);
+    endCap.rotation.z = -0.5;
+    endCap.castShadow = true;
+    group.add(endCap);
+  }
+  const scaleMat = new MeshStandardMaterial({ color: 16729088, emissive: 4460800, metalness: 0.3, roughness: 0.5 });
+  for (let i = 0; i < 3; i++) {
+    const scale = new Mesh(new BoxGeometry(2e-3, 0.015, 2e-3), scaleMat);
+    scale.position.set(0.355 + i * 0.01, -0.2 - i * 0.04, 0.03);
+    group.add(scale);
+  }
   group.userData.height = 1;
   group.userData.radius = 0.18;
   return group;
@@ -29200,6 +30260,42 @@ function buildDockingPort(part) {
     const led = new Mesh(new SphereGeometry(0.016, 8, 6), amberLedMat);
     led.position.set(Math.cos(a) * r * 0.65, 0.045, Math.sin(a) * r * 0.65);
     group.add(led);
+  }
+  const captureLockMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.85, roughness: 0.2 });
+  const springMat2 = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const lockPawl = new Mesh(new ConeGeometry(0.018, 0.035, 6), captureLockMat);
+    lockPawl.position.set(Math.cos(a) * r * 0.55, 0.06, Math.sin(a) * r * 0.55);
+    lockPawl.lookAt(Math.cos(a) * 3, 0.12, Math.sin(a) * 3);
+    lockPawl.castShadow = true;
+    group.add(lockPawl);
+    for (let s = 0; s < 4; s++) {
+      const coil = new Mesh(new TorusGeometry(8e-3, 3e-3, 4, 8), springMat2);
+      coil.position.set(Math.cos(a) * r * 0.48, 0.04 + s * 6e-3, Math.sin(a) * r * 0.48);
+      coil.rotation.x = Math.PI / 2;
+      group.add(coil);
+    }
+    const damper = new Mesh(new CylinderGeometry(0.01, 0.01, 0.04, 8), captureLockMat);
+    damper.position.set(Math.cos(a) * r * 0.42, 0.03, Math.sin(a) * r * 0.42);
+    damper.lookAt(0, 0.03, 0);
+    damper.rotation.x = Math.PI / 2;
+    group.add(damper);
+  }
+  const lockedLedMat = new MeshStandardMaterial({ color: 65348, emissive: 65348, emissiveIntensity: 1.5, metalness: 0.3, roughness: 0.3 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const led = new Mesh(new SphereGeometry(8e-3, 8, 6), lockedLedMat);
+    led.position.set(Math.cos(a) * r * 0.72, 0.02, Math.sin(a) * r * 0.72);
+    group.add(led);
+  }
+  const guideTrackMat = new MeshStandardMaterial({ map: texBrushedMetal("titanium", 256), color: 11184810, metalness: 0.88, roughness: 0.15 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2;
+    const track = new Mesh(new BoxGeometry(8e-3, 0.12, 0.015), guideTrackMat);
+    track.position.set(Math.cos(a) * r * 0.15, 0.16, Math.sin(a) * r * 0.15);
+    track.lookAt(Math.cos(a) * 3, 0.22, Math.sin(a) * 3);
+    group.add(track);
   }
   group.userData.height = 0.24;
   group.userData.radius = r;
@@ -29610,6 +30706,51 @@ function buildFusionReactor(part) {
   coolRing.rotation.x = Math.PI / 2;
   coolRing.castShadow = true;
   group.add(coolRing);
+  const fieldLineMat = new MeshStandardMaterial({
+    color: 6741503,
+    emissive: 4500223,
+    emissiveIntensity: 1.5,
+    metalness: 0,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.4
+  });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    for (let s = 0; s < 3; s++) {
+      const fieldRing = new Mesh(
+        new TorusGeometry(r * (0.55 + s * 0.06), 4e-3, 6, 32, Math.PI * 0.7),
+        fieldLineMat
+      );
+      fieldRing.position.set(Math.cos(a) * r * 0.3, (s - 1) * 0.04, Math.sin(a) * r * 0.3);
+      fieldRing.rotation.x = Math.PI / 2;
+      fieldRing.rotation.z = a;
+      group.add(fieldRing);
+    }
+  }
+  const plasmaParticleMat = new MeshStandardMaterial({
+    color: 11202303,
+    emissive: 6737151,
+    emissiveIntensity: 2,
+    metalness: 0,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.6
+  });
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2;
+    const rOff = r * (0.5 + Math.sin(i * 2.3) * 0.08);
+    const yOff = Math.sin(i * 1.7) * 0.08;
+    const particle = new Mesh(new SphereGeometry(0.012, 6, 4), plasmaParticleMat);
+    particle.position.set(Math.cos(a) * rOff, yOff, Math.sin(a) * rOff);
+    group.add(particle);
+  }
+  const nbiMat = new MeshStandardMaterial({ map: makeMetalTexture("steel"), color: 6710886, metalness: 0.8, roughness: 0.25 });
+  const nbi = new Mesh(new CylinderGeometry(0.05, 0.07, 0.15, 12), nbiMat);
+  nbi.position.set(r * 1.1, 0, 0);
+  nbi.rotation.z = Math.PI / 2;
+  nbi.castShadow = true;
+  group.add(nbi);
   group.userData.height = h;
   group.userData.radius = r;
   return group;
@@ -29735,6 +30876,45 @@ function buildWarpDrive(part) {
     emitter.position.set(Math.cos(a) * r * 0.88, 0, Math.sin(a) * r * 0.88);
     group.add(emitter);
   }
+  const pulseRingMat = new MeshStandardMaterial({
+    color: 14527231,
+    emissive: 11158783,
+    emissiveIntensity: 2,
+    metalness: 0,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.5
+  });
+  const pulseRings = [];
+  for (let i = 0; i < 3; i++) {
+    const pulseRing = new Mesh(
+      new TorusGeometry(r * 0.3, 8e-3, 8, 48),
+      pulseRingMat.clone()
+    );
+    pulseRing.rotation.x = Math.PI / 2;
+    pulseRing.position.y = (i - 1) * 0.06;
+    group.add(pulseRing);
+    pulseRings.push(pulseRing);
+  }
+  pulseRings.forEach((ring, idx) => {
+    const mat = ring.material;
+    ring.onBeforeRender = () => {
+      const t = (performance.now() / 1500 + idx * 0.33) % 1;
+      const scale = 0.5 + t * 2.5;
+      ring.scale.set(scale, scale, 1);
+      mat.opacity = 0.6 * (1 - t);
+      mat.emissiveIntensity = 2 * (1 - t * 0.5);
+    };
+  });
+  const finMat2 = new MeshStandardMaterial({ map: makeMetalTexture("titanium"), color: 8947865, metalness: 0.8, roughness: 0.2 });
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
+    const fin = new Mesh(new BoxGeometry(0.015, 0.08, r * 0.15), finMat2);
+    fin.position.set(Math.cos(a) * r * 0.5, 0, Math.sin(a) * r * 0.5);
+    fin.lookAt(Math.cos(a) * 3, 0, Math.sin(a) * 3);
+    fin.castShadow = true;
+    group.add(fin);
+  }
   group.userData.height = h + 0.2;
   group.userData.radius = r;
   return group;
@@ -29840,6 +31020,35 @@ function buildRadiator(part) {
   const lockPin = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.04, 8), lockPinMat);
   lockPin.position.set(0, 0.03, 0);
   group.add(lockPin);
+  const evaporatorMat = new MeshStandardMaterial({ map: makeMetalTexture("copper"), color: 11162931, metalness: 0.85, roughness: 0.3, emissive: 4465152, emissiveIntensity: 0.2 });
+  const condenserMat = new MeshStandardMaterial({ map: makeMetalTexture("aluminum"), color: 10066329, metalness: 0.8, roughness: 0.25 });
+  const evaporator = new Mesh(new CylinderGeometry(0.035, 0.04, 0.08, 12), evaporatorMat);
+  evaporator.position.set(0.15, 0, 0);
+  evaporator.rotation.z = Math.PI / 2;
+  evaporator.castShadow = true;
+  group.add(evaporator);
+  for (let i = 0; i < 5; i++) {
+    const evFin = new Mesh(new BoxGeometry(0.01, 0.02, 0.06), evaporatorMat);
+    evFin.position.set(0.12 + i * 0.015, 0.02, 0);
+    group.add(evFin);
+  }
+  for (const sign2 of [1, -1]) {
+    const condenser = new Mesh(new CylinderGeometry(0.03, 0.035, 0.06, 12), condenserMat);
+    condenser.position.set(sign2 * (panelLen + 0.06), 0, 0);
+    condenser.rotation.z = Math.PI / 2;
+    condenser.castShadow = true;
+    group.add(condenser);
+    for (let i = 0; i < 4; i++) {
+      const cFin = new Mesh(new BoxGeometry(8e-3, 0.025, 0.04), condenserMat);
+      cFin.position.set(sign2 * (panelLen + 0.04 + i * 0.012), 0.015, 0);
+      group.add(cFin);
+    }
+  }
+  const wickMat = new MeshStandardMaterial({ color: 6702114, metalness: 0.3, roughness: 0.8 });
+  const wick = new Mesh(new CylinderGeometry(6e-3, 6e-3, panelLen * 0.9, 6), wickMat);
+  wick.rotation.z = Math.PI / 2;
+  wick.position.set(panelLen / 2 + 0.1, 0.012, 0);
+  group.add(wick);
   group.userData.height = 0.15;
   group.userData.radius = panelLen;
   return group;
@@ -30773,6 +31982,8 @@ var Rocket = class _Rocket {
     // ── Thermal & aero state ───────────────────────────────────────────
     /** Rocket skin temperature (K). Updated by physics heating model. */
     this.skinTemperature = 300;
+    /** Maximum survivable skin temperature before structural failure (K). */
+    this.maxSkinTemp = 2e3;
     /** Per-part heat state for ablation tracking. */
     this.partHeat = /* @__PURE__ */ new Map();
     /** Drag coefficient (set by parts; default capsule-like). */
@@ -30788,6 +31999,56 @@ var Rocket = class _Rocket {
     // ── Debris from stage separation ───────────────────────────────────
     /** Debris bodies spawned by staging. Game loop integrates these. */
     this.debris = [];
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 16-18] Part damage, mass properties, crossfeed
+    // ════════════════════════════════════════════════════════════════════
+    /** Per-part damage state: 0 (intact) .. 1 (destroyed). */
+    this.partDamage = /* @__PURE__ */ new Map();
+    /** Per-part failure flags (overheated, over-g, impact). */
+    this.partFailed = /* @__PURE__ */ new Map();
+    /** Center of mass offset from geometric center (local frame, m). */
+    this.centerOfMass = new Vector3(0, 0, 0);
+    /** Moment of inertia tensor components (kg·m²): Ixx, Iyy, Izz. */
+    this.momentOfInertia = new Vector3(1e3, 1e3, 1e3);
+    /** Whether fuel crossfeed is enabled between stages. */
+    this.crossfeedEnabled = false;
+    /** Whether the rocket has radiator panels for active cooling. */
+    this.hasRadiator = false;
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 19-21] Engine enhancement: ISP curve, failure, throttle delay
+    // ════════════════════════════════════════════════════════════════════
+    /** Per-engine cumulative thermal stress (0..1). Higher = more likely to fail. */
+    this.engineStress = /* @__PURE__ */ new Map();
+    /** Per-engine failure state. */
+    this.engineFailed = /* @__PURE__ */ new Map();
+    /** Throttle command with delay buffer. */
+    this.throttleCommand = 0;
+    /** Per-engine ISP at sea level (cached for interpolation). */
+    this.engineIspSL = /* @__PURE__ */ new Map();
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 22-25] Resource enhancement: fuel ratio, solar tracking, battery
+    // ════════════════════════════════════════════════════════════════════
+    /** Solar panel tracking angle (rad) — automatically points at sun. */
+    this.solarPanelAngle = 0;
+    /** Battery cycle count (affects efficiency). */
+    this.batteryCycles = 0;
+    /** Battery efficiency (1.0 = new, decreases with cycles). */
+    this.batteryEfficiency = 1;
+    /** Docked vessels for resource transfer. */
+    this.dockedVessels = [];
+    /** Whether resource transfer is active with a docked vessel. */
+    this.transferActive = false;
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 26-27] Stall recovery & landing stability state
+    // ════════════════════════════════════════════════════════════════════
+    /** Current stall recovery factor (0..1). 1 = full lift, 0 = fully stalled. */
+    this.stallRecovery = 1;
+    /** Previous angle of attack (rad) for stall hysteresis tracking. */
+    this.prevAoA = 0;
+    /** Whether the craft is currently in a stalled state. */
+    this.isStalled = false;
+    /** Landing stability result cached from last check. */
+    this.landingStabilityResult = null;
     // Engine flame reference
     this.flameGroup = null;
     this._chutesArmed = false;
@@ -30827,6 +32088,10 @@ var Rocket = class _Rocket {
     this.initResources(parts);
     this.initPartStates(parts);
     this.rebuildActiveEngines();
+  }
+  static {
+    /** Throttle response time constant (s). */
+    this.THROTTLE_DELAY = 0.5;
   }
   static {
     // ── Rotation tuning (KSP-style) ──────────────────────────────────
@@ -31158,11 +32423,12 @@ var Rocket = class _Rocket {
    * in sync for the legacy delta-V / mass calculations. Engine mode gating
    * (jets need intake air) is enforced here.
    */
-  applyThrust(dt) {
+  applyThrust(dt, ambientPressure = 0) {
     if (this.throttle <= 0) {
       this.updateFlame();
       return;
     }
+    const effectiveIsps = this.effectiveIspAtPressure(ambientPressure);
     const lf = this.resources.get("liquidFuel");
     const ox = this.resources.get("oxidizer");
     const xenon = this.resources.get("xenon");
@@ -31172,8 +32438,10 @@ var Rocket = class _Rocket {
     let totalThrust = 0;
     let totalIspW = 0;
     let lfUse = 0, oxUse = 0, xenonUse = 0, ecUse = 0, airUse = 0, solidUse = 0;
-    for (const eng of this.engines) {
+    for (let ei = 0; ei < this.engines.length; ei++) {
+      const eng = this.engines[ei];
       if (eng.thrust <= 0) continue;
+      if (this.engineFailed.get(ei)) continue;
       const eThrust = eng.thrust * this.throttle;
       let canFire = true;
       switch (eng.mode) {
@@ -31194,9 +32462,10 @@ var Rocket = class _Rocket {
           break;
       }
       if (!canFire) continue;
+      const effIsp = effectiveIsps[ei] ?? eng.isp;
       totalThrust += eThrust;
-      totalIspW += eThrust * eng.isp;
-      const mdot = eThrust / (eng.isp * 9.81);
+      totalIspW += eThrust * effIsp;
+      const mdot = eThrust / (effIsp * 9.81);
       switch (eng.propellant) {
         case "liquidFuel":
           if (eng.mode === "jet") {
@@ -31300,19 +32569,20 @@ var Rocket = class _Rocket {
   /**
    * Smoothly adjust throttle (Shift to increase, Ctrl to decrease).
    * Rate-limited at 0.5/s so the full 0→1 range takes ~2 seconds, matching KSP.
+   * [Iter 21] Now adjusts the throttle command; actual throttle follows with lag.
    *
    * @param delta +1 to increase, -1 to decrease.
    * @param dt    Frame delta-time in seconds.
    */
   adjustThrottle(delta, dt) {
-    this.throttle = Math.max(0, Math.min(1, this.throttle + delta * _Rocket.THROTTLE_RATE * dt));
+    this.throttleCommand = Math.max(0, Math.min(1, this.throttleCommand + delta * _Rocket.THROTTLE_RATE * dt));
   }
   /**
    * Set throttle directly (Z for full, X for cut).
-   * Instant set — matches KSP shortcut behaviour.
+   * Instant set on the command; actual throttle follows with lag.
    */
   setThrottle(t) {
-    this.throttle = Math.max(0, Math.min(1, t));
+    this.throttleCommand = Math.max(0, Math.min(1, t));
   }
   // ── Thrust vectoring (gimbal / TVC) ────────────────────────────────
   /**
@@ -31601,6 +32871,498 @@ var Rocket = class _Rocket {
     }
     const parts = active.partIds.map((id) => this._partLookup.get(id)).filter((p) => !!p);
     this.initEngines(parts);
+    this.engines.forEach((eng, i) => {
+      this.engineIspSL.set(i, eng.ispSL);
+      this.engineStress.set(i, 0);
+      this.engineFailed.set(i, false);
+    });
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 16] Part damage system
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Apply damage to a part. Damage accumulates from 0 to 1; at 1 the part
+   * is considered destroyed and flagged as failed.
+   *
+   * @param partId  Part to damage.
+   * @param amount  Damage amount (0..1).
+   * @param cause   Cause of damage.
+   * @returns True if the part was newly destroyed this call.
+   */
+  damagePart(partId, amount, cause) {
+    const current = this.partDamage.get(partId) ?? 0;
+    const newDamage = Math.min(1, current + amount);
+    this.partDamage.set(partId, newDamage);
+    if (newDamage >= 1 && !this.partFailed.get(partId)) {
+      this.partFailed.set(partId, cause);
+      return true;
+    }
+    return false;
+  }
+  /** Check if a part is currently failed/destroyed. */
+  isPartFailed(partId) {
+    return (this.partFailed.get(partId) ?? null) !== null;
+  }
+  /** Get the damage level of a part (0 = intact, 1 = destroyed). */
+  getPartDamage(partId) {
+    return this.partDamage.get(partId) ?? 0;
+  }
+  /**
+   * Apply G-force damage to all parts. Each part has a G-tolerance; exceeding
+   * it accumulates damage proportional to the excess G.
+   *
+   * @param gForce  Current G-force experienced (in Earth g's).
+   * @param dt      Time step (s).
+   * @returns Array of newly-destroyed part ids.
+   */
+  applyGForceDamage(gForce, dt) {
+    const destroyed = [];
+    if (gForce < 5) return destroyed;
+    for (const [partId, _] of this.partHeat) {
+      if (this.isPartFailed(partId)) continue;
+      const part = this._partLookup.get(partId);
+      let gTol = 10;
+      if (part?.type === "command") gTol = 15;
+      else if (part?.type === "fuel") gTol = 8;
+      else if (part?.type === "engine") gTol = 12;
+      if (gForce > gTol) {
+        const excess = gForce - gTol;
+        const dmgRate = excess / gTol * 0.5 * dt;
+        if (this.damagePart(partId, dmgRate, "gforce")) {
+          destroyed.push(partId);
+        }
+      }
+    }
+    return destroyed;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 17] Mass properties: real COM and moment of inertia
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute the true center of mass and moment of inertia from the active
+   * parts. Each part's mass (dry + fuel) contributes to the COM and inertia
+   * tensor. This accounts for asymmetric fuel drain and part placement.
+   *
+   * @param partOffsets Map of partId → local position offset.
+   */
+  computeMassProperties(partOffsets) {
+    let totalMass = 0;
+    const com = new Vector3();
+    let Ixx = 0, Iyy = 0, Izz = 0;
+    for (const stage of this.stages) {
+      if (stage !== this.stages[this.currentStage] && this.stages.indexOf(stage) < this.currentStage) continue;
+      for (const partId of stage.partIds) {
+        if (this.isPartFailed(partId)) continue;
+        const part = this._partLookup.get(partId);
+        if (!part) continue;
+        const offset = partOffsets?.get(partId) ?? new Vector3(0, 0, 0);
+        const partMass = part.mass + (part.fuelMass || 0);
+        totalMass += partMass;
+        com.add(offset.clone().multiplyScalar(partMass));
+        const r2 = offset.lengthSq();
+        Ixx += partMass * (offset.y * offset.y + offset.z * offset.z + r2 * 0.01);
+        Iyy += partMass * (offset.x * offset.x + offset.z * offset.z + r2 * 0.01);
+        Izz += partMass * (offset.x * offset.x + offset.y * offset.y + r2 * 0.01);
+      }
+    }
+    if (totalMass > 0) {
+      com.divideScalar(totalMass);
+    }
+    this.centerOfMass.copy(com);
+    this.momentOfInertia.set(
+      Math.max(Ixx, 1),
+      Math.max(Iyy, 1),
+      Math.max(Izz, 1)
+    );
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 16] Part damage system — update each frame
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 16] Update part damage based on current conditions.
+   * Checks for overheat damage, G-force damage, and engine wear.
+   */
+  updatePartDamage(dt) {
+    if (this.skinTemperature > this.maxSkinTemp * 0.95) {
+      const overheatRate = (this.skinTemperature - this.maxSkinTemp * 0.95) / (this.maxSkinTemp * 0.05);
+      for (const stage of this.stages) {
+        if (this.stages.indexOf(stage) < this.currentStage) continue;
+        for (const partId of stage.partIds) {
+          if (this.isPartFailed(partId)) continue;
+          this.damagePart(partId, overheatRate * 5 * dt, "overheat");
+        }
+      }
+    }
+    for (const stage of this.stages) {
+      if (this.stages.indexOf(stage) < this.currentStage) continue;
+      if (!stage.hasEngine) continue;
+      for (const partId of stage.partIds) {
+        const part = this._partLookup.get(partId);
+        if (!part || part.type !== "engine") continue;
+        if (this.isPartFailed(partId)) continue;
+        const wearRate = this.throttle * 1e-4 * dt;
+        const currentDamage = this.partDamage.get(partId) ?? 0;
+        if (currentDamage > 0.8) {
+          const failChance = (currentDamage - 0.8) * 1e-3 * dt;
+          if (Math.random() < failChance) {
+            this.damagePart(partId, 1, "overheat");
+          }
+        }
+      }
+    }
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 7-9] Thermal conduction — heat flow between parts
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 7] Update thermal conduction between parts.
+   * Heat flows from hotter parts to cooler adjacent parts.
+   */
+  updateThermalConduction(dt) {
+    const avgTemp = this.skinTemperature;
+    const emissivity = 0.85;
+    const sigma = 567e-10;
+    const ambientTemp = 3;
+    const radiativeCooling = emissivity * sigma * (Math.pow(avgTemp, 4) - Math.pow(ambientTemp, 4));
+    const radiatorCooling = this.hasRadiator ? 5e3 * dt : 0;
+    const netCooling = (radiativeCooling + radiatorCooling) * dt / (this.totalMass * 1e3);
+    this.skinTemperature = Math.max(ambientTemp, this.skinTemperature - netCooling);
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 18] Fuel crossfeed
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Toggle fuel crossfeed between stages. When enabled, the active stage's
+   * engines can draw fuel from any upper stage's tanks (KSP fuel ducts).
+   */
+  toggleCrossfeed() {
+    this.crossfeedEnabled = !this.crossfeedEnabled;
+  }
+  /**
+   * Transfer fuel from upper stages to the active stage if crossfeed is on.
+   * Moves fuel from the highest available upper stage down to the active stage.
+   *
+   * @param dt Time step (s).
+   * @returns Amount of fuel transferred (kg).
+   */
+  crossfeedTransfer(dt) {
+    if (!this.crossfeedEnabled) return 0;
+    if (this.currentStage >= this.stages.length - 1) return 0;
+    const active = this.stages[this.currentStage];
+    for (let i = this.currentStage + 1; i < this.stages.length; i++) {
+      const upper = this.stages[i];
+      if (upper.fuel > 0) {
+        const transferRate = 50;
+        const amount = Math.min(upper.fuel, transferRate * dt);
+        upper.fuel -= amount;
+        upper.maxFuel = Math.max(upper.maxFuel, upper.fuel);
+        active.fuel += amount;
+        const lf = this.resources.get("liquidFuel");
+        const ox = this.resources.get("oxidizer");
+        if (lf) lf.current += amount * 0.45;
+        if (ox) ox.current += amount * 0.55;
+        return amount;
+      }
+    }
+    return 0;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 19] Realistic ISP curve (sea level vs vacuum)
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute the effective ISP for each engine based on ambient pressure.
+   * ISP transitions linearly from sea-level ISP (at sea level) to vacuum ISP
+   * (in vacuum), following the KSP model: Isp(p) = Isp_vac - (Isp_vac - Isp_sl) * p/p0.
+   *
+   * @param ambientPressure Current ambient pressure (Pa). 0 = vacuum.
+   * @param seaLevelPressure Sea-level reference pressure (Pa). Default 101325.
+   * @returns Array of effective ISP per engine.
+   */
+  effectiveIspAtPressure(ambientPressure, seaLevelPressure = 101325) {
+    const result = [];
+    const pRatio = Math.max(0, Math.min(1, ambientPressure / seaLevelPressure));
+    for (let i = 0; i < this.engines.length; i++) {
+      if (this.engineFailed.get(i)) {
+        result.push(0);
+        continue;
+      }
+      const eng = this.engines[i];
+      const ispVac = eng.isp;
+      const ispSL = this.engineIspSL.get(i) ?? eng.isp * 0.8;
+      const effectiveIsp = ispVac - (ispVac - ispSL) * pRatio;
+      result.push(Math.max(1, effectiveIsp));
+    }
+    return result;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 20] Engine failure probability (thermal stress)
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Update engine thermal stress and check for failures. Engines that run
+   * hot for extended periods accumulate stress; at high stress levels there
+   * is a probability of failure each tick.
+   *
+   * @param dt Time step (s).
+   * @returns Array of engine indices that failed this tick.
+   */
+  updateEngineStress(dt) {
+    const failed = [];
+    for (let i = 0; i < this.engines.length; i++) {
+      if (this.engineFailed.get(i)) continue;
+      const eng = this.engines[i];
+      const partId = this.stages[this.currentStage]?.partIds.find((id) => {
+        const p = this._partLookup.get(id);
+        return p && (p.type === "engine" || p.type === "booster") && p.thrust === eng.thrust;
+      });
+      if (!partId) continue;
+      const heatState = this.partHeat.get(partId);
+      if (!heatState) continue;
+      const tempRatio = heatState.temperature / heatState.maxTemp;
+      if (tempRatio > 0.8) {
+        const stressRate = (tempRatio - 0.8) / 0.2 * 0.01 * dt;
+        const currentStress = (this.engineStress.get(i) ?? 0) + stressRate;
+        this.engineStress.set(i, currentStress);
+        if (currentStress > 0.5) {
+          const failProb = (currentStress - 0.5) * 1e-3 * dt * 60;
+          if (Math.random() < failProb) {
+            this.engineFailed.set(i, true);
+            failed.push(i);
+          }
+        }
+      } else {
+        const current = this.engineStress.get(i) ?? 0;
+        this.engineStress.set(i, Math.max(0, current - 5e-3 * dt));
+      }
+    }
+    return failed;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 21] Throttle response delay
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Set the throttle command (instant). The actual throttle follows with a
+   * first-order lag (time constant THROTTLE_DELAY) to simulate spool-up time.
+   */
+  setThrottleCommand(t) {
+    this.throttleCommand = Math.max(0, Math.min(1, t));
+  }
+  /**
+   * Update the actual throttle toward the commanded value with a lag.
+   * Call this every physics tick.
+   *
+   * @param dt Time step (s).
+   */
+  updateThrottleLag(dt) {
+    const k = 1 - Math.exp(-dt / _Rocket.THROTTLE_DELAY);
+    this.throttle += (this.throttleCommand - this.throttle) * k;
+    this.throttle = Math.max(0, Math.min(1, this.throttle));
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 22] Realistic fuel consumption ratio (LF:OX = 9:11)
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Get the fuel-to-oxidizer ratio. KSP standard is 9:11 (LF:OX) by mass,
+   * which means LF = 45% and OX = 55% of total propellant mass.
+   * This is already used in initResources; this method exposes it for
+   * external queries and transfer calculations.
+   */
+  get fuelOxidizerRatio() {
+    return { lf: 0.45, ox: 0.55 };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 23] Solar panel sun tracking
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Update solar panel orientation to track the sun for maximum power output.
+   * Returns the efficiency multiplier (0..1) based on how well panels face the sun.
+   *
+   * @param sunDir  Unit vector pointing toward the sun (world space).
+   * @param dt      Time step (s).
+   * @returns Solar efficiency multiplier (0..1).
+   */
+  updateSolarTracking(sunDir, dt) {
+    const panelNormal = new Vector3(0, 1, 0).applyQuaternion(this.orientation);
+    const dot = panelNormal.dot(sunDir.clone().normalize());
+    const efficiency = Math.max(0, dot);
+    this.solarPanelAngle = Math.atan2(sunDir.x, sunDir.y);
+    return efficiency;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 24] Battery charge/discharge cycle efficiency
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Update battery cycle count and efficiency. Batteries lose efficiency
+   * with each charge/discharge cycle. This should be called when a full
+   * charge/discharge cycle is detected.
+   *
+   * @param ecState Electric charge resource state.
+   * @param dt      Time step (s).
+   */
+  updateBatteryCycles(ecState, dt) {
+    if (!ecState) return;
+    if (ecState.flow > 0.1) {
+      const cycleFraction = ecState.flow * dt / Math.max(ecState.max, 1);
+      this.batteryCycles += cycleFraction;
+    } else if (ecState.flow < -0.1) {
+      const cycleFraction = -ecState.flow * dt / Math.max(ecState.max, 1);
+      this.batteryCycles += cycleFraction;
+    }
+    this.batteryEfficiency = Math.max(0.5, 1 - this.batteryCycles * 1e-4);
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 25] Resource transfer pipeline (dock fuel transfer)
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Initiate resource transfer with a docked vessel. Transfers fuel from
+   * this vessel to the target (or vice versa if negative amount).
+   *
+   * @param target   The docked vessel to transfer to.
+   * @param resource The resource type to transfer.
+   * @param amount   Amount to transfer (positive = to target, negative = from target).
+   * @returns Actual amount transferred.
+   */
+  transferResource(target, resource, amount) {
+    const fromRes = amount > 0 ? this.resources.get(resource) : target.resources.get(resource);
+    const toRes = amount > 0 ? target.resources.get(resource) : this.resources.get(resource);
+    if (!fromRes || !toRes) return 0;
+    const absAmount = Math.abs(amount);
+    const actual = Math.min(fromRes.current, absAmount);
+    fromRes.current -= actual;
+    toRes.current = Math.min(toRes.max, toRes.current + actual);
+    return amount > 0 ? actual : -actual;
+  }
+  /**
+   * Register a docked vessel for resource transfer.
+   * @param vessel The vessel that has docked.
+   */
+  registerDockedVessel(vessel) {
+    if (!this.dockedVessels.includes(vessel)) {
+      this.dockedVessels.push(vessel);
+      this.transferActive = true;
+    }
+  }
+  /**
+   * Unregister a docked vessel (undocking).
+   * @param vessel The vessel that has undocked.
+   */
+  unregisterDockedVessel(vessel) {
+    const idx = this.dockedVessels.indexOf(vessel);
+    if (idx >= 0) {
+      this.dockedVessels.splice(idx, 1);
+      if (this.dockedVessels.length === 0) this.transferActive = false;
+    }
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 26] Wing stall recovery logic
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Update the stall recovery state for the rocket's lifting surfaces.
+   * When the angle of attack exceeds the stall angle, lift drops sharply.
+   * As AoA returns below stall, lift recovers with hysteresis delay —
+   * the wing doesn't instantly regain full lift (real-world aerodynamics).
+   *
+   * This method tracks the stall recovery factor (0..1) and should be called
+   * every physics tick when in atmosphere.
+   *
+   * @param aoA         Current angle of attack (rad).
+   * @param stallAngle  Stall angle (rad), typically ~15° = 0.262 rad.
+   * @param dt          Time step (s).
+   * @returns The current stall recovery factor (0..1).
+   */
+  updateStallRecovery(aoA, stallAngle, dt) {
+    const absA = Math.abs(aoA);
+    this.prevAoA = aoA;
+    this.isStalled = absA > stallAngle;
+    if (absA <= stallAngle * 0.8) {
+      this.stallRecovery = Math.min(1, this.stallRecovery + 3 * dt);
+    } else if (absA <= stallAngle) {
+      this.stallRecovery = Math.min(1, this.stallRecovery + 0.5 * dt);
+    } else {
+      const over = absA - stallAngle;
+      const target = Math.max(0.1, 1 - over / stallAngle);
+      this.stallRecovery = Math.max(target, this.stallRecovery - 5 * dt);
+    }
+    return this.stallRecovery;
+  }
+  /**
+   * Get the effective lift coefficient multiplier after stall effects.
+   * This should be applied to the base lift coefficient to model post-stall
+   * lift degradation and hysteresis recovery.
+   *
+   * @returns Multiplier (0..1) on the base lift coefficient.
+   */
+  get effectiveLiftMultiplier() {
+    return this.stallRecovery;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 27] Landing stability calculation
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute landing stability from the rocket's current state. A craft is
+   * stable on the ground if its center of mass projects inside the support
+   * polygon formed by the landing gear contact points. If the COM projects
+   * outside, the craft will tip over.
+   *
+   * Uses the rocket's landing gear contact offsets (local frame) and current
+   * orientation to compute world-space contact points, then checks if the
+   * COM (world space) is inside the support polygon.
+   *
+   * @param groundPos  Ground-level position of the rocket body (world space).
+   * @param upDir      Local "up" direction in world space (towards sky).
+   * @returns { stability: 0..1, willTip: boolean, tipDir: tipping direction }
+   */
+  computeLandingStability(groundPos, upDir) {
+    const contactPoints = [];
+    for (const gear of this.landingGear) {
+      if (!gear.deployed || gear.compression <= 0) continue;
+      const worldOffset = gear.contactOffset.clone().applyQuaternion(this.orientation);
+      contactPoints.push(groundPos.clone().add(worldOffset));
+    }
+    if (contactPoints.length < 2) {
+      this.landingStabilityResult = { stability: 0, willTip: true, tipDir: new Vector3() };
+      return this.landingStabilityResult;
+    }
+    const comWorld = groundPos.clone().add(
+      this.centerOfMass.clone().applyQuaternion(this.orientation)
+    );
+    const avgContact = new Vector3();
+    for (const p of contactPoints) avgContact.add(p);
+    avgContact.divideScalar(contactPoints.length);
+    const comRel = comWorld.clone().sub(avgContact);
+    const comHorizontal = comRel.clone().sub(upDir.clone().multiplyScalar(comRel.dot(upDir)));
+    let minDist = Infinity;
+    let tipDir = new Vector3();
+    let isOutside = false;
+    for (let i = 0; i < contactPoints.length; i++) {
+      const a = contactPoints[i];
+      const b = contactPoints[(i + 1) % contactPoints.length];
+      const edge = b.clone().sub(a);
+      const edgeLen = edge.length();
+      if (edgeLen < 1e-6) continue;
+      const normal = edge.clone().cross(upDir).normalize();
+      const toCom = comWorld.clone().sub(a);
+      const dist = toCom.dot(normal);
+      if (dist > 0) {
+        isOutside = true;
+        const absDist = Math.abs(dist);
+        if (absDist < minDist) {
+          minDist = absDist;
+          tipDir = normal.clone().multiplyScalar(-1);
+        }
+      } else {
+        const absDist = Math.abs(dist);
+        if (absDist < minDist) {
+          minDist = absDist;
+        }
+      }
+    }
+    const willTip = isOutside;
+    let avgRadius = 0;
+    for (const p of contactPoints) avgRadius += p.distanceTo(avgContact);
+    avgRadius /= contactPoints.length;
+    const stability = avgRadius > 0 ? Math.max(0, Math.min(1, minDist / avgRadius)) : 0;
+    this.landingStabilityResult = { stability, willTip, tipDir };
+    return this.landingStabilityResult;
   }
 };
 var Parachute = class {
@@ -31798,6 +33560,23 @@ var WarpDrive = class {
 var Astronaut = class {
   constructor() {
     this.isActive = false;
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 29-31] EVA enhancements: jetpack fuel, science samples, building
+    // ════════════════════════════════════════════════════════════════════
+    /** EVA jetpack propellant (monopropellant) remaining (units). */
+    this.evaPropellant = 100;
+    /** Max EVA propellant. */
+    this.evaPropellantMax = 100;
+    /** Collected science samples (array of biome+experiment info). */
+    this.scienceSamples = [];
+    /** Whether the astronaut is in build mode (can place small structures). */
+    this.buildMode = false;
+    /** Build materials carried (units). */
+    this.buildMaterials = 0;
+    /** Orientation quaternion for EVA rotation. */
+    this.orientation = new Quaternion();
+    /** Whether the astronaut is on a ladder (attached to a vessel). */
+    this.onLadder = false;
     this.group = createAstronautModel();
     this.position = new Vector3();
     this.velocity = new Vector3();
@@ -31811,6 +33590,59 @@ var Astronaut = class {
     if (!this.isActive) return;
     this.position.add(this.velocity.clone().multiplyScalar(dt));
     this.group.position.copy(this.position);
+    this.group.quaternion.copy(this.orientation);
+  }
+  /**
+   * [Iter 29] Apply EVA jetpack thrust. Consumes monopropellant.
+   * @param direction Thrust direction (world space, unit vector).
+   * @param force     Thrust force (N).
+   * @param dt        Time step (s).
+   * @returns True if thrust was applied (enough propellant).
+   */
+  evaThrust(direction, force, dt) {
+    if (this.evaPropellant <= 0) return false;
+    const propConsumption = force * dt * 1e-3;
+    if (propConsumption > this.evaPropellant) return false;
+    this.evaPropellant -= propConsumption;
+    const mass = 100;
+    const dv = direction.clone().multiplyScalar(force * dt / mass);
+    this.velocity.add(dv);
+    return true;
+  }
+  /**
+   * [Iter 30] Collect a science sample from the current biome.
+   * @param biome      Biome name (e.g. "Mun Midlands").
+   * @param experiment Experiment type (e.g. "Surface Sample").
+   * @returns The collected sample, or null if duplicate.
+   */
+  collectSample(biome, experiment) {
+    if (this.scienceSamples.some((s) => s.biome === biome && s.experiment === experiment)) {
+      return null;
+    }
+    const sample = { biome, experiment, value: 10 + Math.random() * 20 };
+    this.scienceSamples.push(sample);
+    return sample;
+  }
+  /**
+   * [Iter 31] Toggle build mode for small structure construction.
+   * @param materials Available build materials.
+   */
+  toggleBuildMode(materials = 0) {
+    this.buildMode = !this.buildMode;
+    this.buildMaterials = materials;
+  }
+  /**
+   * [Iter 31] Place a small structure at the astronaut's position.
+   * @returns True if placement succeeded (enough materials).
+   */
+  placeStructure() {
+    if (!this.buildMode || this.buildMaterials < 1) return false;
+    this.buildMaterials--;
+    return true;
+  }
+  /** Refill EVA propellant from a vessel's monopropellant tank. */
+  refillPropellant(amount) {
+    this.evaPropellant = Math.min(this.evaPropellantMax, this.evaPropellant + amount);
   }
 };
 
@@ -32012,6 +33844,58 @@ var GameUI = class {
     this.initActionGroups();
     this.initCameraModes();
     this.initSciencePanel();
+    this.createEnhancedPanels();
+  }
+  /** 迭代47-50: 创建增强面板DOM元素 */
+  createEnhancedPanels() {
+    if (!document.getElementById("hud-soi")) {
+      const soi = document.createElement("div");
+      soi.id = "hud-soi";
+      soi.style.cssText = "position:absolute;top:80px;right:8px;font-size:9px;color:#4488ff;font-family:monospace;background:rgba(8,14,24,0.85);padding:2px 6px;border-radius:3px;";
+      this.container.appendChild(soi);
+    }
+    if (!document.getElementById("hud-temps")) {
+      const temps = document.createElement("div");
+      temps.id = "hud-temps";
+      temps.style.cssText = "position:absolute;top:120px;right:8px;font-family:monospace;background:rgba(8,14,24,0.85);padding:3px 6px;border-radius:3px;min-width:100px;";
+      this.container.appendChild(temps);
+    }
+    if (!document.getElementById("hud-dv-stage")) {
+      const dvStage = document.createElement("div");
+      dvStage.id = "hud-dv-stage";
+      dvStage.style.cssText = "position:absolute;top:200px;right:8px;font-family:monospace;background:rgba(8,14,24,0.85);padding:3px 6px;border-radius:3px;min-width:100px;";
+      this.container.appendChild(dvStage);
+    }
+    if (!document.getElementById("hud-funds")) {
+      const funds = document.createElement("div");
+      funds.id = "hud-funds";
+      funds.style.cssText = "position:absolute;top:8px;left:50%;transform:translateX(-50%);margin-left:100px;font-size:10px;color:#ffdd44;font-family:monospace;";
+      this.container.appendChild(funds);
+    }
+    if (!document.getElementById("hud-rep")) {
+      const rep = document.createElement("div");
+      rep.id = "hud-rep";
+      rep.style.cssText = "position:absolute;top:24px;left:50%;transform:translateX(-50%);margin-left:100px;font-size:10px;color:#44ddff;font-family:monospace;";
+      this.container.appendChild(rep);
+    }
+    if (!document.getElementById("hud-eva-prop")) {
+      const evaProp = document.createElement("div");
+      evaProp.id = "hud-eva-prop";
+      evaProp.style.cssText = "position:absolute;bottom:80px;left:8px;font-size:9px;color:#44dd88;font-family:monospace;background:rgba(8,14,24,0.85);padding:2px 6px;border-radius:3px;";
+      this.container.appendChild(evaProp);
+    }
+    if (!document.getElementById("hud-resource-flow")) {
+      const flow = document.createElement("div");
+      flow.id = "hud-resource-flow";
+      flow.style.cssText = "position:absolute;top:280px;right:8px;font-family:monospace;background:rgba(8,14,24,0.85);padding:3px 6px;border-radius:3px;min-width:100px;";
+      this.container.appendChild(flow);
+    }
+    if (!document.getElementById("hud-maxq")) {
+      const maxq = document.createElement("div");
+      maxq.id = "hud-maxq";
+      maxq.style.cssText = "position:absolute;top:42px;left:50%;transform:translateX(-50%);font-size:11px;color:#ff4444;font-family:monospace;background:rgba(40,8,8,0.9);padding:3px 10px;border-radius:4px;border:1px solid #ff4444;display:none;";
+      this.container.appendChild(maxq);
+    }
   }
   /** 设置快捷按钮交互 */
   setupQuickButtons() {
@@ -32124,10 +34008,88 @@ var GameUI = class {
       const e = data.orbit.eccentricity.toFixed(3);
       const inc = (data.orbit.inclination * 180 / Math.PI).toFixed(1);
       const T = (data.orbit.orbitalPeriod / 3600).toFixed(1);
-      orbitEl.innerHTML = `\u8FDC\u5730\u70B9: ${ap} km<br>\u8FD1\u5730\u70B9: ${pe} km<br>\u504F\u5FC3\u7387: ${e}<br>\u503E\u89D2: ${inc}\xB0<br>\u5468\u671F: ${T}h`;
+      const tAp = data.timeToApoapsis !== void 0 ? this.formatCountdown(data.timeToApoapsis) : "--";
+      const tPe = data.timeToPeriapsis !== void 0 ? this.formatCountdown(data.timeToPeriapsis) : "--";
+      const curR = data.altitude !== void 0 ? (data.altitude / 1e3).toFixed(1) : "--";
+      const curV = data.speed.toFixed(1);
+      const parent = data.parentName;
+      const circV = data.orbit.semiMajorAxis > 0 ? Math.sqrt(3986e11 / (data.orbit.semiMajorAxis * 1e3)).toFixed(0) : "--";
+      orbitEl.innerHTML = `\u8FDC\u5730\u70B9: ${ap} km<br>\u8FD1\u5730\u70B9: ${pe} km<br>\u504F\u5FC3\u7387: ${e}<br>\u503E\u89D2: ${inc}\xB0<br>\u5468\u671F: ${T}h<br>\u81F3\u8FDC\u70B9: ${tAp}<br>\u81F3\u8FD1\u70B9: ${tPe}<br><span style="color:#88ccff">\u5F53\u524D\u9AD8\u5EA6: ${curR} km</span><br><span style="color:#88ccff">\u5F53\u524D\u901F\u5EA6: ${curV} m/s</span><br><span style="color:#aaaaaa">\u5706\u8F68\u9053\u901F\u5EA6: ${circV} m/s</span>`;
     } else {
       orbitPanel.style.display = "block";
       orbitEl.textContent = data.isLanded ? "\u5DF2\u7740\u9646" : "\u4E9A\u8F68\u9053";
+    }
+    if (data.soiBoundary !== void 0) {
+      const soiEl = document.getElementById("hud-soi");
+      if (soiEl) {
+        const soiKm = (data.soiBoundary / 1e3).toFixed(0);
+        const soiPct = data.soiBoundary < 1e5 ? "\u26A0\uFE0F \u63A5\u8FD1SOI\u8FB9\u754C" : `SOI: ${soiKm}km`;
+        soiEl.textContent = soiPct;
+        soiEl.style.color = data.soiBoundary < 1e5 ? "#ff8844" : "#88aacc";
+      }
+    }
+    if (data.partTemps && data.partTemps.length > 0) {
+      const tempEl = document.getElementById("hud-temps");
+      if (tempEl) {
+        tempEl.innerHTML = data.partTemps.map((t) => {
+          const pct = Math.min(t.temp / t.maxTemp * 100, 100);
+          const color = pct > 90 ? "#ff4444" : pct > 70 ? "#ffaa44" : pct > 40 ? "#ffdd44" : "#44dd88";
+          const barW = Math.min(pct, 100);
+          const warn = pct > 90 ? " \u26A0\uFE0F" : "";
+          return `<div style="font-size:7px;color:${color};margin:1px 0">${t.name}: ${t.temp.toFixed(0)}K/${t.maxTemp.toFixed(0)}K${warn}<div style="background:#333;height:3px;width:80px;margin-top:1px"><div style="background:${color};height:3px;width:${barW}%"></div></div></div>`;
+        }).join("");
+      }
+    }
+    if (data.deltaVStage && data.deltaVStage.length > 0) {
+      const dvEl = document.getElementById("hud-dv-stage");
+      if (dvEl) {
+        const total = data.deltaVStage.reduce((s, d) => s + d.dv, 0);
+        const targetDV = data.altitude > 7e4 ? 3400 : 4550;
+        const dvStatus = total >= targetDV ? "\u2705" : "\u26A0\uFE0F";
+        dvEl.innerHTML = data.deltaVStage.map(
+          (d) => `<div style="font-size:8px">S${d.stage}: ${d.dv.toFixed(0)}m/s</div>`
+        ).join("") + `<div style="font-size:8px;color:#44dd88">\u603B\u8BA1: ${total.toFixed(0)}m/s ${dvStatus}</div><div style="font-size:7px;color:#888888">\u9700\u6C42: ${targetDV}m/s</div>`;
+      }
+    }
+    if (data.resourceFlow && data.resourceFlow.length > 0) {
+      const flowEl = document.getElementById("hud-resource-flow");
+      if (flowEl) {
+        flowEl.innerHTML = data.resourceFlow.map(
+          (f) => `<div style="font-size:7px;color:#88ccff">${f.from}\u2192${f.to}: ${f.rate.toFixed(1)}/s</div>`
+        ).join("");
+      }
+    }
+    if (data.funds !== void 0) {
+      const fEl = document.getElementById("hud-funds");
+      if (fEl) fEl.textContent = `\u{1F4B0} ${data.funds.toLocaleString()}`;
+    }
+    if (data.reputation !== void 0) {
+      const rEl = document.getElementById("hud-rep");
+      if (rEl) rEl.textContent = `\u2B50 ${data.reputation}`;
+    }
+    if (data.evaPropellant !== void 0) {
+      const evaEl = document.getElementById("hud-eva-prop");
+      if (evaEl) {
+        evaEl.textContent = `EVA\u71C3\u6599: ${data.evaPropellant.toFixed(0)}%`;
+        evaEl.style.color = data.evaPropellant < 20 ? "#ff4444" : "#44dd88";
+      }
+    }
+    const maxqEl = document.getElementById("hud-maxq");
+    if (maxqEl && this.game) {
+      const maxQ = this.game.currentMaxQ || 0;
+      const maxQWarn = this.game.maxQWarningActive || false;
+      if (maxQWarn && maxQ > 0) {
+        maxqEl.style.display = "block";
+        maxqEl.textContent = `\u26A0\uFE0F MAX-Q: ${(maxQ / 1e3).toFixed(1)} kPa`;
+        maxqEl.style.animation = "pulse 0.5s infinite";
+      } else if (maxQ > 1e3) {
+        maxqEl.style.display = "block";
+        maxqEl.style.color = "#ffaa44";
+        maxqEl.textContent = `Q: ${(maxQ / 1e3).toFixed(1)} kPa`;
+        maxqEl.style.animation = "";
+      } else {
+        maxqEl.style.display = "none";
+      }
     }
     const cameraEl = document.getElementById("hud-camera");
     if (this.game) {
@@ -32143,6 +34105,17 @@ var GameUI = class {
     const m = Math.floor(totalSec % 3600 / 60);
     const s = totalSec % 60;
     return `T+${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+  /** 迭代43: 格式化倒计时 */
+  formatCountdown(seconds) {
+    if (seconds < 0) return "--";
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor(seconds % 86400 / 3600);
+    const m = Math.floor(seconds % 3600 / 60);
+    const s = Math.floor(seconds % 60);
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
   }
   /** 格式化世界时 (UT) */
   formatUT(seconds) {
@@ -32263,16 +34236,35 @@ var GameUI = class {
     ctx.font = "9px monospace";
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     ctx.textAlign = "center";
-    for (let p = -90; p <= 90; p += 15) {
+    for (let p = -90; p <= 90; p += 5) {
       if (p === 0) continue;
       const y = cy + pitchOffset - p * r / 45;
       if (y > 0 && y < h) {
-        const lineW = p % 30 === 0 ? 40 : 20;
+        const isMajor = p % 10 === 0;
+        const isVeryMajor = p % 30 === 0;
+        const lineW = isVeryMajor ? 45 : isMajor ? 28 : 14;
+        ctx.lineWidth = isVeryMajor ? 2 : isMajor ? 1.5 : 0.8;
+        ctx.strokeStyle = isVeryMajor ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.6)";
         ctx.beginPath();
         ctx.moveTo(cx - lineW, y);
         ctx.lineTo(cx + lineW, y);
         ctx.stroke();
-        if (p % 30 === 0) ctx.fillText(`${p}`, cx, y - 2);
+        if (isMajor) {
+          ctx.fillStyle = isVeryMajor ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.7)";
+          ctx.fillText(`${Math.abs(p)}`, cx, y - 2);
+        }
+      }
+    }
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 0.5;
+    for (let p = -20; p <= 20; p += 1) {
+      if (p % 5 === 0) continue;
+      const y = cy + pitchOffset - p * r / 45;
+      if (y > 0 && y < h) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 6, y);
+        ctx.lineTo(cx + 6, y);
+        ctx.stroke();
       }
     }
     ctx.translate(cx, cy);
@@ -32280,28 +34272,33 @@ var GameUI = class {
     ctx.translate(-cx, -cy);
     if (velocity && velocity.length() > 1) {
       const velDir = velocity.clone().normalize();
-      const progX = cx + velDir.x * 30;
-      const progY = cy - velDir.y * 30 + pitchOffset * 0.3;
+      const velMag = Math.max(Math.abs(velDir.x), Math.abs(velDir.y), 0.01);
+      const progX = cx + velDir.x * 35 / velMag * Math.min(velMag, 1);
+      const progY = cy - velDir.y * 35 / velMag * Math.min(velMag, 1) + pitchOffset * 0.3;
       ctx.strokeStyle = "#00ff44";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(progX, progY, 8, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(progX - 3, progY);
-      ctx.lineTo(progX + 3, progY);
-      ctx.moveTo(progX, progY - 3);
-      ctx.lineTo(progX, progY + 3);
+      ctx.arc(progX, progY, 9, 0, Math.PI * 2);
       ctx.stroke();
       ctx.fillStyle = "#00ff44";
+      ctx.beginPath();
+      ctx.arc(progX, progY, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(progX - 6, progY, 1.5, 0, Math.PI * 2);
+      ctx.arc(progX + 6, progY, 1.5, 0, Math.PI * 2);
+      ctx.arc(progX, progY - 6, 1.5, 0, Math.PI * 2);
+      ctx.arc(progX, progY + 6, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#00ff44";
       ctx.font = "8px sans-serif";
-      ctx.fillText("\u987A\u5411", progX, progY - 12);
-      const retroX = cx - velDir.x * 30;
-      const retroY = cy + velDir.y * 30 - pitchOffset * 0.3;
+      ctx.fillText("\u987A\u5411", progX, progY - 14);
+      const retroX = cx - (progX - cx);
+      const retroY = cy - (progY - cy);
       ctx.strokeStyle = "#ff4444";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(retroX, retroY, 8, 0, Math.PI * 2);
+      ctx.arc(retroX, retroY, 9, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(retroX - 5, retroY - 5);
@@ -32311,7 +34308,17 @@ var GameUI = class {
       ctx.stroke();
       ctx.fillStyle = "#ff4444";
       ctx.font = "8px sans-serif";
-      ctx.fillText("\u9006\u5411", retroX, retroY - 12);
+      ctx.fillText("\u9006\u5411", retroX, retroY - 14);
+      const normalX = progY - cy !== 0 ? cx + (progY - cy) * 0.7 : cx + 25;
+      const normalY = progX - cx !== 0 ? cy - (progX - cx) * 0.7 : cy - 25;
+      ctx.strokeStyle = "#44aaff";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(normalX - 5, normalY);
+      ctx.lineTo(normalX + 5, normalY);
+      ctx.moveTo(normalX, normalY - 5);
+      ctx.lineTo(normalX, normalY + 5);
+      ctx.stroke();
       if (this.maneuverNode) {
         const mX = cx + velDir.x * 20 + 15;
         const mY = cy - velDir.y * 20 + pitchOffset * 0.2 - 15;
@@ -32970,6 +34977,49 @@ var GameUI = class {
     html += `<div class="compass-readout">${yawDeg.toFixed(0)}\xB0</div>`;
     panel.innerHTML = html;
   }
+  /** 迭代50: 显示技术树面板 */
+  showTechTree(techData, sciencePoints, onUnlock) {
+    const existing = document.getElementById("tech-tree-overlay");
+    if (existing) existing.remove();
+    const overlay = document.createElement("div");
+    overlay.id = "tech-tree-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;";
+    let html = `
+      <div style="background:#0a0e1a;border:1px solid #2a4060;border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:85vh;overflow-y:auto;">
+        <h2 style="color:#5a9abf;margin:0 0 8px;text-align:center;">\u{1F52C} \u6280\u672F\u6811</h2>
+        <div style="text-align:center;color:#44dd88;margin-bottom:12px;">\u53EF\u7528\u79D1\u5B66\u70B9: ${Math.floor(sciencePoints)}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+    `;
+    for (const tech of techData) {
+      const canUnlock = !tech.unlocked && sciencePoints >= tech.cost && tech.prereq.every((p) => techData.find((t) => t.id === p)?.unlocked);
+      const stateColor = tech.unlocked ? "#44dd88" : canUnlock ? "#ffdd44" : "#666";
+      const stateText = tech.unlocked ? "\u2705 \u5DF2\u89E3\u9501" : canUnlock ? "\u{1F513} \u53EF\u89E3\u9501" : "\u{1F512} " + (tech.prereq.length > 0 ? "\u9700\u524D\u7F6E" : "\u70B9\u6570\u4E0D\u8DB3");
+      html += `
+        <div style="background:${tech.unlocked ? "rgba(20,40,25,0.8)" : "rgba(15,20,35,0.8)"};border:1px solid ${stateColor};border-radius:6px;padding:8px 12px;cursor:${canUnlock ? "pointer" : "default"};" ${canUnlock ? `data-tech="${tech.id}"` : ""}>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:${stateColor};font-size:11px;font-weight:bold;">${tech.name}</span>
+            <span style="color:${stateColor};font-size:9px;">${stateText} ${!tech.unlocked ? `(${tech.cost}\u{1F52C})` : ""}</span>
+          </div>
+          <div style="color:#778899;font-size:8px;margin-top:2px;">${tech.description}</div>
+        </div>
+      `;
+    }
+    html += `
+        </div>
+        <button id="tech-tree-close" style="margin-top:16px;width:100%;padding:8px;background:#1a2030;border:1px solid #2a4060;color:#aabbcc;border-radius:6px;cursor:pointer;">\u5173\u95ED</button>
+      </div>
+    `;
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    overlay.querySelectorAll("[data-tech]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const id = el.dataset.tech;
+        onUnlock(id);
+        overlay.remove();
+      });
+    });
+    document.getElementById("tech-tree-close").addEventListener("click", () => overlay.remove());
+  }
   /** 显示星图覆盖层 — 选择曲速目标 */
   showStarMap(systems, onSelect) {
     const existing = document.getElementById("star-map-overlay");
@@ -33606,6 +35656,24 @@ void main() {
   gl_FragColor = vec4(color, 1.0);
 }
 `;
+var BIOMES = {
+  Kerbin: ["\u8349\u539F", "\u6D77\u6D0B", "\u5C71\u8109", "\u6C99\u6F20", "\u6781\u5730", "\u6D77\u5CB8", "\u51BB\u539F", "\u96E8\u6797"],
+  Mun: ["\u4F4E\u5730", "\u9AD8\u5730", "\u9668\u77F3\u5751", "\u5CE1\u8C37", "\u6781\u5730", "\u5927\u88C2\u7F1D"],
+  Minmus: ["\u5E73\u539F", "\u9AD8\u5730", "\u6E56\u6CCA", "\u6781\u5730", "\u76D0\u7530"],
+  Trisolaris: ["\u4E71\u7EAA\u5143", "\u6052\u7EAA\u5143", "\u4E09\u65E5\u51CC\u7A7A", "\u98DE\u661F\u4E0D\u52A8"],
+  Sun: ["\u5149\u7403\u5C42", "\u8272\u7403\u5C42", "\u65E5\u5195"],
+  Duna: ["\u4F4E\u5730", "\u9AD8\u5730", "\u6781\u5730\u51B0\u76D6", "\u5CE1\u8C37"],
+  Eve: ["\u4F4E\u5730", "\u9AD8\u5730", "\u6D77\u6D0B", "\u6781\u5730"],
+  Dres: ["\u5E73\u539F", "\u5CE1\u8C37", "\u6781\u5730"],
+  Jool: ["\u4E0A\u5C42\u5927\u6C14", "\u4E2D\u5C42\u5927\u6C14", "\u6DF1\u5904\u5927\u6C14"],
+  Laythe: ["\u6D77\u5CB8", "\u6D77\u6D0B", "\u5C9B\u5C7F", "\u6781\u5730"],
+  Vall: ["\u5E73\u539F", "\u9AD8\u5730", "\u51B0\u5DDD", "\u6781\u5730"],
+  Tylo: ["\u9AD8\u5730", "\u4F4E\u5730", "\u9668\u77F3\u5751", "\u6781\u5730"],
+  Bop: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"],
+  Pol: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"],
+  Eeloo: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"]
+};
+var BIOME_SCIENCE_VALUE = 15;
 var Game = class {
   constructor(container2, quality = "high", parts) {
     this.clock = new Clock();
@@ -33662,6 +35730,41 @@ var Game = class {
     // ★★ 曲速目标位置缓存（过程化星 + 银河系地标）
     this.warpTargetPositions = /* @__PURE__ */ new Map();
     this.landedBodies = /* @__PURE__ */ new Set();
+    // === 迭代26-40: 新游戏系统 ===
+    /** 轨道rails模式（高倍加速时用解析轨道） */
+    this.railsMode = false;
+    /** 物理加速上限（大气内） */
+    this.PHYSICS_WARP_MAX = 4;
+    /** 合同系统 */
+    this.contracts = [];
+    /** 资金 */
+    this.funds = 25e3;
+    /** 声望 */
+    this.reputation = 0;
+    /** 对接检测 */
+    this.dockedVessels = /* @__PURE__ */ new Map();
+    /** 科学归档 */
+    this.scienceArchive = /* @__PURE__ */ new Map();
+    /** 生物群系记录 */
+    this.visitedBiomes = /* @__PURE__ */ new Set();
+    /** EVA燃料背包 */
+    this.evaPropellant = 100;
+    this.EVA_PROPELLANT_MAX = 100;
+    /** 合同检查计时器 */
+    this.contractCheckTimer = 0;
+    /** 迭代50: 技术树已解锁节点 */
+    this.unlockedTechs = /* @__PURE__ */ new Set(["basic_rocketry"]);
+    /** 迭代14: max-Q 动压追踪 */
+    this.currentMaxQ = 0;
+    this.maxQWarningActive = false;
+    /** 迭代15: 热平衡显示温度 */
+    this.thermalEquilibriumTemp = 300;
+    /** 迭代13: 着陆冲击力记录 */
+    this.lastImpactGForce = 0;
+    /** 迭代12: 零件损坏计数 */
+    this.partFailureCount = 0;
+    /** 迭代11: 合同连续完成计数 */
+    this.contractStreak = 0;
     // 输入
     this.heldKeys = /* @__PURE__ */ new Set();
     this.mouseDown = false;
@@ -33688,6 +35791,9 @@ var Game = class {
     this.bloomStrength = 0.8;
     // === 动态曝光 ===
     this.currentExposure = 1;
+    // === Maneuver nodes ===
+    /** 迭代46: SOI边界可视化 — 在地图模式绘制SOI球面 */
+    this.soiRings = /* @__PURE__ */ new Map();
     // === 主游戏循环 ===
     this.gameLoop = () => {
       if (!this.isRunning) return;
@@ -33950,7 +36056,9 @@ var Game = class {
     const geometry = new BufferGeometry();
     const positions = new Float32Array(this.TRAJECTORY_STEPS * 3);
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
-    const material = new LineBasicMaterial({ color: 65416, transparent: true, opacity: 0.5 });
+    const colors = new Float32Array(this.TRAJECTORY_STEPS * 3);
+    geometry.setAttribute("color", new BufferAttribute(colors, 3));
+    const material = new LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7 });
     this.trajectoryLine = new Line(geometry, material);
     this.scene.add(this.trajectoryLine);
     const mGeom = new BufferGeometry();
@@ -33992,6 +36100,7 @@ var Game = class {
     if (this.periapsisMarker) this.periapsisMarker.visible = false;
     if (!this.isMapMode) return;
     const positions = this.trajectoryLine.geometry.attributes.position.array;
+    const colors = this.trajectoryLine.geometry.attributes.color.array;
     const points = NBodySystem.predictTrajectory(
       this.rocket.body.position,
       this.rocket.body.velocity,
@@ -34000,13 +36109,44 @@ var Game = class {
       this.TRAJECTORY_STEPS,
       this.TRAJECTORY_DT
     );
+    const trajParent = this.getRocketParentBody();
+    const parentRadius = trajParent?.radius || 6371e3;
     for (let i = 0; i < points.length && i < this.TRAJECTORY_STEPS; i++) {
       const rp = this.getSurfaceRenderPosition(points[i]);
       positions[i * 3] = rp.x;
       positions[i * 3 + 1] = rp.y;
       positions[i * 3 + 2] = rp.z;
+      const alt = trajParent ? points[i].distanceTo(trajParent.position) - parentRadius : 0;
+      const atmHeight = trajParent ? this.physics.getAtmosphere(trajParent.name)?.atmosphereHeight || parentRadius * 0.1 : 0;
+      const altRatio = alt / parentRadius;
+      let r = 0, g = 0, b = 0;
+      if (alt < atmHeight) {
+        const t = alt / atmHeight;
+        r = 1;
+        g = 0.2 + 0.6 * t;
+        b = 0;
+      } else if (altRatio < 0.3) {
+        const t = (altRatio - atmHeight / parentRadius) / 0.3;
+        r = 1 - 0.8 * t;
+        g = 0.8 + 0.2 * t;
+        b = 0 + 0.4 * t;
+      } else if (altRatio < 2) {
+        const t = (altRatio - 0.3) / 1.7;
+        r = 0.2 - 0.2 * t;
+        g = 1 - 0.4 * t;
+        b = 0.4 + 0.6 * t;
+      } else {
+        const t = Math.min((altRatio - 2) / 10, 1);
+        r = 0 + 0.6 * t;
+        g = 0.6 - 0.4 * t;
+        b = 1 - 0.2 * t;
+      }
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
     }
     this.trajectoryLine.geometry.attributes.position.needsUpdate = true;
+    this.trajectoryLine.geometry.attributes.color.needsUpdate = true;
     this.trajectoryLine.geometry.setDrawRange(0, points.length);
     const parent = this.getRocketParentBody();
     if (parent) {
@@ -34030,8 +36170,39 @@ var Game = class {
         }
       }
     }
+    this.updateSOIBoundaries();
   }
-  // === Maneuver nodes ===
+  updateSOIBoundaries() {
+    if (!this.isMapMode) {
+      for (const ring of this.soiRings.values()) ring.visible = false;
+      return;
+    }
+    const sun = this.physics.getBody("Sun");
+    if (!sun) return;
+    for (const body of this.physics.bodies) {
+      if (body.name === "Sun" || body.name === "\u706B\u7BAD" || body.name === "Rocket") continue;
+      const distToSun = body.position.distanceTo(sun.position);
+      const soiRadius = distToSun * Math.pow(body.mass / sun.mass, 0.4);
+      let ring = this.soiRings.get(body.name);
+      if (!ring) {
+        const geo = new BufferGeometry();
+        const pts = [];
+        const segs = 64;
+        for (let i = 0; i <= segs; i++) {
+          const a = i / segs * Math.PI * 2;
+          pts.push(Math.cos(a) * soiRadius, 0, Math.sin(a) * soiRadius);
+        }
+        geo.setAttribute("position", new Float32BufferAttribute(pts, 3));
+        const mat = new LineBasicMaterial({ color: 4491519, transparent: true, opacity: 0.3 });
+        ring = new Line(geo, mat);
+        this.scene.add(ring);
+        this.soiRings.set(body.name, ring);
+      }
+      ring.visible = true;
+      const rp = this.getSurfaceRenderPosition(body.position);
+      ring.position.copy(rp);
+    }
+  }
   /** Toggle maneuver node creation/clearing in map mode. */
   toggleManeuverNode() {
     if (!this.isMapMode || !this.rocket) {
@@ -34363,7 +36534,11 @@ var Game = class {
       while (TIME_WARP_LEVELS.indexOf(this.timeWarp.currentWarp) > limit) {
         this.timeWarp.decrease();
       }
-      this.hud.showNotification("\u65F6\u95F4\u52A0\u901F\u53D7\u5F53\u524D\u6761\u4EF6\u9650\u5236", 2e3);
+      if (!this.isInVacuum()) {
+        this.hud.showNotification("\u26A0\uFE0F \u5927\u6C14\u5185\u7269\u7406\u52A0\u901F\u9650\u5236: \u6700\u9AD84x", 2e3);
+      } else {
+        this.hud.showNotification("\u65F6\u95F4\u52A0\u901F\u53D7\u5F53\u524D\u6761\u4EF6\u9650\u5236", 2e3);
+      }
     }
   }
   // === 科研基地与曲速 ===
@@ -35018,6 +37193,8 @@ ${ach.description}`, 8e3);
       }
       this.rocket.skinTemperature = this.rocketThermal.temperature;
       this.isOverheating = false;
+      this.currentMaxQ = 0;
+      this.maxQWarningActive = false;
       return;
     }
     const aero = {
@@ -35031,6 +37208,22 @@ ${ach.description}`, 8e3);
     this.isOverheating = NBodySystem.isOverheating(this.rocketThermal);
     if (this.isOverheating && !wasOverheating) {
       this.hud.showNotification("\u26A0\uFE0F \u8FC7\u70ED\u8B66\u544A\uFF01\u6E29\u5EA6\u8D85\u6807\uFF01", 4e3);
+    }
+    const altitude = this.rocket.body.position.distanceTo(parent.position) - parent.radius;
+    if (altitude < atm.atmosphereHeight && altitude > 0) {
+      const rho = this.physics.atmosphericDensity(parent.name, altitude);
+      const relVel = this.rocket.body.velocity.clone().sub(parent.velocity);
+      const speed = relVel.length();
+      const qResult = this.physics.dynamicPressure(rho, speed);
+      this.currentMaxQ = Math.max(this.currentMaxQ, qResult.q);
+      if (qResult.isCritical && !this.maxQWarningActive) {
+        this.maxQWarningActive = true;
+        this.hud.showNotification(`\u26A0\uFE0F Max-Q \u8B66\u544A! \u52A8\u538B: ${(qResult.q / 1e3).toFixed(1)}kPa`, 3e3);
+        this.hud.triggerAlert("maxq", `Max-Q: ${(qResult.q / 1e3).toFixed(0)}kPa`, "danger");
+      } else if (!qResult.isCritical && this.maxQWarningActive) {
+        this.maxQWarningActive = false;
+        this.hud.clearAlert("maxq");
+      }
     }
   }
   // === Parachutes ===
@@ -35117,19 +37310,62 @@ ${ach.description}`, 8e3);
       }
     }
     const rcsForce = 2;
+    const rcsCost = 0.5;
     const forward = new Vector3(0, 0, -1);
     const right = new Vector3(1, 0, 0);
     const up = new Vector3(0, 1, 0);
-    if (this.heldKeys.has("w")) this.astronaut.velocity.addScaledVector(forward, rcsForce * dt);
-    if (this.heldKeys.has("s")) this.astronaut.velocity.addScaledVector(forward, -rcsForce * dt);
-    if (this.heldKeys.has("d")) this.astronaut.velocity.addScaledVector(right, rcsForce * dt);
-    if (this.heldKeys.has("a")) this.astronaut.velocity.addScaledVector(right, -rcsForce * dt);
-    if (this.heldKeys.has("q")) this.astronaut.velocity.addScaledVector(up, -rcsForce * dt);
-    if (this.heldKeys.has("r")) this.astronaut.velocity.addScaledVector(up, rcsForce * dt);
+    let rcsActive = false;
+    const hasFuel = this.evaPropellant > 0;
+    const effForce = hasFuel ? rcsForce : 0;
+    if (this.heldKeys.has("w")) {
+      this.astronaut.velocity.addScaledVector(forward, effForce * dt);
+      rcsActive = true;
+    }
+    if (this.heldKeys.has("s")) {
+      this.astronaut.velocity.addScaledVector(forward, -effForce * dt);
+      rcsActive = true;
+    }
+    if (this.heldKeys.has("d")) {
+      this.astronaut.velocity.addScaledVector(right, effForce * dt);
+      rcsActive = true;
+    }
+    if (this.heldKeys.has("a")) {
+      this.astronaut.velocity.addScaledVector(right, -effForce * dt);
+      rcsActive = true;
+    }
+    if (this.heldKeys.has("q")) {
+      this.astronaut.velocity.addScaledVector(up, -effForce * dt);
+      rcsActive = true;
+    }
+    if (this.heldKeys.has("r")) {
+      this.astronaut.velocity.addScaledVector(up, effForce * dt);
+      rcsActive = true;
+    }
+    if (rcsActive && this.evaPropellant > 0) {
+      this.evaPropellant = Math.max(0, this.evaPropellant - rcsCost * dt);
+      if (this.evaPropellant < 10 && this.evaPropellant > 9.5) {
+        this.hud.showNotification("\u26A0\uFE0F EVA\u71C3\u6599\u4E0D\u8DB3\uFF01", 2e3);
+      }
+    }
     this.astronaut.velocity.multiplyScalar(1 - 0.5 * dt);
     this.astronaut.update(dt);
     const rp = this.getSurfaceRenderPosition(this.astronaut.position);
     this.astronaut.group.position.copy(rp);
+    if (parent) {
+      const surfaceDist = this.astronaut.position.distanceTo(parent.position) - parent.radius;
+      if (surfaceDist < 5) {
+        const biome = this.getCurrentBiome();
+        const sampleKey = `eva_${parent.name}_${biome}`;
+        if (!this.visitedBiomes.has(sampleKey)) {
+          this.visitedBiomes.add(sampleKey);
+          this.archiveScience("EVA\u8868\u9762\u6837\u672C", biome, BIOME_SCIENCE_VALUE);
+          if (parent.name !== "Sun") {
+            this.archiveScience("EVA\u5927\u6C14\u6D4B\u91CF", biome, 8);
+            this.archiveScience("EVA\u91CD\u529B\u626B\u63CF", biome, 12);
+          }
+        }
+      }
+    }
   }
   // === Quick save/load ===
   /** Save game state to localStorage. */
@@ -35153,7 +37389,11 @@ ${ach.description}`, 8e3);
         sasEnabled: this.rocket.sasEnabled,
         rcsEnabled: this.rocket.rcsEnabled,
         lightsOn: this.rocket.lightsOn,
-        skinTemperature: this.rocket.skinTemperature
+        skinTemperature: this.rocket.skinTemperature,
+        funds: this.funds,
+        reputation: this.reputation,
+        evaPropellant: this.evaPropellant,
+        unlockedTechs: Array.from(this.unlockedTechs)
       };
       localStorage.setItem("ksp_quicksave", JSON.stringify(state));
       this.hud.showNotification("\u2705 \u5FEB\u901F\u4FDD\u5B58\u6210\u529F", 2e3);
@@ -35189,12 +37429,35 @@ ${ach.description}`, 8e3);
       this.rocket.skinTemperature = state.skinTemperature || 300;
       this.rocketThermal.temperature = this.rocket.skinTemperature;
       this.unlockedAchievements = new Set(state.achievements || []);
+      if (state.funds !== void 0) this.funds = state.funds;
+      if (state.reputation !== void 0) this.reputation = state.reputation;
+      if (state.evaPropellant !== void 0) this.evaPropellant = state.evaPropellant;
+      if (state.unlockedTechs) this.unlockedTechs = new Set(state.unlockedTechs);
       this.hud.showNotification("\u2705 \u5FEB\u901F\u8BFB\u53D6\u6210\u529F", 2e3);
     } catch (e) {
       this.hud.showNotification("\u274C \u8BFB\u53D6\u5931\u8D25", 2e3);
     }
   }
   // === Science experiments ===
+  /** 迭代50: 解锁技术树节点 */
+  unlockTech(techId) {
+    const tech = TECH_TREE.find((t) => t.id === techId);
+    if (!tech || tech.unlocked || this.unlockedTechs.has(techId)) return false;
+    for (const prereq of tech.prereq) {
+      if (!this.unlockedTechs.has(prereq)) {
+        this.hud.showNotification(`\u9700\u8981\u5148\u89E3\u9501\u524D\u7F6E\u6280\u672F`, 2e3);
+        return false;
+      }
+    }
+    if (this.sciencePoints < tech.cost) {
+      this.hud.showNotification(`\u79D1\u5B66\u70B9\u4E0D\u8DB3: \u9700\u8981${tech.cost}\uFF0C\u5F53\u524D${Math.floor(this.sciencePoints)}`, 2e3);
+      return false;
+    }
+    this.sciencePoints -= tech.cost;
+    this.unlockedTechs.add(techId);
+    this.hud.showNotification(`\u{1F52C} \u6280\u672F\u89E3\u9501: ${tech.name}! \u65B0\u96F6\u4EF6\u53EF\u7528`, 3e3);
+    return true;
+  }
   /** Run the next available science experiment, awarding points based on location. */
   runScienceExperiment() {
     if (!this.rocket) return;
@@ -35218,21 +37481,25 @@ ${ach.description}`, 8e3);
         bonus = 1;
       }
     }
+    const biome = this.getCurrentBiome();
     const experiments = this.hud.experiments;
     if (experiments) {
       const next = experiments.find((e) => !e.done);
       if (next) {
         const points = Math.round(next.points * bonus);
-        this.sciencePoints += points;
+        this.archiveScience(next.name, biome, points);
         this.hud.runExperiment(next.id);
-        this.hud.showNotification(`\u{1F52C} ${next.name} @ ${location2} +${points}\u79D1\u5B66\u70B9`);
+        const delay = this.getCommDelay();
+        if (delay > 0.5) {
+          this.hud.showNotification(`\u{1F4E1} \u6570\u636E\u4F20\u8F93\u4E2D... \u5EF6\u8FDF: ${delay.toFixed(1)}s`);
+        }
       } else {
         this.hud.showNotification("\u6240\u6709\u5B9E\u9A8C\u5DF2\u5B8C\u6210\uFF01");
       }
     } else {
       const points = Math.round(10 * bonus);
-      this.sciencePoints += points;
-      this.hud.showNotification(`\u{1F52C} \u79D1\u5B66\u6570\u636E\u6536\u96C6 @ ${location2} +${points}\u79D1\u5B66\u70B9`);
+      this.archiveScience("\u57FA\u7840\u5B9E\u9A8C", biome, points);
+      this.hud.showNotification(`\u{1F52C} \u79D1\u5B66\u6570\u636E\u6536\u96C6 @ ${location2}/${biome} +${points}\u79D1\u5B66\u70B9`);
     }
   }
   // === Resource management ===
@@ -35253,6 +37520,24 @@ ${ach.description}`, 8e3);
       }
     }
     this.rocket.updateResources(dt, inAtm, sunlightFactor);
+    if (sunlightFactor > 0 && sun && this.rocket) {
+      const sunDir = sun.position.clone().sub(this.rocket.body.position).normalize();
+      const panelNormal = new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation);
+      const dot = Math.max(0, panelNormal.dot(sunDir));
+      const trackingBonus = 1 + 0.3 * dot;
+      if (trackingBonus > 1.1) {
+        const ec2 = this.rocket.resources.get("electricCharge");
+        if (ec2 && ec2.current < ec2.max) {
+          ec2.current = Math.min(ec2.max, ec2.current + 0.1 * dt * (trackingBonus - 1));
+        }
+      }
+    }
+    const ec3 = this.rocket.resources.get("electricCharge");
+    if (ec3) {
+      if (ec3.current / ec3.max > 0.99 || ec3.current / ec3.max < 0.01) {
+        ec3.max = Math.max(ec3.max * 0.5, ec3.max - 1e-4 * dt);
+      }
+    }
     const ec = this.rocket.resources.get("electricCharge");
     if (ec && ec.max > 0 && ec.current / ec.max < 0.1) {
       this.hud.triggerAlert("low-ec", "\u7535\u529B\u4E0D\u8DB3", "warn");
@@ -35322,8 +37607,17 @@ ${ach.description}`, 8e3);
       const relVel = this.rocket.body.velocity.clone().sub(nearestBody.velocity);
       const impactSpeed = relVel.length();
       const dir = this.rocket.body.position.clone().sub(nearestBody.position).normalize();
+      if (impactSpeed > 5) {
+        const impact = this.physics.landingImpactForce(this.rocket.totalMass, impactSpeed, 0.5);
+        this.lastImpactGForce = impact.gForce;
+        if (impact.willBreak && !this.rocket.isLanded) {
+          const destroyed = this.rocket.applyGForceDamage(impact.gForce, 0.1);
+          this.partFailureCount += destroyed.length;
+          this.hud.showNotification(`\u{1F4A5} \u7740\u9646\u51B2\u51FB: ${impact.gForce.toFixed(1)}G ${destroyed.length > 0 ? "\u96F6\u4EF6\u635F\u574F!" : ""}`, 4e3);
+        }
+      }
       if (impactSpeed > 50 && !this.rocket.isLanded) {
-        this.hud.showNotification(`\u5760\u6BC1\uFF01\u649E\u51FB\u901F\u5EA6: ${impactSpeed.toFixed(0)} m/s`, 5e3);
+        this.hud.showNotification(`\u5760\u6BC1\uFF01\u649E\u51FB\u901F\u5EA6: ${impactSpeed.toFixed(0)} m/s (G\u529B: ${this.lastImpactGForce.toFixed(1)})`, 5e3);
         const surfacePos = nearestBody.position.clone().add(dir.clone().multiplyScalar(nearestBody.radius + 2));
         this.rocket.body.position.copy(surfacePos);
         this.rocket.body.velocity.copy(nearestBody.velocity);
@@ -35353,24 +37647,358 @@ ${ach.description}`, 8e3);
     }
   }
   // === 游戏更新 ===
+  /** 迭代26: 检查是否在真空中（大气层外） */
+  isInVacuum() {
+    if (!this.rocket) return true;
+    const parent = this.getRocketParentBody();
+    if (!parent) return true;
+    const dist = this.rocket.body.position.distanceTo(parent.position);
+    const bodyData = [...SOLAR_SYSTEM, ...TRISOLARIS_SYSTEM].find((d) => d.name === parent.name);
+    if (!bodyData || !bodyData.atm) return true;
+    return dist > parent.radius + bodyData.atm * 1.05;
+  }
+  /** 迭代1: rails模式精确开普勒解析轨道传播 */
+  railsPropagate(dt) {
+    if (!this.rocket) return;
+    const parent = this.getRocketParentBody();
+    if (!parent) {
+      this.physics.stepWithWarp(1);
+      return;
+    }
+    const relPos = this.rocket.body.position.clone().sub(parent.position);
+    const relVel = this.rocket.body.velocity.clone().sub(parent.velocity);
+    const mu = 6674e-14 * parent.mass;
+    const r = relPos.length();
+    if (r < 1) {
+      this.physics.stepWithWarp(1);
+      return;
+    }
+    const v = relVel.length();
+    const energy = 0.5 * v * v - mu / r;
+    const a = -mu / (2 * energy);
+    const h = new Vector3().crossVectors(relPos, relVel);
+    const eVec = new Vector3().crossVectors(relVel, h).divideScalar(mu).sub(relPos.clone().normalize());
+    const e = Math.min(eVec.length(), 0.999);
+    const eHat = eVec.clone().normalize();
+    const hHat = h.clone().normalize();
+    const qHat = new Vector3().crossVectors(hHat, eHat).normalize();
+    const cosNu = relPos.clone().normalize().dot(eHat);
+    const sinNu = relPos.clone().normalize().dot(qHat);
+    const nu0 = Math.atan2(sinNu, cosNu);
+    const E0 = Math.atan2(Math.sqrt(1 - e * e) * Math.sin(nu0), e + Math.cos(nu0));
+    const M0 = E0 - e * Math.sin(E0);
+    const n = Math.sqrt(mu / Math.abs(a * a * a));
+    const M1 = M0 + n * dt;
+    let E1 = M1;
+    for (let iter = 0; iter < 20; iter++) {
+      const f = E1 - e * Math.sin(E1) - M1;
+      const fp = 1 - e * Math.cos(E1);
+      const dE = f / Math.max(fp, 1e-10);
+      E1 -= dE;
+      if (Math.abs(dE) < 1e-10) break;
+    }
+    const nu1 = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E1 / 2), Math.sqrt(1 - e) * Math.cos(E1 / 2));
+    const r1 = a * (1 - e * Math.cos(E1));
+    const newPos = eHat.clone().multiplyScalar(r1 * Math.cos(nu1)).add(qHat.clone().multiplyScalar(r1 * Math.sin(nu1))).add(parent.position);
+    const speed1 = Math.sqrt(Math.max(mu * (2 / r1 - 1 / a), 0));
+    const vRad = Math.sqrt(mu / (a * (1 - e * e))) * e * Math.sin(nu1);
+    const vTan = Math.sqrt(mu / (a * (1 - e * e))) * (1 + e * Math.cos(nu1));
+    const velMag = Math.sqrt(vRad * vRad + vTan * vTan);
+    const newVel = eHat.clone().multiplyScalar(vRad).add(qHat.clone().multiplyScalar(vTan));
+    if (velMag > 1e-6) newVel.multiplyScalar(speed1 / velMag);
+    newVel.add(parent.velocity);
+    this.rocket.body.position.copy(newPos);
+    this.rocket.body.velocity.copy(newVel);
+  }
+  /** 迭代2: 物理加速限制增强 — 大气内最高4x，SOI边界最高50x */
+  enforcePhysicsWarpLimit() {
+    const warp = this.timeWarp.currentWarp;
+    if (!this.isInVacuum() && warp > this.PHYSICS_WARP_MAX) {
+      this.timeWarp.setToMinimum();
+      for (let i = 0; i < TIME_WARP_LEVELS.length && TIME_WARP_LEVELS[i] <= this.PHYSICS_WARP_MAX; i++) {
+        if (i < 2) this.timeWarp.increase();
+      }
+      this.hud?.showNotification("\u26A0\uFE0F \u5927\u6C14\u5185\u7269\u7406\u52A0\u901F\u9650\u5236: \u6700\u9AD84x", 2e3);
+      return false;
+    }
+    if (warp > 50 && this.rocket) {
+      let nearestDist = Infinity, secondNearest = Infinity;
+      for (const body of this.physics.bodies) {
+        if (body.name === "\u706B\u7BAD" || body.name === "Rocket") continue;
+        const bd = [...SOLAR_SYSTEM, ...TRISOLARIS_SYSTEM].find((d) => d.name === body.name);
+        if (bd && bd.type === "star") continue;
+        const dist = body.position.distanceTo(this.rocket.body.position);
+        if (dist < nearestDist) {
+          secondNearest = nearestDist;
+          nearestDist = dist;
+        } else if (dist < secondNearest) {
+          secondNearest = dist;
+        }
+      }
+      const nearSoi = secondNearest < nearestDist * 1.5;
+      if (nearSoi) {
+        while (this.timeWarp.currentWarp > 50) this.timeWarp.decrease();
+        this.hud?.showNotification("\u26A0\uFE0F SOI\u8FB9\u754C\u9644\u8FD1\u52A0\u901F\u9650\u5236: \u6700\u9AD850x", 2e3);
+        return false;
+      }
+    }
+    return true;
+  }
+  /** 迭代5: 对接捕获检测 — 相对速度<0.5m/s + 对齐角度<15° */
+  checkDocking() {
+    if (!this.rocket) return;
+    const dockPorts = this.customParts?.filter((p) => p.id.includes("dock")) || [];
+    if (dockPorts.length < 1) return;
+    for (const d of this.rocket.debris) {
+      const dist = d.body.position.distanceTo(this.rocket.body.position);
+      if (dist < 10) {
+        const relVel = this.rocket.body.velocity.clone().sub(d.body.velocity);
+        const relSpeed = relVel.length();
+        const dockAxis = new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation);
+        const approachDir = d.body.position.clone().sub(this.rocket.body.position).normalize();
+        const alignAngle = Math.acos(Math.max(-1, Math.min(1, Math.abs(dockAxis.dot(approachDir))))) * 180 / Math.PI;
+        this.dockedVessels.set(d.label, { relVel: relSpeed, alignAngle });
+        if (dist < 10 && dist > 5 && relSpeed > 0.5) {
+          this.hud.showNotification(`\u5BF9\u63A5\u63A5\u8FD1: ${dist.toFixed(1)}m \u901F\u5EA6:${relSpeed.toFixed(2)}m/s`, 1e3);
+        }
+        if (relSpeed < 0.5 && alignAngle < 15 && dist < 5) {
+          this.hud.showNotification("\u2705 \u5BF9\u63A5\u6210\u529F\uFF01", 3e3);
+          this.transferResourcesOnDock(d.label, d);
+          this.mergeControlOnDock(d.label);
+          this.dockedVessels.delete(d.label);
+          if (!this.unlockedAchievements.has("space_station")) {
+            this.unlockAchievement("space_station");
+          }
+        }
+      } else if (dist > 100) {
+        this.dockedVessels.delete(d.label);
+      }
+    }
+  }
+  /** 迭代6: 对接后资源转移 — 燃料、电力、单组元推进剂 */
+  transferResourcesOnDock(id, debris) {
+    if (!this.rocket) return;
+    let transferMsg = [];
+    if (debris.fuelMass && debris.fuelMass > 0) {
+      const transfer = Math.min(debris.fuelMass, this.rocket.maxFuel - this.rocket.fuelMass);
+      this.rocket.fuelMass += transfer;
+      debris.fuelMass -= transfer;
+      transferMsg.push(`\u71C3\u6599+${transfer.toFixed(0)}kg`);
+    }
+    const ec = this.rocket.resources.get("electricCharge");
+    if (ec) {
+      const ecTransfer = Math.min(50, ec.max - ec.current);
+      ec.current += ecTransfer;
+      if (ecTransfer > 0) transferMsg.push(`\u7535\u529B+${ecTransfer.toFixed(0)}`);
+    }
+    const mp = this.rocket.resources.get("monopropellant");
+    if (mp) {
+      const mpTransfer = Math.min(30, mp.max - mp.current);
+      mp.current += mpTransfer;
+      if (mpTransfer > 0) transferMsg.push(`MP+${mpTransfer.toFixed(0)}`);
+    }
+    if (transferMsg.length > 0) {
+      this.hud.showNotification(`\u8D44\u6E90\u8F6C\u79FB: ${transferMsg.join(" ")}`, 2500);
+    } else {
+      this.hud.showNotification("\u8D44\u6E90\u7BA1\u7EBF\u5DF2\u8FDE\u63A5\uFF08\u50A8\u7BB1\u5DF2\u6EE1\uFF09", 2e3);
+    }
+  }
+  /** 迭代7: 对接后控制系统合并 — SAS/RCS同步 */
+  mergeControlOnDock(id) {
+    if (!this.rocket) return;
+    this.rocket.sasEnabled = true;
+    this.hud.showNotification("\u63A7\u5236\u7CFB\u7EDF\u5DF2\u5408\u5E76 \u2014 SAS\u5DF2\u6FC0\u6D3B", 2e3);
+  }
+  /** 迭代35: 获取当前生物群系 */
+  getCurrentBiome() {
+    if (!this.rocket) return "unknown";
+    const parent = this.getRocketParentBody();
+    if (!parent) return "\u6DF1\u7A7A";
+    const dist = this.rocket.body.position.distanceTo(parent.position);
+    if (dist > parent.radius * 1.1) return "\u592A\u7A7A";
+    const biomes = BIOMES[parent.name];
+    if (!biomes || biomes.length === 0) return parent.name;
+    const lat = Math.asin(this.rocket.body.position.y / dist) * 180 / Math.PI;
+    const lon = Math.atan2(this.rocket.body.position.z, this.rocket.body.position.x) * 180 / Math.PI;
+    const idx = Math.floor((lon + 180) / 360 * biomes.length) % biomes.length;
+    const biome = biomes[Math.abs(idx)];
+    return biome;
+  }
+  /** 迭代9: 数据传输延迟 — 基于到Kerbin距离的光速延迟 */
+  getCommDelay() {
+    if (!this.rocket) return 0;
+    const kerbin = this.physics.getBody("Kerbin");
+    if (!kerbin) return 0;
+    const dist = this.rocket.body.position.distanceTo(kerbin.position);
+    const lightDelay = dist / 3e8;
+    const hopCount = Math.floor(dist / 8e7);
+    return lightDelay + hopCount * 0.1;
+  }
+  /** 迭代37: 科学归档 */
+  archiveScience(experiment, biome, value) {
+    const key = `${experiment}_${biome}`;
+    const prev = this.scienceArchive.get(key) || 0;
+    const dimRet = prev > 0 ? 0.6 : 1;
+    const gained = value * dimRet;
+    this.scienceArchive.set(key, prev + gained);
+    this.sciencePoints += gained;
+    this.hud.showNotification(`\u{1F52C} ${experiment}@${biome}: +${gained.toFixed(1)}\u79D1\u5B66\u70B9${dimRet < 1 ? " (\u9012\u51CF)" : ""}`, 3e3);
+  }
+  /** 迭代10: 合同系统 — 随机生成多样化任务 */
+  generateContract() {
+    const types = ["orbit", "land", "science", "mun", "sun", "eva", "kerbin"];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const targetMap = {
+      orbit: ["Kerbin", "Mun", "Minmus"],
+      land: ["Mun", "Minmus", "Kerbin"],
+      science: ["Mun", "Minmus", "Kerbin"],
+      mun: ["Mun"],
+      sun: ["Sun"],
+      eva: ["Kerbin", "Mun"],
+      kerbin: ["Kerbin"]
+    };
+    const possibleTargets = targetMap[type] || ["Kerbin"];
+    const target = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+    const titles = {
+      orbit: `\u8FDB\u5165${target}\u7A33\u5B9A\u8F68\u9053`,
+      land: `\u767B\u9646${target}\u8868\u9762`,
+      science: `\u5728${target}\u8FDB\u884C\u79D1\u5B66\u5B9E\u9A8C`,
+      mun: `\u98DE\u8D8AMun`,
+      sun: `\u62B5\u8FD1\u592A\u9633`,
+      eva: `\u5728${target}\u6267\u884CEVA\u8231\u5916\u6D3B\u52A8`,
+      kerbin: `\u5728Kerbin\u5B8C\u6210\u5DE1\u822A\u4EFB\u52A1`
+    };
+    const difficulty = type === "sun" ? 3 : type === "mun" ? 2 : type === "land" ? 1.5 : 1;
+    return {
+      id: `contract_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      type,
+      title: titles[type] || "\u672A\u77E5\u4EFB\u52A1",
+      description: `${titles[type]}\u3002\u5B8C\u6210\u540E\u83B7\u5F97\u79D1\u5B66\u70B9\u3001\u8D44\u91D1\u548C\u58F0\u671B\u5956\u52B1\u3002`,
+      target,
+      rewardScience: Math.round((10 + Math.floor(Math.random() * 30)) * difficulty),
+      rewardFunds: Math.round((5e3 + Math.floor(Math.random() * 2e4)) * difficulty),
+      rewardReputation: Math.round((1 + Math.floor(Math.random() * 10)) * difficulty),
+      deadline: this.gameTime + 3600 * (6 + Math.random() * 42 * difficulty),
+      // 6-48小时
+      completed: false,
+      failed: false
+    };
+  }
+  /** 迭代38: 检查合同完成状态 */
+  updateContracts() {
+    if (!this.rocket) return;
+    for (const c of this.contracts) {
+      if (c.completed || c.failed) continue;
+      if (this.gameTime > c.deadline) {
+        c.failed = true;
+        this.reputation = Math.max(0, this.reputation - 2);
+        this.contractStreak = 0;
+        this.hud.showNotification(`\u274C \u5408\u540C\u5931\u8D25: ${c.title}`, 3e3);
+        continue;
+      }
+      const parent = this.getRocketParentBody();
+      const parentName = parent?.name || "";
+      let done = false;
+      switch (c.type) {
+        case "orbit":
+          if (parentName === c.target && !this.rocket.isLanded) {
+            const dist = this.rocket.body.position.distanceTo(parent.position);
+            if (dist > parent.radius * 1.1) done = true;
+          }
+          break;
+        case "land":
+          if (parentName === c.target && this.rocket.isLanded) done = true;
+          break;
+        case "science":
+          if (parentName === c.target && this.sciencePoints > 0) done = true;
+          break;
+        case "mun":
+          if (parentName === "Mun") done = true;
+          break;
+        case "sun":
+          if (parentName === "Sun") done = true;
+          break;
+        case "eva":
+          if (this.astronaut.isActive) done = true;
+          break;
+      }
+      if (done) {
+        c.completed = true;
+        this.contractStreak++;
+        const streakBonus = 1 + Math.min(this.contractStreak * 0.1, 0.5);
+        const sciReward = Math.round(c.rewardScience * streakBonus);
+        const fundReward = Math.round(c.rewardFunds * streakBonus);
+        const repReward = Math.round(c.rewardReputation * streakBonus);
+        this.sciencePoints += sciReward;
+        this.funds += fundReward;
+        this.reputation += repReward;
+        const streakMsg = this.contractStreak > 1 ? ` (\u8FDE\u51FBx${this.contractStreak} \u52A0\u6210+${Math.round((streakBonus - 1) * 100)}%)` : "";
+        this.hud.showNotification(`\u2705 \u5408\u540C\u5B8C\u6210: ${c.title}
+\u5956\u52B1: +${sciReward}\u79D1\u5B66 +${fundReward}\u8D44\u91D1 +${repReward}\u58F0\u671B${streakMsg}`, 4e3);
+      }
+    }
+    this.contracts = this.contracts.filter((c) => !c.completed && !c.failed);
+    if (this.contracts.length < 3) {
+      this.contracts.push(this.generateContract());
+    }
+  }
+  /** 迭代40: 任务失败惩罚 */
+  onMissionFailure(reason) {
+    this.reputation = Math.max(0, this.reputation - 5);
+    this.funds = Math.max(0, this.funds - 1e3);
+    this.hud.showNotification(`\u{1F480} \u4EFB\u52A1\u5931\u8D25: ${reason}
+\u58F0\u671B-5 \u8D44\u91D1-1000`, 4e3);
+  }
   updateGame(dt) {
     if (!this.isRunning) return;
-    const simDt = dt * this.timeWarp.currentWarp;
+    const warp = this.timeWarp.currentWarp;
+    const simDt = dt * warp;
     this.gameTime += simDt;
-    this.handleContinuousInput(dt, simDt);
-    if (this.rocket && this.rocket.throttle > 0 && this.rocket.fuelMass > 0) {
-      this.rocket.applyThrust(simDt);
+    this.railsMode = warp > 100 && this.isInVacuum();
+    if (this.railsMode && !this.rocket.isLanded) {
+      this.railsPropagate(simDt);
+    } else {
+      this.handleContinuousInput(dt, simDt);
+      if (this.rocket && this.rocket.throttle > 0 && this.rocket.fuelMass > 0) {
+        this.rocket.applyThrust(simDt);
+      }
+      this.applyAtmosphericDrag(simDt);
+      this.updateReentryHeating(simDt);
+      this.updateRocketResources(simDt);
+      this.updateParachutePhysics(simDt);
+      this.updateLandingGearPhysics(simDt);
+      this.updateEVA(simDt);
+      if (this.rocket) {
+        this.rocket.updatePartDamage(simDt);
+        this.rocket.updateThermalConduction(simDt);
+        const parentBody = this.getRocketParentBody();
+        let gForce = 1;
+        if (parentBody) {
+          const dist = this.rocket.body.position.distanceTo(parentBody.position);
+          gForce = this.rocket.getTWR(parentBody.mass, dist) || 1;
+        }
+        if (gForce > 5 && this.rocket.throttle > 0) {
+          const destroyed = this.rocket.applyGForceDamage(gForce, simDt);
+          if (destroyed.length > 0) {
+            this.partFailureCount += destroyed.length;
+            this.hud.showNotification(`\u26A0\uFE0F \u96F6\u4EF6\u635F\u574F: ${destroyed.join(", ")}`, 3e3);
+          }
+        }
+      }
+      this.physics.stepWithWarp(warp);
     }
-    this.applyAtmosphericDrag(simDt);
-    this.updateReentryHeating(simDt);
-    this.updateRocketResources(simDt);
-    this.updateParachutePhysics(simDt);
-    this.updateLandingGearPhysics(simDt);
-    this.updateEVA(simDt);
-    this.physics.stepWithWarp(this.timeWarp.currentWarp);
     this.checkLanding();
     this.checkAchievements();
     this.enforceTimeWarpLimit();
+    this.checkDocking();
+    this.contractCheckTimer += dt;
+    if (this.contractCheckTimer > 5) {
+      this.contractCheckTimer = 0;
+      this.updateContracts();
+    }
+    if (this.astronaut.isActive && this.evaPropellant < this.EVA_PROPELLANT_MAX) {
+      this.evaPropellant = Math.min(this.EVA_PROPELLANT_MAX, this.evaPropellant + 2 * dt);
+    }
     this.updateDebris(simDt);
     if (this.warpDrive.isActive) {
       const arrived = this.warpDrive.update(simDt);
@@ -35449,6 +38077,56 @@ ${ach.description}`, 8e3);
       this.rocket.parentBody = parentBody.name;
     }
     const parentData = [...SOLAR_SYSTEM, ...TRISOLARIS_SYSTEM].find((d) => d.name === parentBody?.name);
+    let tAp, tPe;
+    if (orbit && orbit.orbitalPeriod > 0) {
+      const nu = orbit.trueAnomaly || 0;
+      const n = 2 * Math.PI / orbit.orbitalPeriod;
+      if (nu < Math.PI) {
+        tAp = (Math.PI - nu) / n;
+        tPe = (2 * Math.PI - nu) / n;
+      } else {
+        tAp = (3 * Math.PI - nu) / n;
+        tPe = (2 * Math.PI - nu) / n;
+      }
+    }
+    const soiBoundary = parentBody ? parentBody.radius * Math.pow(parentBody.mass / 1989e27, 0.4) : void 0;
+    const deltaVStage = this.rocket.stages.map((s, i) => {
+      if (s.hasEngine && s.isp > 0 && s.dryMass + s.fuel > 0) {
+        const dv = s.isp * 9.81 * Math.log((s.dryMass + s.fuel) / Math.max(s.dryMass, 1));
+        return { stage: i, dv };
+      }
+      return { stage: i, dv: 0 };
+    });
+    const parentForThermal = parentBody;
+    let skinTemp = this.rocket.skinTemperature;
+    if (parentForThermal) {
+      const sun = this.physics.getBody("Sun");
+      if (sun) {
+        const distToSun = this.rocket.body.position.distanceTo(sun.position);
+        const solarConst = 1361 * Math.pow(1496e8 / Math.max(distToSun, 1e6), 2);
+        const albedo = 0.3;
+        const eps = this.rocketThermal.emissivity;
+        const sigma = 567e-10;
+        this.thermalEquilibriumTemp = Math.pow(solarConst * (1 - albedo) / (4 * sigma * eps), 0.25);
+      }
+    }
+    const partTemps = [];
+    if (this.rocket.partHeat) {
+      for (const [partId, state] of this.rocket.partHeat) {
+        const partData = this.customParts?.find((p) => p.id === partId);
+        const partName = partData?.name || partId;
+        partTemps.push({ name: partName, temp: state.temperature, maxTemp: state.maxTemp });
+      }
+    }
+    const resourceFlow = [];
+    if (this.rocket.throttle > 0 && this.rocket.fuelMass > 0) {
+      const fuelRate = this.rocket.thrust * this.rocket.throttle / (this.rocket.isp * 9.81);
+      resourceFlow.push({ from: "\u71C3\u6599\u7BB1", to: "\u53D1\u52A8\u673A", rate: fuelRate });
+    }
+    const ecRes = this.rocket.resources.get("electricCharge");
+    if (ecRes && ecRes.flow !== 0) {
+      resourceFlow.push({ from: ecRes.flow > 0 ? "\u592A\u9633\u80FD\u677F" : "\u7535\u6C60", to: ecRes.flow > 0 ? "\u7535\u6C60" : "\u7CFB\u7EDF", rate: Math.abs(ecRes.flow) });
+    }
     const data = {
       speed: relativeSpeed,
       altitude,
@@ -35469,7 +38147,17 @@ ${ach.description}`, 8e3);
       warpFuel: this.warpDrive.fuel,
       isLanded: this.rocket.isLanded,
       sasEnabled: this.rocket.sasEnabled,
-      achievements: this.unlockedAchievements.size
+      achievements: this.unlockedAchievements.size,
+      timeToApoapsis: tAp,
+      timeToPeriapsis: tPe,
+      soiBoundary,
+      deltaVStage,
+      funds: this.funds,
+      reputation: this.reputation,
+      evaPropellant: this.evaPropellant,
+      contracts: this.contracts.map((c) => ({ title: c.title, deadline: c.deadline - this.gameTime, completed: c.completed })),
+      partTemps,
+      resourceFlow
     };
     this.hud.update(data);
     this.hud.updateNavball(this.rocket.orientation, this.rocket.body.velocity);
@@ -35729,7 +38417,7 @@ var PRESET_ASTRONAUTS = [
   { name: "\u827EAA", level: 4, status: "\u8BAD\u7EC3\u4E2D", specialty: "\u661F\u9645\u5BFC\u822A", bio: "\u5A01\u6151\u7EAA\u5143\u540E\u7684\u65B0\u4E00\u4EE3\u661F\u9645\u822A\u884C\u5458\u3002" },
   { name: "\u7F57\u8F91", level: 5, status: "\u53EF\u7528", specialty: "\u6218\u7565\u6307\u6325", bio: "\u9762\u58C1\u8005\uFF0C\u5EFA\u7ACB\u9ED1\u6697\u68EE\u6797\u5A01\u6151\u7684\u6267\u5251\u4EBA\u3002" }
 ];
-var TECH_TREE = [
+var TECH_TREE2 = [
   { id: "tech1", name: "\u57FA\u7840\u706B\u7BAD\u6280\u672F", cost: 0, unlocked: true, desc: "\u57FA\u7840\u5316\u5B66\u5F15\u64CE\u4E0E\u5C0F\u578B\u71C3\u6599\u7BB1" },
   { id: "tech2", name: "\u5148\u8FDB\u63A8\u8FDB", cost: 50, unlocked: false, desc: "\u6838\u70ED\u5F15\u64CE\u4E0E\u79BB\u5B50\u63A8\u8FDB" },
   { id: "tech3", name: "\u91CD\u578B\u8FD0\u8F7D", cost: 100, unlocked: false, desc: "\u91CD\u578B\u5F15\u64CE\u4E0E\u5927\u578B\u71C3\u6599\u7BB1" },
@@ -35875,6 +38563,13 @@ var VAB3DPreview = class {
     this.angleSnap = 15;
     // angle snap in degrees (0 = off)
     this.angleSnapEnabled = true;
+    // R3-26~30: VAB交互增强视觉元素
+    this.snapRipples = [];
+    this.debrisParticles = [];
+    this.symmetryGuide = null;
+    this.angleIndicator = null;
+    this.selectionOutline2 = null;
+    // R3-30: enhanced outline
     // Undo/Redo history
     this.undoStack = [];
     this.redoStack = [];
@@ -35955,6 +38650,79 @@ var VAB3DPreview = class {
           m.opacity = pulse;
         }
       }
+      const dt = 0.016;
+      for (let i = this.snapRipples.length - 1; i >= 0; i--) {
+        const r = this.snapRipples[i];
+        r.age += dt;
+        const expand = 1 + r.age * 5;
+        r.mesh.scale.set(expand, expand, expand);
+        r.mat.opacity = 0.8 * (1 - r.age / 0.5);
+        if (r.age > 0.5) {
+          this.scene.remove(r.mesh);
+          r.mesh.geometry.dispose();
+          r.mat.dispose();
+          this.snapRipples.splice(i, 1);
+        }
+      }
+      for (let i = this.debrisParticles.length - 1; i >= 0; i--) {
+        const p = this.debrisParticles[i];
+        p.age += dt;
+        p.vel.y -= 6 * dt;
+        p.mesh.position.x += p.vel.x * dt;
+        p.mesh.position.y += p.vel.y * dt;
+        p.mesh.position.z += p.vel.z * dt;
+        p.mesh.rotation.x += dt * 5;
+        p.mesh.rotation.y += dt * 7;
+        const mat = p.mesh.material;
+        mat.opacity = 1 * (1 - p.age / p.life);
+        if (p.age >= p.life) {
+          this.scene.remove(p.mesh);
+          p.mesh.geometry.dispose();
+          mat.dispose();
+          this.debrisParticles.splice(i, 1);
+        }
+      }
+      if (this.symmetryGuide) {
+        const t2 = performance.now() * 2e-3;
+        this.symmetryGuide.material.opacity = 0.15 + 0.12 * (0.5 + 0.5 * Math.sin(t2));
+      }
+      if (this.angleIndicator) {
+        const t3 = performance.now() * 3e-3;
+        this.angleIndicator.traverse((c) => {
+          if (c instanceof Mesh && c.material) {
+            const m = c.material;
+            m.opacity = (m.opacity > 0.3 ? 0.4 : 0.6) + 0.2 * Math.sin(t3);
+          }
+        });
+      }
+      const animT = performance.now() * 1e-3;
+      this.rocketGroup.traverse((child) => {
+        if (child instanceof Mesh && child.userData) {
+          const ud = child.userData;
+          if (ud._beacon) {
+            const flash = Math.sin(animT * 3) > 0.5 ? 1 : 0.1;
+            child.material.emissiveIntensity = flash * 3;
+          }
+          if (ud._plasma) {
+            child.material.emissiveIntensity = 1.5 + 0.8 * Math.sin(animT * 2);
+          }
+          if (ud._warpField) {
+            child.material.emissiveIntensity = 2 + 1.5 * Math.sin(animT * 1.5);
+            child.scale.setScalar(1 + 0.05 * Math.sin(animT * 1.5));
+          }
+          if (ud._warpLattice !== void 0) {
+            child.rotation.z = animT * (0.3 + ud._warpLattice * 0.1);
+          }
+          if (ud._warpCore) {
+            child.material.emissiveIntensity = 1.2 + 0.8 * Math.sin(animT * 2.5);
+            child.scale.setScalar(1 + 0.08 * Math.sin(animT * 2.5));
+          }
+          if (ud._antimatterCore) {
+            child.material.emissiveIntensity = 2.5 + 1.5 * Math.sin(animT * 4);
+            child.scale.setScalar(1 + 0.1 * Math.sin(animT * 4));
+          }
+        }
+      });
       this.renderer.render(this.scene, this.camera);
     };
     this.canvas = canvas;
@@ -36004,6 +38772,23 @@ var VAB3DPreview = class {
     const bounceLight = new DirectionalLight(4478310, 0.2);
     bounceLight.position.set(0, -10, 5);
     this.scene.add(bounceLight);
+    const spotKey = new SpotLight(16777215, 1.2, 40, Math.PI * 0.25, 0.3, 1.5);
+    spotKey.position.set(5, 18, 5);
+    spotKey.target.position.set(0, 0, 0);
+    spotKey.castShadow = true;
+    spotKey.shadow.mapSize.width = 2048;
+    spotKey.shadow.mapSize.height = 2048;
+    spotKey.shadow.bias = -5e-4;
+    spotKey.shadow.normalBias = 0.03;
+    this.scene.add(spotKey);
+    this.scene.add(spotKey.target);
+    const sideCold = new DirectionalLight(8956620, 0.35);
+    sideCold.position.set(-15, 6, 3);
+    this.scene.add(sideCold);
+    const backWarm = new DirectionalLight(16755302, 0.25);
+    backWarm.position.set(8, 3, -12);
+    this.scene.add(backWarm);
+    this.renderer.toneMappingExposure = 1.1;
     this.createVABFloor();
     this.rocketGroup = new Group();
     this.scene.add(this.rocketGroup);
@@ -36844,6 +39629,94 @@ var VAB3DPreview = class {
       );
       heatShieldGlow.position.y = -cmdHeight / 2 - shieldH + 5e-3;
       group.add(heatShieldGlow);
+      const apexDome = new Mesh(
+        new SphereGeometry(cmdRadius * 0.4, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.35),
+        new MeshStandardMaterial({ color: 15658734, roughness: 0.3, metalness: 0.6 })
+      );
+      apexDome.position.y = cmdHeight * 0.5;
+      apexDome.castShadow = true;
+      group.add(apexDome);
+      for (let i = 0; i < 3; i++) {
+        const a = -Math.PI / 2 + (i - 1) * 0.35;
+        const reflBar = new Mesh(
+          new PlaneGeometry(0.06, 0.015),
+          new MeshStandardMaterial({
+            color: 11193599,
+            emissive: 4482730,
+            emissiveIntensity: 0.3,
+            metalness: 0.9,
+            roughness: 0.05
+          })
+        );
+        reflBar.position.set(Math.sin(a) * cmdRadius * 0.92, cmdHeight * 0.15, Math.cos(a) * cmdRadius * 0.92);
+        reflBar.lookAt(0, cmdHeight * 0.15, 0);
+        group.add(reflBar);
+      }
+      const oRingMat = new MeshStandardMaterial({ color: 2236962, roughness: 0.8, metalness: 0.1 });
+      for (const ringY of [cmdHeight * 0.1, -cmdHeight * 0.05]) {
+        const oRing = new Mesh(
+          new TorusGeometry(cmdRadius * 0.38, 8e-3, 6, 24),
+          oRingMat
+        );
+        oRing.position.set(0, ringY, cmdRadius * 0.88);
+        oRing.rotation.x = Math.PI / 2;
+        group.add(oRing);
+      }
+      const meshMat = new MeshStandardMaterial({ color: 3355443, roughness: 0.7, metalness: 0.3, wireframe: false });
+      for (let i = 0; i < 4; i++) {
+        const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+        const screen = new Mesh(
+          new CircleGeometry(0.022, 8),
+          meshMat
+        );
+        screen.position.set(Math.cos(a) * cmdRadius * 1.02, cmdHeight * 0.3, Math.sin(a) * cmdRadius * 1.02);
+        screen.lookAt(Math.cos(a) * 3, cmdHeight * 0.3, Math.sin(a) * 3);
+        group.add(screen);
+      }
+      const beaconMat = new MeshStandardMaterial({
+        color: 16724736,
+        emissive: 16724736,
+        emissiveIntensity: 2
+      });
+      const beacon = new Mesh(new SphereGeometry(0.025, 12, 8), beaconMat);
+      beacon.position.y = cmdHeight * 0.5 + cmdRadius * 0.45;
+      beacon.userData._beacon = true;
+      group.add(beacon);
+      const beaconBase = new Mesh(
+        new CylinderGeometry(0.018, 0.022, 0.015, 8),
+        this.mats.dark
+      );
+      beaconBase.position.y = cmdHeight * 0.5 + cmdRadius * 0.4;
+      group.add(beaconBase);
+      for (let i = 0; i < 2; i++) {
+        const sx = i === 0 ? 1 : -1;
+        const handrail = new Mesh(
+          new CylinderGeometry(6e-3, 6e-3, 0.12, 6),
+          this.mats.dark
+        );
+        handrail.position.set(sx * cmdRadius * 0.95, cmdHeight * 0, 0);
+        handrail.rotation.z = Math.PI / 2;
+        group.add(handrail);
+        for (const sy of [0.04, -0.04]) {
+          const bracket = new Mesh(
+            new BoxGeometry(5e-3, 0.02, 5e-3),
+            this.mats.dark
+          );
+          bracket.position.set(sx * cmdRadius * 0.95, sy, 0);
+          group.add(bracket);
+        }
+      }
+      for (let i = 0; i < 3; i++) {
+        const a = i / 3 * Math.PI * 2 + Math.PI / 6;
+        const valve = new Mesh(
+          new CylinderGeometry(0.012, 0.015, 0.025, 6),
+          this.mats.copper
+        );
+        valve.position.set(Math.cos(a) * cmdRadius * 0.95, -cmdHeight * 0.35, Math.sin(a) * cmdRadius * 0.95);
+        valve.lookAt(Math.cos(a) * 3, -cmdHeight * 0.35, Math.sin(a) * 3);
+        valve.rotation.x += Math.PI / 2;
+        group.add(valve);
+      }
     }
     return { group, height: cmdHeight, radius: cmdRadius };
   }
@@ -37239,6 +40112,95 @@ var VAB3DPreview = class {
       );
       lBorder.position.y = ly;
       group.add(lBorder);
+    }
+    const domeMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.4, metalness: 0.5 });
+    for (const domeSign of [1, -1]) {
+      const domeProfile = [];
+      const domeSteps = 20;
+      const domeH = tankRadius * 0.5;
+      for (let i = 0; i <= domeSteps; i++) {
+        const t = i / domeSteps;
+        const y = domeSign * t * domeH;
+        const x = tankRadius * Math.sqrt(1 - t * t);
+        domeProfile.push(new Vector2(x, (domeSign > 0 ? tankHeight / 2 : -tankHeight / 2) + y));
+      }
+      const domeGeo = new LatheGeometry(domeProfile, 32);
+      const dome = new Mesh(domeGeo, domeMat);
+      dome.castShadow = true;
+      dome.receiveShadow = true;
+      group.add(dome);
+    }
+    const pipeMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.3, metalness: 0.7 });
+    const clampMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
+    for (let p = 0; p < 2; p++) {
+      const pa = p * Math.PI + Math.PI / 6;
+      const pipe = new Mesh(
+        new CylinderGeometry(0.018, 0.018, tankHeight * 0.7, 8),
+        pipeMat
+      );
+      pipe.position.set(Math.cos(pa) * (tankRadius + 0.02), 0, Math.sin(pa) * (tankRadius + 0.02));
+      pipe.castShadow = true;
+      group.add(pipe);
+      for (let c = 0; c < 3; c++) {
+        const cy = (c - 1) * tankHeight * 0.25;
+        const clamp2 = new Mesh(
+          new TorusGeometry(tankRadius + 0.025, 0.012, 6, 12, Math.PI * 0.15),
+          clampMat
+        );
+        clamp2.position.set(Math.cos(pa) * (tankRadius + 0.025), cy, Math.sin(pa) * (tankRadius + 0.025));
+        clamp2.rotation.y = -pa + Math.PI / 2;
+        group.add(clamp2);
+      }
+    }
+    const foamMat = new MeshStandardMaterial({ color: 15790312, roughness: 0.9, metalness: 0 });
+    for (let i = 0; i < 40; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const y = (Math.random() - 0.5) * tankHeight * 0.85;
+      const dimple = new Mesh(
+        new SphereGeometry(8e-3, 4, 3),
+        foamMat
+      );
+      dimple.position.set(
+        Math.cos(a) * tankRadius * 1.001,
+        y,
+        Math.sin(a) * tankRadius * 1.001
+      );
+      dimple.scale.y = 0.3;
+      group.add(dimple);
+    }
+    const probeMat = new MeshStandardMaterial({ color: 11184810, roughness: 0.3, metalness: 0.6 });
+    const probe = new Mesh(
+      new CylinderGeometry(5e-3, 5e-3, tankHeight * 0.8, 6),
+      probeMat
+    );
+    probe.position.set(Math.cos(Math.PI / 3) * (tankRadius - 0.05), 0, Math.sin(Math.PI / 3) * (tankRadius - 0.05));
+    group.add(probe);
+    const probeHead = new Mesh(
+      new CylinderGeometry(0.012, 8e-3, 0.025, 8),
+      this.mats.copper
+    );
+    probeHead.position.copy(probe.position);
+    probeHead.position.y += tankHeight * 0.4 + 0.02;
+    group.add(probeHead);
+    const sepHoleCount = Math.max(8, Math.floor(tankRadius * 16));
+    const holeMat = new MeshStandardMaterial({ color: 2236962, roughness: 0.8, metalness: 0.2 });
+    for (let i = 0; i < sepHoleCount; i++) {
+      const a = i / sepHoleCount * Math.PI * 2;
+      const hole = new Mesh(
+        new CylinderGeometry(0.014, 0.014, 0.02, 8),
+        holeMat
+      );
+      hole.position.set(
+        Math.cos(a) * tankRadius * 0.78,
+        -tankHeight / 2 - tankRadius * 0.08,
+        Math.sin(a) * tankRadius * 0.78
+      );
+      group.add(hole);
+    }
+    const mainTankBody = group.children.find((c) => c instanceof Mesh && c.geometry instanceof CylinderGeometry);
+    if (mainTankBody) {
+      const mat = mainTankBody.material;
+      mat.envMapIntensity = 0.8;
     }
     return { group, height: tankHeight, radius: tankRadius };
   }
@@ -37712,6 +40674,104 @@ var VAB3DPreview = class {
         flBolt.rotation.y = -angle;
         group.add(flBolt);
       }
+      const deLavalProfile = [];
+      const dlSteps = 24;
+      const throatR = bodyR * 0.35;
+      const exitR = nozzleR * 0.95;
+      const convLen = nozzleH * 0.3;
+      const divLen = nozzleH * 0.65;
+      for (let i = 0; i <= dlSteps; i++) {
+        const t = i / dlSteps;
+        let r;
+        let y;
+        if (t < 0.3) {
+          const ct = t / 0.3;
+          r = bodyR * 0.8 + (throatR - bodyR * 0.8) * (1 - Math.cos(ct * Math.PI)) / 2;
+          y = nozzleH / 2 - ct * convLen;
+        } else {
+          const dt = (t - 0.3) / 0.7;
+          r = throatR + (exitR - throatR) * Math.pow(dt, 0.6);
+          y = nozzleH / 2 - convLen - dt * divLen;
+        }
+        deLavalProfile.push(new Vector2(r * 0.95, y));
+      }
+      const deLavalGeo = new LatheGeometry(deLavalProfile, 28, 0, Math.PI * 2);
+      const deLavalMat = new MeshStandardMaterial({
+        color: 2759178,
+        roughness: 0.9,
+        metalness: 0.2,
+        side: DoubleSide
+      });
+      const deLavalInner = new Mesh(deLavalGeo, deLavalMat);
+      deLavalInner.castShadow = true;
+      group.add(deLavalInner);
+      const channelMat = new MeshStandardMaterial({ color: 13404228, roughness: 0.4, metalness: 0.6 });
+      for (let i = 0; i < 32; i++) {
+        const a = i / 32 * Math.PI * 2;
+        const channel = new Mesh(
+          new BoxGeometry(0.015, 0.04, 0.012),
+          channelMat
+        );
+        channel.position.set(
+          Math.cos(a) * exitR * 0.97,
+          nozzleH / 2 - nozzleH * 0.92,
+          Math.sin(a) * exitR * 0.97
+        );
+        channel.lookAt(0, channel.position.y, 0);
+        group.add(channel);
+      }
+      const exhMat = new MeshStandardMaterial({ color: 6702114, roughness: 0.6, metalness: 0.4 });
+      for (let s = 0; s < 5; s++) {
+        const bendAngle = s / 5 * Math.PI / 2;
+        const seg = new Mesh(
+          new CylinderGeometry(0.025, 0.025, 0.04, 8),
+          exhMat
+        );
+        const bendR = 0.08;
+        seg.position.set(
+          bodyR * 1.05 + bendR * (1 - Math.cos(bendAngle)),
+          nozzleH / 2 + bodyH * 0.15 + bendR * Math.sin(bendAngle),
+          0
+        );
+        seg.rotation.z = -bendAngle;
+        group.add(seg);
+      }
+      const exhExit = new Mesh(
+        new CylinderGeometry(0.028, 0.022, 0.03, 8),
+        new MeshStandardMaterial({ color: 3346688, roughness: 0.9, metalness: 0.2 })
+      );
+      exhExit.position.set(bodyR * 1.13, nozzleH / 2 + bodyH * 0.15 + 0.1, 0);
+      group.add(exhExit);
+      const bellowsMat = new MeshStandardMaterial({ color: 2236962, roughness: 0.8, metalness: 0.3 });
+      for (let r = 0; r < 5; r++) {
+        const bellows = new Mesh(
+          new TorusGeometry(bodyR * 0.45, 0.012, 4, 16),
+          bellowsMat
+        );
+        bellows.rotation.x = Math.PI / 2;
+        bellows.position.y = bodyH + nozzleH / 2 - 0.04 + r * 0.018;
+        group.add(bellows);
+      }
+      const oxidizerMat = new MeshStandardMaterial({ color: 4491519, roughness: 0.5, metalness: 0.4 });
+      const fuelMat2 = new MeshStandardMaterial({ color: 16746564, roughness: 0.5, metalness: 0.4 });
+      for (let ring = 0; ring < 4; ring++) {
+        const ringR = bodyR * 0.15 + ring * bodyR * 0.12;
+        const holeCount = 6 + ring * 6;
+        for (let i = 0; i < holeCount; i++) {
+          const angle = i / holeCount * Math.PI * 2;
+          const isOx = (i + ring) % 2 === 0;
+          const injector = new Mesh(
+            new CylinderGeometry(6e-3, 6e-3, 0.012, 5),
+            isOx ? oxidizerMat : fuelMat2
+          );
+          injector.position.set(
+            Math.cos(angle) * ringR,
+            nozzleH / 2 - bodyH * 0.3 + 6e-3,
+            Math.sin(angle) * ringR
+          );
+          group.add(injector);
+        }
+      }
     }
     const offsetGroup = new Group();
     offsetGroup.add(group);
@@ -38003,6 +41063,149 @@ var VAB3DPreview = class {
     mountTabBolt.rotation.z = Math.PI / 2;
     mountTabBolt.position.set(bRadius + 0.04, 0, 0);
     group.add(mountTabBolt);
+    const segCount2 = Math.max(2, Math.floor(bHeight / 1.2));
+    const jointMat = new MeshStandardMaterial({ color: 10066329, roughness: 0.4, metalness: 0.6 });
+    const oRingMat2 = new MeshStandardMaterial({ color: 16729122, roughness: 0.7, metalness: 0.2 });
+    for (let i = 1; i < segCount2; i++) {
+      const y = -bHeight / 2 + i * (bHeight / segCount2);
+      const joint = new Mesh(
+        new CylinderGeometry(bRadius * 1.06, bRadius * 1.06, 0.04, 24),
+        jointMat
+      );
+      joint.position.y = y;
+      joint.castShadow = true;
+      group.add(joint);
+      for (const oy of [y + 0.012, y - 0.012]) {
+        const oRing = new Mesh(
+          new TorusGeometry(bRadius * 1.07, 5e-3, 4, 24),
+          oRingMat2
+        );
+        oRing.rotation.x = Math.PI / 2;
+        oRing.position.y = oy;
+        group.add(oRing);
+      }
+      const boltCount = Math.max(12, Math.floor(bRadius * 30));
+      for (let b = 0; b < boltCount; b++) {
+        const ba = b / boltCount * Math.PI * 2;
+        const jBolt = new Mesh(
+          new CylinderGeometry(8e-3, 8e-3, 0.04, 5),
+          this.mats.copper
+        );
+        jBolt.position.set(
+          Math.cos(ba) * bRadius * 1.08,
+          y,
+          Math.sin(ba) * bRadius * 1.08
+        );
+        jBolt.rotation.x = Math.PI / 2;
+        jBolt.rotation.y = -ba;
+        group.add(jBolt);
+      }
+    }
+    const graphiteMat = new MeshStandardMaterial({
+      color: 1710618,
+      roughness: 0.95,
+      metalness: 0.1
+    });
+    const graphiteLiner = new Mesh(
+      new CylinderGeometry(bRadius * 0.3, bRadius * 0.35, 0.08, 16),
+      graphiteMat
+    );
+    graphiteLiner.position.y = -bHeight / 2 - 0.15;
+    group.add(graphiteLiner);
+    const linerRing = new Mesh(
+      new TorusGeometry(bRadius * 0.32, 8e-3, 6, 16),
+      new MeshStandardMaterial({ color: 4473924, roughness: 0.8, metalness: 0.3 })
+    );
+    linerRing.rotation.x = Math.PI / 2;
+    linerRing.position.y = -bHeight / 2 - 0.19;
+    group.add(linerRing);
+    const sepLineMat = new MeshStandardMaterial({
+      color: 4473924,
+      roughness: 0.7,
+      metalness: 0.4
+    });
+    const sepLine = new Mesh(
+      new CylinderGeometry(bRadius * 1.02, bRadius * 1.02, 8e-3, 16),
+      sepLineMat
+    );
+    sepLine.position.y = bHeight / 2 + noseH * 0.7;
+    group.add(sepLine);
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2;
+      const sepBolt = new Mesh(
+        new CylinderGeometry(6e-3, 6e-3, 0.012, 5),
+        this.mats.copper
+      );
+      sepBolt.position.set(
+        Math.cos(a) * bRadius * 1.03,
+        bHeight / 2 + noseH * 0.7,
+        Math.sin(a) * bRadius * 1.03
+      );
+      sepBolt.rotation.x = Math.PI / 2;
+      group.add(sepBolt);
+    }
+    const sepThrusterMat = new MeshStandardMaterial({ color: 6710886, roughness: 0.5, metalness: 0.5 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const mount = new Mesh(
+        new CylinderGeometry(0.02, 0.025, 0.04, 8),
+        sepThrusterMat
+      );
+      mount.position.set(
+        Math.cos(a) * bRadius * 0.9,
+        -bHeight / 2 - 0.08,
+        Math.sin(a) * bRadius * 0.9
+      );
+      mount.lookAt(Math.cos(a) * 3, -bHeight / 2 - 0.08, Math.sin(a) * 3);
+      mount.rotation.x += Math.PI / 2;
+      group.add(mount);
+      const sepNozzle = new Mesh(
+        new ConeGeometry(0.015, 0.025, 6),
+        new MeshStandardMaterial({ color: 3355443, roughness: 0.8, metalness: 0.3 })
+      );
+      sepNozzle.position.set(
+        Math.cos(a) * bRadius * 0.9,
+        -bHeight / 2 - 0.12,
+        Math.sin(a) * bRadius * 0.9
+      );
+      sepNozzle.lookAt(Math.cos(a) * 5, -bHeight / 2 - 0.5, Math.sin(a) * 5);
+      group.add(sepNozzle);
+    }
+    const weldMat = new MeshStandardMaterial({
+      color: 11176038,
+      roughness: 0.7,
+      metalness: 0.3,
+      emissive: 2232576,
+      emissiveIntensity: 0.1
+    });
+    const weldTurns = 6;
+    const weldPoints = [];
+    for (let i = 0; i <= weldTurns * 24; i++) {
+      const t = i / (weldTurns * 24);
+      const a = t * weldTurns * Math.PI * 2;
+      const y = -bHeight / 2 + t * bHeight;
+      weldPoints.push(new Vector3(
+        Math.cos(a) * bRadius * 1.005,
+        y,
+        Math.sin(a) * bRadius * 1.005
+      ));
+    }
+    const weldGeo = new BufferGeometry().setFromPoints(weldPoints);
+    const weldLine = new Line(weldGeo, new LineBasicMaterial({ color: 10057557 }));
+    group.add(weldLine);
+    const hazMat = new MeshStandardMaterial({
+      color: 14531481,
+      roughness: 0.6,
+      metalness: 0.2,
+      transparent: true,
+      opacity: 0.3
+    });
+    const haz = new Mesh(
+      new CylinderGeometry(bRadius * 1.003, bRadius * 1.003, bHeight * 0.95, 16, 1, true),
+      hazMat
+    );
+    haz.position.y = 0;
+    group.add(haz);
     const totalH = bHeight + noseH + 0.4;
     return { group, height: totalH, radius: bRadius };
   }
@@ -39982,6 +43185,58 @@ var VAB3DPreview = class {
     );
     pulseRing.position.y = dims.height * 0.15;
     group.add(pulseRing);
+    const coilMat = new MeshStandardMaterial({ color: 13404160, roughness: 0.3, metalness: 0.8 });
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2;
+      const coil = new Mesh(
+        new TorusGeometry(dims.radius * 0.4, 0.025, 6, 16),
+        coilMat
+      );
+      coil.position.set(Math.cos(a) * dims.radius * 0.3, 0, Math.sin(a) * dims.radius * 0.3);
+      coil.rotation.y = a;
+      coil.rotation.x = Math.PI / 2;
+      group.add(coil);
+    }
+    const plasmaRing = new Mesh(
+      new TorusGeometry(dims.radius * 0.3, 0.018, 8, 24),
+      new MeshStandardMaterial({
+        color: 4500223,
+        emissive: 2263295,
+        emissiveIntensity: 2,
+        transparent: true,
+        opacity: 0.8
+      })
+    );
+    plasmaRing.rotation.x = Math.PI / 2;
+    plasmaRing.userData._plasma = true;
+    group.add(plasmaRing);
+    const fieldMat = new LineBasicMaterial({ color: 6719743, transparent: true, opacity: 0.3 });
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * Math.PI * 2;
+      const fieldGeo = new BufferGeometry().setFromPoints([
+        new Vector3(Math.cos(a) * dims.radius * 0.55, 0, Math.sin(a) * dims.radius * 0.55),
+        new Vector3(0, 0, 0)
+      ]);
+      const fieldLine = new Line(fieldGeo, fieldMat);
+      group.add(fieldLine);
+    }
+    const shieldMat = new MeshStandardMaterial({ color: 2245734, roughness: 0.8, metalness: 0.3 });
+    const neutronShield = new Mesh(
+      new CylinderGeometry(dims.radius * 0.95, dims.radius * 0.95, dims.height * 0.6, 20, 1, true),
+      shieldMat
+    );
+    neutronShield.castShadow = true;
+    group.add(neutronShield);
+    for (let i = 0; i < 2; i++) {
+      const sx = i === 0 ? 1 : -1;
+      const coolPipe = new Mesh(
+        new CylinderGeometry(0.025, 0.025, dims.height * 0.5, 8),
+        this.mats.copper
+      );
+      coolPipe.position.set(sx * dims.radius * 0.98, 0, 0);
+      coolPipe.rotation.z = Math.PI / 2 * sx;
+      group.add(coolPipe);
+    }
     return { group, height: dims.height, radius: dims.radius };
   }
   // ============================================
@@ -40090,6 +43345,57 @@ var VAB3DPreview = class {
       pipe.rotation.z = Math.PI / 2;
       group.add(pipe);
     }
+    const nacelleMat = new MeshStandardMaterial({ color: 11184861, roughness: 0.2, metalness: 0.8 });
+    for (const ny of [dims.height * 0.35, -dims.height * 0.35]) {
+      const nacelle = new Mesh(
+        new CapsuleGeometry(dims.radius * 0.25, dims.height * 0.3, 8, 16),
+        nacelleMat
+      );
+      nacelle.position.y = ny;
+      nacelle.castShadow = true;
+      group.add(nacelle);
+      const fieldRing = new Mesh(
+        new TorusGeometry(dims.radius * 0.26, 0.015, 8, 20),
+        new MeshStandardMaterial({
+          color: 6741503,
+          emissive: 3386111,
+          emissiveIntensity: 2.5,
+          transparent: true,
+          opacity: 0.9
+        })
+      );
+      fieldRing.position.y = ny + dims.height * 0.2;
+      fieldRing.rotation.x = Math.PI / 2;
+      fieldRing.userData._warpField = true;
+      group.add(fieldRing);
+    }
+    const injectorCore = new Mesh(
+      new SphereGeometry(dims.radius * 0.15, 12, 8),
+      new MeshStandardMaterial({
+        color: 14527231,
+        emissive: 10044620,
+        emissiveIntensity: 1.5,
+        transparent: true,
+        opacity: 0.7
+      })
+    );
+    injectorCore.userData._warpCore = true;
+    group.add(injectorCore);
+    for (let r = 0; r < 3; r++) {
+      const lattice = new Mesh(
+        new TorusGeometry(dims.radius * (0.3 + r * 0.1), 8e-3, 4, 24),
+        new MeshStandardMaterial({
+          color: 8965375,
+          emissive: 4491468,
+          emissiveIntensity: 0.5,
+          transparent: true,
+          opacity: 0.4
+        })
+      );
+      lattice.rotation.x = Math.PI / 2 + r * 0.3;
+      lattice.userData._warpLattice = r;
+      group.add(lattice);
+    }
     return { group, height: dims.height, radius: dims.radius };
   }
   // ============================================
@@ -40193,6 +43499,57 @@ var VAB3DPreview = class {
       hinge.rotation.z = Math.PI / 2;
       hinge.rotation.y = -angle;
       group.add(hinge);
+    }
+    const evapMat = new MeshStandardMaterial({ color: 13395490, roughness: 0.5, metalness: 0.4, emissive: 4460800, emissiveIntensity: 0.3 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const evap = new Mesh(
+        new CylinderGeometry(0.035, 0.025, 0.06, 8),
+        evapMat
+      );
+      evap.position.set(Math.cos(a) * dims.radius * 0.3, dims.height * 0.35, Math.sin(a) * dims.radius * 0.3);
+      evap.rotation.x = Math.PI / 2;
+      evap.rotation.y = -a;
+      group.add(evap);
+    }
+    const condMat = new MeshStandardMaterial({ color: 4491468, roughness: 0.5, metalness: 0.4, emissive: 4420, emissiveIntensity: 0.2 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const cond = new Mesh(
+        new CylinderGeometry(0.02, 0.015, 0.05, 8),
+        condMat
+      );
+      cond.position.set(Math.cos(a) * dims.radius * 0.8, 0, Math.sin(a) * dims.radius * 0.8);
+      cond.rotation.x = Math.PI / 2;
+      cond.rotation.y = -a;
+      group.add(cond);
+    }
+    const returnPipeMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.6 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const pipe = new Mesh(
+        new CylinderGeometry(8e-3, 8e-3, dims.height * 0.7, 6),
+        returnPipeMat
+      );
+      pipe.position.set(Math.cos(a) * dims.radius * 0.55, 0, Math.sin(a) * dims.radius * 0.55);
+      pipe.rotation.x = Math.PI / 2;
+      pipe.rotation.y = -a;
+      group.add(pipe);
+    }
+    const microFinMat = new MeshStandardMaterial({ color: 8947865, roughness: 0.5, metalness: 0.5 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+      for (let f = 0; f < 8; f++) {
+        const fin = new Mesh(
+          new BoxGeometry(3e-3, 0.04, dims.radius * 0.5),
+          microFinMat
+        );
+        const localX = Math.cos(a) * dims.radius * 0.55 + (f - 3.5) * 0.015 * Math.cos(a);
+        const localZ = Math.sin(a) * dims.radius * 0.55 + (f - 3.5) * 0.015 * Math.sin(a);
+        fin.position.set(localX, 0, localZ);
+        fin.rotation.y = a;
+        group.add(fin);
+      }
     }
     return { group, height: dims.height, radius: dims.radius };
   }
@@ -40559,6 +43916,61 @@ var VAB3DPreview = class {
     );
     confRing2.position.y = dims.height * 0.1;
     group.add(confRing2);
+    const penningMat = new MeshStandardMaterial({ color: 13421738, roughness: 0.3, metalness: 0.8 });
+    for (const py2 of [dims.height * 0.35, -dims.height * 0.15]) {
+      const electrode = new Mesh(
+        new TorusGeometry(dims.radius * 0.35, 0.015, 6, 20),
+        penningMat
+      );
+      electrode.position.y = py2;
+      electrode.rotation.x = Math.PI / 2;
+      group.add(electrode);
+    }
+    const annihilationCore = new Mesh(
+      new SphereGeometry(dims.radius * 0.12, 12, 8),
+      new MeshStandardMaterial({
+        color: 16777215,
+        emissive: 16729343,
+        emissiveIntensity: 3,
+        transparent: true,
+        opacity: 0.6
+      })
+    );
+    annihilationCore.position.y = dims.height * 0.1;
+    annihilationCore.userData._antimatterCore = true;
+    group.add(annihilationCore);
+    const shieldLayers = 3;
+    for (let l = 0; l < shieldLayers; l++) {
+      const layer = new Mesh(
+        new CylinderGeometry(
+          dims.radius * (0.75 + l * 0.08),
+          dims.radius * (0.75 + l * 0.08),
+          dims.height * (0.5 - l * 0.05),
+          16,
+          1,
+          true
+        ),
+        new MeshStandardMaterial({
+          color: l === 0 ? 4478310 : l === 1 ? 5596791 : 6715272,
+          roughness: 0.6,
+          metalness: 0.5,
+          transparent: true,
+          opacity: 0.7 - l * 0.15
+        })
+      );
+      layer.castShadow = true;
+      group.add(layer);
+    }
+    for (let i = 0; i < 2; i++) {
+      const sx = i === 0 ? 1 : -1;
+      const vacPipe = new Mesh(
+        new CylinderGeometry(0.02, 0.025, dims.height * 0.3, 8),
+        this.mats.copper
+      );
+      vacPipe.position.set(sx * dims.radius * 0.9, -dims.height * 0.3, 0);
+      vacPipe.rotation.z = Math.PI / 2 * sx;
+      group.add(vacPipe);
+    }
     return { group, height: dims.height, radius: dims.radius };
   }
   createPlasmaPart(part) {
@@ -40703,6 +44115,56 @@ var VAB3DPreview = class {
     );
     trailWisp.position.y = -dims.height * 0.55;
     group.add(trailWisp);
+    const magNozzleMat = new MeshStandardMaterial({ color: 8939212, roughness: 0.3, metalness: 0.7, emissive: 4465288, emissiveIntensity: 0.3 });
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2;
+      const fieldLinePts = [];
+      for (let s = 0; s <= 10; s++) {
+        const t = s / 10;
+        const r = dims.radius * 0.15 + t * dims.radius * 0.35;
+        const y = -dims.height * 0.2 - t * dims.height * 0.4;
+        fieldLinePts.push(new Vector3(Math.cos(a) * r, y, Math.sin(a) * r));
+      }
+      const flGeo = new BufferGeometry().setFromPoints(fieldLinePts);
+      const flLine = new Line(flGeo, new LineBasicMaterial({ color: 11176191, transparent: true, opacity: 0.4 }));
+      group.add(flLine);
+    }
+    const cavityMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.3, metalness: 0.8 });
+    const cavity = new Mesh(
+      new CylinderGeometry(dims.radius * 0.3, dims.radius * 0.3, dims.height * 0.25, 16),
+      cavityMat
+    );
+    cavity.position.y = dims.height * 0.15;
+    cavity.castShadow = true;
+    group.add(cavity);
+    const waveguideMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.6 });
+    for (let i = 0; i < 2; i++) {
+      const sx = i === 0 ? 1 : -1;
+      const wg = new Mesh(
+        new BoxGeometry(0.08, 0.04, 0.04),
+        waveguideMat
+      );
+      wg.position.set(sx * dims.radius * 0.5, dims.height * 0.15, 0);
+      group.add(wg);
+    }
+    const electrodeMat = new MeshStandardMaterial({ color: 16755268, roughness: 0.5, metalness: 0.5, emissive: 4465152, emissiveIntensity: 0.4 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2;
+      const electrode = new Mesh(
+        new CylinderGeometry(6e-3, 6e-3, 0.04, 5),
+        electrodeMat
+      );
+      electrode.position.set(Math.cos(a) * dims.radius * 0.2, dims.height * 0.05, Math.sin(a) * dims.radius * 0.2);
+      group.add(electrode);
+    }
+    const cryoMat = new MeshStandardMaterial({ color: 4491519, roughness: 0.4, metalness: 0.5, emissive: 8772, emissiveIntensity: 0.3 });
+    const cryoPipe = new Mesh(
+      new TorusGeometry(dims.radius * 0.4, 0.012, 6, 20),
+      cryoMat
+    );
+    cryoPipe.rotation.x = Math.PI / 2;
+    cryoPipe.position.y = dims.height * 0.05;
+    group.add(cryoPipe);
     return { group, height: dims.height, radius: dims.radius };
   }
   // KSP 式建造系统 - 核心方法
@@ -40731,6 +44193,8 @@ var VAB3DPreview = class {
     this.placedParts.push(placed);
     this.adjustCamera();
     this.onPartsChanged?.();
+    this.spawnSnapRipple(position);
+    this.updateSymmetryGuide();
     return placed;
   }
   // 放置径向零件 (带对称)
@@ -40773,6 +44237,8 @@ var VAB3DPreview = class {
     }
     this.adjustCamera();
     this.onPartsChanged?.();
+    for (const p of placedArr) this.spawnSnapRipple(p.position);
+    this.updateSymmetryGuide();
   }
   // 放置初始零件 (用于预设火箭)
   placeInitialPart(part) {
@@ -40788,6 +44254,9 @@ var VAB3DPreview = class {
   // 删除零件
   removePart(placedPart) {
     this.pushUndoState();
+    for (const p of [placedPart, ...placedPart.symmetryParts]) {
+      this.spawnDebrisBurst(p.position, p.radius);
+    }
     const toRemove = [placedPart, ...placedPart.symmetryParts];
     for (const p of toRemove) {
       this.rocketGroup.remove(p.mesh);
@@ -40818,6 +44287,16 @@ var VAB3DPreview = class {
         }
       });
       this.selectionOutline = null;
+    }
+    if (this.angleIndicator) {
+      this.scene.remove(this.angleIndicator);
+      this.angleIndicator.traverse((c) => {
+        if (c instanceof Mesh) {
+          c.geometry.dispose();
+          c.material.dispose();
+        }
+      });
+      this.angleIndicator = null;
     }
     this.selectionGlowMats = [];
     this.selectedPart = placedPart;
@@ -40855,6 +44334,64 @@ var VAB3DPreview = class {
       }
       this.selectionOutline = outlineGroup;
       this.scene.add(outlineGroup);
+      if (this.angleIndicator) {
+        this.scene.remove(this.angleIndicator);
+        this.angleIndicator.traverse((c) => {
+          if (c instanceof Mesh) {
+            c.geometry.dispose();
+            c.material.dispose();
+          }
+        });
+      }
+      this.angleIndicator = new Group();
+      const rotY = placedPart.mesh.rotation.y;
+      const arcGeo = new RingGeometry(0.3, 0.34, 24, 1, 0, Math.abs(rotY) + 0.1);
+      const arcMat = new MeshBasicMaterial({ color: 4513279, transparent: true, opacity: 0.6, side: DoubleSide, depthWrite: false });
+      const arc = new Mesh(arcGeo, arcMat);
+      arc.position.copy(placedPart.position);
+      arc.rotation.x = -Math.PI / 2;
+      if (rotY < 0) arc.rotation.z = rotY;
+      this.angleIndicator.add(arc);
+      const tickMat = new MeshBasicMaterial({ color: 8974079, transparent: true, opacity: 0.8 });
+      for (let deg = 0; deg < 360; deg += 15) {
+        const rad = deg * Math.PI / 180;
+        const isMajor = deg % 90 === 0;
+        const tick = new Mesh(
+          new BoxGeometry(0.015, 2e-3, isMajor ? 0.06 : 0.03),
+          tickMat
+        );
+        tick.position.set(
+          placedPart.position.x + Math.cos(rad) * 0.37,
+          placedPart.position.y - placedPart.height / 2 - 0.02,
+          placedPart.position.z + Math.sin(rad) * 0.37
+        );
+        tick.lookAt(placedPart.position.x, tick.position.y, placedPart.position.z);
+        this.angleIndicator.add(tick);
+      }
+      this.scene.add(this.angleIndicator);
+      const allP = [placedPart, ...placedPart.symmetryParts];
+      for (const p of allP) {
+        p.mesh.traverse((child) => {
+          if (child instanceof Mesh && child.geometry) {
+            const outlineGeo = child.geometry.clone();
+            const outlineMat = new MeshBasicMaterial({
+              color: 16763904,
+              transparent: true,
+              opacity: 0.15,
+              side: BackSide,
+              blending: AdditiveBlending,
+              depthWrite: false
+            });
+            const outlineMesh = new Mesh(outlineGeo, outlineMat);
+            outlineMesh.scale.copy(child.scale).multiplyScalar(1.04);
+            outlineMesh.position.copy(child.position);
+            outlineMesh.rotation.copy(child.rotation);
+            outlineMesh.userData._isR3Outline = true;
+            outlineGroup.add(outlineMesh);
+            this.selectionGlowMats.push(outlineMat);
+          }
+        });
+      }
     }
   }
   // 获取堆栈顶部 Y 位置
@@ -41382,6 +44919,80 @@ var VAB3DPreview = class {
       }
     });
   }
+  // ★ R3-28: 生成放置吸附波纹
+  spawnSnapRipple(pos) {
+    const ringGeo = new RingGeometry(0.05, 0.08, 32);
+    const ringMat = new MeshBasicMaterial({
+      color: 4521864,
+      transparent: true,
+      opacity: 0.8,
+      side: DoubleSide,
+      blending: AdditiveBlending,
+      depthWrite: false
+    });
+    const ring = new Mesh(ringGeo, ringMat);
+    ring.position.copy(pos);
+    ring.rotation.x = -Math.PI / 2;
+    this.scene.add(ring);
+    this.snapRipples.push({ mesh: ring, mat: ringMat, age: 0 });
+  }
+  // ★ R3-29: 生成删除破碎粒子
+  spawnDebrisBurst(pos, radius) {
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+      const size = 0.02 + Math.random() * 0.03;
+      const geo = new BoxGeometry(size, size, size);
+      const colors = [16755268, 16737826, 11184810, 8947848];
+      const mat = new MeshBasicMaterial({
+        color: colors[i % colors.length],
+        transparent: true,
+        opacity: 1
+      });
+      const piece = new Mesh(geo, mat);
+      piece.position.copy(pos);
+      piece.castShadow = false;
+      const angle = Math.random() * Math.PI * 2;
+      const elev = (Math.random() - 0.3) * Math.PI * 0.6;
+      const speed = 1.5 + Math.random() * 2;
+      const vel = new Vector3(
+        Math.cos(angle) * Math.cos(elev) * speed,
+        Math.sin(elev) * speed + 1,
+        Math.sin(angle) * Math.cos(elev) * speed
+      );
+      this.scene.add(piece);
+      this.debrisParticles.push({ mesh: piece, vel, age: 0, life: 0.6 + Math.random() * 0.4 });
+    }
+  }
+  // ★ R3-27: 更新对称模式辅助线
+  updateSymmetryGuide() {
+    if (this.symmetryGuide) {
+      this.scene.remove(this.symmetryGuide);
+      this.symmetryGuide.material.dispose();
+      this.symmetryGuide.geometry.dispose();
+      this.symmetryGuide = null;
+    }
+    if (this.symmetryMode <= 1) return;
+    const stackTop = this.getStackTopPosition();
+    const stackBot = this.getStackBottomPosition();
+    const midY = (stackTop + stackBot) / 2;
+    const guideR = 2.5;
+    const points = [];
+    for (let i = 0; i < this.symmetryMode; i++) {
+      const a = i / this.symmetryMode * Math.PI * 2;
+      points.push(Math.cos(a) * guideR, midY, Math.sin(a) * guideR);
+      points.push(0, midY, 0);
+    }
+    const geo = new BufferGeometry();
+    geo.setAttribute("position", new Float32BufferAttribute(points, 3));
+    const mat = new LineBasicMaterial({
+      color: 4491519,
+      transparent: true,
+      opacity: 0.25,
+      depthWrite: false
+    });
+    this.symmetryGuide = new LineSegments(geo, mat);
+    this.scene.add(this.symmetryGuide);
+  }
   dispose() {
     this.disposed = true;
     if (this.animationId) cancelAnimationFrame(this.animationId);
@@ -41394,6 +45005,24 @@ var VAB3DPreview = class {
     this.controls.dispose();
     this.hideGhost();
     this.selectPart(null);
+    for (const r of this.snapRipples) {
+      this.scene.remove(r.mesh);
+      r.mesh.geometry.dispose();
+      r.mat.dispose();
+    }
+    this.snapRipples = [];
+    for (const d of this.debrisParticles) {
+      this.scene.remove(d.mesh);
+      d.mesh.geometry.dispose();
+      d.mesh.material.dispose();
+    }
+    this.debrisParticles = [];
+    if (this.symmetryGuide) {
+      this.scene.remove(this.symmetryGuide);
+      this.symmetryGuide.material.dispose();
+      this.symmetryGuide.geometry.dispose();
+      this.symmetryGuide = null;
+    }
     for (const p of this.placedParts) {
       this.disposeObject3D(p.mesh);
     }
@@ -42857,7 +46486,7 @@ var SpaceCenter = class {
       gap: 14px;
     `;
     const unlockedState = this.getTechUnlockState();
-    TECH_TREE.forEach((tech, idx) => {
+    TECH_TREE2.forEach((tech, idx) => {
       const card = document.createElement("div");
       const isUnlocked = unlockedState[tech.id] ?? tech.unlocked;
       const canUnlock = !isUnlocked && currentScience >= tech.cost;
@@ -42885,7 +46514,7 @@ var SpaceCenter = class {
           <div style="font-size: 1.0rem; font-weight: 700; color: ${isUnlocked ? "#8f8" : canUnlock ? "#ddf" : "#667"};">
             ${isUnlocked ? "\u2705" : canUnlock ? "\u{1F513}" : "\u{1F512}"} ${this.escapeHtml(tech.name)}
           </div>
-          ${idx < TECH_TREE.length - 1 ? '<div style="color: #445;">\u2193</div>' : ""}
+          ${idx < TECH_TREE2.length - 1 ? '<div style="color: #445;">\u2193</div>' : ""}
         </div>
         <div style="font-size: 0.78rem; color: #8899aa; line-height: 1.5; margin-bottom: 10px;">
           ${this.escapeHtml(tech.desc)}
@@ -42925,14 +46554,14 @@ var SpaceCenter = class {
     } catch (e) {
     }
     const state = {};
-    TECH_TREE.forEach((t) => {
+    TECH_TREE2.forEach((t) => {
       state[t.id] = t.unlocked;
     });
     return state;
   }
   // 解锁科技节点
   unlockTech(techId, panel) {
-    const tech = TECH_TREE.find((t) => t.id === techId);
+    const tech = TECH_TREE2.find((t) => t.id === techId);
     if (!tech) return;
     const unlockedState = this.getTechUnlockState();
     if (unlockedState[techId]) return;
