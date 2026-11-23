@@ -1116,7 +1116,7 @@ function serializeImage(image) {
   }
 }
 var _textureId = 0;
-var Texture = class _Texture extends EventDispatcher {
+var Texture2 = class _Texture extends EventDispatcher {
   constructor(image = _Texture.DEFAULT_IMAGE, mapping = _Texture.DEFAULT_MAPPING, wrapS = ClampToEdgeWrapping, wrapT = ClampToEdgeWrapping, magFilter = LinearFilter, minFilter = LinearMipmapLinearFilter, format = RGBAFormat, type = UnsignedByteType, anisotropy = _Texture.DEFAULT_ANISOTROPY, colorSpace = NoColorSpace) {
     super();
     this.isTexture = true;
@@ -1289,9 +1289,9 @@ var Texture = class _Texture extends EventDispatcher {
     }
   }
 };
-Texture.DEFAULT_IMAGE = null;
-Texture.DEFAULT_MAPPING = UVMapping;
-Texture.DEFAULT_ANISOTROPY = 1;
+Texture2.DEFAULT_IMAGE = null;
+Texture2.DEFAULT_MAPPING = UVMapping;
+Texture2.DEFAULT_ANISOTROPY = 1;
 var Vector4 = class _Vector4 {
   constructor(x = 0, y = 0, z = 0, w = 1) {
     _Vector4.prototype.isVector4 = true;
@@ -1706,7 +1706,7 @@ var RenderTarget = class extends EventDispatcher {
       samples: 0,
       count: 1
     }, options);
-    const texture = new Texture(image, options.mapping, options.wrapS, options.wrapT, options.magFilter, options.minFilter, options.format, options.type, options.anisotropy, options.colorSpace);
+    const texture = new Texture2(image, options.mapping, options.wrapS, options.wrapT, options.magFilter, options.minFilter, options.format, options.type, options.anisotropy, options.colorSpace);
     texture.flipY = false;
     texture.generateMipmaps = options.generateMipmaps;
     texture.internalFormat = options.internalFormat;
@@ -1779,7 +1779,7 @@ var WebGLRenderTarget = class extends RenderTarget {
     this.isWebGLRenderTarget = true;
   }
 };
-var DataArrayTexture = class extends Texture {
+var DataArrayTexture = class extends Texture2 {
   constructor(data = null, width = 1, height = 1, depth = 1) {
     super(null);
     this.isDataArrayTexture = true;
@@ -1799,7 +1799,7 @@ var DataArrayTexture = class extends Texture {
     this.layerUpdates.clear();
   }
 };
-var Data3DTexture = class extends Texture {
+var Data3DTexture = class extends Texture2 {
   constructor(data = null, width = 1, height = 1, depth = 1) {
     super(null);
     this.isData3DTexture = true;
@@ -7451,7 +7451,7 @@ var CubeCamera = class extends Object3D {
     renderTarget.texture.needsPMREMUpdate = true;
   }
 };
-var CubeTexture = class extends Texture {
+var CubeTexture = class extends Texture2 {
   constructor(images, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy, colorSpace) {
     images = images !== void 0 ? images : [];
     mapping = mapping !== void 0 ? mapping : CubeReflectionMapping;
@@ -10612,7 +10612,7 @@ function WebGLObjects(gl, geometries, attributes, info) {
     dispose
   };
 }
-var DepthTexture = class extends Texture {
+var DepthTexture = class extends Texture2 {
   constructor(width, height, type, mapping, wrapS, wrapT, magFilter, minFilter, anisotropy, format = DepthFormat) {
     if (format !== DepthFormat && format !== DepthStencilFormat) {
       throw new Error("DepthTexture format must be either THREE.DepthFormat or THREE.DepthStencilFormat");
@@ -10639,7 +10639,7 @@ var DepthTexture = class extends Texture {
     return data;
   }
 };
-var emptyTexture = /* @__PURE__ */ new Texture();
+var emptyTexture = /* @__PURE__ */ new Texture2();
 var emptyShadowTexture = /* @__PURE__ */ new DepthTexture(1, 1);
 var emptyArrayTexture = /* @__PURE__ */ new DataArrayTexture();
 var empty3dTexture = /* @__PURE__ */ new Data3DTexture();
@@ -15632,7 +15632,7 @@ var WebXRDepthSensing = class {
   }
   init(renderer, depthData, renderState) {
     if (this.texture === null) {
-      const texture = new Texture();
+      const texture = new Texture2();
       const texProps = renderer.properties.get(texture);
       texProps.__webglTexture = depthData.texture;
       if (depthData.depthNear != renderState.depthNear || depthData.depthFar != renderState.depthFar) {
@@ -18178,7 +18178,7 @@ var Scene = class extends Object3D {
     return data;
   }
 };
-var DataTexture = class extends Texture {
+var DataTexture = class extends Texture2 {
   constructor(data = null, width = 1, height = 1, format, type, mapping, wrapS, wrapT, magFilter = NearestFilter, minFilter = NearestFilter, anisotropy, colorSpace) {
     super(null, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy, colorSpace);
     this.isDataTexture = true;
@@ -18645,7 +18645,7 @@ function testPoint(point, index, localThresholdSq, matrixWorld, raycaster, inter
     });
   }
 }
-var CanvasTexture = class extends Texture {
+var CanvasTexture = class extends Texture2 {
   constructor(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy) {
     super(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy);
     this.isCanvasTexture = true;
@@ -19768,24 +19768,6 @@ var LatheGeometry = class _LatheGeometry extends BufferGeometry {
   }
   static fromJSON(data) {
     return new _LatheGeometry(data.points, data.segments, data.phiStart, data.phiLength);
-  }
-};
-var CapsuleGeometry = class _CapsuleGeometry extends LatheGeometry {
-  constructor(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
-    const path = new Path();
-    path.absarc(0, -length / 2, radius, Math.PI * 1.5, 0);
-    path.absarc(0, length / 2, radius, 0, Math.PI * 0.5);
-    super(path.getPoints(capSegments), radialSegments);
-    this.type = "CapsuleGeometry";
-    this.parameters = {
-      radius,
-      length,
-      capSegments,
-      radialSegments
-    };
-  }
-  static fromJSON(data) {
-    return new _CapsuleGeometry(data.radius, data.length, data.capSegments, data.radialSegments);
   }
 };
 var CircleGeometry = class _CircleGeometry extends BufferGeometry {
@@ -21101,7 +21083,7 @@ function toJSON$1(shapes, options, data) {
   if (options.extrudePath !== void 0) data.options.extrudePath = options.extrudePath.toJSON();
   return data;
 }
-var IcosahedronGeometry = class _IcosahedronGeometry extends PolyhedronGeometry {
+var IcosahedronGeometry2 = class _IcosahedronGeometry extends PolyhedronGeometry {
   constructor(radius = 1, detail = 0) {
     const t = (1 + Math.sqrt(5)) / 2;
     const vertices = [
@@ -23289,14 +23271,14 @@ var GALACTIC_ARMS = [
   { name: "Outer Arm", nameCN: "\u5916\u81C2", offset: 3 * Math.PI / 2 }
 ];
 var GALACTIC_LANDMARKS = [
-  { name: "Galactic Center", nameCN: "\u94F6\u5FC3 (Sgr A*)", distance: 26e3, ra: 4.6499, dec: -0.5063, description: "\u94F6\u6CB3\u7CFB\u4E2D\u5FC3\uFF0C\u8D85\u5927\u8D28\u91CF\u9ED1\u6D1E Sagittarius A*", starType: "Black Hole" },
-  { name: "Galactic Halo", nameCN: "\u94F6\u6655", distance: 5e3, ra: 4.6499, dec: 1.2, description: "\u94F6\u76D8\u4E4B\u4E0A5000\u5149\u5E74\u7684\u7403\u72B6\u661F\u56E2\u533A\u57DF", starType: "Halo" },
-  { name: "Perseus Arm", nameCN: "\u82F1\u4ED9\u81C2", distance: 5e3, ra: 0.8, dec: 0.1, description: "\u592A\u9633\u5916\u4FA7\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm" },
-  { name: "Sagittarius Arm", nameCN: "\u4EBA\u9A6C\u81C2", distance: 1e4, ra: 4.6, dec: -0.3, description: "\u9760\u8FD1\u94F6\u5FC3\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm" },
-  { name: "Norma Arm", nameCN: "\u77E9\u5C3A\u81C2", distance: 15e3, ra: 3.5, dec: -0.6, description: "\u5185\u94F6\u6CB3\u7CFB\u65CB\u81C2", starType: "Spiral Arm" },
-  { name: "Outer Arm", nameCN: "\u5916\u81C2", distance: 2e4, ra: 2, dec: 0.3, description: "\u94F6\u6CB3\u7CFB\u6700\u5916\u4FA7\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm" },
-  { name: "LMC", nameCN: "\u5927\u9EA6\u54F2\u4F26\u4E91", distance: 163e3, ra: 1.35, dec: -1.28, description: "\u94F6\u6CB3\u7CFB\u6700\u5927\u536B\u661F\u661F\u7CFB", starType: "Dwarf Galaxy" },
-  { name: "SMC", nameCN: "\u5C0F\u9EA6\u54F2\u4F26\u4E91", distance: 2e5, ra: 1.2, dec: -1.22, description: "\u94F6\u6CB3\u7CFB\u536B\u661F\u661F\u7CFB", starType: "Dwarf Galaxy" }
+  { name: "Galactic Center", nameCN: "\u94F6\u5FC3 (Sgr A*)", distance: 26e3, ra: 4.6499, dec: -0.5063, description: "\u94F6\u6CB3\u7CFB\u4E2D\u5FC3\uFF0C\u8D85\u5927\u8D28\u91CF\u9ED1\u6D1E Sagittarius A*", starType: "Black Hole", spectralType: "B" },
+  { name: "Galactic Halo", nameCN: "\u94F6\u6655", distance: 5e3, ra: 4.6499, dec: 1.2, description: "\u94F6\u76D8\u4E4B\u4E0A5000\u5149\u5E74\u7684\u7403\u72B6\u661F\u56E2\u533A\u57DF", starType: "Halo", spectralType: "G" },
+  { name: "Perseus Arm", nameCN: "\u82F1\u4ED9\u81C2", distance: 5e3, ra: 0.8, dec: 0.1, description: "\u592A\u9633\u5916\u4FA7\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm", spectralType: "G" },
+  { name: "Sagittarius Arm", nameCN: "\u4EBA\u9A6C\u81C2", distance: 1e4, ra: 4.6, dec: -0.3, description: "\u9760\u8FD1\u94F6\u5FC3\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm", spectralType: "G" },
+  { name: "Norma Arm", nameCN: "\u77E9\u5C3A\u81C2", distance: 15e3, ra: 3.5, dec: -0.6, description: "\u5185\u94F6\u6CB3\u7CFB\u65CB\u81C2", starType: "Spiral Arm", spectralType: "G" },
+  { name: "Outer Arm", nameCN: "\u5916\u81C2", distance: 2e4, ra: 2, dec: 0.3, description: "\u94F6\u6CB3\u7CFB\u6700\u5916\u4FA7\u7684\u4E3B\u8981\u65CB\u81C2", starType: "Spiral Arm", spectralType: "G" },
+  { name: "LMC", nameCN: "\u5927\u9EA6\u54F2\u4F26\u4E91", distance: 163e3, ra: 1.35, dec: -1.28, description: "\u94F6\u6CB3\u7CFB\u6700\u5927\u536B\u661F\u661F\u7CFB", starType: "Dwarf Galaxy", spectralType: "A" },
+  { name: "SMC", nameCN: "\u5C0F\u9EA6\u54F2\u4F26\u4E91", distance: 2e5, ra: 1.2, dec: -1.22, description: "\u94F6\u6CB3\u7CFB\u536B\u661F\u661F\u7CFB", starType: "Dwarf Galaxy", spectralType: "A" }
 ];
 var STAR_COLOR_TEMP = [
   { temp: 1e5, color: 10075135 },
@@ -23322,167 +23304,221 @@ var STAR_COLOR_TEMP = [
   // 棕矮星 (L/T/Y型)
 ];
 var SOLAR_SYSTEM = [
-  { name: "Sun", nameCN: "\u592A\u9633", type: "star", mass: 1989e27, radius: 69634e4, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16768324, color2: 16746496, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126 },
-  { name: "Mercury", nameCN: "\u6C34\u661F", type: "planet", mass: 33011e19, radius: 2439700, parent: "Sun", semiMajorAxis: 57909e6, eccentricity: 0.2056, inclination: 0.1222, longitudeOfAscendingNode: 0.8435, argumentOfPeriapsis: 1.3518, meanAnomalyAtEpoch: 3.052, orbitalPeriod: 7600500, rotationPeriod: 5067e3, color: 9205843, color2: 7036234, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12, axialTilt: 6e-4 },
-  { name: "Venus", nameCN: "\u91D1\u661F", type: "planet", mass: 48675e20, radius: 6051800, parent: "Sun", semiMajorAxis: 10821e7, eccentricity: 67e-4, inclination: 0.0593, longitudeOfAscendingNode: 2.2956, argumentOfPeriapsis: 0.8753, meanAnomalyAtEpoch: 0.858, orbitalPeriod: 19414e3, rotationPeriod: -20991e3, color: 15253629, color2: 12886106, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.76, axialTilt: 3.096 },
-  { name: "Earth", nameCN: "\u5730\u7403", type: "planet", mass: 597237e19, radius: 6371e3, parent: "Sun", semiMajorAxis: 149598e6, eccentricity: 0.0167, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 1.7968, meanAnomalyAtEpoch: 6.24, orbitalPeriod: 31558e3, rotationPeriod: 86164, color: 2254591, color2: 2271812, hasAtmosphere: true, hasRings: false, textureType: "ocean", albedo: 0.37, axialTilt: 0.409 },
-  { name: "Moon", nameCN: "\u6708\u7403", type: "moon", mass: 7342e19, radius: 1737400, parent: "Earth", semiMajorAxis: 384399e3, eccentricity: 0.0549, inclination: 0.0898, longitudeOfAscendingNode: 0.7266, argumentOfPeriapsis: 0.3575, meanAnomalyAtEpoch: 2.28, orbitalPeriod: 2360600, rotationPeriod: 2360600, color: 13421772, color2: 10066329, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12 },
-  { name: "Mars", nameCN: "\u706B\u661F", type: "planet", mass: 64171e19, radius: 3389500, parent: "Sun", semiMajorAxis: 22792e7, eccentricity: 0.0934, inclination: 0.0323, longitudeOfAscendingNode: 0.8653, argumentOfPeriapsis: 5.865, meanAnomalyAtEpoch: 1.98, orbitalPeriod: 59354e3, rotationPeriod: 88643, color: 13391155, color2: 8925986, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.25, axialTilt: 0.4396 },
-  { name: "Phobos", nameCN: "\u706B\u536B\u4E00", type: "moon", mass: 10659e12, radius: 11127, parent: "Mars", semiMajorAxis: 9376e3, eccentricity: 0.0151, inclination: 0.0194, longitudeOfAscendingNode: 3.415, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 27554, rotationPeriod: 27554, color: 8939093, color2: 6706500, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07 },
-  { name: "Deimos", nameCN: "\u706B\u536B\u4E8C", type: "moon", mass: 14762e11, radius: 6200, parent: "Mars", semiMajorAxis: 23463e3, eccentricity: 2e-4, inclination: 0.4746, longitudeOfAscendingNode: 4.689, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 109075, rotationPeriod: 109075, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07 },
-  { name: "Jupiter", nameCN: "\u6728\u661F", type: "gas-giant", mass: 18982e23, radius: 69911e3, parent: "Sun", semiMajorAxis: 77857e7, eccentricity: 0.0489, inclination: 0.0227, longitudeOfAscendingNode: 1.754, argumentOfPeriapsis: 0.257, meanAnomalyAtEpoch: 3.45, orbitalPeriod: 37434e4, rotationPeriod: 35720, color: 14207645, color2: 12101752, hasAtmosphere: true, hasRings: false, textureType: "gas", albedo: 0.51, axialTilt: 0.0546 },
-  { name: "Io", nameCN: "\u6728\u536B\u4E00", type: "moon", mass: 89319e18, radius: 1821600, parent: "Jupiter", semiMajorAxis: 4217e5, eccentricity: 41e-4, inclination: 0.0499, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 152853, rotationPeriod: 152853, color: 16772676, color2: 14527010, hasAtmosphere: false, hasRings: false, textureType: "lava", albedo: 0.63 },
-  { name: "Europa", nameCN: "\u6728\u536B\u4E8C", type: "moon", mass: 47998e18, radius: 1560800, parent: "Jupiter", semiMajorAxis: 67103e4, eccentricity: 9e-3, inclination: 0.0296, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 306877, rotationPeriod: 306877, color: 14535850, color2: 12299144, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.67 },
-  { name: "Ganymede", nameCN: "\u6728\u536B\u4E09", type: "moon", mass: 14819e19, radius: 2634100, parent: "Jupiter", semiMajorAxis: 10704e5, eccentricity: 13e-4, inclination: 0.0358, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 618153, rotationPeriod: 618153, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.43 },
-  { name: "Callisto", nameCN: "\u6728\u536B\u56DB", type: "moon", mass: 10759e19, radius: 2410300, parent: "Jupiter", semiMajorAxis: 18827e5, eccentricity: 74e-4, inclination: 0.0328, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1442849, rotationPeriod: 1442849, color: 6706500, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.17 },
-  { name: "Saturn", nameCN: "\u571F\u661F", type: "gas-giant", mass: 56834e22, radius: 58232e3, parent: "Sun", semiMajorAxis: 14335e8, eccentricity: 0.0565, inclination: 0.0434, longitudeOfAscendingNode: 1.984, argumentOfPeriapsis: 1.613, meanAnomalyAtEpoch: 5.54, orbitalPeriod: 92969e4, rotationPeriod: 38362, color: 15390392, color2: 12892310, hasAtmosphere: true, hasRings: true, textureType: "gas", albedo: 0.5, axialTilt: 0.4665 },
-  { name: "Titan", nameCN: "\u571F\u536B\u516D", type: "moon", mass: 13452e19, radius: 2574700, parent: "Saturn", semiMajorAxis: 12218e5, eccentricity: 0.0288, inclination: 0.0559, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1374696, rotationPeriod: 1374696, color: 15641156, color2: 13404194, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.22 },
-  { name: "Rhea", nameCN: "\u571F\u536B\u4E94", type: "moon", mass: 2306518e15, radius: 763700, parent: "Saturn", semiMajorAxis: 52708e4, eccentricity: 12e-4, inclination: 0.0185, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 390644, rotationPeriod: 390644, color: 13421772, color2: 11184810, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.69 },
-  { name: "Iapetus", nameCN: "\u571F\u536B\u516B", type: "moon", mass: 1805935e15, radius: 734400, parent: "Saturn", semiMajorAxis: 35608e5, eccentricity: 0.0286, inclination: 0.2823, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 6828804, rotationPeriod: 6828804, color: 8943462, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.25 },
-  { name: "Uranus", nameCN: "\u5929\u738B\u661F", type: "ice-giant", mass: 8681e22, radius: 25362e3, parent: "Sun", semiMajorAxis: 28725e8, eccentricity: 0.0457, inclination: 0.0135, longitudeOfAscendingNode: 1.291, argumentOfPeriapsis: 2.984, meanAnomalyAtEpoch: 2.48, orbitalPeriod: 26533e5, rotationPeriod: -62064, color: 8969710, color2: 6732748, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.48, axialTilt: 1.7064 },
-  { name: "Neptune", nameCN: "\u6D77\u738B\u661F", type: "ice-giant", mass: 102413e21, radius: 24622e3, parent: "Sun", semiMajorAxis: 44951e8, eccentricity: 0.0113, inclination: 0.0309, longitudeOfAscendingNode: 2.298, argumentOfPeriapsis: 0.785, meanAnomalyAtEpoch: 5.31, orbitalPeriod: 52003e5, rotationPeriod: 57996, color: 3368703, color2: 2245836, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.44, axialTilt: 0.4943 },
-  { name: "Triton", nameCN: "\u6D77\u536B\u4E00", type: "moon", mass: 2139e19, radius: 1353400, parent: "Neptune", semiMajorAxis: 35476e4, eccentricity: 16e-6, inclination: 2.7367, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: -489018, rotationPeriod: -489018, color: 14540253, color2: 12303291, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.76 },
-  { name: "Pluto", nameCN: "\u51A5\u738B\u661F", type: "dwarf", mass: 1303e19, radius: 1188300, parent: "Sun", semiMajorAxis: 59064e8, eccentricity: 0.2488, inclination: 0.2994, longitudeOfAscendingNode: 1.916, argumentOfPeriapsis: 4.241, meanAnomalyAtEpoch: 4.03, orbitalPeriod: 78248e5, rotationPeriod: -551856, color: 12298905, color2: 10061943, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.49, axialTilt: 2.1293 },
-  { name: "Charon", nameCN: "\u51A5\u536B\u4E00", type: "moon", mass: 1586e18, radius: 606e3, parent: "Pluto", semiMajorAxis: 19591e3, eccentricity: 2e-4, inclination: 0.0805, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 551856, rotationPeriod: 551856, color: 11184810, color2: 8947848, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.37 },
-  { name: "Ceres", nameCN: "\u8C37\u795E\u661F", type: "dwarf", mass: 93835e16, radius: 473e3, parent: "Sun", semiMajorAxis: 41371e7, eccentricity: 0.0758, inclination: 0.1947, longitudeOfAscendingNode: 5.385, argumentOfPeriapsis: 1.386, meanAnomalyAtEpoch: 4.5, orbitalPeriod: 14556e4, rotationPeriod: 32663, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.09 }
+  { name: "Sun", nameCN: "\u592A\u9633", type: "star", mass: 1989e27, radius: 69634e4, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16768324, color2: 16746496, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126, magneticField: 4e-4, escapeVelocity: 618e6 },
+  { name: "Mercury", nameCN: "\u6C34\u661F", type: "planet", mass: 33011e19, radius: 2439700, parent: "Sun", semiMajorAxis: 57909e6, eccentricity: 0.2056, inclination: 0.1222, longitudeOfAscendingNode: 0.8435, argumentOfPeriapsis: 1.3518, meanAnomalyAtEpoch: 3.052, orbitalPeriod: 7600500, rotationPeriod: 5067e3, color: 9205843, color2: 7036234, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12, axialTilt: 6e-4, magneticField: 3e-7, escapeVelocity: 4250 },
+  { name: "Venus", nameCN: "\u91D1\u661F", type: "planet", mass: 48675e20, radius: 6051800, parent: "Sun", semiMajorAxis: 10821e7, eccentricity: 67e-4, inclination: 0.0593, longitudeOfAscendingNode: 2.2956, argumentOfPeriapsis: 0.8753, meanAnomalyAtEpoch: 0.858, orbitalPeriod: 19414e3, rotationPeriod: -20991e3, color: 15253629, color2: 12886106, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.76, axialTilt: 3.096, magneticField: 0, escapeVelocity: 10360 },
+  { name: "Earth", nameCN: "\u5730\u7403", type: "planet", mass: 597237e19, radius: 6371e3, parent: "Sun", semiMajorAxis: 149598e6, eccentricity: 0.0167, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 1.7968, meanAnomalyAtEpoch: 6.24, orbitalPeriod: 31558e3, rotationPeriod: 86164, color: 2254591, color2: 2271812, hasAtmosphere: true, hasRings: false, textureType: "ocean", albedo: 0.37, axialTilt: 0.409, magneticField: 5e-5, escapeVelocity: 11186 },
+  { name: "Moon", nameCN: "\u6708\u7403", type: "moon", mass: 7342e19, radius: 1737400, parent: "Earth", semiMajorAxis: 384399e3, eccentricity: 0.0549, inclination: 0.0898, longitudeOfAscendingNode: 0.7266, argumentOfPeriapsis: 0.3575, meanAnomalyAtEpoch: 2.28, orbitalPeriod: 2360600, rotationPeriod: 2360600, color: 13421772, color2: 10066329, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.12, magneticField: 0, escapeVelocity: 2380 },
+  { name: "Mars", nameCN: "\u706B\u661F", type: "planet", mass: 64171e19, radius: 3389500, parent: "Sun", semiMajorAxis: 22792e7, eccentricity: 0.0934, inclination: 0.0323, longitudeOfAscendingNode: 0.8653, argumentOfPeriapsis: 5.865, meanAnomalyAtEpoch: 1.98, orbitalPeriod: 59354e3, rotationPeriod: 88643, color: 13391155, color2: 8925986, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.25, axialTilt: 0.4396, magneticField: 3e-8, escapeVelocity: 5020 },
+  { name: "Phobos", nameCN: "\u706B\u536B\u4E00", type: "moon", mass: 10659e12, radius: 11127, parent: "Mars", semiMajorAxis: 9376e3, eccentricity: 0.0151, inclination: 0.0194, longitudeOfAscendingNode: 3.415, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 27554, rotationPeriod: 27554, color: 8939093, color2: 6706500, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07, escapeVelocity: 41 },
+  { name: "Deimos", nameCN: "\u706B\u536B\u4E8C", type: "moon", mass: 14762e11, radius: 6200, parent: "Mars", semiMajorAxis: 23463e3, eccentricity: 2e-4, inclination: 0.4746, longitudeOfAscendingNode: 4.689, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 109075, rotationPeriod: 109075, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.07, escapeVelocity: 23 },
+  { name: "Jupiter", nameCN: "\u6728\u661F", type: "gas-giant", mass: 18982e23, radius: 69911e3, parent: "Sun", semiMajorAxis: 77857e7, eccentricity: 0.0489, inclination: 0.0227, longitudeOfAscendingNode: 1.754, argumentOfPeriapsis: 0.257, meanAnomalyAtEpoch: 3.45, orbitalPeriod: 37434e4, rotationPeriod: 35720, color: 14207645, color2: 12101752, hasAtmosphere: true, hasRings: false, textureType: "gas", albedo: 0.51, axialTilt: 0.0546, magneticField: 43e-5, ringInnerRadius: 92e6, ringOuterRadius: 226e6, ringDensity: 0.01, ringColor: 8947848, escapeVelocity: 59500 },
+  { name: "Io", nameCN: "\u6728\u536B\u4E00", type: "moon", mass: 89319e18, radius: 1821600, parent: "Jupiter", semiMajorAxis: 4217e5, eccentricity: 41e-4, inclination: 0.0499, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 152853, rotationPeriod: 152853, color: 16772676, color2: 14527010, hasAtmosphere: false, hasRings: false, textureType: "lava", albedo: 0.63, magneticField: 0, escapeVelocity: 2550 },
+  { name: "Europa", nameCN: "\u6728\u536B\u4E8C", type: "moon", mass: 47998e18, radius: 1560800, parent: "Jupiter", semiMajorAxis: 67103e4, eccentricity: 9e-3, inclination: 0.0296, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 306877, rotationPeriod: 306877, color: 14535850, color2: 12299144, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.67, magneticField: 0, escapeVelocity: 2020 },
+  { name: "Ganymede", nameCN: "\u6728\u536B\u4E09", type: "moon", mass: 14819e19, radius: 2634100, parent: "Jupiter", semiMajorAxis: 10704e5, eccentricity: 13e-4, inclination: 0.0358, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 618153, rotationPeriod: 618153, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.43, magneticField: 72e-8, escapeVelocity: 2880 },
+  { name: "Callisto", nameCN: "\u6728\u536B\u56DB", type: "moon", mass: 10759e19, radius: 2410300, parent: "Jupiter", semiMajorAxis: 18827e5, eccentricity: 74e-4, inclination: 0.0328, longitudeOfAscendingNode: 1.696, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1442849, rotationPeriod: 1442849, color: 6706500, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.17, magneticField: 0, escapeVelocity: 2440 },
+  { name: "Saturn", nameCN: "\u571F\u661F", type: "gas-giant", mass: 56834e22, radius: 58232e3, parent: "Sun", semiMajorAxis: 14335e8, eccentricity: 0.0565, inclination: 0.0434, longitudeOfAscendingNode: 1.984, argumentOfPeriapsis: 1.613, meanAnomalyAtEpoch: 5.54, orbitalPeriod: 92969e4, rotationPeriod: 38362, color: 15390392, color2: 12892310, hasAtmosphere: true, hasRings: true, textureType: "gas", albedo: 0.5, axialTilt: 0.4665, magneticField: 21e-6, ringInnerRadius: 663e5, ringOuterRadius: 121e6, ringDensity: 0.5, ringColor: 14535850, escapeVelocity: 35500 },
+  { name: "Titan", nameCN: "\u571F\u536B\u516D", type: "moon", mass: 13452e19, radius: 2574700, parent: "Saturn", semiMajorAxis: 12218e5, eccentricity: 0.0288, inclination: 0.0559, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 1374696, rotationPeriod: 1374696, color: 15641156, color2: 13404194, hasAtmosphere: true, hasRings: false, textureType: "rocky", albedo: 0.22, magneticField: 0, escapeVelocity: 2640 },
+  { name: "Rhea", nameCN: "\u571F\u536B\u4E94", type: "moon", mass: 2306518e15, radius: 763700, parent: "Saturn", semiMajorAxis: 52708e4, eccentricity: 12e-4, inclination: 0.0185, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 390644, rotationPeriod: 390644, color: 13421772, color2: 11184810, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.69, escapeVelocity: 530 },
+  { name: "Iapetus", nameCN: "\u571F\u536B\u516B", type: "moon", mass: 1805935e15, radius: 734400, parent: "Saturn", semiMajorAxis: 35608e5, eccentricity: 0.0286, inclination: 0.2823, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 6828804, rotationPeriod: 6828804, color: 8943462, color2: 4469538, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.25, escapeVelocity: 580 },
+  { name: "Uranus", nameCN: "\u5929\u738B\u661F", type: "ice-giant", mass: 8681e22, radius: 25362e3, parent: "Sun", semiMajorAxis: 28725e8, eccentricity: 0.0457, inclination: 0.0135, longitudeOfAscendingNode: 1.291, argumentOfPeriapsis: 2.984, meanAnomalyAtEpoch: 2.48, orbitalPeriod: 26533e5, rotationPeriod: -62064, color: 8969710, color2: 6732748, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.48, axialTilt: 1.7064, magneticField: 23e-6, ringInnerRadius: 384e5, ringOuterRadius: 536e5, ringDensity: 5e-3, ringColor: 4491434, escapeVelocity: 21300 },
+  { name: "Neptune", nameCN: "\u6D77\u738B\u661F", type: "ice-giant", mass: 102413e21, radius: 24622e3, parent: "Sun", semiMajorAxis: 44951e8, eccentricity: 0.0113, inclination: 0.0309, longitudeOfAscendingNode: 2.298, argumentOfPeriapsis: 0.785, meanAnomalyAtEpoch: 5.31, orbitalPeriod: 52003e5, rotationPeriod: 57996, color: 3368703, color2: 2245836, hasAtmosphere: true, hasRings: false, textureType: "ice", albedo: 0.44, axialTilt: 0.4943, magneticField: 14e-6, ringInnerRadius: 418e5, ringOuterRadius: 629e5, ringDensity: 3e-3, ringColor: 3359914, escapeVelocity: 23500 },
+  { name: "Triton", nameCN: "\u6D77\u536B\u4E00", type: "moon", mass: 2139e19, radius: 1353400, parent: "Neptune", semiMajorAxis: 35476e4, eccentricity: 16e-6, inclination: 2.7367, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: -489018, rotationPeriod: -489018, color: 14540253, color2: 12303291, hasAtmosphere: false, hasRings: false, textureType: "ice", albedo: 0.76, escapeVelocity: 1450 },
+  { name: "Pluto", nameCN: "\u51A5\u738B\u661F", type: "dwarf", mass: 1303e19, radius: 1188300, parent: "Sun", semiMajorAxis: 59064e8, eccentricity: 0.2488, inclination: 0.2994, longitudeOfAscendingNode: 1.916, argumentOfPeriapsis: 4.241, meanAnomalyAtEpoch: 4.03, orbitalPeriod: 78248e5, rotationPeriod: -551856, color: 12298905, color2: 10061943, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.49, axialTilt: 2.1293, escapeVelocity: 1190 },
+  { name: "Charon", nameCN: "\u51A5\u536B\u4E00", type: "moon", mass: 1586e18, radius: 606e3, parent: "Pluto", semiMajorAxis: 19591e3, eccentricity: 2e-4, inclination: 0.0805, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 551856, rotationPeriod: 551856, color: 11184810, color2: 8947848, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.37, escapeVelocity: 590 },
+  { name: "Ceres", nameCN: "\u8C37\u795E\u661F", type: "dwarf", mass: 93835e16, radius: 473e3, parent: "Sun", semiMajorAxis: 41371e7, eccentricity: 0.0758, inclination: 0.1947, longitudeOfAscendingNode: 5.385, argumentOfPeriapsis: 1.386, meanAnomalyAtEpoch: 4.5, orbitalPeriod: 14556e4, rotationPeriod: 32663, color: 10061943, color2: 7824981, hasAtmosphere: false, hasRings: false, textureType: "rocky", albedo: 0.09, escapeVelocity: 510 }
 ];
 var STAR_SYSTEMS = [
   // ★ 三体星系 — 致敬《三体》：三颗恒星的混沌系统
-  { name: "Trisolaris System", nameCN: "\u4E09\u4F53\u661F\u7CFB", distance: 4.242, ra: 3.7462, dec: -1.0403, starType: "G2V+K1V+M5.5", mass: 4198e27, radius: 8511e5, temperature: 5790, color: 16772812, planets: 1 },
-  { name: "Barnard's Star", nameCN: "\u5DF4\u7EB3\u5FB7\u661F", distance: 5.963, ra: 2.7413, dec: 0.077, starType: "M4Ve", mass: 2864e26, radius: 1905e5, temperature: 3134, color: 16724770, planets: 4 },
-  { name: "Wolf 359", nameCN: "\u6C83\u5C14\u592B359", distance: 7.86, ra: 2.882, dec: 0.1089, starType: "M6V", mass: 179e27, radius: 1443e5, temperature: 2800, color: 16720401, planets: 2 },
-  { name: "Lalande 21185", nameCN: "\u62C9\u5170\u5FB721185", distance: 8.31, ra: 2.6305, dec: 0.6158, starType: "M2V", mass: 7757e26, radius: 3957e5, temperature: 3601, color: 16733491, planets: 2 },
-  { name: "Sirius A", nameCN: "\u5929\u72FC\u661FA", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "A1V", mass: 411e28, radius: 1191e6, temperature: 9940, color: 14540287, planets: 0 },
-  { name: "Sirius B", nameCN: "\u5929\u72FC\u661FB", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "DA2", mass: 2019e27, radius: 6371e3, temperature: 25e3, color: 16777215, planets: 0 },
-  { name: "Luyten 726-8 A", nameCN: "\u5362\u4F0A\u6ED5726-8 A", distance: 8.73, ra: 0.2346, dec: -0.5548, starType: "M5.5Ve", mass: 179e27, radius: 1611e5, temperature: 2670, color: 16720401, planets: 0 },
-  { name: "Ross 154", nameCN: "\u7F57\u65AF154", distance: 9.69, ra: 4.7955, dec: -1.2325, starType: "M3.5Ve", mass: 358e27, radius: 2376e5, temperature: 3134, color: 16724770, planets: 0 },
-  { name: "Ross 248", nameCN: "\u7F57\u65AF248", distance: 10.32, ra: 5.7374, dec: 0.8276, starType: "M5.5Ve", mass: 2327e26, radius: 1737e5, temperature: 2820, color: 16720401, planets: 0 },
-  { name: "Epsilon Eridani", nameCN: "\u6CE2\u6C5F\u5EA7\u03B5\u661F", distance: 10.475, ra: 0.8992, dec: -0.5893, starType: "K2V", mass: 1611e27, radius: 6954e5, temperature: 5084, color: 16764040, planets: 2 },
-  { name: "Lacaille 9352", nameCN: "\u62C9\u5361\u4F0A9352", distance: 10.74, ra: 5.5138, dec: -0.853, starType: "M0.5V", mass: 1432e27, radius: 5733e5, temperature: 3677, color: 16733491, planets: 2 },
-  { name: "Ross 128", nameCN: "\u7F57\u65AF128", distance: 11.03, ra: 2.4906, dec: 0.0933, starType: "M4V", mass: 3132e26, radius: 1915e5, temperature: 3192, color: 16724770, planets: 1 },
-  { name: "EZ Aquarii A", nameCN: "\u5B9D\u74F6\u5EA7EZ A", distance: 11.27, ra: 3.7125, dec: -0.1005, starType: "M5V", mass: 1789e26, radius: 1611e5, temperature: 3e3, color: 16720401, planets: 0 },
-  { name: "Procyon A", nameCN: "\u5357\u6CB3\u4E09A", distance: 11.4, ra: 1.7454, dec: 0.0933, starType: "F5IV-V", mass: 2983e27, radius: 1677e6, temperature: 6530, color: 16777198, planets: 0 },
-  { name: "61 Cygni A", nameCN: "\u5929\u9E45\u5EA761 A", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K5V", mass: 1232e27, radius: 6685e5, temperature: 4526, color: 16755302, planets: 0 },
-  { name: "61 Cygni B", nameCN: "\u5929\u9E45\u5EA761 B", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K7V", mass: 1074e27, radius: 6066e5, temperature: 4113, color: 16750933, planets: 0 },
-  { name: "Struve 2398 A", nameCN: "\u65AF\u7279\u9C81\u7EF42398 A", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3V", mass: 6565e26, radius: 3663e5, temperature: 3490, color: 16724770, planets: 0 },
-  { name: "Struve 2398 B", nameCN: "\u65AF\u7279\u9C81\u7EF42398 B", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3.5V", mass: 5371e26, radius: 3288e5, temperature: 3210, color: 16724770, planets: 0 },
-  { name: "Groombridge 34 A", nameCN: "\u683C\u9C81\u59C6\u5E03\u91CC\u594734 A", distance: 11.62, ra: 0.3545, dec: 0.7536, starType: "M1.5V", mass: 8155e26, radius: 4032e5, temperature: 3600, color: 16729139, planets: 1 },
-  { name: "Tau Ceti", nameCN: "\u9CB8\u9C7C\u5EA7\u03C4\u661F", distance: 11.75, ra: 0.3664, dec: -0.2767, starType: "G8V", mass: 1511e27, radius: 6909e5, temperature: 5344, color: 16768426, planets: 4 },
-  { name: "Epsilon Indi", nameCN: "\u5370\u7B2C\u5B89\u5EA7\u03B5\u661F", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 },
+  { name: "Trisolaris System", nameCN: "\u4E09\u4F53\u661F\u7CFB", distance: 4.242, ra: 3.7462, dec: -1.0403, starType: "G2V+K1V+M5.5", spectralType: "G", mass: 4198e27, radius: 8511e5, temperature: 5790, color: 16772812, planets: 1 },
+  { name: "Barnard's Star", nameCN: "\u5DF4\u7EB3\u5FB7\u661F", distance: 5.963, ra: 2.7413, dec: 0.077, starType: "M4Ve", spectralType: "M", mass: 2864e26, radius: 1905e5, temperature: 3134, color: 16724770, planets: 4, planetData: [{ name: "Barnard b", mass: 3.2, radius: 1.4, semiMajorAxis: 0.4, orbitalPeriod: 233, eccentricity: 0.32, temperature: 105, habitable: false }] },
+  { name: "Wolf 359", nameCN: "\u6C83\u5C14\u592B359", distance: 7.86, ra: 2.882, dec: 0.1089, starType: "M6V", spectralType: "M", mass: 179e27, radius: 1443e5, temperature: 2800, color: 16720401, planets: 2 },
+  { name: "Lalande 21185", nameCN: "\u62C9\u5170\u5FB721185", distance: 8.31, ra: 2.6305, dec: 0.6158, starType: "M2V", spectralType: "M", mass: 7757e26, radius: 3957e5, temperature: 3601, color: 16733491, planets: 2 },
+  { name: "Sirius A", nameCN: "\u5929\u72FC\u661FA", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "A1V", spectralType: "A", mass: 411e28, radius: 1191e6, temperature: 9940, color: 14540287, planets: 0 },
+  { name: "Sirius B", nameCN: "\u5929\u72FC\u661FB", distance: 8.6, ra: 1.6491, dec: -0.4705, starType: "DA2", spectralType: "A", mass: 2019e27, radius: 6371e3, temperature: 25e3, color: 16777215, planets: 0 },
+  { name: "Luyten 726-8 A", nameCN: "\u5362\u4F0A\u6ED5726-8 A", distance: 8.73, ra: 0.2346, dec: -0.5548, starType: "M5.5Ve", spectralType: "M", mass: 179e27, radius: 1611e5, temperature: 2670, color: 16720401, planets: 0 },
+  { name: "Ross 154", nameCN: "\u7F57\u65AF154", distance: 9.69, ra: 4.7955, dec: -1.2325, starType: "M3.5Ve", spectralType: "M", mass: 358e27, radius: 2376e5, temperature: 3134, color: 16724770, planets: 0 },
+  { name: "Ross 248", nameCN: "\u7F57\u65AF248", distance: 10.32, ra: 5.7374, dec: 0.8276, starType: "M5.5Ve", spectralType: "M", mass: 2327e26, radius: 1737e5, temperature: 2820, color: 16720401, planets: 0 },
+  { name: "Epsilon Eridani", nameCN: "\u6CE2\u6C5F\u5EA7\u03B5\u661F", distance: 10.475, ra: 0.8992, dec: -0.5893, starType: "K2V", spectralType: "K", mass: 1611e27, radius: 6954e5, temperature: 5084, color: 16764040, planets: 2 },
+  { name: "Lacaille 9352", nameCN: "\u62C9\u5361\u4F0A9352", distance: 10.74, ra: 5.5138, dec: -0.853, starType: "M0.5V", spectralType: "M", mass: 1432e27, radius: 5733e5, temperature: 3677, color: 16733491, planets: 2 },
+  { name: "Ross 128", nameCN: "\u7F57\u65AF128", distance: 11.03, ra: 2.4906, dec: 0.0933, starType: "M4V", spectralType: "M", mass: 3132e26, radius: 1915e5, temperature: 3192, color: 16724770, planets: 1 },
+  { name: "EZ Aquarii A", nameCN: "\u5B9D\u74F6\u5EA7EZ A", distance: 11.27, ra: 3.7125, dec: -0.1005, starType: "M5V", spectralType: "M", mass: 1789e26, radius: 1611e5, temperature: 3e3, color: 16720401, planets: 0 },
+  { name: "Procyon A", nameCN: "\u5357\u6CB3\u4E09A", distance: 11.4, ra: 1.7454, dec: 0.0933, starType: "F5IV-V", spectralType: "F", mass: 2983e27, radius: 1677e6, temperature: 6530, color: 16777198, planets: 0 },
+  { name: "61 Cygni A", nameCN: "\u5929\u9E45\u5EA761 A", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K5V", spectralType: "K", mass: 1232e27, radius: 6685e5, temperature: 4526, color: 16755302, planets: 0 },
+  { name: "61 Cygni B", nameCN: "\u5929\u9E45\u5EA761 B", distance: 11.4, ra: 5.0914, dec: 0.668, starType: "K7V", spectralType: "K", mass: 1074e27, radius: 6066e5, temperature: 4113, color: 16750933, planets: 0 },
+  { name: "Struve 2398 A", nameCN: "\u65AF\u7279\u9C81\u7EF42398 A", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3V", spectralType: "M", mass: 6565e26, radius: 3663e5, temperature: 3490, color: 16724770, planets: 0 },
+  { name: "Struve 2398 B", nameCN: "\u65AF\u7279\u9C81\u7EF42398 B", distance: 11.49, ra: 4.4656, dec: 0.9636, starType: "M3.5V", spectralType: "M", mass: 5371e26, radius: 3288e5, temperature: 3210, color: 16724770, planets: 0 },
+  { name: "Groombridge 34 A", nameCN: "\u683C\u9C81\u59C6\u5E03\u91CC\u594734 A", distance: 11.62, ra: 0.3545, dec: 0.7536, starType: "M1.5V", spectralType: "M", mass: 8155e26, radius: 4032e5, temperature: 3600, color: 16729139, planets: 1 },
+  { name: "Tau Ceti", nameCN: "\u9CB8\u9C7C\u5EA7\u03C4\u661F", distance: 11.75, ra: 0.3664, dec: -0.2767, starType: "G8V", spectralType: "G", mass: 1511e27, radius: 6909e5, temperature: 5344, color: 16768426, planets: 4, planetData: [{ name: "Tau Ceti b", mass: 2, radius: 1.6, semiMajorAxis: 0.105, orbitalPeriod: 14, eccentricity: 0.16, temperature: 380, habitable: false }, { name: "Tau Ceti c", mass: 3.9, radius: 2, semiMajorAxis: 0.195, orbitalPeriod: 35, eccentricity: 0.06, temperature: 280, habitable: false }, { name: "Tau Ceti d", mass: 6, radius: 2.5, semiMajorAxis: 0.54, orbitalPeriod: 240, eccentricity: 0.08, temperature: 170, habitable: true }, { name: "Tau Ceti e", mass: 3.9, radius: 1.8, semiMajorAxis: 0.783, orbitalPeriod: 640, eccentricity: 0.05, temperature: 140, habitable: false }] },
+  { name: "Epsilon Indi", nameCN: "\u5370\u7B2C\u5B89\u5EA7\u03B5\u661F", distance: 11.81, ra: 3.7132, dec: -0.8654, starType: "K5V", spectralType: "K", mass: 1432e27, radius: 6909e5, temperature: 4620, color: 16755302, planets: 2 },
   // --- 新增星系 ---
-  { name: "Gliese 581", nameCN: "\u683C\u5229\u6CFD581", distance: 20.42, ra: 3.8768, dec: -0.101, starType: "M3V", mass: 7086e26, radius: 3895e5, temperature: 3487, color: 16729139, planets: 6 },
-  { name: "TRAPPIST-1", nameCN: "\u7279\u62C9\u6BD4\u65AF\u7279-1", distance: 39.6, ra: 5.508, dec: 0.0966, starType: "M8V", mass: 1776e26, radius: 8178e4, temperature: 2566, color: 16724770, planets: 7 },
-  { name: "HD 219134", nameCN: "HD 219134", distance: 21.4, ra: 3.7534, dec: 0.6203, starType: "K3V", mass: 1428e27, radius: 5479e5, temperature: 4699, color: 16755302, planets: 6 },
-  { name: "LHS 1140", nameCN: "LHS 1140", distance: 40.7, ra: 0.1563, dec: -0.0997, starType: "M4.5V", mass: 1286e26, radius: 1854e5, temperature: 3134, color: 16729139, planets: 2 },
-  { name: "Wolf 1061", nameCN: "\u6C83\u5C14\u592B1061", distance: 13.82, ra: 3.7729, dec: -0.1592, starType: "M3.5V", mass: 4765e26, radius: 2723e5, temperature: 3342, color: 16729139, planets: 3 },
-  { name: "Kapteyn", nameCN: "\u5361\u666E\u5766\u661F", distance: 12.83, ra: 0.636, dec: -0.7645, starType: "M1V", mass: 7906e26, radius: 492e6, temperature: 3570, color: 16733491, planets: 2 },
-  { name: "GJ 1214", nameCN: "GJ 1214", distance: 47.5, ra: 4.9179, dec: 0.1844, starType: "M4.5V", mass: 2475e26, radius: 1862e5, temperature: 3026, color: 16729139, planets: 1 },
+  { name: "Gliese 581", nameCN: "\u683C\u5229\u6CFD581", distance: 20.42, ra: 3.8768, dec: -0.101, starType: "M3V", spectralType: "M", mass: 7086e26, radius: 3895e5, temperature: 3487, color: 16729139, planets: 6, planetData: [{ name: "Gliese 581b", mass: 15.8, radius: 3.5, semiMajorAxis: 0.041, orbitalPeriod: 5.37, eccentricity: 0.03, temperature: 420, habitable: false }, { name: "Gliese 581c", mass: 5.5, radius: 1.5, semiMajorAxis: 0.073, orbitalPeriod: 12.93, eccentricity: 0.17, temperature: 330, habitable: false }, { name: "Gliese 581d", mass: 7.1, radius: 2, semiMajorAxis: 0.218, orbitalPeriod: 66.6, eccentricity: 0.36, temperature: 210, habitable: true }, { name: "Gliese 581e", mass: 1.7, radius: 1.2, semiMajorAxis: 0.03, orbitalPeriod: 3.15, eccentricity: 0, temperature: 480, habitable: false }] },
+  { name: "TRAPPIST-1", nameCN: "\u7279\u62C9\u6BD4\u65AF\u7279-1", distance: 39.6, ra: 5.508, dec: 0.0966, starType: "M8V", spectralType: "M", mass: 1776e26, radius: 8178e4, temperature: 2566, color: 16724770, planets: 7, planetData: [{ name: "TRAPPIST-1b", mass: 1.37, radius: 1.06, semiMajorAxis: 0.01154, orbitalPeriod: 1.51, eccentricity: 6e-3, temperature: 400, habitable: false }, { name: "TRAPPIST-1c", mass: 1.31, radius: 1.1, semiMajorAxis: 0.0158, orbitalPeriod: 2.42, eccentricity: 7e-3, temperature: 342, habitable: false }, { name: "TRAPPIST-1d", mass: 0.39, radius: 0.79, semiMajorAxis: 0.02227, orbitalPeriod: 4.05, eccentricity: 3e-3, temperature: 288, habitable: true }, { name: "TRAPPIST-1e", mass: 0.69, radius: 0.92, semiMajorAxis: 0.02925, orbitalPeriod: 6.1, eccentricity: 7e-3, temperature: 251, habitable: true }, { name: "TRAPPIST-1f", mass: 1.04, radius: 1.05, semiMajorAxis: 0.03849, orbitalPeriod: 9.21, eccentricity: 0.01, temperature: 219, habitable: true }, { name: "TRAPPIST-1g", mass: 1.13, radius: 1.13, semiMajorAxis: 0.04683, orbitalPeriod: 12.35, eccentricity: 2e-3, temperature: 199, habitable: true }, { name: "TRAPPIST-1h", mass: 0.33, radius: 0.76, semiMajorAxis: 0.06189, orbitalPeriod: 18.77, eccentricity: 6e-3, temperature: 173, habitable: false }] },
+  { name: "HD 219134", nameCN: "HD 219134", distance: 21.4, ra: 3.7534, dec: 0.6203, starType: "K3V", spectralType: "K", mass: 1428e27, radius: 5479e5, temperature: 4699, color: 16755302, planets: 6, planetData: [{ name: "HD 219134b", mass: 4.5, radius: 1.46, semiMajorAxis: 0.0388, orbitalPeriod: 3.09, eccentricity: 0, temperature: 580, habitable: false }, { name: "HD 219134c", mass: 4.6, radius: 1.81, semiMajorAxis: 0.0653, orbitalPeriod: 6.82, eccentricity: 0, temperature: 440, habitable: false }, { name: "HD 219134d", mass: 16.2, radius: 2.8, semiMajorAxis: 0.237, orbitalPeriod: 47, eccentricity: 0.02, temperature: 230, habitable: false }] },
+  { name: "LHS 1140", nameCN: "LHS 1140", distance: 40.7, ra: 0.1563, dec: -0.0997, starType: "M4.5V", spectralType: "M", mass: 1286e26, radius: 1854e5, temperature: 3134, color: 16729139, planets: 2 },
+  { name: "Wolf 1061", nameCN: "\u6C83\u5C14\u592B1061", distance: 13.82, ra: 3.7729, dec: -0.1592, starType: "M3.5V", spectralType: "M", mass: 4765e26, radius: 2723e5, temperature: 3342, color: 16729139, planets: 3 },
+  { name: "Kapteyn", nameCN: "\u5361\u666E\u5766\u661F", distance: 12.83, ra: 0.636, dec: -0.7645, starType: "M1V", spectralType: "M", mass: 7906e26, radius: 492e6, temperature: 3570, color: 16733491, planets: 2 },
+  { name: "GJ 1214", nameCN: "GJ 1214", distance: 47.5, ra: 4.9179, dec: 0.1844, starType: "M4.5V", spectralType: "M", mass: 2475e26, radius: 1862e5, temperature: 3026, color: 16729139, planets: 1 },
   // ====== ★★ 扩展: 银河系著名恒星系统 (60+ 真实恒星) ======
   // --- 半人马座α三合星系统 (含比邻星/三体星丙原型) ---
-  { name: "Alpha Centauri A", nameCN: "\u5357\u95E8\u4E8CA", distance: 4.37, ra: 3.8379, dec: -1.0618, starType: "G2V", mass: 2188e27, radius: 8511e5, temperature: 5790, color: 16774378, planets: 1 },
-  { name: "Alpha Centauri B", nameCN: "\u5357\u95E8\u4E8CB", distance: 4.37, ra: 3.8379, dec: -1.0618, starType: "K1V", mass: 181e28, radius: 6685e5, temperature: 5260, color: 16765601, planets: 1 },
-  { name: "Proxima Centauri", nameCN: "\u6BD4\u90BB\u661F", distance: 4.242, ra: 3.7948, dec: -1.094, starType: "M5.5Ve", mass: 2446e26, radius: 1542e5, temperature: 3042, color: 16729122, planets: 3 },
+  { name: "Alpha Centauri A", nameCN: "\u5357\u95E8\u4E8CA", distance: 4.37, ra: 3.8379, dec: -1.0618, starType: "G2V", spectralType: "G", mass: 2188e27, radius: 8511e5, temperature: 5790, color: 16774378, planets: 1 },
+  { name: "Alpha Centauri B", nameCN: "\u5357\u95E8\u4E8CB", distance: 4.37, ra: 3.8379, dec: -1.0618, starType: "K1V", spectralType: "K", mass: 181e28, radius: 6685e5, temperature: 5260, color: 16765601, planets: 1 },
+  { name: "Proxima Centauri", nameCN: "\u6BD4\u90BB\u661F", distance: 4.242, ra: 3.7948, dec: -1.094, starType: "M5.5Ve", spectralType: "M", mass: 2446e26, radius: 1542e5, temperature: 3042, color: 16729122, planets: 3, planetData: [{ name: "Proxima b", mass: 1.07, radius: 1.1, semiMajorAxis: 0.0485, orbitalPeriod: 11.18, eccentricity: 0, temperature: 234, habitable: true }, { name: "Proxima c", mass: 7, radius: 2, semiMajorAxis: 1.49, orbitalPeriod: 1928, eccentricity: 0.04, temperature: 42, habitable: false }, { name: "Proxima d", mass: 0.26, radius: 0.8, semiMajorAxis: 0.029, orbitalPeriod: 5.12, eccentricity: 0, temperature: 300, habitable: false }] },
   // --- 夏季大三角 (Summer Triangle) ---
-  { name: "Vega", nameCN: "\u7EC7\u5973\u661F", distance: 25.04, ra: 4.8732, dec: 0.6771, starType: "A0V", mass: 4177e27, radius: 1671e6, temperature: 9602, color: 13293823, planets: 1 },
-  { name: "Altair", nameCN: "\u6CB3\u9F13\u4E8C", distance: 16.73, ra: 5.1948, dec: 0.1548, starType: "A7V", mass: 356e28, radius: 1247e6, temperature: 7550, color: 15397119, planets: 0 },
-  { name: "Deneb", nameCN: "\u5929\u6D25\u56DB", distance: 2615, ra: 5.4156, dec: 0.7904, starType: "A2Ia", mass: 3779e28, radius: 1414e8, temperature: 8525, color: 13293823, planets: 0 },
+  { name: "Vega", nameCN: "\u7EC7\u5973\u661F", distance: 25.04, ra: 4.8732, dec: 0.6771, starType: "A0V", spectralType: "A", mass: 4177e27, radius: 1671e6, temperature: 9602, color: 13293823, planets: 1 },
+  { name: "Altair", nameCN: "\u6CB3\u9F13\u4E8C", distance: 16.73, ra: 5.1948, dec: 0.1548, starType: "A7V", spectralType: "A", mass: 356e28, radius: 1247e6, temperature: 7550, color: 15397119, planets: 0 },
+  { name: "Deneb", nameCN: "\u5929\u6D25\u56DB", distance: 2615, ra: 5.4156, dec: 0.7904, starType: "A2Ia", spectralType: "A", mass: 3779e28, radius: 1414e8, temperature: 8525, color: 13293823, planets: 0 },
   // --- 猎户座 (Orion) ---
-  { name: "Betelgeuse", nameCN: "\u53C2\u5BBF\u56DB", distance: 642.5, ra: 1.5497, dec: 0.1293, starType: "M1Ia", mass: 2307e28, radius: 618e9, temperature: 3590, color: 16741688, planets: 0 },
-  { name: "Rigel", nameCN: "\u53C2\u5BBF\u4E03", distance: 863, ra: 1.3729, dec: -0.1432, starType: "B8Ia", mass: 4177e28, radius: 5494e7, temperature: 12100, color: 13293823, planets: 0 },
-  { name: "Bellatrix", nameCN: "\u53C2\u5BBF\u4E94", distance: 252, ra: 1.4192, dec: 0.1108, starType: "B2III", mass: 1711e28, radius: 4003e6, temperature: 21800, color: 11190271, planets: 0 },
-  { name: "Mintaka", nameCN: "\u53C2\u5BBF\u4E09", distance: 1200, ra: 1.4491, dec: -51e-4, starType: "O9.5II", mass: 2586e28, radius: 1044e7, temperature: 29500, color: 11190271, planets: 0 },
-  { name: "Alnilam", nameCN: "\u53C2\u5BBF\u4E8C", distance: 1980, ra: 1.4675, dec: -0.021, starType: "B0Ia", mass: 4376e28, radius: 2853e7, temperature: 27500, color: 11190271, planets: 0 },
-  { name: "Alnitak", nameCN: "\u53C2\u5BBF\u4E00", distance: 1260, ra: 1.4873, dec: -0.0339, starType: "O9.5Ib", mass: 4177e28, radius: 1392e7, temperature: 29500, color: 11190271, planets: 0 },
-  { name: "Saiph", nameCN: "\u53C2\u5BBF\u516D", distance: 650, ra: 1.5179, dec: -0.1688, starType: "B0.5Ia", mass: 358e29, radius: 1671e7, temperature: 26500, color: 11190271, planets: 0 },
+  { name: "Betelgeuse", nameCN: "\u53C2\u5BBF\u56DB", distance: 642.5, ra: 1.5497, dec: 0.1293, starType: "M1Ia", spectralType: "M", mass: 2307e28, radius: 618e9, temperature: 3590, color: 16741688, planets: 0 },
+  { name: "Rigel", nameCN: "\u53C2\u5BBF\u4E03", distance: 863, ra: 1.3729, dec: -0.1432, starType: "B8Ia", spectralType: "B", mass: 4177e28, radius: 5494e7, temperature: 12100, color: 13293823, planets: 0 },
+  { name: "Bellatrix", nameCN: "\u53C2\u5BBF\u4E94", distance: 252, ra: 1.4192, dec: 0.1108, starType: "B2III", spectralType: "B", mass: 1711e28, radius: 4003e6, temperature: 21800, color: 11190271, planets: 0 },
+  { name: "Mintaka", nameCN: "\u53C2\u5BBF\u4E09", distance: 1200, ra: 1.4491, dec: -51e-4, starType: "O9.5II", spectralType: "O", mass: 2586e28, radius: 1044e7, temperature: 29500, color: 11190271, planets: 0 },
+  { name: "Alnilam", nameCN: "\u53C2\u5BBF\u4E8C", distance: 1980, ra: 1.4675, dec: -0.021, starType: "B0Ia", spectralType: "B", mass: 4376e28, radius: 2853e7, temperature: 27500, color: 11190271, planets: 0 },
+  { name: "Alnitak", nameCN: "\u53C2\u5BBF\u4E00", distance: 1260, ra: 1.4873, dec: -0.0339, starType: "O9.5Ib", spectralType: "O", mass: 4177e28, radius: 1392e7, temperature: 29500, color: 11190271, planets: 0 },
+  { name: "Saiph", nameCN: "\u53C2\u5BBF\u516D", distance: 650, ra: 1.5179, dec: -0.1688, starType: "B0.5Ia", spectralType: "B", mass: 358e29, radius: 1671e7, temperature: 26500, color: 11190271, planets: 0 },
   // --- 天蝎座/金牛座/牧夫座 ---
-  { name: "Antares", nameCN: "\u5FC3\u5BBF\u4E8C", distance: 550, ra: 4.3168, dec: -0.4614, starType: "M1Ib", mass: 2387e28, radius: 4735e8, temperature: 3660, color: 16741688, planets: 0 },
-  { name: "Aldebaran", nameCN: "\u6BD5\u5BBF\u4E94", distance: 65.3, ra: 1.2041, dec: 0.2881, starType: "K5III", mass: 2307e27, radius: 3141e7, temperature: 3910, color: 16756058, planets: 1 },
-  { name: "Arcturus", nameCN: "\u5927\u89D2\u661F", distance: 36.66, ra: 3.7334, dec: 0.3348, starType: "K1.5III", mass: 2148e27, radius: 1769e7, temperature: 4286, color: 16756058, planets: 0 },
+  { name: "Antares", nameCN: "\u5FC3\u5BBF\u4E8C", distance: 550, ra: 4.3168, dec: -0.4614, starType: "M1Ib", spectralType: "M", mass: 2387e28, radius: 4735e8, temperature: 3660, color: 16741688, planets: 0 },
+  { name: "Aldebaran", nameCN: "\u6BD5\u5BBF\u4E94", distance: 65.3, ra: 1.2041, dec: 0.2881, starType: "K5III", spectralType: "K", mass: 2307e27, radius: 3141e7, temperature: 3910, color: 16756058, planets: 1 },
+  { name: "Arcturus", nameCN: "\u5927\u89D2\u661F", distance: 36.66, ra: 3.7334, dec: 0.3348, starType: "K1.5III", spectralType: "K", mass: 2148e27, radius: 1769e7, temperature: 4286, color: 16756058, planets: 0 },
   // --- 小熊座/御夫座/狮子座/室女座 ---
-  { name: "Polaris", nameCN: "\u5317\u6781\u661F", distance: 433, ra: 0.6626, dec: 1.558, starType: "F7Ib", mass: 1073e28, radius: 2611e7, temperature: 6015, color: 16774378, planets: 0 },
-  { name: "Capella", nameCN: "\u4E94\u8F66\u4E8C", distance: 42.92, ra: 1.382, dec: 0.8028, starType: "G3III", mass: 4972e27, radius: 8506e6, temperature: 4970, color: 16765601, planets: 0 },
-  { name: "Regulus", nameCN: "\u8F69\u8F95\u5341\u56DB", distance: 79.3, ra: 2.655, dec: 0.2089, starType: "B8IV", mass: 7558e27, radius: 3028e6, temperature: 12460, color: 13293823, planets: 0 },
-  { name: "Spica", nameCN: "\u89D2\u5BBF\u4E00", distance: 250, ra: 3.5136, dec: -0.1948, starType: "B1III-IV", mass: 2273e28, radius: 5205e6, temperature: 22400, color: 11190271, planets: 0 },
+  { name: "Polaris", nameCN: "\u5317\u6781\u661F", distance: 433, ra: 0.6626, dec: 1.558, starType: "F7Ib", spectralType: "F", mass: 1073e28, radius: 2611e7, temperature: 6015, color: 16774378, planets: 0 },
+  { name: "Capella", nameCN: "\u4E94\u8F66\u4E8C", distance: 42.92, ra: 1.382, dec: 0.8028, starType: "G3III", spectralType: "G", mass: 4972e27, radius: 8506e6, temperature: 4970, color: 16765601, planets: 0 },
+  { name: "Regulus", nameCN: "\u8F69\u8F95\u5341\u56DB", distance: 79.3, ra: 2.655, dec: 0.2089, starType: "B8IV", spectralType: "B", mass: 7558e27, radius: 3028e6, temperature: 12460, color: 13293823, planets: 0 },
+  { name: "Spica", nameCN: "\u89D2\u5BBF\u4E00", distance: 250, ra: 3.5136, dec: -0.1948, starType: "B1III-IV", spectralType: "B", mass: 2273e28, radius: 5205e6, temperature: 22400, color: 11190271, planets: 0 },
   // --- 双子座 ---
-  { name: "Castor", nameCN: "\u5317\u6CB3\u4E8C", distance: 51, ra: 1.984, dec: 0.5567, starType: "A1V", mass: 549e28, radius: 1462e6, temperature: 10286, color: 13293823, planets: 0 },
-  { name: "Pollux", nameCN: "\u5317\u6CB3\u4E09", distance: 33.78, ra: 2.0308, dec: 0.4892, starType: "K0III", mass: 3799e27, radius: 6309e6, temperature: 4666, color: 16756058, planets: 1 },
+  { name: "Castor", nameCN: "\u5317\u6CB3\u4E8C", distance: 51, ra: 1.984, dec: 0.5567, starType: "A1V", spectralType: "A", mass: 549e28, radius: 1462e6, temperature: 10286, color: 13293823, planets: 0 },
+  { name: "Pollux", nameCN: "\u5317\u6CB3\u4E09", distance: 33.78, ra: 2.0308, dec: 0.4892, starType: "K0III", spectralType: "K", mass: 3799e27, radius: 6309e6, temperature: 4666, color: 16756058, planets: 1 },
   // --- 南鱼座/波江座/船底座 ---
-  { name: "Fomalhaut", nameCN: "\u5317\u843D\u5E08\u95E8", distance: 25.13, ra: 6.0115, dec: -0.5171, starType: "A3V", mass: 3819e27, radius: 1281e6, temperature: 8590, color: 15397119, planets: 1 },
-  { name: "Achernar", nameCN: "\u6C34\u59D4\u4E00", distance: 139, ra: 0.4265, dec: -0.9994, starType: "B6V", mass: 1452e28, radius: 7242e6, temperature: 15e3, color: 13293823, planets: 0 },
-  { name: "Canopus", nameCN: "\u8001\u4EBA\u661F", distance: 310, ra: 1.6755, dec: -0.9198, starType: "A9II", mass: 1591e28, radius: 4944e7, temperature: 7350, color: 16774378, planets: 0 },
+  { name: "Fomalhaut", nameCN: "\u5317\u843D\u5E08\u95E8", distance: 25.13, ra: 6.0115, dec: -0.5171, starType: "A3V", spectralType: "A", mass: 3819e27, radius: 1281e6, temperature: 8590, color: 15397119, planets: 1 },
+  { name: "Achernar", nameCN: "\u6C34\u59D4\u4E00", distance: 139, ra: 0.4265, dec: -0.9994, starType: "B6V", spectralType: "B", mass: 1452e28, radius: 7242e6, temperature: 15e3, color: 13293823, planets: 0 },
+  { name: "Canopus", nameCN: "\u8001\u4EBA\u661F", distance: 310, ra: 1.6755, dec: -0.9198, starType: "A9II", spectralType: "A", mass: 1591e28, radius: 4944e7, temperature: 7350, color: 16774378, planets: 0 },
   // --- 英仙座 ---
-  { name: "Algol", nameCN: "\u5927\u9675\u4E94", distance: 90, ra: 0.8212, dec: 0.7149, starType: "B8V", mass: 7558e27, radius: 2437e6, temperature: 13e3, color: 13293823, planets: 0 },
-  { name: "Mirfak", nameCN: "\u5929\u8239\u4E09", distance: 510, ra: 0.8919, dec: 0.8706, starType: "F5Ib", mass: 159e29, radius: 5704e7, temperature: 6280, color: 16774378, planets: 0 },
+  { name: "Algol", nameCN: "\u5927\u9675\u4E94", distance: 90, ra: 0.8212, dec: 0.7149, starType: "B8V", spectralType: "B", mass: 7558e27, radius: 2437e6, temperature: 13e3, color: 13293823, planets: 0 },
+  { name: "Mirfak", nameCN: "\u5929\u8239\u4E09", distance: 510, ra: 0.8919, dec: 0.8706, starType: "F5Ib", spectralType: "F", mass: 159e29, radius: 5704e7, temperature: 6280, color: 16774378, planets: 0 },
   // --- 狮子座 ---
-  { name: "Denebola", nameCN: "\u4E94\u5E1D\u5EA7\u4E00", distance: 35.9, ra: 3.0946, dec: 0.2544, starType: "A3V", mass: 3799e27, radius: 1532e6, temperature: 8500, color: 15397119, planets: 0 },
+  { name: "Denebola", nameCN: "\u4E94\u5E1D\u5EA7\u4E00", distance: 35.9, ra: 3.0946, dec: 0.2544, starType: "A3V", spectralType: "A", mass: 3799e27, radius: 1532e6, temperature: 8500, color: 15397119, planets: 0 },
   // --- 大熊座 ---
-  { name: "Mizar", nameCN: "\u5F00\u9633", distance: 82.9, ra: 3.5081, dec: 0.9589, starType: "A1V", mass: 4376e27, radius: 2437e6, temperature: 9e3, color: 13293823, planets: 0 },
-  { name: "Alcor", nameCN: "\u8F85", distance: 81.4, ra: 3.5138, dec: 0.9598, starType: "A5V", mass: 3581e27, radius: 1462e6, temperature: 8100, color: 15397119, planets: 0 },
+  { name: "Mizar", nameCN: "\u5F00\u9633", distance: 82.9, ra: 3.5081, dec: 0.9589, starType: "A1V", spectralType: "A", mass: 4376e27, radius: 2437e6, temperature: 9e3, color: 13293823, planets: 0 },
+  { name: "Alcor", nameCN: "\u8F85", distance: 81.4, ra: 3.5138, dec: 0.9598, starType: "A5V", spectralType: "A", mass: 3581e27, radius: 1462e6, temperature: 8100, color: 15397119, planets: 0 },
   // --- 长蛇座/白羊座/鲸鱼座 ---
-  { name: "Alphard", nameCN: "\u661F\u5BBF\u4E00", distance: 180, ra: 2.478, dec: -0.1511, starType: "K3II-III", mass: 7758e27, radius: 3929e6, temperature: 4120, color: 16756058, planets: 0 },
-  { name: "Hamal", nameCN: "\u5A04\u5BBF\u4E09", distance: 66, ra: 0.5553, dec: 0.4095, starType: "K1III", mass: 3182e27, radius: 9197e6, temperature: 4480, color: 16756058, planets: 1 },
-  { name: "Diphda", nameCN: "\u571F\u53F8\u7A7A", distance: 96.3, ra: 0.1903, dec: -0.3139, starType: "K0III", mass: 6364e27, radius: 1253e7, temperature: 4700, color: 16765601, planets: 0 },
-  { name: "Mira", nameCN: "\u84AD\u84BF\u589E\u4E8C", distance: 300, ra: 0.6082, dec: -0.052, starType: "M7IIIe", mass: 2983e27, radius: 3481e7, temperature: 2918, color: 16741688, planets: 0 },
+  { name: "Alphard", nameCN: "\u661F\u5BBF\u4E00", distance: 180, ra: 2.478, dec: -0.1511, starType: "K3II-III", spectralType: "K", mass: 7758e27, radius: 3929e6, temperature: 4120, color: 16756058, planets: 0 },
+  { name: "Hamal", nameCN: "\u5A04\u5BBF\u4E09", distance: 66, ra: 0.5553, dec: 0.4095, starType: "K1III", spectralType: "K", mass: 3182e27, radius: 9197e6, temperature: 4480, color: 16756058, planets: 1 },
+  { name: "Diphda", nameCN: "\u571F\u53F8\u7A7A", distance: 96.3, ra: 0.1903, dec: -0.3139, starType: "K0III", spectralType: "K", mass: 6364e27, radius: 1253e7, temperature: 4700, color: 16765601, planets: 0 },
+  { name: "Mira", nameCN: "\u84AD\u84BF\u589E\u4E8C", distance: 300, ra: 0.6082, dec: -0.052, starType: "M7IIIe", spectralType: "M", mass: 2983e27, radius: 3481e7, temperature: 2918, color: 16741688, planets: 0 },
   // --- 船底座/南船座/三角形座/孔雀座/北冕座/天鹅座/天龙座/蛇夫座/武仙座 ---
-  { name: "Miaplacidus", nameCN: "\u5357\u8239\u4E94", distance: 113, ra: 2.4146, dec: -1.2172, starType: "A2IV", mass: 6565e27, radius: 2995e6, temperature: 9250, color: 15397119, planets: 0 },
-  { name: "Atria", nameCN: "\u4E09\u89D2\u5F62\u4E09", distance: 490, ra: 4.4006, dec: -1.2055, starType: "K1IIb", mass: 1511e28, radius: 4456e7, temperature: 4590, color: 16756058, planets: 0 },
-  { name: "Peacock", nameCN: "\u5B54\u96C0\u5341\u4E00", distance: 179, ra: 5.3492, dec: -0.9906, starType: "B2V", mass: 1193e28, radius: 5571e6, temperature: 18e3, color: 11190271, planets: 0 },
-  { name: "Alphecca", nameCN: "\u8D2F\u7D22\u56DB", distance: 75, ra: 4.0799, dec: 0.4663, starType: "A0V", mass: 5172e27, radius: 2437e6, temperature: 9420, color: 13293823, planets: 0 },
-  { name: "Menkalinan", nameCN: "\u4E94\u8F66\u4E09", distance: 81, ra: 1.5687, dec: 0.7845, starType: "A1IV", mass: 5371e27, radius: 2437e6, temperature: 9300, color: 13293823, planets: 0 },
-  { name: "Schedar", nameCN: "\u738B\u826F\u56DB", distance: 228, ra: 0.1768, dec: 0.9869, starType: "K0II", mass: 1113e28, radius: 3099e7, temperature: 4530, color: 16756058, planets: 0 },
-  { name: "Caph", nameCN: "\u738B\u826F\u4E00", distance: 54, ra: 0.0401, dec: 1.0325, starType: "F2III", mass: 3979e27, radius: 4414e6, temperature: 7079, color: 16774378, planets: 0 },
-  { name: "Sadr", nameCN: "\u5929\u6D25\u4E00", distance: 1800, ra: 5.3343, dec: 0.7026, starType: "F8Iab", mass: 2387e28, radius: 1602e8, temperature: 5790, color: 16774378, planets: 0 },
-  { name: "Eltanin", nameCN: "\u5929\u68D3\u56DB", distance: 154, ra: 4.6986, dec: 0.8986, starType: "K5III", mass: 3979e27, radius: 1671e7, temperature: 4210, color: 16756058, planets: 0 },
-  { name: "Rasalhague", nameCN: "\u5019", distance: 47, ra: 4.6041, dec: 0.2192, starType: "A5III", mass: 4376e27, radius: 3034e6, temperature: 8470, color: 15397119, planets: 0 },
-  { name: "Rasalgethi", nameCN: "\u5E1D\u5EA7", distance: 380, ra: 4.5156, dec: 0.2512, starType: "M5Ib-II", mass: 1313e28, radius: 5989e8, temperature: 3270, color: 16741688, planets: 0 },
-  { name: "Nunki", nameCN: "\u6597\u5BBF\u56DB", distance: 228, ra: 4.9548, dec: -0.459, starType: "B2.5V", mass: 1232e28, radius: 3314e6, temperature: 18500, color: 11190271, planets: 0 },
-  { name: "Kaus Australis", nameCN: "\u7B95\u5BBF\u4E09", distance: 143, ra: 4.8192, dec: -0.6002, starType: "B9.5III", mass: 1512e28, radius: 5771e6, temperature: 11900, color: 13293823, planets: 0 },
+  { name: "Miaplacidus", nameCN: "\u5357\u8239\u4E94", distance: 113, ra: 2.4146, dec: -1.2172, starType: "A2IV", spectralType: "A", mass: 6565e27, radius: 2995e6, temperature: 9250, color: 15397119, planets: 0 },
+  { name: "Atria", nameCN: "\u4E09\u89D2\u5F62\u4E09", distance: 490, ra: 4.4006, dec: -1.2055, starType: "K1IIb", spectralType: "K", mass: 1511e28, radius: 4456e7, temperature: 4590, color: 16756058, planets: 0 },
+  { name: "Peacock", nameCN: "\u5B54\u96C0\u5341\u4E00", distance: 179, ra: 5.3492, dec: -0.9906, starType: "B2V", spectralType: "B", mass: 1193e28, radius: 5571e6, temperature: 18e3, color: 11190271, planets: 0 },
+  { name: "Alphecca", nameCN: "\u8D2F\u7D22\u56DB", distance: 75, ra: 4.0799, dec: 0.4663, starType: "A0V", spectralType: "A", mass: 5172e27, radius: 2437e6, temperature: 9420, color: 13293823, planets: 0 },
+  { name: "Menkalinan", nameCN: "\u4E94\u8F66\u4E09", distance: 81, ra: 1.5687, dec: 0.7845, starType: "A1IV", spectralType: "A", mass: 5371e27, radius: 2437e6, temperature: 9300, color: 13293823, planets: 0 },
+  { name: "Schedar", nameCN: "\u738B\u826F\u56DB", distance: 228, ra: 0.1768, dec: 0.9869, starType: "K0II", spectralType: "K", mass: 1113e28, radius: 3099e7, temperature: 4530, color: 16756058, planets: 0 },
+  { name: "Caph", nameCN: "\u738B\u826F\u4E00", distance: 54, ra: 0.0401, dec: 1.0325, starType: "F2III", spectralType: "F", mass: 3979e27, radius: 4414e6, temperature: 7079, color: 16774378, planets: 0 },
+  { name: "Sadr", nameCN: "\u5929\u6D25\u4E00", distance: 1800, ra: 5.3343, dec: 0.7026, starType: "F8Iab", spectralType: "F", mass: 2387e28, radius: 1602e8, temperature: 5790, color: 16774378, planets: 0 },
+  { name: "Eltanin", nameCN: "\u5929\u68D3\u56DB", distance: 154, ra: 4.6986, dec: 0.8986, starType: "K5III", spectralType: "K", mass: 3979e27, radius: 1671e7, temperature: 4210, color: 16756058, planets: 0 },
+  { name: "Rasalhague", nameCN: "\u5019", distance: 47, ra: 4.6041, dec: 0.2192, starType: "A5III", spectralType: "A", mass: 4376e27, radius: 3034e6, temperature: 8470, color: 15397119, planets: 0 },
+  { name: "Rasalgethi", nameCN: "\u5E1D\u5EA7", distance: 380, ra: 4.5156, dec: 0.2512, starType: "M5Ib-II", spectralType: "M", mass: 1313e28, radius: 5989e8, temperature: 3270, color: 16741688, planets: 0 },
+  { name: "Nunki", nameCN: "\u6597\u5BBF\u56DB", distance: 228, ra: 4.9548, dec: -0.459, starType: "B2.5V", spectralType: "B", mass: 1232e28, radius: 3314e6, temperature: 18500, color: 11190271, planets: 0 },
+  { name: "Kaus Australis", nameCN: "\u7B95\u5BBF\u4E09", distance: 143, ra: 4.8192, dec: -0.6002, starType: "B9.5III", spectralType: "B", mass: 1512e28, radius: 5771e6, temperature: 11900, color: 13293823, planets: 0 },
   // --- 近距离 M型红矮星 (宜居带行星候选) ---
-  { name: "Gliese 667C", nameCN: "\u683C\u5229\u6CFD667C", distance: 23.6, ra: 4.5374, dec: -0.6109, starType: "M1.5V", mass: 5172e26, radius: 2716e5, temperature: 3350, color: 16733491, planets: 6 },
-  { name: "Gliese 876", nameCN: "\u683C\u5229\u6CFD876", distance: 15.25, ra: 5.9907, dec: -0.2489, starType: "M3.5V", mass: 5967e26, radius: 2716e5, temperature: 3129, color: 16729139, planets: 4 },
-  { name: "Gliese 832", nameCN: "\u683C\u5229\u6CFD832", distance: 16.1, ra: 5.501, dec: -0.8556, starType: "M1.5V", mass: 716e27, radius: 3663e5, temperature: 3472, color: 16733491, planets: 2 },
-  { name: "Gliese 229", nameCN: "\u683C\u5229\u6CFD229", distance: 18.8, ra: 1.6171, dec: -0.3816, starType: "M1.5V", mass: 716e27, radius: 3288e5, temperature: 3450, color: 16733491, planets: 0 },
-  { name: "Gliese 436", nameCN: "\u683C\u5229\u6CFD436", distance: 33, ra: 3.0651, dec: 0.4661, starType: "M2.5V", mass: 5569e26, radius: 2716e5, temperature: 3416, color: 16729139, planets: 1 },
-  { name: "Gliese 687", nameCN: "\u683C\u5229\u6CFD687", distance: 18.6, ra: 4.609, dec: 1.1928, starType: "M3V", mass: 706e27, radius: 2716e5, temperature: 3413, color: 16729139, planets: 2 },
-  { name: "Gliese 887", nameCN: "\u683C\u5229\u6CFD887", distance: 10.7, ra: 6.0761, dec: -0.7149, starType: "M2V", mass: 9945e26, radius: 3288e5, temperature: 3650, color: 16733491, planets: 2 },
-  { name: "Luyten Star", nameCN: "\u5362\u4F0A\u6ED5\u661F", distance: 12.4, ra: 1.9537, dec: 0.0911, starType: "M3.5V", mass: 5371e26, radius: 2716e5, temperature: 3322, color: 16729139, planets: 2 },
-  { name: "Gliese 674", nameCN: "\u683C\u5229\u6CFD674", distance: 14.8, ra: 4.5767, dec: -0.8178, starType: "M2.5V", mass: 6164e26, radius: 2437e5, temperature: 3600, color: 16733491, planets: 1 },
-  { name: "GJ 1061", nameCN: "GJ 1061", distance: 11.99, ra: 0.9425, dec: -0.7768, starType: "M5.5V", mass: 1968e26, radius: 1611e5, temperature: 2953, color: 16724770, planets: 3 },
-  { name: "GJ 1002", nameCN: "GJ 1002", distance: 15.8, ra: 0.1963, dec: -0.1378, starType: "M5.5V", mass: 1789e26, radius: 1542e5, temperature: 3024, color: 16724770, planets: 2 },
-  { name: "Teegarden Star", nameCN: "\u8482\u52A0\u767B\u661F", distance: 12.5, ra: 4.3751, dec: 0.2304, starType: "M6V", mass: 179e27, radius: 1542e5, temperature: 2900, color: 16720401, planets: 2 },
-  { name: "Luhman 16", nameCN: "\u9C81\u8D6B\u66FC16", distance: 6.5, ra: 4.5828, dec: -1.0053, starType: "L7.5+T0", mass: 5967e25, radius: 9818e4, temperature: 1400, color: 8930338, planets: 0 },
+  { name: "Gliese 667C", nameCN: "\u683C\u5229\u6CFD667C", distance: 23.6, ra: 4.5374, dec: -0.6109, starType: "M1.5V", spectralType: "M", mass: 5172e26, radius: 2716e5, temperature: 3350, color: 16733491, planets: 6 },
+  { name: "Gliese 876", nameCN: "\u683C\u5229\u6CFD876", distance: 15.25, ra: 5.9907, dec: -0.2489, starType: "M3.5V", spectralType: "M", mass: 5967e26, radius: 2716e5, temperature: 3129, color: 16729139, planets: 4 },
+  { name: "Gliese 832", nameCN: "\u683C\u5229\u6CFD832", distance: 16.1, ra: 5.501, dec: -0.8556, starType: "M1.5V", spectralType: "M", mass: 716e27, radius: 3663e5, temperature: 3472, color: 16733491, planets: 2 },
+  { name: "Gliese 229", nameCN: "\u683C\u5229\u6CFD229", distance: 18.8, ra: 1.6171, dec: -0.3816, starType: "M1.5V", spectralType: "M", mass: 716e27, radius: 3288e5, temperature: 3450, color: 16733491, planets: 0 },
+  { name: "Gliese 436", nameCN: "\u683C\u5229\u6CFD436", distance: 33, ra: 3.0651, dec: 0.4661, starType: "M2.5V", spectralType: "M", mass: 5569e26, radius: 2716e5, temperature: 3416, color: 16729139, planets: 1 },
+  { name: "Gliese 687", nameCN: "\u683C\u5229\u6CFD687", distance: 18.6, ra: 4.609, dec: 1.1928, starType: "M3V", spectralType: "M", mass: 706e27, radius: 2716e5, temperature: 3413, color: 16729139, planets: 2 },
+  { name: "Gliese 887", nameCN: "\u683C\u5229\u6CFD887", distance: 10.7, ra: 6.0761, dec: -0.7149, starType: "M2V", spectralType: "M", mass: 9945e26, radius: 3288e5, temperature: 3650, color: 16733491, planets: 2 },
+  { name: "Luyten Star", nameCN: "\u5362\u4F0A\u6ED5\u661F", distance: 12.4, ra: 1.9537, dec: 0.0911, starType: "M3.5V", spectralType: "M", mass: 5371e26, radius: 2716e5, temperature: 3322, color: 16729139, planets: 2 },
+  { name: "Gliese 674", nameCN: "\u683C\u5229\u6CFD674", distance: 14.8, ra: 4.5767, dec: -0.8178, starType: "M2.5V", spectralType: "M", mass: 6164e26, radius: 2437e5, temperature: 3600, color: 16733491, planets: 1 },
+  { name: "GJ 1061", nameCN: "GJ 1061", distance: 11.99, ra: 0.9425, dec: -0.7768, starType: "M5.5V", spectralType: "M", mass: 1968e26, radius: 1611e5, temperature: 2953, color: 16724770, planets: 3 },
+  { name: "GJ 1002", nameCN: "GJ 1002", distance: 15.8, ra: 0.1963, dec: -0.1378, starType: "M5.5V", spectralType: "M", mass: 1789e26, radius: 1542e5, temperature: 3024, color: 16724770, planets: 2 },
+  { name: "Teegarden Star", nameCN: "\u8482\u52A0\u767B\u661F", distance: 12.5, ra: 4.3751, dec: 0.2304, starType: "M6V", spectralType: "M", mass: 179e27, radius: 1542e5, temperature: 2900, color: 16720401, planets: 2 },
+  { name: "Luhman 16", nameCN: "\u9C81\u8D6B\u66FC16", distance: 6.5, ra: 4.5828, dec: -1.0053, starType: "L7.5+T0", spectralType: "M", mass: 5967e25, radius: 9818e4, temperature: 1400, color: 8930338, planets: 0 },
   // --- 行星系统恒星 (系外行星候选) ---
-  { name: "70 Ophiuchi", nameCN: "\u5B97\u4EBA\u56DB", distance: 16.6, ra: 5.2521, dec: 0.1819, starType: "K0V", mass: 181e28, radius: 6685e5, temperature: 5300, color: 16764040, planets: 1 },
-  { name: "36 Ophiuchi", nameCN: "\u5B97\u4EBA\u4E8C", distance: 19.5, ra: 5.1843, dec: -0.4628, starType: "K1V", mass: 171e28, radius: 6685e5, temperature: 5120, color: 16755302, planets: 0 },
-  { name: "54 Piscium", nameCN: "\u53CC\u9C7C\u5EA754", distance: 36.1, ra: 0.0522, dec: 0.361, starType: "K0V", mass: 1511e27, radius: 5733e5, temperature: 5013, color: 16755302, planets: 1 },
-  { name: "55 Cancri", nameCN: "\u5DE8\u87F9\u5EA755", distance: 41, ra: 2.206, dec: 0.535, starType: "G8V", mass: 171e28, radius: 7437e5, temperature: 5196, color: 16768426, planets: 5 },
-  { name: "47 Ursae Majoris", nameCN: "\u5927\u718A\u5EA747", distance: 45.9, ra: 1.9574, dec: 0.808, starType: "G1V", mass: 2028e27, radius: 7161e5, temperature: 5887, color: 16774378, planets: 3 },
-  { name: "51 Pegasi", nameCN: "\u98DE\u9A6C\u5EA751", distance: 50.9, ra: 3.6962, dec: 0.495, starType: "G2IV", mass: 2028e27, radius: 8096e5, temperature: 5571, color: 16774378, planets: 1 },
-  { name: "Upsilon Andromedae", nameCN: "\u4ED9\u5973\u5EA7\u03C5", distance: 44, ra: 0.2478, dec: 0.672, starType: "F8V", mass: 2685e27, radius: 9749e5, temperature: 6212, color: 16777198, planets: 4 },
-  { name: "14 Herculis", nameCN: "\u6B66\u4ED9\u5EA714", distance: 59.5, ra: 4.347, dec: 0.7456, starType: "K0V", mass: 1611e27, radius: 5919e5, temperature: 5311, color: 16755302, planets: 2 },
-  { name: "HD 69830", nameCN: "HD 69830", distance: 41, ra: 1.8372, dec: -0.2271, starType: "K0V", mass: 181e28, radius: 7161e5, temperature: 5385, color: 16755302, planets: 3 },
-  { name: "HD 40307", nameCN: "HD 40307", distance: 42, ra: 1.6745, dec: -0.6654, starType: "K2.5V", mass: 1432e27, radius: 5234e5, temperature: 4977, color: 16755302, planets: 6 },
-  { name: "HD 85512", nameCN: "HD 85512", distance: 36.4, ra: 2.772, dec: -0.732, starType: "K5V", mass: 1352e27, radius: 5234e5, temperature: 4413, color: 16750933, planets: 1 },
-  { name: "HD 189733", nameCN: "HD 189733", distance: 64.5, ra: 4.9699, dec: 0.6776, starType: "K1.5V", mass: 1611e27, radius: 6685e5, temperature: 5050, color: 16755302, planets: 1 },
-  { name: "82 Eridani", nameCN: "\u6CE2\u6C5F\u5EA782", distance: 19.8, ra: 0.7064, dec: -0.7247, starType: "G8V", mass: 1511e27, radius: 6685e5, temperature: 5408, color: 16768426, planets: 3 },
-  { name: "Delta Pavonis", nameCN: "\u5B54\u96C0\u5EA7\u03B4", distance: 19.9, ra: 5.4839, dec: -0.6192, starType: "G8IV", mass: 1969e27, radius: 1044e6, temperature: 5248, color: 16768426, planets: 0 },
-  { name: "Beta Hydri", nameCN: "\u6C34\u86C7\u5EA7\u03B2", distance: 24.3, ra: 0.1815, dec: -1.306, starType: "G2IV", mass: 2028e27, radius: 1191e6, temperature: 5675, color: 16774378, planets: 0 },
-  { name: "Zeta Tucanae", nameCN: "\u675C\u9E43\u5EA7\u03B6", distance: 28, ra: 1.5339, dec: -1.2247, starType: "F9V", mass: 1969e27, radius: 7437e5, temperature: 6026, color: 16777198, planets: 0 },
-  { name: "Zeta Reticuli", nameCN: "\u7F51\u7F5F\u5EA7\u03B6", distance: 39.5, ra: 0.8299, dec: -1.0226, starType: "G2V", mass: 1969e27, radius: 7161e5, temperature: 5736, color: 16774378, planets: 0 },
-  { name: "61 Virginis", nameCN: "\u5BA4\u5973\u5EA761", distance: 27.8, ra: 3.9637, dec: 0.3057, starType: "G5V", mass: 181e28, radius: 7161e5, temperature: 5531, color: 16768426, planets: 3 },
-  { name: "HD 102365", nameCN: "HD 102365", distance: 30.7, ra: 2.8339, dec: -1.1258, starType: "G2V", mass: 181e28, radius: 7161e5, temperature: 5524, color: 16774378, planets: 1 },
-  { name: "Mu Herculis", nameCN: "\u6B66\u4ED9\u5EA7\u03BC", distance: 27.4, ra: 4.2926, dec: 0.6801, starType: "G5IV", mass: 1969e27, radius: 9749e5, temperature: 5410, color: 16768426, planets: 0 }
+  { name: "70 Ophiuchi", nameCN: "\u5B97\u4EBA\u56DB", distance: 16.6, ra: 5.2521, dec: 0.1819, starType: "K0V", spectralType: "K", mass: 181e28, radius: 6685e5, temperature: 5300, color: 16764040, planets: 1 },
+  { name: "36 Ophiuchi", nameCN: "\u5B97\u4EBA\u4E8C", distance: 19.5, ra: 5.1843, dec: -0.4628, starType: "K1V", spectralType: "K", mass: 171e28, radius: 6685e5, temperature: 5120, color: 16755302, planets: 0 },
+  { name: "54 Piscium", nameCN: "\u53CC\u9C7C\u5EA754", distance: 36.1, ra: 0.0522, dec: 0.361, starType: "K0V", spectralType: "K", mass: 1511e27, radius: 5733e5, temperature: 5013, color: 16755302, planets: 1 },
+  { name: "55 Cancri", nameCN: "\u5DE8\u87F9\u5EA755", distance: 41, ra: 2.206, dec: 0.535, starType: "G8V", spectralType: "G", mass: 171e28, radius: 7437e5, temperature: 5196, color: 16768426, planets: 5, planetData: [{ name: "55 Cnc b", mass: 8.6, radius: 1.8, semiMajorAxis: 0.113, orbitalPeriod: 14.65, eccentricity: 0, temperature: 550, habitable: false }, { name: "55 Cnc c", mass: 14.6, radius: 2.2, semiMajorAxis: 0.236, orbitalPeriod: 44.34, eccentricity: 0.02, temperature: 380, habitable: false }, { name: "55 Cnc d", mass: 1202, radius: 12, semiMajorAxis: 5.5, orbitalPeriod: 4550, eccentricity: 0.02, temperature: 80, habitable: false }, { name: "55 Cnc e", mass: 7.3, radius: 1.88, semiMajorAxis: 0.0156, orbitalPeriod: 0.74, eccentricity: 0, temperature: 2e3, habitable: false }, { name: "55 Cnc f", mass: 46, radius: 5, semiMajorAxis: 0.781, orbitalPeriod: 459, eccentricity: 0, temperature: 210, habitable: false }] },
+  { name: "47 Ursae Majoris", nameCN: "\u5927\u718A\u5EA747", distance: 45.9, ra: 1.9574, dec: 0.808, starType: "G1V", spectralType: "G", mass: 2028e27, radius: 7161e5, temperature: 5887, color: 16774378, planets: 3 },
+  { name: "51 Pegasi", nameCN: "\u98DE\u9A6C\u5EA751", distance: 50.9, ra: 3.6962, dec: 0.495, starType: "G2IV", spectralType: "G", mass: 2028e27, radius: 8096e5, temperature: 5571, color: 16774378, planets: 1 },
+  { name: "Upsilon Andromedae", nameCN: "\u4ED9\u5973\u5EA7\u03C5", distance: 44, ra: 0.2478, dec: 0.672, starType: "F8V", spectralType: "F", mass: 2685e27, radius: 9749e5, temperature: 6212, color: 16777198, planets: 4 },
+  { name: "14 Herculis", nameCN: "\u6B66\u4ED9\u5EA714", distance: 59.5, ra: 4.347, dec: 0.7456, starType: "K0V", spectralType: "K", mass: 1611e27, radius: 5919e5, temperature: 5311, color: 16755302, planets: 2 },
+  { name: "HD 69830", nameCN: "HD 69830", distance: 41, ra: 1.8372, dec: -0.2271, starType: "K0V", spectralType: "K", mass: 181e28, radius: 7161e5, temperature: 5385, color: 16755302, planets: 3 },
+  { name: "HD 40307", nameCN: "HD 40307", distance: 42, ra: 1.6745, dec: -0.6654, starType: "K2.5V", spectralType: "K", mass: 1432e27, radius: 5234e5, temperature: 4977, color: 16755302, planets: 6 },
+  { name: "HD 85512", nameCN: "HD 85512", distance: 36.4, ra: 2.772, dec: -0.732, starType: "K5V", spectralType: "K", mass: 1352e27, radius: 5234e5, temperature: 4413, color: 16750933, planets: 1 },
+  { name: "HD 189733", nameCN: "HD 189733", distance: 64.5, ra: 4.9699, dec: 0.6776, starType: "K1.5V", spectralType: "K", mass: 1611e27, radius: 6685e5, temperature: 5050, color: 16755302, planets: 1 },
+  { name: "82 Eridani", nameCN: "\u6CE2\u6C5F\u5EA782", distance: 19.8, ra: 0.7064, dec: -0.7247, starType: "G8V", spectralType: "G", mass: 1511e27, radius: 6685e5, temperature: 5408, color: 16768426, planets: 3 },
+  { name: "Delta Pavonis", nameCN: "\u5B54\u96C0\u5EA7\u03B4", distance: 19.9, ra: 5.4839, dec: -0.6192, starType: "G8IV", spectralType: "G", mass: 1969e27, radius: 1044e6, temperature: 5248, color: 16768426, planets: 0 },
+  { name: "Beta Hydri", nameCN: "\u6C34\u86C7\u5EA7\u03B2", distance: 24.3, ra: 0.1815, dec: -1.306, starType: "G2IV", spectralType: "G", mass: 2028e27, radius: 1191e6, temperature: 5675, color: 16774378, planets: 0 },
+  { name: "Zeta Tucanae", nameCN: "\u675C\u9E43\u5EA7\u03B6", distance: 28, ra: 1.5339, dec: -1.2247, starType: "F9V", spectralType: "F", mass: 1969e27, radius: 7437e5, temperature: 6026, color: 16777198, planets: 0 },
+  { name: "Zeta Reticuli", nameCN: "\u7F51\u7F5F\u5EA7\u03B6", distance: 39.5, ra: 0.8299, dec: -1.0226, starType: "G2V", spectralType: "G", mass: 1969e27, radius: 7161e5, temperature: 5736, color: 16774378, planets: 0 },
+  { name: "61 Virginis", nameCN: "\u5BA4\u5973\u5EA761", distance: 27.8, ra: 3.9637, dec: 0.3057, starType: "G5V", spectralType: "G", mass: 181e28, radius: 7161e5, temperature: 5531, color: 16768426, planets: 3 },
+  { name: "HD 102365", nameCN: "HD 102365", distance: 30.7, ra: 2.8339, dec: -1.1258, starType: "G2V", spectralType: "G", mass: 181e28, radius: 7161e5, temperature: 5524, color: 16774378, planets: 1 },
+  { name: "Mu Herculis", nameCN: "\u6B66\u4ED9\u5EA7\u03BC", distance: 27.4, ra: 4.2926, dec: 0.6801, starType: "G5IV", spectralType: "G", mass: 1969e27, radius: 9749e5, temperature: 5410, color: 16768426, planets: 0 },
+  // ====== ★★ 迭代41-45: 扩展命名星系至150个 (新增42个) ======
+  // --- 北天星座亮星 ---
+  { name: "Thuban", nameCN: "\u53F3\u67A2", distance: 303, ra: 3.5893, dec: 1.131, starType: "A0III", spectralType: "A", mass: 3759e27, radius: 3314e6, temperature: 10150, color: 13293823, planets: 0, age: 0.5, metallicity: -0.3 },
+  { name: "Yildun", nameCN: "\u5929\u68D3\u4E8C", distance: 172, ra: 3.7316, dec: 1.3597, starType: "A0V", spectralType: "A", mass: 3979e27, radius: 1532e6, temperature: 9290, color: 13293823, planets: 0, age: 0.5, metallicity: 0.1 },
+  { name: "Kochab", nameCN: "\u5317\u6781\u4E8C", distance: 126, ra: 3.8324, dec: 1.5171, starType: "K4III", spectralType: "K", mass: 1929e27, radius: 2094e7, temperature: 3980, color: 16756058, planets: 0, age: 3, metallicity: -0.5 },
+  { name: "Pherkad", nameCN: "\u5317\u6781\u4E00", distance: 487, ra: 3.8421, dec: 1.5461, starType: "A3II", spectralType: "A", mass: 9945e27, radius: 1044e7, temperature: 8600, color: 15397119, planets: 0, age: 0.05, metallicity: 0 },
+  { name: "Edasich", nameCN: "\u7D2B\u5FAE\u53F3\u57A3\u4E00", distance: 101, ra: 4.6107, dec: 0.4696, starType: "K2III", spectralType: "K", mass: 2028e27, radius: 1191e7, temperature: 4340, color: 16756058, planets: 1, age: 2, metallicity: -0.2 },
+  // --- 黄道十二宫亮星 ---
+  { name: "Zubeneschamali", nameCN: "\u6C10\u5BBF\u56DB", distance: 185, ra: 2.5631, dec: -0.1668, starType: "B8V", spectralType: "B", mass: 8154e27, radius: 3314e6, temperature: 12e3, color: 13293823, planets: 0, age: 0.1, metallicity: 0 },
+  { name: "Zubenelgenubi", nameCN: "\u6C10\u5BBF\u4E00", distance: 77, ra: 2.5217, dec: -0.2721, starType: "A3IV", spectralType: "A", mass: 3779e27, radius: 1953e6, temperature: 8500, color: 15397119, planets: 0, age: 0.5, metallicity: 0.15 },
+  { name: "Denebola", nameCN: "\u4E94\u5E1D\u5EA7\u4E00", distance: 35.9, ra: 3.0946, dec: 0.2544, starType: "A3V", spectralType: "A", mass: 3799e27, radius: 1532e6, temperature: 8500, color: 15397119, planets: 0, age: 0.3, metallicity: 0 },
+  { name: "Algenubi", nameCN: "\u8F69\u8F95\u5341\u4E8C", distance: 247, ra: 1.6903, dec: 0.346, starType: "K1III", spectralType: "K", mass: 4376e27, radius: 1671e7, temperature: 4370, color: 16756058, planets: 0, age: 2.5, metallicity: 0.1 },
+  { name: "Zosma", nameCN: "\u897F\u4E0A\u76F8", distance: 58, ra: 2.7665, dec: 0.3379, starType: "A4V", spectralType: "A", mass: 3381e27, radius: 1462e6, temperature: 8240, color: 15397119, planets: 0, age: 0.6, metallicity: 0.2 },
+  // --- 南天星座 ---
+  { name: "Acrux", nameCN: "\u5341\u5B57\u67B6\u4E8C", distance: 321, ra: 3.3582, dec: -1.0588, starType: "B0.5IV", spectralType: "B", mass: 3381e28, radius: 4944e6, temperature: 28e3, color: 11190271, planets: 0, age: 0.01, metallicity: 0 },
+  { name: "Becrux", nameCN: "\u5341\u5B57\u67B6\u4E09", distance: 280, ra: 3.3859, dec: -1.095, starType: "B0.5III", spectralType: "B", mass: 3181e28, radius: 5571e6, temperature: 27e3, color: 11190271, planets: 0, age: 0.01, metallicity: 0 },
+  { name: "Gacrux", nameCN: "\u5341\u5B57\u67B6\u4E00", distance: 88, ra: 3.4133, dec: -1.0314, starType: "M3.5III", spectralType: "M", mass: 2685e27, radius: 5704e7, temperature: 3400, color: 16741688, planets: 0, age: 3, metallicity: -0.5 },
+  { name: "Avior", nameCN: "\u6D77\u77F3\u4E00", distance: 630, ra: 3.6989, dec: -1.0644, starType: "K3III", spectralType: "K", mass: 1929e28, radius: 618e8, temperature: 4350, color: 16756058, planets: 0, age: 0.05, metallicity: 0 },
+  { name: "Markab", nameCN: "\u5BA4\u5BBF\u4E00", distance: 133, ra: 3.4941, dec: 0.2411, starType: "A0IV", spectralType: "A", mass: 6565e27, radius: 2437e6, temperature: 9765, color: 13293823, planets: 0, age: 0.1, metallicity: 0 },
+  // --- 近距离褐矮星 ---
+  { name: "WISE 0855-0714", nameCN: "WISE 0855", distance: 7.43, ra: 2.2909, dec: -0.1289, starType: "Y2", spectralType: "M", mass: 5967e25, radius: 6963e4, temperature: 250, color: 8930338, planets: 0, age: 10, metallicity: 0 },
+  { name: "WISE 1049-5319 A", nameCN: "\u9C81\u8D6B\u66FC16A", distance: 6.5, ra: 2.7742, dec: -0.0927, starType: "L7.5", spectralType: "M", mass: 5172e25, radius: 8096e4, temperature: 1350, color: 8930338, planets: 0, age: 0.8, metallicity: 0 },
+  { name: "WISE 1049-5319 B", nameCN: "\u9C81\u8D6B\u66FC16B", distance: 6.5, ra: 2.7742, dec: -0.0927, starType: "T0.5", spectralType: "M", mass: 4775e25, radius: 8096e4, temperature: 1250, color: 8930338, planets: 0, age: 0.8, metallicity: 0 },
+  { name: "WISE 1828+0267", nameCN: "WISE 1828", distance: 32.5, ra: 4.8428, dec: 0.0468, starType: "Y0", spectralType: "M", mass: 6565e25, radius: 8096e4, temperature: 400, color: 8930338, planets: 0, age: 10, metallicity: 0 },
+  { name: "UGPS J0651", nameCN: "UGPS 0651", distance: 13.4, ra: 2.8094, dec: 0.3175, starType: "T9", spectralType: "M", mass: 5967e25, radius: 8096e4, temperature: 500, color: 8930338, planets: 0, age: 10, metallicity: 0 },
+  // --- 系外行星系统 (扩展) ---
+  { name: "Kepler-442", nameCN: "\u5F00\u666E\u52D2442", distance: 1206, ra: 4.353, dec: 0.7499, starType: "K-type", spectralType: "K", mass: 181e28, radius: 6685e5, temperature: 4760, color: 16755302, planets: 2, age: 8, metallicity: -0.3 },
+  { name: "Kepler-186", nameCN: "\u5F00\u666E\u52D2186", distance: 561, ra: 4.7161, dec: 0.752, starType: "M1V", spectralType: "M", mass: 793e27, radius: 3663e5, temperature: 3755, color: 16733491, planets: 5, planetData: [{ name: "Kepler-186b", mass: 1.5, radius: 1.08, semiMajorAxis: 0.0343, orbitalPeriod: 3.89, eccentricity: 0, temperature: 500, habitable: false }, { name: "Kepler-186c", mass: 1.2, radius: 0.95, semiMajorAxis: 0.0451, orbitalPeriod: 7.26, eccentricity: 0, temperature: 420, habitable: false }, { name: "Kepler-186d", mass: 2, radius: 1.18, semiMajorAxis: 0.078, orbitalPeriod: 22.4, eccentricity: 0, temperature: 320, habitable: false }, { name: "Kepler-186e", mass: 0.8, radius: 0.88, semiMajorAxis: 0.11, orbitalPeriod: 45, eccentricity: 0, temperature: 270, habitable: false }, { name: "Kepler-186f", mass: 1.4, radius: 1.17, semiMajorAxis: 0.432, orbitalPeriod: 129.9, eccentricity: 0, temperature: 180, habitable: true }], age: 4, metallicity: 0 },
+  { name: "Kepler-452", nameCN: "\u5F00\u666E\u52D2452", distance: 1402, ra: 5.0986, dec: 0.7678, starType: "G2V", spectralType: "G", mass: 2028e27, radius: 8511e5, temperature: 5757, color: 16774378, planets: 1, planetData: [{ name: "Kepler-452b", mass: 5, radius: 1.63, semiMajorAxis: 1.046, orbitalPeriod: 384.8, eccentricity: 0, temperature: 265, habitable: true }], age: 6, metallicity: 0.2 },
+  { name: "Kepler-22", nameCN: "\u5F00\u666E\u52D222", distance: 620, ra: 5.241, dec: 0.7652, starType: "G-type", spectralType: "G", mass: 189e28, radius: 7437e5, temperature: 5518, color: 16774378, planets: 1, age: 6, metallicity: 0 },
+  { name: "Kepler-62", nameCN: "\u5F00\u666E\u52D262", distance: 990, ra: 4.4236, dec: 0.781, starType: "K2V", spectralType: "K", mass: 159e28, radius: 6685e5, temperature: 4921, color: 16755302, planets: 5, planetData: [{ name: "Kepler-62b", mass: 2.1, radius: 1.3, semiMajorAxis: 0.0565, orbitalPeriod: 5.71, eccentricity: 0, temperature: 500, habitable: false }, { name: "Kepler-62c", mass: 0.1, radius: 0.54, semiMajorAxis: 0.093, orbitalPeriod: 12.44, eccentricity: 0, temperature: 390, habitable: false }, { name: "Kepler-62d", mass: 5.5, radius: 1.95, semiMajorAxis: 0.12, orbitalPeriod: 18.16, eccentricity: 0, temperature: 340, habitable: false }, { name: "Kepler-62e", mass: 4.5, radius: 1.61, semiMajorAxis: 0.427, orbitalPeriod: 122.4, eccentricity: 0, temperature: 270, habitable: true }, { name: "Kepler-62f", mass: 2.8, radius: 1.41, semiMajorAxis: 0.718, orbitalPeriod: 267.3, eccentricity: 0, temperature: 208, habitable: true }], age: 7, metallicity: -0.1 },
+  { name: "Kepler-1649", nameCN: "\u5F00\u666E\u52D21649", distance: 301, ra: 4.3718, dec: 0.7682, starType: "M5V", spectralType: "M", mass: 3979e26, radius: 2018e5, temperature: 3240, color: 16729139, planets: 2, age: 4, metallicity: 0 },
+  { name: "TOI-700", nameCN: "TOI-700", distance: 101, ra: 4.4544, dec: -0.9205, starType: "M2V", spectralType: "M", mass: 7558e26, radius: 3314e5, temperature: 3480, color: 16729139, planets: 3, age: 10, metallicity: 0 },
+  { name: "K2-18", nameCN: "K2-18", distance: 124, ra: 2.5661, dec: 0.1326, starType: "M2.5V", spectralType: "M", mass: 7558e26, radius: 3314e5, temperature: 3457, color: 16729139, planets: 1, age: 2.4, metallicity: 0.1 },
+  { name: "Proxima Cen c", nameCN: "\u6BD4\u90BB\u661Fc", distance: 4.242, ra: 3.7948, dec: -1.094, starType: "M5.5Ve", spectralType: "M", mass: 2446e26, radius: 1542e5, temperature: 3042, color: 16729122, planets: 3, age: 4.8, metallicity: 0.1 },
+  { name: "Wolf 1061 c", nameCN: "\u6C83\u5C14\u592B1061c", distance: 13.82, ra: 3.7729, dec: -0.1592, starType: "M3.5V", spectralType: "M", mass: 4765e26, radius: 2723e5, temperature: 3342, color: 16729139, planets: 3, age: 5, metallicity: 0 },
+  { name: "Luyten b", nameCN: "\u5362\u4F0A\u6ED5b", distance: 12.4, ra: 1.9537, dec: 0.0911, starType: "M3.5V", spectralType: "M", mass: 5371e26, radius: 2716e5, temperature: 3322, color: 16729139, planets: 2, age: 3, metallicity: 0 },
+  { name: "Ross 128 b", nameCN: "\u7F57\u65AF128b", distance: 11.03, ra: 2.4906, dec: 0.0933, starType: "M4V", spectralType: "M", mass: 3132e26, radius: 1915e5, temperature: 3192, color: 16724770, planets: 1, age: 5, metallicity: 0 },
+  { name: "GJ 1132", nameCN: "GJ 1132", distance: 39, ra: 2.9506, dec: -0.7538, starType: "M4V", spectralType: "M", mass: 3182e26, radius: 1611e5, temperature: 3270, color: 16724770, planets: 1, age: 5, metallicity: 0 },
+  { name: "GJ 667C e", nameCN: "\u683C\u5229\u6CFD667Ce", distance: 23.6, ra: 4.5374, dec: -0.6109, starType: "M1.5V", spectralType: "M", mass: 5172e26, radius: 2716e5, temperature: 3350, color: 16733491, planets: 6, age: 5, metallicity: -0.6 },
+  // --- 著名恒星 (补充) ---
+  { name: "Shaula", nameCN: "\u5C3E\u5BBF\u516B", distance: 570, ra: 5.7051, dec: -0.6741, starType: "B2IV", spectralType: "B", mass: 3381e28, radius: 618e7, temperature: 25e3, color: 11190271, planets: 0, age: 0.02, metallicity: 0 },
+  { name: "Sargas", nameCN: "\u5C3E\u5BBF\u4E94", distance: 270, ra: 5.6686, dec: -0.6852, starType: "F1II", spectralType: "F", mass: 1033e28, radius: 1953e7, temperature: 7268, color: 16774378, planets: 0, age: 0.2, metallicity: 0 },
+  { name: "Dschubba", nameCN: "\u623F\u5BBF\u4E09", distance: 444, ra: 4.5378, dec: -0.3974, starType: "B0.3IV", spectralType: "B", mass: 1591e28, radius: 4414e6, temperature: 27400, color: 11190271, planets: 0, age: 0.05, metallicity: 0 },
+  { name: "Acrab", nameCN: "\u623F\u5BBF\u56DB", distance: 530, ra: 4.547, dec: -0.376, starType: "B1V", spectralType: "B", mass: 1751e28, radius: 5205e6, temperature: 28e3, color: 11190271, planets: 0, age: 0.03, metallicity: 0 },
+  { name: "Sabik", nameCN: "\u5B8B", distance: 83, ra: 4.7118, dec: 0.071, starType: "A1V", spectralType: "A", mass: 4776e27, radius: 1671e6, temperature: 9460, color: 13293823, planets: 0, age: 0.5, metallicity: 0 },
+  { name: "Markeb", nameCN: "\u5929\u793E\u4E94", distance: 548, ra: 3.9841, dec: -0.9746, starType: "B0.5II", spectralType: "B", mass: 2707e28, radius: 1044e7, temperature: 25e3, color: 11190271, planets: 0, age: 0.02, metallicity: 0 },
+  { name: "Alsephina", nameCN: "\u5929\u793E\u4E09", distance: 250, ra: 4.0478, dec: -0.977, starType: "B1V", spectralType: "B", mass: 1671e28, radius: 4944e6, temperature: 25500, color: 11190271, planets: 0, age: 0.05, metallicity: 0 },
+  { name: "Hatysa", nameCN: "\u53C2\u5BBF\u589E\u4E09", distance: 1340, ra: 1.4822, dec: -0.0842, starType: "O9.5V", spectralType: "O", mass: 4376e28, radius: 1392e7, temperature: 29e3, color: 11190271, planets: 0, age: 0.01, metallicity: 0 },
+  { name: "Tabit", nameCN: "\u53C2\u5BBF\u589E\u56DB", distance: 26.3, ra: 1.496, dec: 0.1477, starType: "F6V", spectralType: "F", mass: 2446e27, radius: 1392e6, temperature: 6367, color: 16774378, planets: 1, age: 3, metallicity: 0 },
+  { name: "Blinking Star", nameCN: "\u5929\u6D25\u589E\u5EFF\u4E5D", distance: 92.6, ra: 5.7333, dec: 0.6172, starType: "F5Ib", spectralType: "F", mass: 1392e28, radius: 5905e7, temperature: 6300, color: 16774378, planets: 0, age: 0.05, metallicity: 0 },
+  { name: "Enif", nameCN: "\u5371\u5BBF\u4E09", distance: 670, ra: 5.274, dec: 0.1602, starType: "K2Ib", spectralType: "K", mass: 1991e28, radius: 1044e8, temperature: 3898, color: 16756058, planets: 0, age: 0.02, metallicity: 0 },
+  { name: "Homam", nameCN: "\u5371\u5BBF\u4E00", distance: 320, ra: 5.1659, dec: 0.1571, starType: "A0V", spectralType: "A", mass: 5371e27, radius: 2437e6, temperature: 9480, color: 13293823, planets: 0, age: 0.1, metallicity: 0 },
+  { name: "Scheat", nameCN: "\u5BA4\u5BBF\u4E8C", distance: 196, ra: 3.4898, dec: 0.2637, starType: "M2II", spectralType: "M", mass: 3381e27, radius: 5205e7, temperature: 3700, color: 16741688, planets: 0, age: 0.1, metallicity: 0 }
 ];
 var TRISOLARIS_SYSTEM = [
   // 三体星A — 主序G型恒星（类似太阳）
-  { name: "Trisolaris_A", nameCN: "\u4E09\u4F53\u661F\u7532", type: "star", mass: 2145e27, radius: 8511e5, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16772812, color2: 16768426, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126 },
+  { name: "Trisolaris_A", nameCN: "\u4E09\u4F53\u661F\u7532", type: "star", mass: 2145e27, radius: 8511e5, parent: null, semiMajorAxis: 0, eccentricity: 0, inclination: 0, longitudeOfAscendingNode: 0, argumentOfPeriapsis: 0, meanAnomalyAtEpoch: 0, orbitalPeriod: 0, rotationPeriod: 2209e3, color: 16772812, color2: 16768426, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.126, magneticField: 8e-4, escapeVelocity: 618e6 },
   // 三体星B — K型橙矮星，与甲星互绕
-  { name: "Trisolaris_B", nameCN: "\u4E09\u4F53\u661F\u4E59", type: "star", mass: 1808e27, radius: 6025e5, parent: "Trisolaris_A", semiMajorAxis: 35e9, eccentricity: 0.52, inclination: 0.12, longitudeOfAscendingNode: 0.8, argumentOfPeriapsis: 1.2, meanAnomalyAtEpoch: 0.5, orbitalPeriod: 215e5, rotationPeriod: 35e5, color: 16768426, color2: 16764040, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.08 },
+  { name: "Trisolaris_B", nameCN: "\u4E09\u4F53\u661F\u4E59", type: "star", mass: 1808e27, radius: 6025e5, parent: "Trisolaris_A", semiMajorAxis: 35e9, eccentricity: 0.52, inclination: 0.12, longitudeOfAscendingNode: 0.8, argumentOfPeriapsis: 1.2, meanAnomalyAtEpoch: 0.5, orbitalPeriod: 215e5, rotationPeriod: 35e5, color: 16768426, color2: 16764040, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.08, magneticField: 2e-4, escapeVelocity: 52e7 },
   // 三体星C — M型红矮星（比邻星），远轨道运行
-  { name: "Trisolaris_C", nameCN: "\u4E09\u4F53\u661F\u4E19", type: "star", mass: 2446e26, radius: 1542e5, parent: "Trisolaris_A", semiMajorAxis: 12e10, eccentricity: 0.68, inclination: 0.35, longitudeOfAscendingNode: 2.1, argumentOfPeriapsis: 3.5, meanAnomalyAtEpoch: 2, orbitalPeriod: 88e6, rotationPeriod: 1e7, color: 16729122, color2: 13378065, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.15 },
+  { name: "Trisolaris_C", nameCN: "\u4E09\u4F53\u661F\u4E19", type: "star", mass: 2446e26, radius: 1542e5, parent: "Trisolaris_A", semiMajorAxis: 12e10, eccentricity: 0.68, inclination: 0.35, longitudeOfAscendingNode: 2.1, argumentOfPeriapsis: 3.5, meanAnomalyAtEpoch: 2, orbitalPeriod: 88e6, rotationPeriod: 1e7, color: 16729122, color2: 13378065, hasAtmosphere: false, hasRings: false, textureType: "star", albedo: 1, axialTilt: 0.15, magneticField: 1e-4, escapeVelocity: 23e7 },
   // 三体行星 — 致敬《三体》中的三体世界
   // 极端环境：乱纪元高温炙烤，恒纪元勉强宜居；表面遍布荒漠与巨石
-  { name: "Trisolaris", nameCN: "\u4E09\u4F53\u884C\u661F", type: "planet", mass: 45e23, radius: 58e5, parent: "Trisolaris_A", semiMajorAxis: 11e9, eccentricity: 0.35, inclination: 0.08, longitudeOfAscendingNode: 1.5, argumentOfPeriapsis: 0.9, meanAnomalyAtEpoch: 1.8, orbitalPeriod: 12e6, rotationPeriod: 14e4, color: 11167283, color2: 8930338, hasAtmosphere: true, hasRings: false, textureType: "trisolaris", albedo: 0.18, axialTilt: 0.02 }
+  { name: "Trisolaris", nameCN: "\u4E09\u4F53\u884C\u661F", type: "planet", mass: 45e23, radius: 58e5, parent: "Trisolaris_A", semiMajorAxis: 11e9, eccentricity: 0.35, inclination: 0.08, longitudeOfAscendingNode: 1.5, argumentOfPeriapsis: 0.9, meanAnomalyAtEpoch: 1.8, orbitalPeriod: 12e6, rotationPeriod: 14e4, color: 11167283, color2: 8930338, hasAtmosphere: true, hasRings: false, textureType: "trisolaris", albedo: 0.18, axialTilt: 0.02, magneticField: 5e-6, escapeVelocity: 7800 }
 ];
 var ACHIEVEMENTS = [
   // --- 原有成就 ---
@@ -23507,214 +23543,222 @@ var ACHIEVEMENTS = [
   { id: "all_planets", name: "\u592A\u9633\u7CFB\u5927\u6EE1\u8D2F", description: "\u5728\u592A\u9633\u7CFB\u6240\u6709\u884C\u661F\u4E0A\u5B8C\u6210\u7740\u9646", icon: "\u{1F3C6}" },
   { id: "trappist_arrival", name: "TRAPPIST\u63A2\u9669\u5BB6", description: "\u62B5\u8FBETRAPPIST-1\u661F\u7CFB\u5E76\u63A2\u8BBF\u5176\u4E03\u9897\u884C\u661F\u4E4B\u4E00", icon: "\u{1F5FA}\uFE0F" }
 ];
-var TECH_TREE = [
+var TECH_TREE2 = [
   { id: "basic_rocketry", name: "\u57FA\u7840\u706B\u7BAD\u6280\u672F", cost: 5, unlocked: true, prereq: [], parts: ["capsule_mk1", "fuel_small", "engine_chem"], description: "\u5165\u95E8\u7EA7\u706B\u7BAD\u96F6\u4EF6" },
   { id: "stability", name: "\u7A33\u5B9A\u6027\u5DE5\u7A0B", cost: 10, unlocked: false, prereq: ["basic_rocketry"], parts: ["rcs_thruster", "sas_basic"], description: "RCS\u63A8\u529B\u5668\u548CSAS\u7A33\u5B9A\u5668" },
-  { id: " survivability", name: "\u751F\u5B58\u6280\u672F", cost: 15, unlocked: false, prereq: ["basic_rocketry"], parts: ["parachute", "heatshield_basic"], description: "\u964D\u843D\u4F1E\u548C\u9694\u70ED\u76FE" },
+  { id: "survivability", name: "\u751F\u5B58\u6280\u672F", cost: 15, unlocked: false, prereq: ["basic_rocketry"], parts: ["parachute", "heatshield_basic"], description: "\u964D\u843D\u4F1E\u548C\u9694\u70ED\u76FE" },
   { id: "advanced_rocketry", name: "\u9AD8\u7EA7\u706B\u7BAD\u6280\u672F", cost: 30, unlocked: false, prereq: ["basic_rocketry"], parts: ["fuel_medium", "engine_chem_vac"], description: "\u66F4\u5927\u71C3\u6599\u7BB1\u548C\u771F\u7A7A\u4F18\u5316\u5F15\u64CE" },
   { id: "flight_control", name: "\u98DE\u884C\u63A7\u5236", cost: 25, unlocked: false, prereq: ["stability"], parts: ["probe_core", "antenna_basic"], description: "\u65E0\u4EBA\u63A7\u5236\u548C\u901A\u4FE1" },
   { id: "space_exploration", name: "\u592A\u7A7A\u63A2\u7D22", cost: 45, unlocked: false, prereq: ["advanced_rocketry", "survivability"], parts: ["solar_panel", "battery_pack"], description: "\u592A\u9633\u80FD\u548C\u7535\u529B\u7CFB\u7EDF" },
-  { id: "propulsion_systems", name: "\u63A8\u8FDB\u7CFB\u7EDF", cost: 60, unlocked: false, prereq: ["advanced_rocketry"], parts: ["engine_ion", "engine_nuclear"], parts2: [], description: "\u79BB\u5B50\u548C\u6838\u70ED\u5F15\u64CE" },
+  { id: "propulsion_systems", name: "\u63A8\u8FDB\u7CFB\u7EDF", cost: 60, unlocked: false, prereq: ["advanced_rocketry"], parts: ["engine_ion", "engine_nuclear"], description: "\u79BB\u5B50\u548C\u6838\u70ED\u5F15\u64CE" },
   { id: "landing_techniques", name: "\u7740\u9646\u6280\u672F", cost: 40, unlocked: false, prereq: ["flight_control"], parts: ["landing_legs", "landing_strut"], description: "\u7740\u9646\u67B6\u548C\u652F\u6491\u7ED3\u6784" },
   { id: "advanced_propulsion", name: "\u9AD8\u7EA7\u63A8\u8FDB", cost: 90, unlocked: false, prereq: ["propulsion_systems"], parts: ["engine_fusion", "engine_plasma"], description: "\u805A\u53D8\u548C\u7B49\u79BB\u5B50\u5F15\u64CE" },
   { id: "interstellar_travel", name: "\u661F\u9645\u65C5\u884C", cost: 200, unlocked: false, prereq: ["advanced_propulsion"], parts: ["warp_drive", "antimatter_engine"], description: "\u66F2\u901F\u5F15\u64CE\u548C\u53CD\u7269\u8D28\u63A8\u8FDB" }
 ];
-var ROCKET_PARTS = [
+var ROCKET_PARTS2 = [
   // ===== 指挥舱 (Command Pods) =====
-  { id: "capsule_mk1", name: "Mk1 \u6307\u6325\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u5355\u5EA7\u518D\u5165\u8FD4\u56DE\u8231\uFF0C\u7ECF\u5178\u6C34\u661F\u8BA1\u5212\u98CE\u683C" },
-  { id: "capsule_mk2", name: "Mk1-2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "\u53CC\u5EA7\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u5C4F\u853D\uFF0C\u963F\u6CE2\u7F57\u98CE\u683C" },
-  { id: "capsule_mk3", name: "Mk3 \u4E58\u5458\u8231", type: "command", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u56DB\u5EA7\u4E58\u5458\u8231\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1\uFF0C\u730E\u6237\u5EA7\u98CE\u683C" },
-  { id: "probe_core", name: "HECS \u63A2\u6D4B\u5668\u6838\u5FC3", type: "command", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u65E0\u4EBA\u63A7\u5236\u5355\u5143\uFF0C\u5185\u7F6E\u9640\u87BA\u4EEA\u4E0ESAS" },
-  { id: "cmd_pod_mk2", name: "Mk2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 4320, description: "\u53CC\u4EBA\u5EA7\u6307\u6325\u8231\uFF0C\u914D\u5907\u5148\u8FDB\u9632\u70ED\u7CFB\u7EDF\u4E0E RCS \u63A8\u8FDB\u5668\uFF0C\u9002\u7528\u4E8E\u6708\u7403\u8FD4\u56DE\u4EFB\u52A1" },
-  { id: "cmd_pod_mk3", name: "Mk3 \u6307\u6325\u8231", type: "command", mass: 3500, fuelMass: 0, thrust: 0, isp: 0, cost: 6300, description: "\u4E09\u4EBA\u5EA7\u5927\u578B\u6307\u6325\u8231\uFF0C\u5177\u5907\u957F\u5BFF\u547D\u751F\u547D\u7EF4\u6301\u7CFB\u7EDF\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u8F7D\u4EBA\u4EFB\u52A1" },
-  { id: "cmd_cabin_mk1", name: "Mk1 \u4E58\u5458\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 2200, description: "\u5355\u4EBA\u4E58\u5458\u8231\uFF0C\u65E0\u518D\u5165\u80FD\u529B\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u9A7B\u7559\u6216\u4E2D\u8F6C\u8FD0\u8F93" },
-  { id: "cmd_cabin_mk2", name: "Mk2 \u4E58\u5458\u8231", type: "command", mass: 1500, fuelMass: 0, thrust: 0, isp: 0, cost: 4200, description: "\u53CC\u4EBA\u4E58\u5458\u8231\uFF0C\u6269\u5C55\u751F\u547D\u7EF4\u6301\u80FD\u529B\uFF0C\u53EF\u7528\u4E8E\u957F\u671F\u8F68\u9053\u4EFB\u52A1" },
-  { id: "probe_core_mk2", name: "\u63A2\u6D4B\u5668\u6838\u5FC3 Mk2", type: "command", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 800, description: "\u5347\u7EA7\u7248\u65E0\u4EBA\u63A7\u5236\u6838\u5FC3\uFF0C\u652F\u6301 SAS \u4E09\u8F74\u7A33\u5B9A\u4E0E\u8FDC\u7A0B\u6307\u4EE4\u7F16\u7A0B" },
-  { id: "cmd_cockpit", name: "\u98DE\u884C\u5EA7\u8231", type: "command", mass: 180, fuelMass: 0, thrust: 0, isp: 0, cost: 1200, description: "\u5355\u4EBA\u5927\u6C14\u5C42\u5185\u98DE\u884C\u5EA7\u8231\uFF0C\u914D\u5907\u5F39\u5C04\u5EA7\u6905\uFF0C\u9002\u7528\u4E8E\u822A\u7A7A\u5668\u4E0E\u4E9A\u8F68\u9053\u98DE\u884C" },
+  { id: "capsule_mk1", name: "Mk1 \u6307\u6325\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 50, techRequired: "basic_rocketry", description: "\u5355\u5EA7\u518D\u5165\u8FD4\u56DE\u8231\uFF0C\u7ECF\u5178\u6C34\u661F\u8BA1\u5212\u98CE\u683C" },
+  { id: "capsule_mk2", name: "Mk1-2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 200, techRequired: "advanced_rocketry", description: "\u53CC\u5EA7\u8231\uFF0C\u589E\u5F3A\u9632\u70ED\u5C4F\u853D\uFF0C\u963F\u6CE2\u7F57\u98CE\u683C" },
+  { id: "capsule_mk3", name: "Mk3 \u4E58\u5458\u8231", type: "command", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 500, techRequired: "space_exploration", description: "\u56DB\u5EA7\u4E58\u5458\u8231\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1\uFF0C\u730E\u6237\u5EA7\u98CE\u683C" },
+  { id: "probe_core", name: "HECS \u63A2\u6D4B\u5668\u6838\u5FC3", type: "command", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 30, techRequired: "flight_control", description: "\u65E0\u4EBA\u63A7\u5236\u5355\u5143\uFF0C\u5185\u7F6E\u9640\u87BA\u4EEA\u4E0ESAS" },
+  { id: "cmd_pod_mk2", name: "Mk2 \u6307\u6325\u8231", type: "command", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 4320, techRequired: "advanced_rocketry", description: "\u53CC\u4EBA\u5EA7\u6307\u6325\u8231\uFF0C\u914D\u5907\u5148\u8FDB\u9632\u70ED\u7CFB\u7EDF\u4E0E RCS \u63A8\u8FDB\u5668\uFF0C\u9002\u7528\u4E8E\u6708\u7403\u8FD4\u56DE\u4EFB\u52A1" },
+  { id: "cmd_pod_mk3", name: "Mk3 \u6307\u6325\u8231", type: "command", mass: 3500, fuelMass: 0, thrust: 0, isp: 0, cost: 6300, techRequired: "space_exploration", description: "\u4E09\u4EBA\u5EA7\u5927\u578B\u6307\u6325\u8231\uFF0C\u5177\u5907\u957F\u5BFF\u547D\u751F\u547D\u7EF4\u6301\u7CFB\u7EDF\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u8F7D\u4EBA\u4EFB\u52A1" },
+  { id: "cmd_cabin_mk1", name: "Mk1 \u4E58\u5458\u8231", type: "command", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 2200, techRequired: "space_exploration", description: "\u5355\u4EBA\u4E58\u5458\u8231\uFF0C\u65E0\u518D\u5165\u80FD\u529B\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u9A7B\u7559\u6216\u4E2D\u8F6C\u8FD0\u8F93" },
+  { id: "cmd_cabin_mk2", name: "Mk2 \u4E58\u5458\u8231", type: "command", mass: 1500, fuelMass: 0, thrust: 0, isp: 0, cost: 4200, techRequired: "space_exploration", description: "\u53CC\u4EBA\u4E58\u5458\u8231\uFF0C\u6269\u5C55\u751F\u547D\u7EF4\u6301\u80FD\u529B\uFF0C\u53EF\u7528\u4E8E\u957F\u671F\u8F68\u9053\u4EFB\u52A1" },
+  { id: "probe_core_mk2", name: "\u63A2\u6D4B\u5668\u6838\u5FC3 Mk2", type: "command", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 800, techRequired: "flight_control", description: "\u5347\u7EA7\u7248\u65E0\u4EBA\u63A7\u5236\u6838\u5FC3\uFF0C\u652F\u6301 SAS \u4E09\u8F74\u7A33\u5B9A\u4E0E\u8FDC\u7A0B\u6307\u4EE4\u7F16\u7A0B" },
+  { id: "cmd_cockpit", name: "\u98DE\u884C\u5EA7\u8231", type: "command", mass: 180, fuelMass: 0, thrust: 0, isp: 0, cost: 1200, techRequired: "stability", description: "\u5355\u4EBA\u5927\u6C14\u5C42\u5185\u98DE\u884C\u5EA7\u8231\uFF0C\u914D\u5907\u5F39\u5C04\u5EA7\u6905\uFF0C\u9002\u7528\u4E8E\u822A\u7A7A\u5668\u4E0E\u4E9A\u8F68\u9053\u98DE\u884C" },
   // ===== 燃料箱 (Fuel Tanks) =====
-  { id: "fuel_small", name: "FL-T100 \u71C3\u6599\u7BB1", type: "fuel", mass: 200, fuelMass: 4e3, thrust: 0, isp: 0, cost: 30, description: "\u7D27\u51D1\u578B\u6DB2\u6C27\u7164\u6CB9\u71C3\u6599\u7BB1\uFF0C0.625m\u76F4\u5F84" },
-  { id: "fuel_medium", name: "FL-T200 \u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 1e4, thrust: 0, isp: 0, cost: 60, description: "\u6807\u51C61.25m\u76F4\u5F84\u71C3\u6599\u7BB1\uFF0C\u6700\u5E38\u7528\u7684\u82AF\u7EA7\u50A8\u7BB1" },
-  { id: "fuel_large", name: "FL-T400 \u71C3\u6599\u7BB1", type: "fuel", mass: 800, fuelMass: 25e3, thrust: 0, isp: 0, cost: 120, description: "\u5927\u5BB9\u91CF1.25m\u71C3\u6599\u7BB1\uFF0C\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u4E3B\u529B" },
-  { id: "fuel_xl", name: "FL-T800 \u71C3\u6599\u7BB1", type: "fuel", mass: 1500, fuelMass: 5e4, thrust: 0, isp: 0, cost: 250, description: "\u8D85\u5927\u5BB9\u91CF2.5m\u71C3\u6599\u7BB1\uFF0C\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
-  { id: "fuel_nuclear", name: "LV-N \u6838\u71C3\u6599\u7BB1", type: "fuel", mass: 300, fuelMass: 2e3, thrust: 0, isp: 0, cost: 400, description: "\u6DB2\u6C22\u50A8\u7BB1\uFF0C\u4E13\u4E3A\u6838\u70ED\u5F15\u64CE\u4F9B\u6599\uFF0C\u4F4E\u5BC6\u5EA6\u9AD8\u6BD4\u51B2" },
-  { id: "fuel_mini", name: "\u8FF7\u4F60\u71C3\u6599\u7BB1", type: "fuel", mass: 100, fuelMass: 900, thrust: 0, isp: 0, cost: 180, description: "\u8D85\u5C0F\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u7CFB\u7EDF" },
-  { id: "fuel_toroidal", name: "Toroidal \u73AF\u5F62\u71C3\u6599\u7BB1", type: "fuel", mass: 80, fuelMass: 820, thrust: 0, isp: 0, cost: 200, description: "\u73AF\u5F62\u71C3\u6599\u7BB1\uFF0C\u53EF\u73AF\u7ED5\u5176\u4ED6\u90E8\u4EF6\u5B89\u88C5\uFF0C\u8282\u7701\u8F74\u5411\u7A7A\u95F4" },
-  { id: "fuel_mk2_medium", name: "\u4E2D\u578B\u71C3\u6599\u7BB1 Mk2", type: "fuel", mass: 500, fuelMass: 4e3, thrust: 0, isp: 0, cost: 800, description: "Mk2 \u7CFB\u5217\u4E2D\u578B\u71C3\u6599\u7BB1\uFF0C\u91C7\u7528\u822A\u7A7A\u7EA7\u94DD\u5408\u91D1\u58F3\u4F53\uFF0C\u517C\u987E\u7ED3\u6784\u4E0E\u50A8\u6CB9" },
-  { id: "fuel_r7", name: "R-7 \u71C3\u6599\u7BB1", type: "fuel", mass: 300, fuelMass: 2700, thrust: 0, isp: 0, cost: 400, description: "\u7ECF\u5178 R-7 \u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
-  { id: "fuel_short", name: "\u77EE\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 150, fuelMass: 1350, thrust: 0, isp: 0, cost: 300, description: "\u4F4E\u77EE\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u7D27\u51D1\u5E03\u5C40\u6216\u7EA7\u95F4\u8FC7\u6E21\u6BB5" },
-  { id: "fuel_lox_preburner", name: "\u6DB2\u6C27\u9884\u71C3\u7BB1", type: "fuel", mass: 200, fuelMass: 1800, thrust: 0, isp: 0, cost: 350, description: "\u5BCC\u6C27\u9884\u71C3\u5BA4\u4E13\u7528\u71C3\u6599\u7BB1\uFF0C\u7528\u4E8E\u5206\u7EA7\u71C3\u70E7\u5FAA\u73AF\u5F15\u64CE\u4F9B\u6CB9" },
-  { id: "fuel_c7", name: "C7 \u71C3\u6599\u7BB1", type: "fuel", mass: 250, fuelMass: 2250, thrust: 0, isp: 0, cost: 500, description: "C7 \u822A\u7A7A\u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u6D41\u7EBF\u578B\u5916\u58F3\u9002\u5408\u5927\u6C14\u5C42\u5185\u98DE\u884C\u5668" },
-  { id: "fuel_mk3_small", name: "Mk3 \u71C3\u6599\u7BB1(\u5C0F)", type: "fuel", mass: 1500, fuelMass: 13500, thrust: 0, isp: 0, cost: 2e3, description: "Mk3 \u5927\u76F4\u5F84\u7CFB\u5217\u5C0F\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD" },
-  { id: "fuel_mk3_large", name: "Mk3 \u71C3\u6599\u7BB1(\u5927)", type: "fuel", mass: 3e3, fuelMass: 27e3, thrust: 0, isp: 0, cost: 3500, description: "Mk3 \u5927\u76F4\u5F84\u7CFB\u5217\u5927\u578B\u71C3\u6599\u7BB1\uFF0C\u8D85\u91CD\u578B\u82AF\u7EA7\u4E3B\u50A8\u7BB1" },
-  { id: "fuel_rectangular", name: "\u77E9\u5F62\u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 3600, thrust: 0, isp: 0, cost: 600, description: "\u77E9\u5F62\u622A\u9762\u71C3\u6599\u7BB1\uFF0C\u53EF\u8D34\u9644\u673A\u8EAB\u5B89\u88C5\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u7C7B\u8BBE\u8BA1" },
-  { id: "fuel_x200_xl", name: "X200 \u71C3\u6599\u7BB1(\u8D85\u5927)", type: "fuel", mass: 2e3, fuelMass: 18e3, thrust: 0, isp: 0, cost: 2500, description: "X200 \u7CFB\u5217\u8D85\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1\uFF0C\u6DF1\u7A7A\u4EFB\u52A1\u4E3B\u529B\u50A8\u7BB1" },
-  { id: "fuel_kerbodyne_sx", name: "Kerbodyne S-X \u71C3\u6599\u7BB1", type: "fuel", mass: 4e3, fuelMass: 36e3, thrust: 0, isp: 0, cost: 5e3, description: "Kerbodyne \u8D85\u5927\u578B S-X \u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\u50A8\u7BB1" },
+  { id: "fuel_small", name: "FL-T100 \u71C3\u6599\u7BB1", type: "fuel", mass: 200, fuelMass: 4e3, thrust: 0, isp: 0, cost: 30, diameter: 0.625, capacity: 100, techRequired: "basic_rocketry", description: "\u7D27\u51D1\u578B\u6DB2\u6C27\u7164\u6CB9\u71C3\u6599\u7BB1\uFF0C0.625m\u76F4\u5F84" },
+  { id: "fuel_medium", name: "FL-T200 \u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 1e4, thrust: 0, isp: 0, cost: 60, diameter: 1.25, capacity: 200, techRequired: "advanced_rocketry", description: "\u6807\u51C61.25m\u76F4\u5F84\u71C3\u6599\u7BB1\uFF0C\u6700\u5E38\u7528\u7684\u82AF\u7EA7\u50A8\u7BB1" },
+  { id: "fuel_large", name: "FL-T400 \u71C3\u6599\u7BB1", type: "fuel", mass: 800, fuelMass: 25e3, thrust: 0, isp: 0, cost: 120, diameter: 1.25, capacity: 400, techRequired: "advanced_rocketry", description: "\u5927\u5BB9\u91CF1.25m\u71C3\u6599\u7BB1\uFF0C\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u4E3B\u529B" },
+  { id: "fuel_xl", name: "FL-T800 \u71C3\u6599\u7BB1", type: "fuel", mass: 1500, fuelMass: 5e4, thrust: 0, isp: 0, cost: 250, diameter: 2.5, capacity: 800, techRequired: "advanced_rocketry", description: "\u8D85\u5927\u5BB9\u91CF2.5m\u71C3\u6599\u7BB1\uFF0C\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
+  { id: "fuel_nuclear", name: "LV-N \u6838\u71C3\u6599\u7BB1", type: "fuel", mass: 300, fuelMass: 2e3, thrust: 0, isp: 0, cost: 400, diameter: 1.25, capacity: 50, techRequired: "propulsion_systems", description: "\u6DB2\u6C22\u50A8\u7BB1\uFF0C\u4E13\u4E3A\u6838\u70ED\u5F15\u64CE\u4F9B\u6599\uFF0C\u4F4E\u5BC6\u5EA6\u9AD8\u6BD4\u51B2" },
+  { id: "fuel_mini", name: "\u8FF7\u4F60\u71C3\u6599\u7BB1", type: "fuel", mass: 100, fuelMass: 900, thrust: 0, isp: 0, cost: 180, diameter: 0.3125, capacity: 25, techRequired: "stability", description: "\u8D85\u5C0F\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u7CFB\u7EDF" },
+  { id: "fuel_toroidal", name: "Toroidal \u73AF\u5F62\u71C3\u6599\u7BB1", type: "fuel", mass: 80, fuelMass: 820, thrust: 0, isp: 0, cost: 200, diameter: 1.25, capacity: 25, techRequired: "stability", description: "\u73AF\u5F62\u71C3\u6599\u7BB1\uFF0C\u53EF\u73AF\u7ED5\u5176\u4ED6\u90E8\u4EF6\u5B89\u88C5\uFF0C\u8282\u7701\u8F74\u5411\u7A7A\u95F4" },
+  { id: "fuel_mk2_medium", name: "\u4E2D\u578B\u71C3\u6599\u7BB1 Mk2", type: "fuel", mass: 500, fuelMass: 4e3, thrust: 0, isp: 0, cost: 800, diameter: 1.5, capacity: 200, techRequired: "advanced_rocketry", description: "Mk2 \u7CFB\u5217\u4E2D\u578B\u71C3\u6599\u7BB1\uFF0C\u91C7\u7528\u822A\u7A7A\u7EA7\u94DD\u5408\u91D1\u58F3\u4F53\uFF0C\u517C\u987E\u7ED3\u6784\u4E0E\u50A8\u6CB9" },
+  { id: "fuel_r7", name: "R-7 \u71C3\u6599\u7BB1", type: "fuel", mass: 300, fuelMass: 2700, thrust: 0, isp: 0, cost: 400, diameter: 1.5, capacity: 100, techRequired: "advanced_rocketry", description: "\u7ECF\u5178 R-7 \u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
+  { id: "fuel_short", name: "\u77EE\u578B\u71C3\u6599\u7BB1", type: "fuel", mass: 150, fuelMass: 1350, thrust: 0, isp: 0, cost: 300, diameter: 1.25, capacity: 50, techRequired: "stability", description: "\u4F4E\u77EE\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u7D27\u51D1\u5E03\u5C40\u6216\u7EA7\u95F4\u8FC7\u6E21\u6BB5" },
+  { id: "fuel_lox_preburner", name: "\u6DB2\u6C27\u9884\u71C3\u7BB1", type: "fuel", mass: 200, fuelMass: 1800, thrust: 0, isp: 0, cost: 350, diameter: 1.25, capacity: 75, techRequired: "advanced_rocketry", description: "\u5BCC\u6C27\u9884\u71C3\u5BA4\u4E13\u7528\u71C3\u6599\u7BB1\uFF0C\u7528\u4E8E\u5206\u7EA7\u71C3\u70E7\u5FAA\u73AF\u5F15\u64CE\u4F9B\u6CB9" },
+  { id: "fuel_c7", name: "C7 \u71C3\u6599\u7BB1", type: "fuel", mass: 250, fuelMass: 2250, thrust: 0, isp: 0, cost: 500, diameter: 1.5, capacity: 90, techRequired: "stability", description: "C7 \u822A\u7A7A\u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u6D41\u7EBF\u578B\u5916\u58F3\u9002\u5408\u5927\u6C14\u5C42\u5185\u98DE\u884C\u5668" },
+  { id: "fuel_mk3_small", name: "Mk3 \u71C3\u6599\u7BB1(\u5C0F)", type: "fuel", mass: 1500, fuelMass: 13500, thrust: 0, isp: 0, cost: 2e3, diameter: 3.75, capacity: 540, techRequired: "advanced_rocketry", description: "Mk3 \u5927\u76F4\u5F84\u7CFB\u5217\u5C0F\u578B\u71C3\u6599\u7BB1\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD" },
+  { id: "fuel_mk3_large", name: "Mk3 \u71C3\u6599\u7BB1(\u5927)", type: "fuel", mass: 3e3, fuelMass: 27e3, thrust: 0, isp: 0, cost: 3500, diameter: 3.75, capacity: 1080, techRequired: "advanced_rocketry", description: "Mk3 \u5927\u76F4\u5F84\u7CFB\u5217\u5927\u578B\u71C3\u6599\u7BB1\uFF0C\u8D85\u91CD\u578B\u82AF\u7EA7\u4E3B\u50A8\u7BB1" },
+  { id: "fuel_rectangular", name: "\u77E9\u5F62\u71C3\u6599\u7BB1", type: "fuel", mass: 400, fuelMass: 3600, thrust: 0, isp: 0, cost: 600, diameter: 2, capacity: 150, techRequired: "advanced_rocketry", description: "\u77E9\u5F62\u622A\u9762\u71C3\u6599\u7BB1\uFF0C\u53EF\u8D34\u9644\u673A\u8EAB\u5B89\u88C5\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u7C7B\u8BBE\u8BA1" },
+  { id: "fuel_x200_xl", name: "X200 \u71C3\u6599\u7BB1(\u8D85\u5927)", type: "fuel", mass: 2e3, fuelMass: 18e3, thrust: 0, isp: 0, cost: 2500, diameter: 3.75, capacity: 720, techRequired: "advanced_propulsion", description: "X200 \u7CFB\u5217\u8D85\u5927\u5BB9\u91CF\u71C3\u6599\u7BB1\uFF0C\u6DF1\u7A7A\u4EFB\u52A1\u4E3B\u529B\u50A8\u7BB1" },
+  { id: "fuel_kerbodyne_sx", name: "Kerbodyne S-X \u71C3\u6599\u7BB1", type: "fuel", mass: 4e3, fuelMass: 36e3, thrust: 0, isp: 0, cost: 5e3, diameter: 5, capacity: 1440, techRequired: "advanced_propulsion", description: "Kerbodyne \u8D85\u5927\u578B S-X \u7CFB\u5217\u71C3\u6599\u7BB1\uFF0C\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\u50A8\u7BB1" },
   // ===== 引擎 (Engines) =====
-  { id: "engine_chem", name: 'LV-T30 "Reliant" \u4FE1\u8D56\u5F15\u64CE', type: "engine", mass: 500, fuelMass: 0, thrust: 2e5, isp: 350, cost: 50, description: "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE\uFF0C\u65E0\u63A8\u529B\u77E2\u91CF\uFF0C\u9002\u7528\u4E8E\u52A9\u63A8\u7EA7" },
-  { id: "engine_heavy", name: 'LV-T45 "Swivel" \u65CB\u8F6C\u5F15\u64CE', type: "engine", mass: 1e3, fuelMass: 0, thrust: 5e5, isp: 320, cost: 100, description: "\u5927\u63A8\u529B\u63A8\u529B\u77E2\u91CF\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u82AF\u7EA7\u4E3B\u5F15\u64CE" },
-  { id: "engine_ion", name: 'IX-6315 "Dawn" \u79BB\u5B50\u5F15\u64CE', type: "engine", mass: 200, fuelMass: 0, thrust: 5e3, isp: 4200, cost: 300, description: "\u6C19\u79BB\u5B50\u7535\u63A8\u8FDB\u7CFB\u7EDF\uFF0C\u8D85\u9AD8\u6BD4\u51B2\uFF0C\u6DF1\u7A7A\u4EFB\u52A1\u9996\u9009" },
-  { id: "engine_nuclear", name: 'LV-N "NERVA" \u6838\u70ED\u5F15\u64CE', type: "engine", mass: 1500, fuelMass: 0, thrust: 15e4, isp: 1800, cost: 500, description: "\u6838\u70ED\u63A8\u8FDB\u7CFB\u7EDF\uFF0C\u4F7F\u7528\u6DB2\u6C22\u4F5C\u4E3A\u5DE5\u8D28\uFF0C\u884C\u661F\u9645\u8F6C\u79FB\u5229\u5668" },
-  { id: "engine_aerospike", name: 'J-33 "Aerospike" \u6C14\u585E\u5F15\u64CE', type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 450, cost: 600, description: "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1\uFF0C\u5168\u9AD8\u5EA6\u6052\u5B9A\u6027\u80FD\uFF0C\u5355\u7EA7\u5165\u8F68\u9996\u9009" },
-  { id: "engine_vector", name: 'RE-M3 "Vector" \u77E2\u91CF\u5F15\u64CE', type: "engine", mass: 800, fuelMass: 0, thrust: 35e4, isp: 380, cost: 250, description: "\u5927\u89D2\u5EA6\u63A8\u529B\u77E2\u91CF\u63A7\u5236\uFF0C\u822A\u5929\u98DE\u673A\u4E3B\u5F15\u64CE\u98CE\u683C" },
-  { id: "engine_thrust", name: '"Thrust" \u91CD\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 500, fuelMass: 0, thrust: 25e4, isp: 280, cost: 3500, description: "\u4E2D\u7B49\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u91C7\u7528\u71C3\u6C14\u53D1\u751F\u5668\u5FAA\u73AF\uFF0C\u9002\u7528\u4E8E\u4E0A\u9762\u7EA7\u6216\u52A9\u63A8\u5668" },
-  { id: "engine_thumper", name: '"Thumper" \u5927\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 1800, fuelMass: 0, thrust: 12e5, isp: 270, cost: 5800, description: "\u9AD8\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\uFF0C\u6D77\u5E73\u9762\u6027\u80FD\u4F18\u5F02" },
-  { id: "engine_mammoth", name: '"Mammoth" \u5DE8\u517D\u5F15\u64CE', type: "engine", mass: 4e3, fuelMass: 0, thrust: 3e6, isp: 280, cost: 12e3, description: "\u8D85\u91CD\u578B\u63A8\u529B\u5F15\u64CE\uFF0C\u63A8\u529B\u582A\u6BD4\u56FA\u4F53\u52A9\u63A8\u5668\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
-  { id: "engine_rhino", name: '"Rhino" \u7280\u725B\u5F15\u64CE', type: "engine", mass: 3e3, fuelMass: 0, thrust: 2e6, isp: 340, cost: 9e3, description: "\u9AD8\u63A8\u529B\u9AD8\u6BD4\u51B2\u4E0A\u9762\u7EA7\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u5927\u578B\u8F7D\u8377\u6CE8\u5165" },
-  { id: "engine_poodle", name: '"Poodle" \u8D35\u5BBE\u72AC\u5F15\u64CE', type: "engine", mass: 1750, fuelMass: 0, thrust: 22e4, isp: 350, cost: 2e3, description: "\u4E2D\u7B49\u63A8\u529B\u771F\u7A7A\u4F18\u5316\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u7740\u9646\u5668\u6216\u4E0A\u9762\u7EA7\uFF0C\u6BD4\u51B2\u51FA\u8272" },
-  { id: "engine_spark", name: '"Spark" \u706B\u82B1\u5F15\u64CE', type: "engine", mass: 150, fuelMass: 0, thrust: 18e4, isp: 320, cost: 850, description: "\u5C0F\u578B\u9AD8\u6548\u7387\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u8F7B\u578B\u8FD0\u8F7D\u706B\u7BAD\u4E0A\u9762\u7EA7\u6216\u7740\u9646\u5668" },
-  { id: "engine_twin_boar", name: '"Twin Boar" \u53CC\u91CE\u732A\u5F15\u64CE', type: "engine", mass: 2500, fuelMass: 0, thrust: 2e6, isp: 295, cost: 7e3, description: "\u53CC\u55B7\u7BA1\u91CD\u578B\u5F15\u64CE\uFF0C\u96C6\u6210\u71C3\u6599\u7BB1\u8BBE\u8BA1\uFF0C\u63A8\u529B\u77E2\u91CF\u63A7\u5236\uFF0C\u9002\u7528\u4E8E\u52A9\u63A8\u7EA7" },
-  { id: "engine_aerospike_ksp", name: '"Aerospike" \u6C14\u585E\u5F15\u64CE', type: "engine", mass: 1e3, fuelMass: 0, thrust: 175e3, isp: 340, cost: 3e3, description: "\u7EBF\u6027\u6C14\u585E\u5F15\u64CE\uFF0C\u5168\u9AD8\u5EA6\u81EA\u9002\u5E94\u55B7\u7BA1\uFF0C\u65E0\u9700\u4F20\u7EDF\u949F\u5F62\u55B7\u7BA1" },
-  { id: "engine_dawn", name: '"Dawn" \u9ECE\u660E\u79BB\u5B50\u5F15\u64CE', type: "engine", mass: 250, fuelMass: 0, thrust: 2e3, isp: 4200, cost: 8e3, description: "\u6C19\u79BB\u5B50\u7535\u63A8\u8FDB\u5F15\u64CE\uFF0C\u8D85\u9AD8\u6BD4\u51B2\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u957F\u65F6\u95F4\u5C0F\u63A8\u529B\u4EFB\u52A1" },
-  { id: "engine_vector_ksp", name: '"Vector" \u77E2\u91CF\u5F15\u64CE', type: "engine", mass: 1500, fuelMass: 0, thrust: 1e6, isp: 315, cost: 6e3, description: "\u5927\u63A8\u529B\u77E2\u91CF\u5F15\u64CE\uFF0C\xB15\xB0 \u63A8\u529B\u77E2\u91CF\u504F\u8F6C\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u4E3B\u5F15\u64CE" },
-  { id: "engine_twinbee", name: '"Twinbee" \u53CC\u8702\u5F15\u64CE', type: "engine", mass: 200, fuelMass: 0, thrust: 12e4, isp: 300, cost: 600, description: "\u53CC\u55B7\u7BA1\u5C0F\u578B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u8F7B\u578B\u706B\u7BAD\u6216\u4E0A\u9762\u7EA7" },
-  { id: "engine_cheetah", name: '"Cheetah" \u730E\u8C79\u5F15\u64CE', type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 345, cost: 3e3, description: "\u9AD8\u6BD4\u51B2\u771F\u7A7A\u4F18\u5316\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u4E0A\u9762\u7EA7\u8F68\u9053\u6CE8\u5165\u4E0E\u884C\u661F\u9645\u8F6C\u79FB" },
+  { id: "engine_chem", name: 'LV-T30 "Reliant" \u4FE1\u8D56\u5F15\u64CE', type: "engine", mass: 500, fuelMass: 0, thrust: 2e5, isp: 350, cost: 50, thrustSeaLevel: 2e5, thrustVacuum: 23e4, ispSeaLevel: 280, ispVacuum: 350, engineCycle: "gas-generator", gimbalRange: 0, techRequired: "basic_rocketry", description: "\u53EF\u9760\u7684\u6DB2\u4F53\u71C3\u6599\u5F15\u64CE\uFF0C\u65E0\u63A8\u529B\u77E2\u91CF\uFF0C\u9002\u7528\u4E8E\u52A9\u63A8\u7EA7" },
+  { id: "engine_heavy", name: 'LV-T45 "Swivel" \u65CB\u8F6C\u5F15\u64CE', type: "engine", mass: 1e3, fuelMass: 0, thrust: 5e5, isp: 320, cost: 100, thrustSeaLevel: 45e4, thrustVacuum: 5e5, ispSeaLevel: 250, ispVacuum: 320, engineCycle: "gas-generator", gimbalRange: 5, techRequired: "basic_rocketry", description: "\u5927\u63A8\u529B\u63A8\u529B\u77E2\u91CF\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u82AF\u7EA7\u4E3B\u5F15\u64CE" },
+  { id: "engine_ion", name: 'IX-6315 "Dawn" \u79BB\u5B50\u5F15\u64CE', type: "engine", mass: 200, fuelMass: 0, thrust: 5e3, isp: 4200, cost: 300, thrustSeaLevel: 0, thrustVacuum: 5e3, ispSeaLevel: 0, ispVacuum: 4200, engineCycle: "ion", gimbalRange: 0, techRequired: "propulsion_systems", description: "\u6C19\u79BB\u5B50\u7535\u63A8\u8FDB\u7CFB\u7EDF\uFF0C\u8D85\u9AD8\u6BD4\u51B2\uFF0C\u6DF1\u7A7A\u4EFB\u52A1\u9996\u9009" },
+  { id: "engine_nuclear", name: 'LV-N "NERVA" \u6838\u70ED\u5F15\u64CE', type: "engine", mass: 1500, fuelMass: 0, thrust: 15e4, isp: 1800, cost: 500, thrustSeaLevel: 13e4, thrustVacuum: 15e4, ispSeaLevel: 1500, ispVacuum: 1800, engineCycle: "nuclear-thermal", gimbalRange: 3, techRequired: "propulsion_systems", description: "\u6838\u70ED\u63A8\u8FDB\u7CFB\u7EDF\uFF0C\u4F7F\u7528\u6DB2\u6C22\u4F5C\u4E3A\u5DE5\u8D28\uFF0C\u884C\u661F\u9645\u8F6C\u79FB\u5229\u5668" },
+  { id: "engine_aerospike", name: 'J-33 "Aerospike" \u6C14\u585E\u5F15\u64CE', type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 450, cost: 600, thrustSeaLevel: 4e5, thrustVacuum: 42e4, ispSeaLevel: 450, ispVacuum: 450, engineCycle: "aerospike", gimbalRange: 0, techRequired: "advanced_rocketry", description: "\u9AD8\u5EA6\u8865\u507F\u55B7\u7BA1\uFF0C\u5168\u9AD8\u5EA6\u6052\u5B9A\u6027\u80FD\uFF0C\u5355\u7EA7\u5165\u8F68\u9996\u9009" },
+  { id: "engine_vector", name: 'RE-M3 "Vector" \u77E2\u91CF\u5F15\u64CE', type: "engine", mass: 800, fuelMass: 0, thrust: 35e4, isp: 380, cost: 250, thrustSeaLevel: 32e4, thrustVacuum: 35e4, ispSeaLevel: 340, ispVacuum: 380, engineCycle: "staged-combustion", gimbalRange: 10, techRequired: "advanced_rocketry", description: "\u5927\u89D2\u5EA6\u63A8\u529B\u77E2\u91CF\u63A7\u5236\uFF0C\u822A\u5929\u98DE\u673A\u4E3B\u5F15\u64CE\u98CE\u683C" },
+  { id: "engine_thrust", name: '"Thrust" \u91CD\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 500, fuelMass: 0, thrust: 25e4, isp: 280, cost: 3500, thrustSeaLevel: 23e4, thrustVacuum: 25e4, ispSeaLevel: 260, ispVacuum: 280, engineCycle: "gas-generator", gimbalRange: 4, techRequired: "advanced_rocketry", description: "\u4E2D\u7B49\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u91C7\u7528\u71C3\u6C14\u53D1\u751F\u5668\u5FAA\u73AF\uFF0C\u9002\u7528\u4E8E\u4E0A\u9762\u7EA7\u6216\u52A9\u63A8\u5668" },
+  { id: "engine_thumper", name: '"Thumper" \u5927\u63A8\u529B\u5F15\u64CE', type: "engine", mass: 1800, fuelMass: 0, thrust: 12e5, isp: 270, cost: 5800, thrustSeaLevel: 11e5, thrustVacuum: 12e5, ispSeaLevel: 250, ispVacuum: 270, engineCycle: "gas-generator", gimbalRange: 2, techRequired: "advanced_rocketry", description: "\u9AD8\u63A8\u529B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7\uFF0C\u6D77\u5E73\u9762\u6027\u80FD\u4F18\u5F02" },
+  { id: "engine_mammoth", name: '"Mammoth" \u5DE8\u517D\u5F15\u64CE', type: "engine", mass: 4e3, fuelMass: 0, thrust: 3e6, isp: 280, cost: 12e3, thrustSeaLevel: 28e5, thrustVacuum: 3e6, ispSeaLevel: 260, ispVacuum: 280, engineCycle: "staged-combustion", gimbalRange: 5, techRequired: "advanced_propulsion", description: "\u8D85\u91CD\u578B\u63A8\u529B\u5F15\u64CE\uFF0C\u63A8\u529B\u582A\u6BD4\u56FA\u4F53\u52A9\u63A8\u5668\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u82AF\u7EA7" },
+  { id: "engine_rhino", name: '"Rhino" \u7280\u725B\u5F15\u64CE', type: "engine", mass: 3e3, fuelMass: 0, thrust: 2e6, isp: 340, cost: 9e3, thrustSeaLevel: 15e5, thrustVacuum: 2e6, ispSeaLevel: 300, ispVacuum: 340, engineCycle: "staged-combustion", gimbalRange: 2, techRequired: "advanced_propulsion", description: "\u9AD8\u63A8\u529B\u9AD8\u6BD4\u51B2\u4E0A\u9762\u7EA7\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u5927\u578B\u8F7D\u8377\u6CE8\u5165" },
+  { id: "engine_poodle", name: '"Poodle" \u8D35\u5BBE\u72AC\u5F15\u64CE', type: "engine", mass: 1750, fuelMass: 0, thrust: 22e4, isp: 350, cost: 2e3, thrustSeaLevel: 16e4, thrustVacuum: 22e4, ispSeaLevel: 250, ispVacuum: 350, engineCycle: "gas-generator", gimbalRange: 3, techRequired: "advanced_rocketry", description: "\u4E2D\u7B49\u63A8\u529B\u771F\u7A7A\u4F18\u5316\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u7740\u9646\u5668\u6216\u4E0A\u9762\u7EA7\uFF0C\u6BD4\u51B2\u51FA\u8272" },
+  { id: "engine_spark", name: '"Spark" \u706B\u82B1\u5F15\u64CE', type: "engine", mass: 150, fuelMass: 0, thrust: 18e4, isp: 320, cost: 850, thrustSeaLevel: 16e4, thrustVacuum: 18e4, ispSeaLevel: 280, ispVacuum: 320, engineCycle: "pressure-fed", gimbalRange: 2, techRequired: "stability", description: "\u5C0F\u578B\u9AD8\u6548\u7387\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u8F7B\u578B\u8FD0\u8F7D\u706B\u7BAD\u4E0A\u9762\u7EA7\u6216\u7740\u9646\u5668" },
+  { id: "engine_twin_boar", name: '"Twin Boar" \u53CC\u91CE\u732A\u5F15\u64CE', type: "engine", mass: 2500, fuelMass: 0, thrust: 2e6, isp: 295, cost: 7e3, thrustSeaLevel: 18e5, thrustVacuum: 2e6, ispSeaLevel: 275, ispVacuum: 295, engineCycle: "staged-combustion", gimbalRange: 5, techRequired: "advanced_propulsion", description: "\u53CC\u55B7\u7BA1\u91CD\u578B\u5F15\u64CE\uFF0C\u96C6\u6210\u71C3\u6599\u7BB1\u8BBE\u8BA1\uFF0C\u63A8\u529B\u77E2\u91CF\u63A7\u5236\uFF0C\u9002\u7528\u4E8E\u52A9\u63A8\u7EA7" },
+  { id: "engine_aerospike_ksp", name: '"Aerospike" \u6C14\u585E\u5F15\u64CE', type: "engine", mass: 1e3, fuelMass: 0, thrust: 175e3, isp: 340, cost: 3e3, thrustSeaLevel: 175e3, thrustVacuum: 175e3, ispSeaLevel: 340, ispVacuum: 340, engineCycle: "aerospike", gimbalRange: 0, techRequired: "advanced_rocketry", description: "\u7EBF\u6027\u6C14\u585E\u5F15\u64CE\uFF0C\u5168\u9AD8\u5EA6\u81EA\u9002\u5E94\u55B7\u7BA1\uFF0C\u65E0\u9700\u4F20\u7EDF\u949F\u5F62\u55B7\u7BA1" },
+  { id: "engine_dawn", name: '"Dawn" \u9ECE\u660E\u79BB\u5B50\u5F15\u64CE', type: "engine", mass: 250, fuelMass: 0, thrust: 2e3, isp: 4200, cost: 8e3, thrustSeaLevel: 0, thrustVacuum: 2e3, ispSeaLevel: 0, ispVacuum: 4200, engineCycle: "ion", gimbalRange: 0, techRequired: "propulsion_systems", description: "\u6C19\u79BB\u5B50\u7535\u63A8\u8FDB\u5F15\u64CE\uFF0C\u8D85\u9AD8\u6BD4\u51B2\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u957F\u65F6\u95F4\u5C0F\u63A8\u529B\u4EFB\u52A1" },
+  { id: "engine_vector_ksp", name: '"Vector" \u77E2\u91CF\u5F15\u64CE', type: "engine", mass: 1500, fuelMass: 0, thrust: 1e6, isp: 315, cost: 6e3, thrustSeaLevel: 9e5, thrustVacuum: 1e6, ispSeaLevel: 295, ispVacuum: 315, engineCycle: "staged-combustion", gimbalRange: 5, techRequired: "advanced_rocketry", description: "\u5927\u63A8\u529B\u77E2\u91CF\u5F15\u64CE\uFF0C\xB15\xB0 \u63A8\u529B\u77E2\u91CF\u504F\u8F6C\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u4E3B\u5F15\u64CE" },
+  { id: "engine_twinbee", name: '"Twinbee" \u53CC\u8702\u5F15\u64CE', type: "engine", mass: 200, fuelMass: 0, thrust: 12e4, isp: 300, cost: 600, thrustSeaLevel: 11e4, thrustVacuum: 12e4, ispSeaLevel: 270, ispVacuum: 300, engineCycle: "gas-generator", gimbalRange: 3, techRequired: "stability", description: "\u53CC\u55B7\u7BA1\u5C0F\u578B\u6DB2\u4F53\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u8F7B\u578B\u706B\u7BAD\u6216\u4E0A\u9762\u7EA7" },
+  { id: "engine_cheetah", name: '"Cheetah" \u730E\u8C79\u5F15\u64CE', type: "engine", mass: 1200, fuelMass: 0, thrust: 4e5, isp: 345, cost: 3e3, thrustSeaLevel: 32e4, thrustVacuum: 4e5, ispSeaLevel: 310, ispVacuum: 345, engineCycle: "staged-combustion", gimbalRange: 4, techRequired: "advanced_rocketry", description: "\u9AD8\u6BD4\u51B2\u771F\u7A7A\u4F18\u5316\u5F15\u64CE\uFF0C\u9002\u7528\u4E8E\u4E0A\u9762\u7EA7\u8F68\u9053\u6CE8\u5165\u4E0E\u884C\u661F\u9645\u8F6C\u79FB" },
   // ===== 助推器 (Boosters) =====
-  { id: "booster_hammer", name: 'RT-10 "Hammer" \u56FA\u4F53\u52A9\u63A8\u5668', type: "booster", mass: 750, fuelMass: 3e3, thrust: 35e4, isp: 170, cost: 600, description: "\u5C0F\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u70B9\u706B\u5373\u5168\u63A8\u529B\uFF0C\u9002\u7528\u4E8E\u8D77\u98DE\u589E\u63A8" },
-  { id: "booster_thumper", name: 'BACC "Thumper" \u56FA\u4F53\u52A9\u63A8\u5668', type: "booster", mass: 1500, fuelMass: 7e3, thrust: 3e5, isp: 175, cost: 850, description: "\u4E2D\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u71C3\u70E7\u65F6\u95F4\u8F83\u957F\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u589E\u63A8" },
-  { id: "booster_srb_kd25k", name: 'S1 "SRB-KD25k" \u5927\u578B\u52A9\u63A8\u5668', type: "booster", mass: 4500, fuelMass: 22e3, thrust: 25e5, isp: 220, cost: 3500, description: "\u8D85\u5927\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u63A8\u529B\u5DE8\u5927\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u8D77\u98DE\u7EA7" },
+  { id: "booster_hammer", name: 'RT-10 "Hammer" \u56FA\u4F53\u52A9\u63A8\u5668', type: "booster", mass: 750, fuelMass: 3e3, thrust: 35e4, isp: 170, cost: 600, techRequired: "basic_rocketry", description: "\u5C0F\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u70B9\u706B\u5373\u5168\u63A8\u529B\uFF0C\u9002\u7528\u4E8E\u8D77\u98DE\u589E\u63A8" },
+  { id: "booster_thumper", name: 'BACC "Thumper" \u56FA\u4F53\u52A9\u63A8\u5668', type: "booster", mass: 1500, fuelMass: 7e3, thrust: 3e5, isp: 175, cost: 850, techRequired: "advanced_rocketry", description: "\u4E2D\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u71C3\u70E7\u65F6\u95F4\u8F83\u957F\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD0\u8F7D\u706B\u7BAD\u589E\u63A8" },
+  { id: "booster_srb_kd25k", name: 'S1 "SRB-KD25k" \u5927\u578B\u52A9\u63A8\u5668', type: "booster", mass: 4500, fuelMass: 22e3, thrust: 25e5, isp: 220, cost: 3500, techRequired: "advanced_propulsion", description: "\u8D85\u5927\u578B\u56FA\u4F53\u706B\u7BAD\u52A9\u63A8\u5668\uFF0C\u63A8\u529B\u5DE8\u5927\uFF0C\u9002\u7528\u4E8E\u8D85\u91CD\u578B\u8FD0\u8F7D\u706B\u7BAD\u8D77\u98DE\u7EA7" },
   // ===== 降落伞 (Parachutes) =====
-  { id: "parachute", name: "Mk16 \u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u6807\u51C6\u9876\u90E8\u5B89\u88C5\u964D\u843D\u4F1E\uFF0C\u518D\u5165\u51CF\u901F\u7528" },
-  { id: "parachute_drogue", name: "Mk2-R \u51CF\u901F\u4F1E", type: "parachute", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u9AD8\u901F\u4E0B\u964D\u5236\u52A8\u4F1E\uFF0C\u5148\u4E8E\u4E3B\u4F1E\u5C55\u5F00" },
-  { id: "parachute_mk2r", name: "Mk2-R \u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 850, description: "\u5F84\u5411\u5B89\u88C5\u964D\u843D\u4F1E\uFF0C\u53EF\u5728\u4FA7\u9762\u5B89\u88C5\uFF0C\u9002\u7528\u4E8E\u5BBD\u4F53\u8FD4\u56DE\u8231" },
-  { id: "parachute_mk25", name: "Mk25 \u964D\u843D\u4F1E", type: "parachute", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 1400, description: "\u5927\u578B\u4E3B\u964D\u843D\u4F1E\uFF0C\u5C55\u5F00\u9762\u79EF\u5927\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8F7D\u8377\u4F4E\u901F\u7740\u9646" },
+  { id: "parachute", name: "Mk16 \u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, techRequired: "survivability", description: "\u6807\u51C6\u9876\u90E8\u5B89\u88C5\u964D\u843D\u4F1E\uFF0C\u518D\u5165\u51CF\u901F\u7528" },
+  { id: "parachute_drogue", name: "Mk2-R \u51CF\u901F\u4F1E", type: "parachute", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 30, techRequired: "survivability", description: "\u9AD8\u901F\u4E0B\u964D\u5236\u52A8\u4F1E\uFF0C\u5148\u4E8E\u4E3B\u4F1E\u5C55\u5F00" },
+  { id: "parachute_mk2r", name: "Mk2-R \u964D\u843D\u4F1E", type: "parachute", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 850, techRequired: "survivability", description: "\u5F84\u5411\u5B89\u88C5\u964D\u843D\u4F1E\uFF0C\u53EF\u5728\u4FA7\u9762\u5B89\u88C5\uFF0C\u9002\u7528\u4E8E\u5BBD\u4F53\u8FD4\u56DE\u8231" },
+  { id: "parachute_mk25", name: "Mk25 \u964D\u843D\u4F1E", type: "parachute", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 1400, techRequired: "survivability", description: "\u5927\u578B\u4E3B\u964D\u843D\u4F1E\uFF0C\u5C55\u5F00\u9762\u79EF\u5927\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u8F7D\u8377\u4F4E\u901F\u7740\u9646" },
   // ===== 气动部件 (Aerodynamics) =====
-  { id: "aero_fins", name: "AV-R8 \u7FFC\u9762", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "\u5168\u52A8\u5C3E\u7FFC\uFF0C\u5927\u6C14\u5C42\u5185\u59FF\u6001\u63A7\u5236" },
-  { id: "aero_nosecone", name: "Mk16 \u9F3B\u9525", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B\u7684\u6D41\u7EBF\u578B\u5934\u9525" },
-  { id: "aero_heatshield", name: "\u70ED\u76FE Mk1", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u70E7\u8680\u5F0F\u518D\u5165\u9632\u62A4\u76FE\uFF0C\u5355\u6B21\u4F7F\u7528" },
-  { id: "aero_basic_fin", name: "\u57FA\u672C\u5C3E\u7FFC", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u57FA\u7840\u56FA\u5B9A\u5C3E\u7FFC\uFF0C\u63D0\u4F9B\u5927\u6C14\u5C42\u5185\u98DE\u884C\u7A33\u5B9A\u6027" },
-  { id: "aero_adv_fin", name: "\u9AD8\u7EA7\u5C3E\u7FFC", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 150, description: "\u589E\u5F3A\u578B\u5C3E\u7FFC\uFF0C\u9762\u79EF\u66F4\u5927\uFF0C\u9002\u7528\u4E8E\u9AD8\u901F\u5927\u6C14\u98DE\u884C" },
-  { id: "aero_av_r8", name: "AV-R8 \u7FFC\u9762", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 220, description: "\u5168\u52A8\u7FFC\u9762\uFF0C\u53EF\u504F\u8F6C\u63A7\u5236\u98DE\u884C\u59FF\u6001\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u5C42\u5185\u5236\u5BFC" },
-  { id: "aero_av_t1", name: "AV-T1 \u7FFC\u9762", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 320, description: "\u5927\u578B\u5168\u52A8\u7FFC\u9762\uFF0C\u63A7\u5236\u529B\u77E9\u66F4\u5F3A\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u5927\u6C14\u98DE\u884C\u5668" },
-  { id: "aero_delta", name: "Delta \u7FFC", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 600, description: "\u4E09\u89D2\u7FFC\uFF0C\u5927\u9762\u79EF\u5347\u529B\u9762\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u7C7B\u5347\u529B\u4F53\u8BBE\u8BA1" },
-  { id: "aero_intake_small", name: "\u5C0F\u578B\u8FDB\u6C14\u53E3", type: "aero", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 680, description: "\u5C0F\u578B\u7A7A\u6C14\u8FDB\u6C14\u53E3\uFF0C\u4E3A\u55B7\u6C14\u5F15\u64CE\u4F9B\u6C14\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u5C42\u5185\u98DE\u884C" },
-  { id: "aero_intake_ram", name: "\u51B2\u538B\u8FDB\u6C14\u53E3", type: "aero", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 2400, description: "\u5927\u578B\u51B2\u538B\u8FDB\u6C14\u53E3\uFF0C\u9AD8\u7A7A\u6C14\u6D41\u6355\u83B7\u6548\u7387\u9AD8\uFF0C\u9002\u7528\u4E8E\u9AD8\u901F\u55B7\u6C14\u98DE\u884C" },
-  { id: "aero_nose_mk16", name: "\u9F3B\u9525 Mk16", type: "aero", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5C0F\u578B\u7A7A\u6C14\u52A8\u529B\u5B66\u9F3B\u9525\uFF0C\u964D\u4F4E\u5C0F\u578B\u706B\u7BAD\u9876\u90E8\u963B\u529B" },
-  { id: "aero_nose_sharp", name: "\u5C16\u9510\u9F3B\u9525", type: "aero", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5C16\u9510\u578B\u9F3B\u9525\uFF0C\u8D85\u97F3\u901F\u51CF\u963B\u6548\u679C\u4F18\u5F02" },
-  { id: "aero_heatshield_mk1", name: "\u70ED\u76FE Mk1", type: "aero", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "Mk1 \u5C3A\u5BF8\u70E7\u8680\u5F0F\u70ED\u76FE\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u8FD4\u56DE\u8231\u518D\u5165\u9632\u62A4" },
-  { id: "aero_heatshield_mk2", name: "\u70ED\u76FE Mk2", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "Mk2 \u5C3A\u5BF8\u70E7\u8680\u5F0F\u70ED\u76FE\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD4\u56DE\u8231\u518D\u5165\u9632\u62A4" },
+  { id: "aero_fins", name: "AV-R8 \u7FFC\u9762", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 15, techRequired: "stability", description: "\u5168\u52A8\u5C3E\u7FFC\uFF0C\u5927\u6C14\u5C42\u5185\u59FF\u6001\u63A7\u5236" },
+  { id: "aero_nosecone", name: "Mk16 \u9F3B\u9525", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 10, techRequired: "basic_rocketry", description: "\u964D\u4F4E\u7A7A\u6C14\u963B\u529B\u7684\u6D41\u7EBF\u578B\u5934\u9525" },
+  { id: "aero_heatshield", name: "\u70ED\u76FE Mk1", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 50, techRequired: "survivability", description: "\u70E7\u8680\u5F0F\u518D\u5165\u9632\u62A4\u76FE\uFF0C\u5355\u6B21\u4F7F\u7528" },
+  { id: "aero_basic_fin", name: "\u57FA\u672C\u5C3E\u7FFC", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 50, techRequired: "basic_rocketry", description: "\u57FA\u7840\u56FA\u5B9A\u5C3E\u7FFC\uFF0C\u63D0\u4F9B\u5927\u6C14\u5C42\u5185\u98DE\u884C\u7A33\u5B9A\u6027" },
+  { id: "aero_adv_fin", name: "\u9AD8\u7EA7\u5C3E\u7FFC", type: "aero", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 150, techRequired: "stability", description: "\u589E\u5F3A\u578B\u5C3E\u7FFC\uFF0C\u9762\u79EF\u66F4\u5927\uFF0C\u9002\u7528\u4E8E\u9AD8\u901F\u5927\u6C14\u98DE\u884C" },
+  { id: "aero_av_r8", name: "AV-R8 \u7FFC\u9762", type: "aero", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 220, techRequired: "stability", description: "\u5168\u52A8\u7FFC\u9762\uFF0C\u53EF\u504F\u8F6C\u63A7\u5236\u98DE\u884C\u59FF\u6001\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u5C42\u5185\u5236\u5BFC" },
+  { id: "aero_av_t1", name: "AV-T1 \u7FFC\u9762", type: "aero", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 320, techRequired: "stability", description: "\u5927\u578B\u5168\u52A8\u7FFC\u9762\uFF0C\u63A7\u5236\u529B\u77E9\u66F4\u5F3A\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u5927\u6C14\u98DE\u884C\u5668" },
+  { id: "aero_delta", name: "Delta \u7FFC", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 600, techRequired: "stability", description: "\u4E09\u89D2\u7FFC\uFF0C\u5927\u9762\u79EF\u5347\u529B\u9762\uFF0C\u9002\u7528\u4E8E\u822A\u5929\u98DE\u673A\u7C7B\u5347\u529B\u4F53\u8BBE\u8BA1" },
+  { id: "aero_intake_small", name: "\u5C0F\u578B\u8FDB\u6C14\u53E3", type: "aero", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 680, techRequired: "stability", description: "\u5C0F\u578B\u7A7A\u6C14\u8FDB\u6C14\u53E3\uFF0C\u4E3A\u55B7\u6C14\u5F15\u64CE\u4F9B\u6C14\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u5C42\u5185\u98DE\u884C" },
+  { id: "aero_intake_ram", name: "\u51B2\u538B\u8FDB\u6C14\u53E3", type: "aero", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 2400, techRequired: "advanced_rocketry", description: "\u5927\u578B\u51B2\u538B\u8FDB\u6C14\u53E3\uFF0C\u9AD8\u7A7A\u6C14\u6D41\u6355\u83B7\u6548\u7387\u9AD8\uFF0C\u9002\u7528\u4E8E\u9AD8\u901F\u55B7\u6C14\u98DE\u884C" },
+  { id: "aero_nose_mk16", name: "\u9F3B\u9525 Mk16", type: "aero", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 80, techRequired: "basic_rocketry", description: "\u5C0F\u578B\u7A7A\u6C14\u52A8\u529B\u5B66\u9F3B\u9525\uFF0C\u964D\u4F4E\u5C0F\u578B\u706B\u7BAD\u9876\u90E8\u963B\u529B" },
+  { id: "aero_nose_sharp", name: "\u5C16\u9510\u9F3B\u9525", type: "aero", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 80, techRequired: "basic_rocketry", description: "\u5C16\u9510\u578B\u9F3B\u9525\uFF0C\u8D85\u97F3\u901F\u51CF\u963B\u6548\u679C\u4F18\u5F02" },
+  { id: "aero_heatshield_mk1", name: "\u70ED\u76FE Mk1", type: "aero", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 300, techRequired: "survivability", description: "Mk1 \u5C3A\u5BF8\u70E7\u8680\u5F0F\u70ED\u76FE\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u8FD4\u56DE\u8231\u518D\u5165\u9632\u62A4" },
+  { id: "aero_heatshield_mk2", name: "\u70ED\u76FE Mk2", type: "aero", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 500, techRequired: "survivability", description: "Mk2 \u5C3A\u5BF8\u70E7\u8680\u5F0F\u70ED\u76FE\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u8FD4\u56DE\u8231\u518D\u5165\u9632\u62A4" },
   // ===== 结构部件 (Structural) =====
-  { id: "structural_tt70", name: "\u7ED3\u6784\u63A5\u5934 TT-70", type: "structural", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 150, description: "\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u53EF\u5411\u5916\u5EF6\u4F38\u5B89\u88C5\u90E8\u4EF6\uFF0C\u9002\u7528\u4E8E\u5916\u6302\u52A9\u63A8\u5668\u8FDE\u63A5" },
-  { id: "structural_tt38k", name: "\u7ED3\u6784\u63A5\u5934 TT-38K", type: "structural", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u8F7B\u578B\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u7D27\u51D1\u8BBE\u8BA1\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u5916\u6302\u90E8\u4EF6" },
-  { id: "structural_tt14", name: "\u7ED3\u6784\u63A5\u5934 TT-14", type: "structural", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 180, description: "\u91CD\u578B\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u627F\u8F7D\u80FD\u529B\u5F3A\uFF0C\u9002\u7528\u4E8E\u5927\u578B\u5916\u6302\u8F7D\u8377" },
-  { id: "structural_adapter_2_1", name: "\u9002\u914D\u5668 2:1", type: "structural", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "\u76F4\u5F84\u7F29\u51CF\u9002\u914D\u5668\uFF0C\u4ECE 2.5m \u8FC7\u6E21\u5230 1.25m\uFF0C\u7ED3\u6784\u5F3A\u5EA6\u9AD8" },
-  { id: "structural_adapter_3_1", name: "\u9002\u914D\u5668 3:1", type: "structural", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u591A\u5F15\u64CE\u5B89\u88C5\u9002\u914D\u5668\uFF0C\u4ECE 3.75m \u8FC7\u6E21\u5230\u591A\u4E2A 1.25m \u63A5\u53E3" },
-  { id: "structural_tube_short", name: "\u7ED3\u6784\u7BA1(\u77ED)", type: "structural", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u77ED\u7ED3\u6784\u7BA1\uFF0C\u7528\u4E8E\u8F74\u5411\u5EF6\u957F\u8FDE\u63A5\uFF0C\u8F7B\u91CF\u5316\u8BBE\u8BA1" },
-  { id: "structural_tube_long", name: "\u7ED3\u6784\u7BA1(\u957F)", type: "structural", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u957F\u7ED3\u6784\u7BA1\uFF0C\u7528\u4E8E\u8F83\u957F\u8F74\u5411\u5EF6\u4F38\uFF0C\u4FDD\u6301\u7ED3\u6784\u8FDE\u7EED\u6027" },
-  { id: "structural_octagon", name: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6", type: "structural", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6\uFF0C\u53EF\u5728\u516B\u4E2A\u65B9\u5411\u5B89\u88C5\u5C0F\u578B\u90E8\u4EF6\uFF0C\u9002\u7528\u4E8E\u4F20\u611F\u5668\u6216 RCS \u5E03\u5C40" },
-  { id: "structural_c7_adapter", name: "C7 \u9002\u914D\u5668", type: "structural", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 200, description: "C7 \u822A\u7A7A\u7CFB\u5217\u9002\u914D\u5668\uFF0C\u6D41\u7EBF\u578B\u8FC7\u6E21\u6BB5\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u98DE\u884C\u5668" },
+  { id: "structural_tt70", name: "\u7ED3\u6784\u63A5\u5934 TT-70", type: "structural", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 150, techRequired: "basic_rocketry", description: "\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u53EF\u5411\u5916\u5EF6\u4F38\u5B89\u88C5\u90E8\u4EF6\uFF0C\u9002\u7528\u4E8E\u5916\u6302\u52A9\u63A8\u5668\u8FDE\u63A5" },
+  { id: "structural_tt38k", name: "\u7ED3\u6784\u63A5\u5934 TT-38K", type: "structural", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 120, techRequired: "basic_rocketry", description: "\u8F7B\u578B\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u7D27\u51D1\u8BBE\u8BA1\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u5916\u6302\u90E8\u4EF6" },
+  { id: "structural_tt14", name: "\u7ED3\u6784\u63A5\u5934 TT-14", type: "structural", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 180, techRequired: "advanced_rocketry", description: "\u91CD\u578B\u5F84\u5411\u7ED3\u6784\u63A5\u5934\uFF0C\u627F\u8F7D\u80FD\u529B\u5F3A\uFF0C\u9002\u7528\u4E8E\u5927\u578B\u5916\u6302\u8F7D\u8377" },
+  { id: "structural_adapter_2_1", name: "\u9002\u914D\u5668 2:1", type: "structural", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 200, techRequired: "advanced_rocketry", description: "\u76F4\u5F84\u7F29\u51CF\u9002\u914D\u5668\uFF0C\u4ECE 2.5m \u8FC7\u6E21\u5230 1.25m\uFF0C\u7ED3\u6784\u5F3A\u5EA6\u9AD8" },
+  { id: "structural_adapter_3_1", name: "\u9002\u914D\u5668 3:1", type: "structural", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 300, techRequired: "advanced_rocketry", description: "\u591A\u5F15\u64CE\u5B89\u88C5\u9002\u914D\u5668\uFF0C\u4ECE 3.75m \u8FC7\u6E21\u5230\u591A\u4E2A 1.25m \u63A5\u53E3" },
+  { id: "structural_tube_short", name: "\u7ED3\u6784\u7BA1(\u77ED)", type: "structural", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 50, techRequired: "basic_rocketry", description: "\u77ED\u7ED3\u6784\u7BA1\uFF0C\u7528\u4E8E\u8F74\u5411\u5EF6\u957F\u8FDE\u63A5\uFF0C\u8F7B\u91CF\u5316\u8BBE\u8BA1" },
+  { id: "structural_tube_long", name: "\u7ED3\u6784\u7BA1(\u957F)", type: "structural", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 80, techRequired: "basic_rocketry", description: "\u957F\u7ED3\u6784\u7BA1\uFF0C\u7528\u4E8E\u8F83\u957F\u8F74\u5411\u5EF6\u4F38\uFF0C\u4FDD\u6301\u7ED3\u6784\u8FDE\u7EED\u6027" },
+  { id: "structural_octagon", name: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6", type: "structural", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 50, techRequired: "basic_rocketry", description: "\u516B\u8FB9\u5F62\u652F\u6491\u67B6\uFF0C\u53EF\u5728\u516B\u4E2A\u65B9\u5411\u5B89\u88C5\u5C0F\u578B\u90E8\u4EF6\uFF0C\u9002\u7528\u4E8E\u4F20\u611F\u5668\u6216 RCS \u5E03\u5C40" },
+  { id: "structural_c7_adapter", name: "C7 \u9002\u914D\u5668", type: "structural", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 200, techRequired: "stability", description: "C7 \u822A\u7A7A\u7CFB\u5217\u9002\u914D\u5668\uFF0C\u6D41\u7EBF\u578B\u8FC7\u6E21\u6BB5\uFF0C\u9002\u7528\u4E8E\u5927\u6C14\u98DE\u884C\u5668" },
   // ===== RCS 和推进 (RCS & Propulsion) =====
-  { id: "rcs_block", name: "RCS \u5757 RV-105", type: "rcs", mass: 30, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u56DB\u5411\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u5668\u5757\uFF0C\u6807\u51C6RCS" },
-  { id: "rcs_tank", name: "FL-R25 RCS \u50A8\u7BB1", type: "rcs", mass: 50, fuelMass: 200, thrust: 0, isp: 0, cost: 20, description: "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58\u7BB1\uFF0C\u8054\u6C28" },
-  { id: "rcs_rv105", name: "RCS \u5757 RV-105", type: "rcs", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 45, description: "\u6807\u51C6 RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u56DB\u5411\u55B7\u53E3\uFF0C\u63D0\u4F9B\u59FF\u6001\u63A7\u5236\u4E0E\u5E73\u79FB\u673A\u52A8" },
-  { id: "rcs_rv1x", name: "RCS \u5757 RV-1X", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 30, description: "\u5C0F\u578B RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u7CBE\u5BC6\u59FF\u6001\u63A7\u5236" },
-  { id: "rcs_linear", name: "\u7EBF\u6027 RCS \u7AEF\u53E3", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5355\u5411\u7EBF\u6027 RCS \u7AEF\u53E3\uFF0C\u6CBF\u5355\u4E00\u65B9\u5411\u55B7\u5C04\uFF0C\u53EF\u5B9A\u5411\u5B89\u88C5" },
-  { id: "rcs_tank_small", name: "RCS \u71C3\u6599\u7F50(\u5C0F)", type: "rcs", mass: 40, fuelMass: 200, thrust: 0, isp: 0, cost: 120, description: "\u5C0F\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u77ED\u9014\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
-  { id: "rcs_tank_large", name: "RCS \u71C3\u6599\u7F50(\u5927)", type: "rcs", mass: 80, fuelMass: 400, thrust: 0, isp: 0, cost: 250, description: "\u5927\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
+  { id: "rcs_block", name: "RCS \u5757 RV-105", type: "rcs", mass: 30, fuelMass: 0, thrust: 0, isp: 0, cost: 25, techRequired: "stability", description: "\u56DB\u5411\u59FF\u6001\u63A7\u5236\u63A8\u8FDB\u5668\u5757\uFF0C\u6807\u51C6RCS" },
+  { id: "rcs_tank", name: "FL-R25 RCS \u50A8\u7BB1", type: "rcs", mass: 50, fuelMass: 200, thrust: 0, isp: 0, cost: 20, techRequired: "stability", description: "\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u5B58\u7BB1\uFF0C\u8054\u6C28" },
+  { id: "rcs_rv105", name: "RCS \u5757 RV-105", type: "rcs", mass: 40, fuelMass: 0, thrust: 0, isp: 0, cost: 45, techRequired: "stability", description: "\u6807\u51C6 RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u56DB\u5411\u55B7\u53E3\uFF0C\u63D0\u4F9B\u59FF\u6001\u63A7\u5236\u4E0E\u5E73\u79FB\u673A\u52A8" },
+  { id: "rcs_rv1x", name: "RCS \u5757 RV-1X", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 30, techRequired: "stability", description: "\u5C0F\u578B RCS \u63A8\u8FDB\u5668\u5757\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F\u6216\u7CBE\u5BC6\u59FF\u6001\u63A7\u5236" },
+  { id: "rcs_linear", name: "\u7EBF\u6027 RCS \u7AEF\u53E3", type: "rcs", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 25, techRequired: "stability", description: "\u5355\u5411\u7EBF\u6027 RCS \u7AEF\u53E3\uFF0C\u6CBF\u5355\u4E00\u65B9\u5411\u55B7\u5C04\uFF0C\u53EF\u5B9A\u5411\u5B89\u88C5" },
+  { id: "rcs_tank_small", name: "RCS \u71C3\u6599\u7F50(\u5C0F)", type: "rcs", mass: 40, fuelMass: 200, thrust: 0, isp: 0, cost: 120, techRequired: "stability", description: "\u5C0F\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u77ED\u9014\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
+  { id: "rcs_tank_large", name: "RCS \u71C3\u6599\u7F50(\u5927)", type: "rcs", mass: 80, fuelMass: 400, thrust: 0, isp: 0, cost: 250, techRequired: "stability", description: "\u5927\u578B\u5355\u7EC4\u5143\u63A8\u8FDB\u5242\u50A8\u7F50\uFF0C\u9002\u7528\u4E8E\u957F\u671F\u4EFB\u52A1\u7684 RCS \u4F9B\u5242" },
   // ===== 电力 (Electrical) =====
-  { id: "solar_panel", name: "OX-4P \u592A\u9633\u80FD\u677F", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u53EF\u5C55\u5F00\u5F0F\u5149\u4F0F\u9762\u677F\uFF0C\u8FD1\u5730\u8F68\u9053\u4E3B\u529B\u7535\u6E90" },
-  { id: "solar_array", name: "Gigantor XL \u592A\u9633\u80FD\u9635\u5217", type: "solar", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217\uFF0C\u7A7A\u95F4\u7AD9\u7EA7\u53D1\u7535" },
-  { id: "battery_z100", name: "\u7535\u6C60 Z-100", type: "solar", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5C0F\u578B\u5145\u7535\u7535\u6C60\uFF0C100 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F" },
-  { id: "battery_z200", name: "\u7535\u6C60 Z-200", type: "solar", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 180, description: "\u4E2D\u578B\u5145\u7535\u7535\u6C60\uFF0C200 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668" },
-  { id: "battery_z400", name: "\u7535\u6C60 Z-400", type: "solar", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 450, description: "\u5927\u578B\u5145\u7535\u7535\u6C60\uFF0C400 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u822A\u5929\u5668" },
-  { id: "battery_z1k", name: "\u7535\u6C60 Z-1k", type: "solar", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 880, description: "\u8D85\u5927\u5BB9\u91CF\u5145\u7535\u7535\u6C60\uFF0C1000 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u6216\u6DF1\u7A7A\u4EFB\u52A1" },
-  { id: "solar_ox4l", name: "\u592A\u9633\u80FD\u677F OX-4L", type: "solar", mass: 17.5, fuelMass: 0, thrust: 0, isp: 0, cost: 450, description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u677F\uFF0C\u53D1\u7535\u6548\u7387\u9AD8\uFF0C\u9002\u7528\u4E8E\u4E2D\u957F\u671F\u8F68\u9053\u4EFB\u52A1" },
-  { id: "solar_gigantor", name: "\u592A\u9633\u80FD\u677F Gigantor XL", type: "solar", mass: 300, fuelMass: 0, thrust: 0, isp: 0, cost: 3e3, description: "\u8D85\u5927\u578B\u592A\u9633\u80FD\u9635\u5217\uFF0C\u53D1\u7535\u529F\u7387\u6781\u5927\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u6216\u5927\u578B\u8F68\u9053\u8BBE\u65BD" },
-  { id: "fuel_cell", name: "\u71C3\u6599\u7535\u6C60", type: "solar", mass: 70, fuelMass: 0, thrust: 0, isp: 0, cost: 1450, description: "\u6DB2\u6C22\u6DB2\u6C27\u71C3\u6599\u7535\u6C60\uFF0C\u6301\u7EED\u53D1\u7535\u540C\u65F6\u4EA7\u751F\u6C34\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u822A\u5929\u5668" },
-  { id: "rtg", name: "\u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 6750, description: "\u949A-238 \u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A\uFF0C\u65E0\u9700\u5149\u7167\u6301\u7EED\u4F9B\u7535\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u4EFB\u52A1" },
+  { id: "solar_panel", name: "OX-4P \u592A\u9633\u80FD\u677F", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 50, techRequired: "space_exploration", description: "\u53EF\u5C55\u5F00\u5F0F\u5149\u4F0F\u9762\u677F\uFF0C\u8FD1\u5730\u8F68\u9053\u4E3B\u529B\u7535\u6E90" },
+  { id: "solar_array", name: "Gigantor XL \u592A\u9633\u80FD\u9635\u5217", type: "solar", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 120, techRequired: "space_exploration", description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u9635\u5217\uFF0C\u7A7A\u95F4\u7AD9\u7EA7\u53D1\u7535" },
+  { id: "battery_z100", name: "\u7535\u6C60 Z-100", type: "solar", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 80, techRequired: "basic_rocketry", description: "\u5C0F\u578B\u5145\u7535\u7535\u6C60\uFF0C100 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5FAE\u578B\u536B\u661F" },
+  { id: "battery_z200", name: "\u7535\u6C60 Z-200", type: "solar", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 180, techRequired: "basic_rocketry", description: "\u4E2D\u578B\u5145\u7535\u7535\u6C60\uFF0C200 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668" },
+  { id: "battery_z400", name: "\u7535\u6C60 Z-400", type: "solar", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 450, techRequired: "stability", description: "\u5927\u578B\u5145\u7535\u7535\u6C60\uFF0C400 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u4E2D\u578B\u822A\u5929\u5668" },
+  { id: "battery_z1k", name: "\u7535\u6C60 Z-1k", type: "solar", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 880, techRequired: "space_exploration", description: "\u8D85\u5927\u5BB9\u91CF\u5145\u7535\u7535\u6C60\uFF0C1000 \u5355\u4F4D\u7535\u91CF\u50A8\u5907\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u6216\u6DF1\u7A7A\u4EFB\u52A1" },
+  { id: "solar_ox4l", name: "\u592A\u9633\u80FD\u677F OX-4L", type: "solar", mass: 17.5, fuelMass: 0, thrust: 0, isp: 0, cost: 450, techRequired: "space_exploration", description: "\u5927\u578B\u53EF\u5C55\u5F00\u592A\u9633\u80FD\u677F\uFF0C\u53D1\u7535\u6548\u7387\u9AD8\uFF0C\u9002\u7528\u4E8E\u4E2D\u957F\u671F\u8F68\u9053\u4EFB\u52A1" },
+  { id: "solar_gigantor", name: "\u592A\u9633\u80FD\u677F Gigantor XL", type: "solar", mass: 300, fuelMass: 0, thrust: 0, isp: 0, cost: 3e3, techRequired: "space_exploration", description: "\u8D85\u5927\u578B\u592A\u9633\u80FD\u9635\u5217\uFF0C\u53D1\u7535\u529F\u7387\u6781\u5927\uFF0C\u9002\u7528\u4E8E\u7A7A\u95F4\u7AD9\u6216\u5927\u578B\u8F68\u9053\u8BBE\u65BD" },
+  { id: "fuel_cell", name: "\u71C3\u6599\u7535\u6C60", type: "solar", mass: 70, fuelMass: 0, thrust: 0, isp: 0, cost: 1450, techRequired: "space_exploration", description: "\u6DB2\u6C22\u6DB2\u6C27\u71C3\u6599\u7535\u6C60\uFF0C\u6301\u7EED\u53D1\u7535\u540C\u65F6\u4EA7\u751F\u6C34\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u822A\u5929\u5668" },
+  { id: "rtg", name: "\u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A", type: "solar", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 6750, techRequired: "advanced_propulsion", description: "\u949A-238 \u653E\u5C04\u6027\u540C\u4F4D\u7D20\u6E29\u5DEE\u53D1\u7535\u673A\uFF0C\u65E0\u9700\u5149\u7167\u6301\u7EED\u4F9B\u7535\uFF0C\u9002\u7528\u4E8E\u6DF1\u7A7A\u4EFB\u52A1" },
   // ===== 通信 (Communication) =====
-  { id: "antenna_dish", name: "CommTech-1 \u901A\u4FE1\u5929\u7EBF", type: "antenna", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u8FDC\u8DDD\u79BB\u6DF1\u7A7A\u901A\u4FE1\u629B\u7269\u9762\u5929\u7EBF" },
-  { id: "antenna_whip", name: "Comm-16 \u5929\u7EBF", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 10, description: "\u8FD1\u8DDD\u79BB\u5168\u5411\u901A\u4FE1\u5929\u7EBF" },
-  { id: "antenna_hg5", name: "\u901A\u4FE1\u5929\u7EBF HG-5", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u4E2D\u578B\u7EC4\u5408\u5929\u7EBF\uFF0C\u652F\u6301\u8FD1\u5730\u8F68\u9053\u4E0E\u6708\u7403\u8DDD\u79BB\u901A\u4FE1\uFF0C\u53EF\u6298\u53E0\u6536\u7EB3" },
-  { id: "antenna_ra2", name: "\u901A\u4FE1\u5929\u7EBF RA-2", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 600, description: "\u4E2D\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8FBE\u884C\u661F\u9645\u8FD1\u8DDD\u8303\u56F4" },
-  { id: "antenna_ra15", name: "\u901A\u4FE1\u5929\u7EBF RA-15", type: "antenna", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u5927\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5185\u884C\u661F\u7CFB\u8303\u56F4" },
-  { id: "antenna_ra100", name: "\u901A\u4FE1\u5929\u7EBF RA-100", type: "antenna", mass: 400, fuelMass: 0, thrust: 0, isp: 0, cost: 6e3, description: "\u8D85\u5927\u578B\u6DF1\u7A7A\u901A\u4FE1\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5916\u884C\u661F\u7CFB\u53CA\u6DF1\u7A7A\u8303\u56F4" },
-  { id: "antenna_88_88", name: "\u901A\u4FE1\u789F\u5F62\u5929\u7EBF 88-88", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u6298\u53E0\u5F0F\u789F\u5F62\u5929\u7EBF\uFF0C\u5B9A\u5411\u9AD8\u589E\u76CA\u901A\u4FE1\uFF0C\u9002\u7528\u4E8E\u884C\u661F\u9645\u6570\u636E\u4F20\u8F93" },
+  { id: "antenna_dish", name: "CommTech-1 \u901A\u4FE1\u5929\u7EBF", type: "antenna", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 40, techRequired: "flight_control", description: "\u8FDC\u8DDD\u79BB\u6DF1\u7A7A\u901A\u4FE1\u629B\u7269\u9762\u5929\u7EBF" },
+  { id: "antenna_whip", name: "Comm-16 \u5929\u7EBF", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 10, techRequired: "flight_control", description: "\u8FD1\u8DDD\u79BB\u5168\u5411\u901A\u4FE1\u5929\u7EBF" },
+  { id: "antenna_hg5", name: "\u901A\u4FE1\u5929\u7EBF HG-5", type: "antenna", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 300, techRequired: "flight_control", description: "\u4E2D\u578B\u7EC4\u5408\u5929\u7EBF\uFF0C\u652F\u6301\u8FD1\u5730\u8F68\u9053\u4E0E\u6708\u7403\u8DDD\u79BB\u901A\u4FE1\uFF0C\u53EF\u6298\u53E0\u6536\u7EB3" },
+  { id: "antenna_ra2", name: "\u901A\u4FE1\u5929\u7EBF RA-2", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 600, techRequired: "flight_control", description: "\u4E2D\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8FBE\u884C\u661F\u9645\u8FD1\u8DDD\u8303\u56F4" },
+  { id: "antenna_ra15", name: "\u901A\u4FE1\u5929\u7EBF RA-15", type: "antenna", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, techRequired: "space_exploration", description: "\u5927\u578B\u53EF\u5C55\u5F00\u629B\u7269\u9762\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5185\u884C\u661F\u7CFB\u8303\u56F4" },
+  { id: "antenna_ra100", name: "\u901A\u4FE1\u5929\u7EBF RA-100", type: "antenna", mass: 400, fuelMass: 0, thrust: 0, isp: 0, cost: 6e3, techRequired: "interstellar_travel", description: "\u8D85\u5927\u578B\u6DF1\u7A7A\u901A\u4FE1\u5929\u7EBF\uFF0C\u901A\u4FE1\u8DDD\u79BB\u8986\u76D6\u5916\u884C\u661F\u7CFB\u53CA\u6DF1\u7A7A\u8303\u56F4" },
+  { id: "antenna_88_88", name: "\u901A\u4FE1\u789F\u5F62\u5929\u7EBF 88-88", type: "antenna", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 900, techRequired: "space_exploration", description: "\u6298\u53E0\u5F0F\u789F\u5F62\u5929\u7EBF\uFF0C\u5B9A\u5411\u9AD8\u589E\u76CA\u901A\u4FE1\uFF0C\u9002\u7528\u4E8E\u884C\u661F\u9645\u6570\u636E\u4F20\u8F93" },
   // ===== 科学仪器 (Science) =====
-  { id: "science_lab", name: "MPL-LG-2 \u79FB\u52A8\u5B9E\u9A8C\u5BA4", type: "science", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u968F\u65F6\u95F4\u4EA7\u751F\u79D1\u5B66\u70B9\u6570\uFF0C\u53EF\u5728\u8F68\u6E05\u6D17\u4E0E\u91CD\u7F6E\u5B9E\u9A8C" },
-  { id: "science_sensor", name: "SC-9001 \u79D1\u5B66\u6A21\u5757", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668\u9635\u5217\uFF0C\u591A\u6CE2\u6BB5\u63A2\u6D4B" },
-  { id: "science_comm", name: "HG-5 \u9AD8\u589E\u76CA\u5929\u7EBF", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u589E\u5F3A\u79D1\u5B66\u6570\u636E\u4F20\u8F93\u80FD\u529B" },
-  { id: "science_goop", name: "\u795E\u79D8\u9ECF\u6DB2", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 1800, description: "\u795E\u79D8\u7EFF\u8272\u9ECF\u6DB2\u89C2\u5BDF\u5B9E\u9A8C\uFF0C\u5728\u4E0D\u540C\u73AF\u5883\u4E0B\u4EA7\u751F\u4E0D\u540C\u79D1\u5B66\u6570\u636E" },
-  { id: "science_matlab", name: "\u6750\u6599\u5B9E\u9A8C\u5BA4", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 3300, description: "\u6750\u6599\u79D1\u5B66\u5B9E\u9A8C\u5BA4\uFF0C\u7814\u7A76\u4E0D\u540C\u73AF\u5883\u4E0B\u6750\u6599\u6027\u80FD\u53D8\u5316\uFF0C\u4EA7\u51FA\u5927\u91CF\u79D1\u5B66\u6570\u636E" },
-  { id: "science_barometer", name: "\u6C14\u538B\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, description: "\u5927\u6C14\u538B\u529B\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u9AD8\u5EA6\u4E0E\u5929\u4F53\u7684\u5927\u6C14\u538B\u6570\u636E" },
-  { id: "science_accel", name: "\u52A0\u901F\u5EA6\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, description: "\u52A0\u901F\u5EA6\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u98DE\u884C\u8FC7\u7A0B\u4E2D\u7684\u52A0\u901F\u5EA6\u53D8\u5316\uFF0C\u7528\u4E8E\u73AF\u5883\u7814\u7A76" },
-  { id: "science_gravity", name: "\u91CD\u529B\u63A2\u6D4B\u5668", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, description: "\u91CD\u529B\u573A\u6D4B\u91CF\u4EEA\uFF0C\u63A2\u6D4B\u5929\u4F53\u8868\u9762\u91CD\u529B\u52A0\u901F\u5EA6\uFF0C\u7528\u4E8E\u5730\u8D28\u7814\u7A76" },
-  { id: "science_atmo", name: "\u5927\u6C14\u5206\u6790\u4EEA", type: "science", mass: 8, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u5927\u6C14\u6210\u5206\u5206\u6790\u4EEA\uFF0C\u53EF\u5206\u6790\u5927\u6C14\u4E2D\u5404\u6C14\u4F53\u6210\u5206\u542B\u91CF\u4E0E\u6BD4\u4F8B" },
-  { id: "science_thermo", name: "\u6E29\u5EA6\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u6E29\u5EA6\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u73AF\u5883\u4E0E\u5929\u4F53\u8868\u9762\u7684\u6E29\u5EA6\u6570\u636E" },
+  { id: "science_lab", name: "MPL-LG-2 \u79FB\u52A8\u5B9E\u9A8C\u5BA4", type: "science", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 500, techRequired: "space_exploration", description: "\u968F\u65F6\u95F4\u4EA7\u751F\u79D1\u5B66\u70B9\u6570\uFF0C\u53EF\u5728\u8F68\u6E05\u6D17\u4E0E\u91CD\u7F6E\u5B9E\u9A8C" },
+  { id: "science_sensor", name: "SC-9001 \u79D1\u5B66\u6A21\u5757", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 80, techRequired: "basic_rocketry", description: "\u5927\u6C14\u4E0E\u5730\u8868\u4F20\u611F\u5668\u9635\u5217\uFF0C\u591A\u6CE2\u6BB5\u63A2\u6D4B" },
+  { id: "science_comm", name: "HG-5 \u9AD8\u589E\u76CA\u5929\u7EBF", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 60, techRequired: "flight_control", description: "\u589E\u5F3A\u79D1\u5B66\u6570\u636E\u4F20\u8F93\u80FD\u529B" },
+  { id: "science_goop", name: "\u795E\u79D8\u9ECF\u6DB2", type: "science", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 1800, techRequired: "basic_rocketry", description: "\u795E\u79D8\u7EFF\u8272\u9ECF\u6DB2\u89C2\u5BDF\u5B9E\u9A8C\uFF0C\u5728\u4E0D\u540C\u73AF\u5883\u4E0B\u4EA7\u751F\u4E0D\u540C\u79D1\u5B66\u6570\u636E" },
+  { id: "science_matlab", name: "\u6750\u6599\u5B9E\u9A8C\u5BA4", type: "science", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 3300, techRequired: "space_exploration", description: "\u6750\u6599\u79D1\u5B66\u5B9E\u9A8C\u5BA4\uFF0C\u7814\u7A76\u4E0D\u540C\u73AF\u5883\u4E0B\u6750\u6599\u6027\u80FD\u53D8\u5316\uFF0C\u4EA7\u51FA\u5927\u91CF\u79D1\u5B66\u6570\u636E" },
+  { id: "science_barometer", name: "\u6C14\u538B\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, techRequired: "survivability", description: "\u5927\u6C14\u538B\u529B\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u9AD8\u5EA6\u4E0E\u5929\u4F53\u7684\u5927\u6C14\u538B\u6570\u636E" },
+  { id: "science_accel", name: "\u52A0\u901F\u5EA6\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, techRequired: "survivability", description: "\u52A0\u901F\u5EA6\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u98DE\u884C\u8FC7\u7A0B\u4E2D\u7684\u52A0\u901F\u5EA6\u53D8\u5316\uFF0C\u7528\u4E8E\u73AF\u5883\u7814\u7A76" },
+  { id: "science_gravity", name: "\u91CD\u529B\u63A2\u6D4B\u5668", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 1300, techRequired: "space_exploration", description: "\u91CD\u529B\u573A\u6D4B\u91CF\u4EEA\uFF0C\u63A2\u6D4B\u5929\u4F53\u8868\u9762\u91CD\u529B\u52A0\u901F\u5EA6\uFF0C\u7528\u4E8E\u5730\u8D28\u7814\u7A76" },
+  { id: "science_atmo", name: "\u5927\u6C14\u5206\u6790\u4EEA", type: "science", mass: 8, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, techRequired: "survivability", description: "\u5927\u6C14\u6210\u5206\u5206\u6790\u4EEA\uFF0C\u53EF\u5206\u6790\u5927\u6C14\u4E2D\u5404\u6C14\u4F53\u6210\u5206\u542B\u91CF\u4E0E\u6BD4\u4F8B" },
+  { id: "science_thermo", name: "\u6E29\u5EA6\u8BA1", type: "science", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 900, techRequired: "survivability", description: "\u6E29\u5EA6\u6D4B\u91CF\u4EEA\uFF0C\u8BB0\u5F55\u4E0D\u540C\u73AF\u5883\u4E0E\u5929\u4F53\u8868\u9762\u7684\u6E29\u5EA6\u6570\u636E" },
   // ===== 着陆部件 (Landing) =====
-  { id: "landing_legs", name: "LT-1 \u7740\u9646\u817F", type: "landing", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u53EF\u5C55\u5F00\u7740\u9646\u8D77\u843D\u67B6\uFF0C\u51CF\u9707\u5668\u8BBE\u8BA1" },
-  { id: "landing_pads", name: "LT-2 \u91CD\u578B\u7740\u9646\u817F", type: "landing", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "\u5BBD\u5E95\u7740\u9646\u811A\u57AB\uFF0C\u91CD\u578B\u7740\u9646\u5668\u4E13\u7528" },
-  { id: "landing_lt1", name: "\u7740\u9646\u817F LT-1", type: "landing", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u6807\u51C6\u7740\u9646\u817F\uFF0C\u53EF\u5C55\u5F00\u5F0F\u51CF\u9707\u652F\u6491\uFF0C\u9002\u7528\u4E8E\u4E2D\u5C0F\u578B\u7740\u9646\u5668" },
-  { id: "landing_lt2", name: "\u7740\u9646\u817F LT-2", type: "landing", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 300, description: "\u91CD\u578B\u7740\u9646\u817F\uFF0C\u52A0\u5F3A\u7ED3\u6784\u4E0E\u5927\u5C3A\u5BF8\u51CF\u9707\u5668\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u7740\u9646\u5668" },
-  { id: "landing_lt5", name: "\u7740\u9646\u817F LT-5", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 80, description: "\u5FAE\u578B\u7740\u9646\u817F\uFF0C\u8F7B\u91CF\u5316\u8BBE\u8BA1\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668\u6216\u65E0\u4EBA\u7740\u9646\u5668" },
-  { id: "landing_pad_small", name: "\u7740\u9646\u57AB(\u5C0F)", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 60, description: "\u5C0F\u578B\u7740\u9646\u63A5\u89E6\u57AB\uFF0C\u5F84\u5411\u5B89\u88C5\uFF0C\u63D0\u4F9B\u989D\u5916\u7740\u9646\u7F13\u51B2" },
+  { id: "landing_legs", name: "LT-1 \u7740\u9646\u817F", type: "landing", mass: 120, fuelMass: 0, thrust: 0, isp: 0, cost: 40, techRequired: "landing_techniques", description: "\u53EF\u5C55\u5F00\u7740\u9646\u8D77\u843D\u67B6\uFF0C\u51CF\u9707\u5668\u8BBE\u8BA1" },
+  { id: "landing_pads", name: "LT-2 \u91CD\u578B\u7740\u9646\u817F", type: "landing", mass: 80, fuelMass: 0, thrust: 0, isp: 0, cost: 25, techRequired: "landing_techniques", description: "\u5BBD\u5E95\u7740\u9646\u811A\u57AB\uFF0C\u91CD\u578B\u7740\u9646\u5668\u4E13\u7528" },
+  { id: "landing_lt1", name: "\u7740\u9646\u817F LT-1", type: "landing", mass: 50, fuelMass: 0, thrust: 0, isp: 0, cost: 120, techRequired: "landing_techniques", description: "\u6807\u51C6\u7740\u9646\u817F\uFF0C\u53EF\u5C55\u5F00\u5F0F\u51CF\u9707\u652F\u6491\uFF0C\u9002\u7528\u4E8E\u4E2D\u5C0F\u578B\u7740\u9646\u5668" },
+  { id: "landing_lt2", name: "\u7740\u9646\u817F LT-2", type: "landing", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 300, techRequired: "landing_techniques", description: "\u91CD\u578B\u7740\u9646\u817F\uFF0C\u52A0\u5F3A\u7ED3\u6784\u4E0E\u5927\u5C3A\u5BF8\u51CF\u9707\u5668\uFF0C\u9002\u7528\u4E8E\u91CD\u578B\u7740\u9646\u5668" },
+  { id: "landing_lt5", name: "\u7740\u9646\u817F LT-5", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 80, techRequired: "landing_techniques", description: "\u5FAE\u578B\u7740\u9646\u817F\uFF0C\u8F7B\u91CF\u5316\u8BBE\u8BA1\uFF0C\u9002\u7528\u4E8E\u5C0F\u578B\u63A2\u6D4B\u5668\u6216\u65E0\u4EBA\u7740\u9646\u5668" },
+  { id: "landing_pad_small", name: "\u7740\u9646\u57AB(\u5C0F)", type: "landing", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 60, techRequired: "landing_techniques", description: "\u5C0F\u578B\u7740\u9646\u63A5\u89E6\u57AB\uFF0C\u5F84\u5411\u5B89\u88C5\uFF0C\u63D0\u4F9B\u989D\u5916\u7740\u9646\u7F13\u51B2" },
   // ===== 分离器 (Decouplers) =====
-  { id: "decoupler", name: "TD-06 \u5206\u79BB\u5668", type: "decoupler", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, description: "\u6807\u51C6\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E\uFF0C0.625m" },
-  { id: "decoupler_heavy", name: "TD-25 \u5206\u79BB\u5668", type: "decoupler", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 40, description: "\u52A0\u56FA\u578B\u5927\u76F4\u5F84\u5206\u79BB\u5668\uFF0C2.5m" },
+  { id: "decoupler", name: "TD-06 \u5206\u79BB\u5668", type: "decoupler", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 20, techRequired: "basic_rocketry", description: "\u6807\u51C6\u7EA7\u95F4\u5206\u79BB\u88C5\u7F6E\uFF0C0.625m" },
+  { id: "decoupler_heavy", name: "TD-25 \u5206\u79BB\u5668", type: "decoupler", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 40, techRequired: "advanced_rocketry", description: "\u52A0\u56FA\u578B\u5927\u76F4\u5F84\u5206\u79BB\u5668\uFF0C2.5m" },
   // ===== 适配器 (Adapters) =====
-  { id: "adapter_2_1", name: "FL-A5 \u9002\u914D\u5668", type: "adapter", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 15, description: "1.25m\u21920.625m\u76F4\u5F84\u7F29\u51CF\u9002\u914D\u5668" },
-  { id: "adapter_3_1", name: "FL-A10 \u9002\u914D\u5668", type: "adapter", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 25, description: "2.5m\u21921.25m\u591A\u5F15\u64CE\u5B89\u88C5\u5EA7" },
+  { id: "adapter_2_1", name: "FL-A5 \u9002\u914D\u5668", type: "adapter", mass: 60, fuelMass: 0, thrust: 0, isp: 0, cost: 15, techRequired: "basic_rocketry", description: "1.25m\u21920.625m\u76F4\u5F84\u7F29\u51CF\u9002\u914D\u5668" },
+  { id: "adapter_3_1", name: "FL-A10 \u9002\u914D\u5668", type: "adapter", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 25, techRequired: "advanced_rocketry", description: "2.5m\u21921.25m\u591A\u5F15\u64CE\u5B89\u88C5\u5EA7" },
   // ===== 实用工具 (Utility) =====
-  { id: "utility_dock_mk12", name: "\u5BF9\u63A5\u7AEF\u53E3 Mk1-2", type: "utility", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 280, description: "\u6807\u51C6\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u652F\u6301\u98DE\u8239\u95F4\u5BF9\u63A5\u4E0E\u71C3\u6599\u4F20\u8F93\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u4EFB\u52A1" },
-  { id: "utility_dock_jr", name: "\u5BF9\u63A5\u7AEF\u53E3 Jr.", type: "utility", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 120, description: "\u5C0F\u578B\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u9002\u7528\u4E8E\u65E0\u4EBA\u63A2\u6D4B\u5668\u6216\u5C0F\u578B\u822A\u5929\u5668\u5BF9\u63A5" },
-  { id: "utility_dock_sr", name: "\u5BF9\u63A5\u7AEF\u53E3 Sr.", type: "utility", mass: 400, fuelMass: 0, thrust: 0, isp: 0, cost: 900, description: "\u91CD\u578B\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u76F4\u5F84\u5927\uFF0C\u7ED3\u6784\u5F3A\u5EA6\u9AD8\uFF0C\u9002\u7528\u4E8E\u5927\u578B\u7A7A\u95F4\u7AD9\u6A21\u5757\u5BF9\u63A5" },
-  { id: "utility_ladder_p1", name: "\u68AF\u5B50 P1", type: "utility", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 50, description: "\u77ED\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u79FB\u52A8\u4F7F\u7528\uFF0C\u9002\u7528\u4E8E\u7740\u9646\u5668\u81F3\u5730\u9762" },
-  { id: "utility_ladder_p2", name: "\u68AF\u5B50 P2", type: "utility", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 100, description: "\u957F\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u957F\u8DDD\u79BB\u79FB\u52A8\u4F7F\u7528" },
-  { id: "utility_escape_tower", name: "\u9003\u751F\u5854", type: "utility", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u53D1\u5C04\u9003\u9038\u7CFB\u7EDF\u5854\u67B6\uFF0C\u7D27\u6025\u60C5\u51B5\u4E0B\u7275\u5F15\u6307\u6325\u8231\u8131\u79BB\u6545\u969C\u8FD0\u8F7D\u706B\u7BAD" },
-  { id: "utility_light", name: "\u7167\u660E\u706F", type: "utility", mass: 15, fuelMass: 0, thrust: 0, isp: 0, cost: 100, description: "LED \u7167\u660E\u706F\uFF0C\u53EF\u5B9A\u5411\u7167\u5C04\uFF0C\u9002\u7528\u4E8E\u591C\u95F4\u7740\u9646\u6216\u8231\u5916\u4F5C\u4E1A\u7167\u660E" },
+  { id: "utility_dock_mk12", name: "\u5BF9\u63A5\u7AEF\u53E3 Mk1-2", type: "utility", mass: 150, fuelMass: 0, thrust: 0, isp: 0, cost: 280, techRequired: "flight_control", description: "\u6807\u51C6\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u652F\u6301\u98DE\u8239\u95F4\u5BF9\u63A5\u4E0E\u71C3\u6599\u4F20\u8F93\uFF0C\u9002\u7528\u4E8E\u8F7D\u4EBA\u4EFB\u52A1" },
+  { id: "utility_dock_jr", name: "\u5BF9\u63A5\u7AEF\u53E3 Jr.", type: "utility", mass: 20, fuelMass: 0, thrust: 0, isp: 0, cost: 120, techRequired: "flight_control", description: "\u5C0F\u578B\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u9002\u7528\u4E8E\u65E0\u4EBA\u63A2\u6D4B\u5668\u6216\u5C0F\u578B\u822A\u5929\u5668\u5BF9\u63A5" },
+  { id: "utility_dock_sr", name: "\u5BF9\u63A5\u7AEF\u53E3 Sr.", type: "utility", mass: 400, fuelMass: 0, thrust: 0, isp: 0, cost: 900, techRequired: "space_exploration", description: "\u91CD\u578B\u5BF9\u63A5\u7AEF\u53E3\uFF0C\u76F4\u5F84\u5927\uFF0C\u7ED3\u6784\u5F3A\u5EA6\u9AD8\uFF0C\u9002\u7528\u4E8E\u5927\u578B\u7A7A\u95F4\u7AD9\u6A21\u5757\u5BF9\u63A5" },
+  { id: "utility_ladder_p1", name: "\u68AF\u5B50 P1", type: "utility", mass: 5, fuelMass: 0, thrust: 0, isp: 0, cost: 50, techRequired: "survivability", description: "\u77ED\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u79FB\u52A8\u4F7F\u7528\uFF0C\u9002\u7528\u4E8E\u7740\u9646\u5668\u81F3\u5730\u9762" },
+  { id: "utility_ladder_p2", name: "\u68AF\u5B50 P2", type: "utility", mass: 10, fuelMass: 0, thrust: 0, isp: 0, cost: 100, techRequired: "survivability", description: "\u957F\u4F38\u7F29\u68AF\uFF0C\u4F9B\u5B87\u822A\u5458\u8231\u5916\u957F\u8DDD\u79BB\u79FB\u52A8\u4F7F\u7528" },
+  { id: "utility_escape_tower", name: "\u9003\u751F\u5854", type: "utility", mass: 100, fuelMass: 0, thrust: 0, isp: 0, cost: 500, techRequired: "survivability", description: "\u53D1\u5C04\u9003\u9038\u7CFB\u7EDF\u5854\u67B6\uFF0C\u7D27\u6025\u60C5\u51B5\u4E0B\u7275\u5F15\u6307\u6325\u8231\u8131\u79BB\u6545\u969C\u8FD0\u8F7D\u706B\u7BAD" },
+  { id: "utility_light", name: "\u7167\u660E\u706F", type: "utility", mass: 15, fuelMass: 0, thrust: 0, isp: 0, cost: 100, techRequired: "basic_rocketry", description: "LED \u7167\u660E\u706F\uFF0C\u53EF\u5B9A\u5411\u7167\u5C04\uFF0C\u9002\u7528\u4E8E\u591C\u95F4\u7740\u9646\u6216\u8231\u5916\u4F5C\u4E1A\u7167\u660E" },
   // ===== KSPIE — 聚变引擎 (Fusion Engines) =====
-  { id: "fusion_tokamak", name: "\u6258\u5361\u9A6C\u514B\u805A\u53D8\u53CD\u5E94\u5806", type: "fusion", mass: 12e3, fuelMass: 0, thrust: 0, isp: 0, cost: 5e4, description: "\u6C18-\u6C1A\u6258\u5361\u9A6C\u514B\u78C1\u7EA6\u675F\u805A\u53D8\u53CD\u5E94\u5806\uFF0C\u6301\u7EED\u8F93\u51FAGW\u7EA7\u7535\u529B\uFF0C\u4E3A\u805A\u53D8\u5F15\u64CE\u4F9B\u80FD" },
-  { id: "fusion_inertial", name: "ICF \u60EF\u6027\u7EA6\u675F\u805A\u53D8\u5806", type: "fusion", mass: 8e3, fuelMass: 0, thrust: 0, isp: 0, cost: 38e3, description: "\u6FC0\u5149\u60EF\u6027\u7EA6\u675F\u805A\u53D8\u53CD\u5E94\u5806\uFF0C\u8109\u51B2\u5F0F\u70B9\u706B\uFF0C\u9002\u5408\u95F4\u6B47\u9AD8\u529F\u7387\u8F93\u51FA" },
-  { id: "engine_fusion_thermal", name: "\u70ED\u6838\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 6e3, fuelMass: 0, thrust: 8e5, isp: 2500, cost: 45e3, description: "\u6838\u70ED\u805A\u53D8\u63A8\u8FDB\uFF0C\u5229\u7528\u805A\u53D8\u7B49\u79BB\u5B50\u4F53\u52A0\u70ED\u63A8\u8FDB\u5242\uFF0C\u6BD4\u51B2\u8FDC\u8D85\u5316\u5B66\u5F15\u64CE" },
-  { id: "engine_fusion_direct", name: "\u76F4\u63A5\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 9e3, fuelMass: 0, thrust: 12e5, isp: 3500, cost: 65e3, description: "\u76F4\u63A5\u5C06\u805A\u53D8\u4EA7\u7269\u4F5C\u4E3A\u63A8\u8FDB\u5242\u55B7\u5C04\uFF0C\u63A8\u529B\u4E0E\u6BD4\u51B2\u517C\u987E\u7684\u7EC8\u6781\u63A8\u8FDB\u7CFB\u7EDF" },
-  { id: "fusion_fuel_tank", name: "\u805A\u53D8\u71C3\u6599\u50A8\u7F50", type: "fuel", mass: 2e3, fuelMass: 15e3, thrust: 0, isp: 0, cost: 12e3, description: "\u6C18-\u6C263\u805A\u53D8\u71C3\u6599\u50A8\u7F50\uFF0C\u627F\u53D7\u6781\u7AEF\u538B\u529B\u4E0E\u6E29\u5EA6\uFF0C\u4E3A\u805A\u53D8\u5F15\u64CE\u4F9B\u5E94\u71C3\u6599" },
-  { id: "fusion_generator", name: "\u805A\u53D8\u53D1\u7535\u673A\u7EC4", type: "fusion", mass: 4e3, fuelMass: 0, thrust: 0, isp: 0, cost: 22e3, description: "\u5C06\u805A\u53D8\u80FD\u91CF\u8F6C\u6362\u4E3A\u7535\u529B\u7684\u5927\u578B\u53D1\u7535\u673A\u7EC4\uFF0C\u4E3A\u98DE\u8239\u5168\u5957\u7CFB\u7EDF\u4F9B\u80FD" },
+  { id: "fusion_tokamak", name: "\u6258\u5361\u9A6C\u514B\u805A\u53D8\u53CD\u5E94\u5806", type: "fusion", mass: 12e3, fuelMass: 0, thrust: 0, isp: 0, cost: 5e4, techRequired: "advanced_propulsion", description: "\u6C18-\u6C1A\u6258\u5361\u9A6C\u514B\u78C1\u7EA6\u675F\u805A\u53D8\u53CD\u5E94\u5806\uFF0C\u6301\u7EED\u8F93\u51FAGW\u7EA7\u7535\u529B\uFF0C\u4E3A\u805A\u53D8\u5F15\u64CE\u4F9B\u80FD" },
+  { id: "fusion_inertial", name: "ICF \u60EF\u6027\u7EA6\u675F\u805A\u53D8\u5806", type: "fusion", mass: 8e3, fuelMass: 0, thrust: 0, isp: 0, cost: 38e3, techRequired: "advanced_propulsion", description: "\u6FC0\u5149\u60EF\u6027\u7EA6\u675F\u805A\u53D8\u53CD\u5E94\u5806\uFF0C\u8109\u51B2\u5F0F\u70B9\u706B\uFF0C\u9002\u5408\u95F4\u6B47\u9AD8\u529F\u7387\u8F93\u51FA" },
+  { id: "engine_fusion_thermal", name: "\u70ED\u6838\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 6e3, fuelMass: 0, thrust: 8e5, isp: 2500, cost: 45e3, techRequired: "advanced_propulsion", description: "\u6838\u70ED\u805A\u53D8\u63A8\u8FDB\uFF0C\u5229\u7528\u805A\u53D8\u7B49\u79BB\u5B50\u4F53\u52A0\u70ED\u63A8\u8FDB\u5242\uFF0C\u6BD4\u51B2\u8FDC\u8D85\u5316\u5B66\u5F15\u64CE" },
+  { id: "engine_fusion_direct", name: "\u76F4\u63A5\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 9e3, fuelMass: 0, thrust: 12e5, isp: 3500, cost: 65e3, techRequired: "advanced_propulsion", description: "\u76F4\u63A5\u5C06\u805A\u53D8\u4EA7\u7269\u4F5C\u4E3A\u63A8\u8FDB\u5242\u55B7\u5C04\uFF0C\u63A8\u529B\u4E0E\u6BD4\u51B2\u517C\u987E\u7684\u7EC8\u6781\u63A8\u8FDB\u7CFB\u7EDF" },
+  { id: "fusion_fuel_tank", name: "\u805A\u53D8\u71C3\u6599\u50A8\u7F50", type: "fuel", mass: 2e3, fuelMass: 15e3, thrust: 0, isp: 0, cost: 12e3, diameter: 3.75, capacity: 500, techRequired: "advanced_propulsion", description: "\u6C18-\u6C263\u805A\u53D8\u71C3\u6599\u50A8\u7F50\uFF0C\u627F\u53D7\u6781\u7AEF\u538B\u529B\u4E0E\u6E29\u5EA6\uFF0C\u4E3A\u805A\u53D8\u5F15\u64CE\u4F9B\u5E94\u71C3\u6599" },
+  { id: "fusion_generator", name: "\u805A\u53D8\u53D1\u7535\u673A\u7EC4", type: "fusion", mass: 4e3, fuelMass: 0, thrust: 0, isp: 0, cost: 22e3, techRequired: "advanced_propulsion", description: "\u5C06\u805A\u53D8\u80FD\u91CF\u8F6C\u6362\u4E3A\u7535\u529B\u7684\u5927\u578B\u53D1\u7535\u673A\u7EC4\uFF0C\u4E3A\u98DE\u8239\u5168\u5957\u7CFB\u7EDF\u4F9B\u80FD" },
   // ===== KSPIE — 曲速引擎 (Warp Drive) =====
-  { id: "warp_alcubierre", name: "\u963F\u5C14\u5E93\u522B\u96F7\u66F2\u901F\u5F15\u64CE", type: "warp", mass: 15e3, fuelMass: 0, thrust: 0, isp: 0, cost: 1e5, description: "\u901A\u8FC7\u5F2F\u66F2\u65F6\u7A7A\u5B9E\u73B0\u8D85\u5149\u901F\u822A\u884C\u7684\u66F2\u901F\u5F15\u64CE\uFF0C\u9700\u8981\u5F02\u7269\u8D28\u4F5C\u4E3A\u71C3\u6599" },
-  { id: "warp_drive_mk2", name: "\u66F2\u901F\u5F15\u64CE Mk2", type: "warp", mass: 18e3, fuelMass: 0, thrust: 0, isp: 0, cost: 15e4, description: "\u6539\u8FDB\u578B\u66F2\u901F\u5F15\u64CE\uFF0C\u66F4\u9AD8\u7684\u66F2\u901F\u5C42\u7EA7\u4E0A\u9650\uFF0C\u51CF\u5C11\u65F6\u7A7A\u5E94\u529B\u635F\u4F24" },
-  { id: "warp_fuel_tank", name: "\u5F02\u7269\u8D28\u50A8\u7F50", type: "warp", mass: 3e3, fuelMass: 500, thrust: 0, isp: 0, cost: 5e4, description: "\u50A8\u5B58\u8D1F\u8D28\u91CF\u5F02\u7269\u8D28\u7684\u7279\u6B8A\u5BB9\u5668\uFF0C\u4E3A\u66F2\u901F\u5F15\u64CE\u63D0\u4F9B\u66F2\u901F\u573A\u6240\u9700\u80FD\u91CF" },
+  { id: "warp_alcubierre", name: "\u963F\u5C14\u5E93\u522B\u96F7\u66F2\u901F\u5F15\u64CE", type: "warp", mass: 15e3, fuelMass: 0, thrust: 0, isp: 0, cost: 1e5, techRequired: "interstellar_travel", description: "\u901A\u8FC7\u5F2F\u66F2\u65F6\u7A7A\u5B9E\u73B0\u8D85\u5149\u901F\u822A\u884C\u7684\u66F2\u901F\u5F15\u64CE\uFF0C\u9700\u8981\u5F02\u7269\u8D28\u4F5C\u4E3A\u71C3\u6599" },
+  { id: "warp_drive_mk2", name: "\u66F2\u901F\u5F15\u64CE Mk2", type: "warp", mass: 18e3, fuelMass: 0, thrust: 0, isp: 0, cost: 15e4, techRequired: "interstellar_travel", description: "\u6539\u8FDB\u578B\u66F2\u901F\u5F15\u64CE\uFF0C\u66F4\u9AD8\u7684\u66F2\u901F\u5C42\u7EA7\u4E0A\u9650\uFF0C\u51CF\u5C11\u65F6\u7A7A\u5E94\u529B\u635F\u4F24" },
+  { id: "warp_fuel_tank", name: "\u5F02\u7269\u8D28\u50A8\u7F50", type: "warp", mass: 3e3, fuelMass: 500, thrust: 0, isp: 0, cost: 5e4, diameter: 2.5, capacity: 50, techRequired: "interstellar_travel", description: "\u50A8\u5B58\u8D1F\u8D28\u91CF\u5F02\u7269\u8D28\u7684\u7279\u6B8A\u5BB9\u5668\uFF0C\u4E3A\u66F2\u901F\u5F15\u64CE\u63D0\u4F9B\u66F2\u901F\u573A\u6240\u9700\u80FD\u91CF" },
   // ===== KSPIE — 反物质引擎 (Antimatter) =====
-  { id: "antimatter_engine", name: "\u53CD\u7269\u8D28\u6E6E\u706D\u5F15\u64CE", type: "antimatter", mass: 7e3, fuelMass: 0, thrust: 2e6, isp: 1e4, cost: 2e5, description: "\u7269\u8D28-\u53CD\u7269\u8D28\u6E6E\u706D\u63A8\u8FDB\uFF0C\u5DF2\u77E5\u6700\u9AD8\u6BD4\u51B2\u7684\u63A8\u8FDB\u65B9\u5F0F\uFF0C\u7406\u8BBA\u6BD4\u51B2\u53EF\u8FBE\u767E\u4E07\u79D2" },
-  { id: "antimatter_tank", name: "\u53CD\u7269\u8D28\u78C1\u7EA6\u675F\u50A8\u7F50", type: "antimatter", mass: 5e3, fuelMass: 100, thrust: 0, isp: 0, cost: 8e4, description: "\u4F7F\u7528\u78C1\u60AC\u6D6E\u7EA6\u675F\u50A8\u5B58\u53CD\u8D28\u5B50\u7684\u8D85\u4F4E\u6E29\u50A8\u7F50\uFF0C\u4EFB\u4F55\u6CC4\u9732\u90FD\u662F\u707E\u96BE\u6027\u7684" },
-  { id: "antimatter_collector", name: "\u53CD\u7269\u8D28\u6536\u96C6\u5668", type: "antimatter", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 35e3, description: "\u4ECE\u884C\u661F\u78C1\u5C42\u6216\u592A\u9633\u98CE\u4E2D\u6536\u96C6\u53CD\u8D28\u5B50\u7684\u7535\u78C1\u6536\u96C6\u88C5\u7F6E" },
+  { id: "antimatter_engine", name: "\u53CD\u7269\u8D28\u6E6E\u706D\u5F15\u64CE", type: "antimatter", mass: 7e3, fuelMass: 0, thrust: 2e6, isp: 1e4, cost: 2e5, techRequired: "interstellar_travel", description: "\u7269\u8D28-\u53CD\u7269\u8D28\u6E6E\u706D\u63A8\u8FDB\uFF0C\u5DF2\u77E5\u6700\u9AD8\u6BD4\u51B2\u7684\u63A8\u8FDB\u65B9\u5F0F\uFF0C\u7406\u8BBA\u6BD4\u51B2\u53EF\u8FBE\u767E\u4E07\u79D2" },
+  { id: "antimatter_tank", name: "\u53CD\u7269\u8D28\u78C1\u7EA6\u675F\u50A8\u7F50", type: "antimatter", mass: 5e3, fuelMass: 100, thrust: 0, isp: 0, cost: 8e4, diameter: 2.5, capacity: 10, techRequired: "interstellar_travel", description: "\u4F7F\u7528\u78C1\u60AC\u6D6E\u7EA6\u675F\u50A8\u5B58\u53CD\u8D28\u5B50\u7684\u8D85\u4F4E\u6E29\u50A8\u7F50\uFF0C\u4EFB\u4F55\u6CC4\u9732\u90FD\u662F\u707E\u96BE\u6027\u7684" },
+  { id: "antimatter_collector", name: "\u53CD\u7269\u8D28\u6536\u96C6\u5668", type: "antimatter", mass: 2e3, fuelMass: 0, thrust: 0, isp: 0, cost: 35e3, techRequired: "interstellar_travel", description: "\u4ECE\u884C\u661F\u78C1\u5C42\u6216\u592A\u9633\u98CE\u4E2D\u6536\u96C6\u53CD\u8D28\u5B50\u7684\u7535\u78C1\u6536\u96C6\u88C5\u7F6E" },
   // ===== KSPIE — 等离子引擎 (Plasma) =====
-  { id: "plasma_vasimr", name: "VASIMR \u7B49\u79BB\u5B50\u5F15\u64CE", type: "plasma", mass: 3e3, fuelMass: 0, thrust: 5e4, isp: 6e3, cost: 28e3, description: "\u53EF\u53D8\u6BD4\u51B2\u78C1\u7B49\u79BB\u5B50\u706B\u7BAD\uFF0C\u63A8\u529B\u4E0E\u6BD4\u51B2\u53EF\u8C03\uFF0C\u9002\u5408\u884C\u661F\u9645\u9AD8\u901F\u8F6C\u79FB" },
-  { id: "plasma_magnet_nozzle", name: "\u78C1\u7B49\u79BB\u5B50\u55B7\u7BA1", type: "plasma", mass: 1500, fuelMass: 0, thrust: 3e4, isp: 8e3, cost: 18e3, description: "\u78C1\u7EA6\u675F\u7B49\u79BB\u5B50\u55B7\u7BA1\uFF0C\u5C06\u9AD8\u6E29\u7B49\u79BB\u5B50\u4F53\u5B9A\u5411\u55B7\u5C04\u4EA7\u751F\u63A8\u529B" },
-  { id: "plasma_argon_tank", name: "\u6C29\u7B49\u79BB\u5B50\u71C3\u6599\u7F50", type: "plasma", mass: 800, fuelMass: 8e3, thrust: 0, isp: 0, cost: 6e3, description: "\u6C29\u6C14\u50A8\u7F50\uFF0C\u4E3A\u7B49\u79BB\u5B50\u5F15\u64CE\u4F9B\u5E94\u5DE5\u4F5C\u4ECB\u8D28" },
+  { id: "plasma_vasimr", name: "VASIMR \u7B49\u79BB\u5B50\u5F15\u64CE", type: "plasma", mass: 3e3, fuelMass: 0, thrust: 5e4, isp: 6e3, cost: 28e3, techRequired: "advanced_propulsion", description: "\u53EF\u53D8\u6BD4\u51B2\u78C1\u7B49\u79BB\u5B50\u706B\u7BAD\uFF0C\u63A8\u529B\u4E0E\u6BD4\u51B2\u53EF\u8C03\uFF0C\u9002\u5408\u884C\u661F\u9645\u9AD8\u901F\u8F6C\u79FB" },
+  { id: "plasma_magnet_nozzle", name: "\u78C1\u7B49\u79BB\u5B50\u55B7\u7BA1", type: "plasma", mass: 1500, fuelMass: 0, thrust: 3e4, isp: 8e3, cost: 18e3, techRequired: "advanced_propulsion", description: "\u78C1\u7EA6\u675F\u7B49\u79BB\u5B50\u55B7\u7BA1\uFF0C\u5C06\u9AD8\u6E29\u7B49\u79BB\u5B50\u4F53\u5B9A\u5411\u55B7\u5C04\u4EA7\u751F\u63A8\u529B" },
+  { id: "plasma_argon_tank", name: "\u6C29\u7B49\u79BB\u5B50\u71C3\u6599\u7F50", type: "plasma", mass: 800, fuelMass: 8e3, thrust: 0, isp: 0, cost: 6e3, diameter: 1.25, capacity: 300, techRequired: "advanced_propulsion", description: "\u6C29\u6C14\u50A8\u7F50\uFF0C\u4E3A\u7B49\u79BB\u5B50\u5F15\u64CE\u4F9B\u5E94\u5DE5\u4F5C\u4ECB\u8D28" },
   // ===== KSPIE — 散热系统 (Radiators) =====
-  { id: "radiator_graphene", name: "\u77F3\u58A8\u70EF\u6563\u70ED\u677F", type: "radiator", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 8e3, description: "\u8D85\u8F7B\u77F3\u58A8\u70EF\u6563\u70ED\u677F\uFF0C\u8F90\u5C04\u6548\u7387\u6781\u9AD8\uFF0C\u4E3A\u805A\u53D8/\u53CD\u7269\u8D28\u7CFB\u7EDF\u6563\u70ED" },
-  { id: "radiator_quantum", name: "\u91CF\u5B50\u6563\u70ED\u5668", type: "radiator", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 15e3, description: "\u91CF\u5B50\u8026\u5408\u6563\u70ED\u5668\uFF0C\u4E0D\u4F9D\u8D56\u6E29\u5DEE\u8F90\u5C04\u6563\u70ED\uFF0C\u9002\u7528\u4E8E\u6781\u7AEF\u70ED\u73AF\u5883" },
-  { id: "radiator_foldable", name: "\u6298\u53E0\u5F0F\u6563\u70ED\u677F", type: "radiator", mass: 300, fuelMass: 0, thrust: 0, isp: 0, cost: 3e3, description: "\u53EF\u6298\u53E0\u6536\u7EB3\u7684\u5927\u9762\u79EF\u6563\u70ED\u677F\uFF0C\u53D1\u5C04\u65F6\u7D27\u51D1\uFF0C\u5728\u8F68\u5C55\u5F00" },
+  { id: "radiator_graphene", name: "\u77F3\u58A8\u70EF\u6563\u70ED\u677F", type: "radiator", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 8e3, techRequired: "advanced_propulsion", description: "\u8D85\u8F7B\u77F3\u58A8\u70EF\u6563\u70ED\u677F\uFF0C\u8F90\u5C04\u6548\u7387\u6781\u9AD8\uFF0C\u4E3A\u805A\u53D8/\u53CD\u7269\u8D28\u7CFB\u7EDF\u6563\u70ED" },
+  { id: "radiator_quantum", name: "\u91CF\u5B50\u6563\u70ED\u5668", type: "radiator", mass: 1200, fuelMass: 0, thrust: 0, isp: 0, cost: 15e3, techRequired: "interstellar_travel", description: "\u91CF\u5B50\u8026\u5408\u6563\u70ED\u5668\uFF0C\u4E0D\u4F9D\u8D56\u6E29\u5DEE\u8F90\u5C04\u6563\u70ED\uFF0C\u9002\u7528\u4E8E\u6781\u7AEF\u70ED\u73AF\u5883" },
+  { id: "radiator_foldable", name: "\u6298\u53E0\u5F0F\u6563\u70ED\u677F", type: "radiator", mass: 300, fuelMass: 0, thrust: 0, isp: 0, cost: 3e3, techRequired: "space_exploration", description: "\u53EF\u6298\u53E0\u6536\u7EB3\u7684\u5927\u9762\u79EF\u6563\u70ED\u677F\uFF0C\u53D1\u5C04\u65F6\u7D27\u51D1\uFF0C\u5728\u8F68\u5C55\u5F00" },
   // ===== KSPIE — ISRU 采矿系统 (Mining) =====
-  { id: "mining_drill", name: "ISRU \u91C7\u77FF\u94BB\u673A", type: "mining", mass: 1500, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, description: "\u884C\u661F\u8868\u9762\u8D44\u6E90\u5F00\u91C7\u94BB\u673A\uFF0C\u53EF\u63D0\u53D6\u77FF\u77F3\u4E2D\u7684\u6709\u7528\u77FF\u7269" },
-  { id: "mining_refinery", name: "ISRU \u7CBE\u70BC\u5382", type: "mining", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 18e3, description: "\u5C06\u539F\u77FF\u77F3\u7CBE\u70BC\u4E3A\u71C3\u6599\u6216\u5EFA\u9020\u6750\u6599\u7684\u79FB\u52A8\u7CBE\u70BC\u8BBE\u65BD" },
-  { id: "mining_scoop", name: "\u5927\u6C14\u6536\u5272\u673A", type: "mining", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 6e3, description: "\u4ECE\u5927\u6C14\u5C42\u4E2D\u6536\u96C6\u6C14\u4F53\u5E76\u5206\u79BB\u6709\u7528\u6210\u5206\uFF0C\u53EF\u5728\u5927\u6C14\u98DE\u63A0\u65F6\u4F7F\u7528" },
+  { id: "mining_drill", name: "ISRU \u91C7\u77FF\u94BB\u673A", type: "mining", mass: 1500, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, techRequired: "landing_techniques", description: "\u884C\u661F\u8868\u9762\u8D44\u6E90\u5F00\u91C7\u94BB\u673A\uFF0C\u53EF\u63D0\u53D6\u77FF\u77F3\u4E2D\u7684\u6709\u7528\u77FF\u7269" },
+  { id: "mining_refinery", name: "ISRU \u7CBE\u70BC\u5382", type: "mining", mass: 2500, fuelMass: 0, thrust: 0, isp: 0, cost: 18e3, techRequired: "landing_techniques", description: "\u5C06\u539F\u77FF\u77F3\u7CBE\u70BC\u4E3A\u71C3\u6599\u6216\u5EFA\u9020\u6750\u6599\u7684\u79FB\u52A8\u7CBE\u70BC\u8BBE\u65BD" },
+  { id: "mining_scoop", name: "\u5927\u6C14\u6536\u5272\u673A", type: "mining", mass: 800, fuelMass: 0, thrust: 0, isp: 0, cost: 6e3, techRequired: "landing_techniques", description: "\u4ECE\u5927\u6C14\u5C42\u4E2D\u6536\u96C6\u6C14\u4F53\u5E76\u5206\u79BB\u6709\u7528\u6210\u5206\uFF0C\u53EF\u5728\u5927\u6C14\u98DE\u63A0\u65F6\u4F7F\u7528" },
   // ===== KSPIE — 殖民模块 (Colony) =====
-  { id: "colony_habitat", name: "\u6B96\u6C11\u5730\u5C45\u4F4F\u8231", type: "colony", mass: 8e3, fuelMass: 0, thrust: 0, isp: 0, cost: 4e4, description: "\u53EF\u5C55\u5F00\u7684\u5BC6\u5C01\u5C45\u4F4F\u8231\uFF0C\u5BB9\u7EB312\u4EBA\uFF0C\u914D\u5907\u751F\u547D\u7EF4\u6301\u4E0E\u8F90\u5C04\u9632\u62A4" },
-  { id: "colony_greenhouse", name: "\u6B96\u6C11\u5730\u6E29\u5BA4", type: "colony", mass: 4e3, fuelMass: 0, thrust: 0, isp: 0, cost: 2e4, description: "\u5BC6\u95ED\u751F\u6001\u6E29\u5BA4\uFF0C\u79CD\u690D\u98DF\u7269\u5E76\u5FAA\u73AF\u6C27\u6C14\uFF0C\u5B9E\u73B0\u957F\u671F\u81EA\u7ED9\u81EA\u8DB3" },
-  { id: "colony_power", name: "\u6B96\u6C11\u5730\u6838\u7535\u7AD9", type: "colony", mass: 6e3, fuelMass: 0, thrust: 0, isp: 0, cost: 25e3, description: "\u4E3A\u6B96\u6C11\u5730\u63D0\u4F9B\u6301\u7EED\u7535\u529B\u7684\u5C0F\u578B\u6838\u88C2\u53D8\u53D1\u7535\u7AD9" },
-  { id: "colony_landing_pad", name: "\u6B96\u6C11\u5730\u7740\u9646\u576A", type: "colony", mass: 3e3, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, description: "\u5E73\u6574\u5F3A\u5316\u7740\u9646\u533A\u57DF\uFF0C\u4E3A\u5F80\u8FD4\u98DE\u8239\u63D0\u4F9B\u5B89\u5168\u8D77\u964D\u5E73\u53F0" },
+  { id: "colony_habitat", name: "\u6B96\u6C11\u5730\u5C45\u4F4F\u8231", type: "colony", mass: 8e3, fuelMass: 0, thrust: 0, isp: 0, cost: 4e4, techRequired: "interstellar_travel", description: "\u53EF\u5C55\u5F00\u7684\u5BC6\u5C01\u5C45\u4F4F\u8231\uFF0C\u5BB9\u7EB312\u4EBA\uFF0C\u914D\u5907\u751F\u547D\u7EF4\u6301\u4E0E\u8F90\u5C04\u9632\u62A4" },
+  { id: "colony_greenhouse", name: "\u6B96\u6C11\u5730\u6E29\u5BA4", type: "colony", mass: 4e3, fuelMass: 0, thrust: 0, isp: 0, cost: 2e4, techRequired: "interstellar_travel", description: "\u5BC6\u95ED\u751F\u6001\u6E29\u5BA4\uFF0C\u79CD\u690D\u98DF\u7269\u5E76\u5FAA\u73AF\u6C27\u6C14\uFF0C\u5B9E\u73B0\u957F\u671F\u81EA\u7ED9\u81EA\u8DB3" },
+  { id: "colony_power", name: "\u6B96\u6C11\u5730\u6838\u7535\u7AD9", type: "colony", mass: 6e3, fuelMass: 0, thrust: 0, isp: 0, cost: 25e3, techRequired: "interstellar_travel", description: "\u4E3A\u6B96\u6C11\u5730\u63D0\u4F9B\u6301\u7EED\u7535\u529B\u7684\u5C0F\u578B\u6838\u88C2\u53D8\u53D1\u7535\u7AD9" },
+  { id: "colony_landing_pad", name: "\u6B96\u6C11\u5730\u7740\u9646\u576A", type: "colony", mass: 3e3, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, techRequired: "interstellar_travel", description: "\u5E73\u6574\u5F3A\u5316\u7740\u9646\u533A\u57DF\uFF0C\u4E3A\u5F80\u8FD4\u98DE\u8239\u63D0\u4F9B\u5B89\u5168\u8D77\u964D\u5E73\u53F0" },
   // ===== KSPIE — 高级结构 (Advanced Structural) =====
-  { id: "structural_truss_xl", name: "XL \u6841\u67B6\u6BB5", type: "structural", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 500, description: "\u8D85\u5927\u578B\u6841\u67B6\u6BB5\uFF0C\u7528\u4E8E\u6784\u5EFA\u7A7A\u95F4\u7AD9\u9AA8\u67B6\u6216\u5927\u578B\u5929\u7EBF\u9635\u5217\u652F\u6491" },
-  { id: "structural_hub_multi", name: "\u591A\u529F\u80FD\u67A2\u7EBD\u8282\u70B9", type: "structural", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, description: "\u516D\u5411\u5BF9\u63A5\u67A2\u7EBD\u8282\u70B9\uFF0C\u53EF\u540C\u65F6\u8FDE\u63A5\u516D\u4E2A\u6A21\u5757\uFF0C\u7A7A\u95F4\u7AD9\u6838\u5FC3\u7EC4\u4EF6" },
-  { id: "structural_beam_power", name: "\u6CE2\u675F\u7535\u529B\u4F20\u8F93\u9635\u5217", type: "structural", mass: 1e3, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, description: "\u5C06\u7535\u529B\u4EE5\u5FAE\u6CE2\u675F\u8FDC\u7A0B\u4F20\u8F93\u81F3\u5176\u4ED6\u98DE\u8239\u6216\u5730\u9762\u7AD9" }
+  { id: "structural_truss_xl", name: "XL \u6841\u67B6\u6BB5", type: "structural", mass: 200, fuelMass: 0, thrust: 0, isp: 0, cost: 500, techRequired: "space_exploration", description: "\u8D85\u5927\u578B\u6841\u67B6\u6BB5\uFF0C\u7528\u4E8E\u6784\u5EFA\u7A7A\u95F4\u7AD9\u9AA8\u67B6\u6216\u5927\u578B\u5929\u7EBF\u9635\u5217\u652F\u6491" },
+  { id: "structural_hub_multi", name: "\u591A\u529F\u80FD\u67A2\u7EBD\u8282\u70B9", type: "structural", mass: 500, fuelMass: 0, thrust: 0, isp: 0, cost: 1500, techRequired: "space_exploration", description: "\u516D\u5411\u5BF9\u63A5\u67A2\u7EBD\u8282\u70B9\uFF0C\u53EF\u540C\u65F6\u8FDE\u63A5\u516D\u4E2A\u6A21\u5757\uFF0C\u7A7A\u95F4\u7AD9\u6838\u5FC3\u7EC4\u4EF6" },
+  { id: "structural_beam_power", name: "\u6CE2\u675F\u7535\u529B\u4F20\u8F93\u9635\u5217", type: "structural", mass: 1e3, fuelMass: 0, thrust: 0, isp: 0, cost: 12e3, techRequired: "interstellar_travel", description: "\u5C06\u7535\u529B\u4EE5\u5FAE\u6CE2\u675F\u8FDC\u7A0B\u4F20\u8F93\u81F3\u5176\u4ED6\u98DE\u8239\u6216\u5730\u9762\u7AD9" },
+  // ===== ★★ 迭代31-35: 新增14个KSPIE零件 (目标60个KSPIE零件) =====
+  // KSPIE — 高级聚变系统
+  { id: "fusion_stellerator", name: "\u4EFF\u661F\u5668\u805A\u53D8\u53CD\u5E94\u5806", type: "fusion", mass: 14e3, fuelMass: 0, thrust: 0, isp: 0, cost: 55e3, description: "\u87BA\u65CB\u5F62\u78C1\u7EA6\u675F\u4EFF\u661F\u5668\u805A\u53D8\u5806\uFF0C\u8FDE\u7EED\u7A33\u6001\u8FD0\u884C\uFF0C\u6BD4\u6258\u5361\u9A6C\u514B\u66F4\u7A33\u5B9A", techRequired: "advanced_propulsion", diameter: 5 },
+  { id: "fusion_aneutronic", name: "\u65E0\u4E2D\u5B50\u805A\u53D8\u53CD\u5E94\u5806", type: "fusion", mass: 11e3, fuelMass: 0, thrust: 0, isp: 0, cost: 7e4, description: "\u6C26-3-\u6C18\u65E0\u4E2D\u5B50\u805A\u53D8\u5806\uFF0C\u65E0\u9700\u539A\u91CD\u8F90\u5C04\u5C4F\u853D\uFF0C\u8D28\u91CF\u6BD4\u5927\u5E45\u964D\u4F4E", techRequired: "interstellar_travel", diameter: 4 },
+  { id: "fusion_zpinch", name: "Z\u7B8D\u7F29\u805A\u53D8\u5806", type: "fusion", mass: 9e3, fuelMass: 0, thrust: 0, isp: 0, cost: 42e3, description: "Z\u7B8D\u7F29\u60EF\u6027\u7EA6\u675F\u805A\u53D8\u5806\uFF0C\u8109\u51B2\u529F\u7387\u9A71\u52A8\uFF0C\u7ED3\u6784\u7D27\u51D1", techRequired: "advanced_propulsion", diameter: 3.5 },
+  { id: "engine_fusion_mag", name: "\u78C1\u55B7\u7BA1\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 7500, fuelMass: 0, thrust: 6e5, isp: 4e3, cost: 55e3, description: "\u78C1\u55B7\u7BA1\u805A\u53D8\u63A8\u8FDB\uFF0C\u5229\u7528\u8D85\u5BFC\u78C1\u573A\u5F15\u5BFC\u805A\u53D8\u7B49\u79BB\u5B50\u4F53\uFF0C\u63A8\u529B\u53EF\u8C03", techRequired: "advanced_propulsion", thrustSeaLevel: 4e5, thrustVacuum: 6e5, ispSeaLevel: 3e3, ispVacuum: 4e3 },
+  { id: "engine_fusion_pulse", name: "\u8109\u51B2\u805A\u53D8\u5F15\u64CE", type: "engine", mass: 8500, fuelMass: 0, thrust: 15e5, isp: 3e3, cost: 6e4, description: "\u8109\u51B2\u5F0F\u805A\u53D8\u63A8\u8FDB\uFF0C\u5FAE\u7206\u70B8\u4EA7\u751F\u63A8\u529B\uFF0C\u9002\u5408\u884C\u661F\u9645\u9AD8\u901F\u8F6C\u79FB", techRequired: "advanced_propulsion", thrustSeaLevel: 12e5, thrustVacuum: 15e5, ispSeaLevel: 2500, ispVacuum: 3e3 },
+  // KSPIE — 高级曲速系统
+  { id: "warp_alcubierre_mk3", name: "\u963F\u5C14\u5E93\u522B\u96F7\u66F2\u901F\u5F15\u64CE Mk3", type: "warp", mass: 22e3, fuelMass: 0, thrust: 0, isp: 0, cost: 25e4, description: "\u7B2C\u4E09\u4EE3\u66F2\u901F\u5F15\u64CE\uFF0C\u66F2\u901F\u5C42\u7EA7\u4E0A\u9650\u63D0\u5347\u81F3\u66F2\u901F9.9\uFF0C\u65F6\u7A7A\u5E94\u529B\u51CF\u5C1180%", techRequired: "interstellar_travel" },
+  { id: "warp_stabilizer", name: "\u66F2\u901F\u7A33\u5B9A\u5668", type: "warp", mass: 5e3, fuelMass: 0, thrust: 0, isp: 0, cost: 8e4, description: "\u66F2\u901F\u573A\u7A33\u5B9A\u5668\uFF0C\u51CF\u5C11\u66F2\u901F\u822A\u884C\u4E2D\u7684\u65F6\u7A7A\u632F\u8361\uFF0C\u63D0\u9AD8\u822A\u884C\u5B89\u5168\u6027", techRequired: "interstellar_travel" },
+  // KSPIE — 高级反物质系统
+  { id: "antimatter_beam", name: "\u53CD\u7269\u8D28\u675F\u6D41\u5F15\u64CE", type: "antimatter", mass: 9e3, fuelMass: 0, thrust: 5e6, isp: 2e4, cost: 35e4, description: "\u53CD\u7269\u8D28\u675F\u6D41\u6838\u5FC3\u5F15\u64CE\uFF0C\u5C06\u53CD\u8D28\u5B50\u675F\u6D41\u805A\u7126\u6E6E\u706D\uFF0C\u63A8\u529B\u5BC6\u5EA6\u6781\u9AD8", techRequired: "interstellar_travel", thrustSeaLevel: 4e6, thrustVacuum: 5e6, ispSeaLevel: 15e3, ispVacuum: 2e4 },
+  { id: "antimatter_factory", name: "\u53CD\u7269\u8D28\u5236\u9020\u5382", type: "antimatter", mass: 15e3, fuelMass: 0, thrust: 0, isp: 0, cost: 2e5, description: "\u5728\u8F68\u53CD\u7269\u8D28\u5236\u9020\u8BBE\u65BD\uFF0C\u5229\u7528\u7C92\u5B50\u52A0\u901F\u5668\u6279\u91CF\u751F\u4EA7\u53CD\u8D28\u5B50", techRequired: "interstellar_travel" },
+  // KSPIE — 高级等离子系统
+  { id: "plasma_fusion_hybrid", name: "\u805A\u53D8\u7B49\u79BB\u5B50\u6DF7\u5408\u5F15\u64CE", type: "plasma", mass: 5e3, fuelMass: 0, thrust: 2e5, isp: 1e4, cost: 4e4, description: "\u805A\u53D8\u589E\u5F3A\u7B49\u79BB\u5B50\u5F15\u64CE\uFF0C\u7ED3\u5408\u805A\u53D8\u4E0E\u7B49\u79BB\u5B50\u63A8\u8FDB\u4F18\u70B9", techRequired: "advanced_propulsion", thrustSeaLevel: 15e4, thrustVacuum: 2e5, ispSeaLevel: 8e3, ispVacuum: 1e4 },
+  { id: "plasma_neutral_beam", name: "\u4E2D\u6027\u675F\u7B49\u79BB\u5B50\u5F15\u64CE", type: "plasma", mass: 2500, fuelMass: 0, thrust: 8e4, isp: 7e3, cost: 22e3, description: "\u4E2D\u6027\u675F\u6CE8\u5165\u7B49\u79BB\u5B50\u63A8\u8FDB\uFF0C\u9AD8\u6548\u7387\u957F\u5BFF\u547D\uFF0C\u9002\u5408\u8D85\u957F\u884C\u661F\u9645\u4EFB\u52A1", techRequired: "advanced_propulsion", thrustSeaLevel: 6e4, thrustVacuum: 8e4, ispSeaLevel: 5500, ispVacuum: 7e3 },
+  // KSPIE — 高级采矿与ISRU
+  { id: "mining_heavy_drill", name: "\u91CD\u578BISRU\u91C7\u77FF\u94BB\u673A", type: "mining", mass: 4e3, fuelMass: 0, thrust: 0, isp: 0, cost: 25e3, description: "\u5927\u529F\u7387\u884C\u661F\u8868\u9762\u91C7\u77FF\u94BB\u673A\uFF0C\u53EF\u5F00\u91C7\u6DF1\u5C42\u77FF\u85CF\u548C\u7A00\u6709\u91D1\u5C5E", techRequired: "landing_techniques" },
+  { id: "mining_chemical_plant", name: "ISRU\u5316\u5B66\u5904\u7406\u5382", type: "mining", mass: 6e3, fuelMass: 0, thrust: 0, isp: 0, cost: 3e4, description: "\u79FB\u52A8\u5316\u5B66\u5904\u7406\u8BBE\u65BD\uFF0C\u5C06\u539F\u77FF\u5206\u79BB\u63D0\u70BC\u4E3A\u591A\u79CD\u71C3\u6599\u548C\u5316\u5DE5\u4EA7\u54C1", techRequired: "landing_techniques" },
+  // KSPIE — 高级殖民系统
+  { id: "colony_dome_mk2", name: "\u6B96\u6C11\u5730\u7A79\u9876\u8231 Mk2", type: "colony", mass: 15e3, fuelMass: 0, thrust: 0, isp: 0, cost: 8e4, description: "\u5927\u578B\u53EF\u5C55\u5F00\u7A79\u9876\u5C45\u4F4F\u8231\uFF0C\u5BB9\u7EB350\u4EBA\uFF0C\u5185\u7F6E\u751F\u6001\u5FAA\u73AF\u4E0E\u8F90\u5C04\u9632\u62A4", techRequired: "interstellar_travel" }
 ];
+globalThis.ROCKET_PARTS = ROCKET_PARTS2;
+globalThis.TECH_TREE = TECH_TREE2;
 
 // src/game/physics.ts
-var DEFAULT_DRAG_POLAR = [
-  { mach: 0, cd: 0.2 },
-  { mach: 0.5, cd: 0.22 },
-  { mach: 0.8, cd: 0.3 },
-  { mach: 0.9, cd: 0.42 },
-  { mach: 1, cd: 0.55 },
-  { mach: 1.1, cd: 0.58 },
-  { mach: 1.5, cd: 0.48 },
-  { mach: 2, cd: 0.38 },
-  { mach: 3, cd: 0.28 },
-  { mach: 5, cd: 0.22 },
-  { mach: 8, cd: 0.18 },
-  { mach: 15, cd: 0.15 },
-  { mach: 25, cd: 0.13 }
-];
 var NBodySystem = class _NBodySystem {
   constructor() {
     this.bodies = [];
@@ -23758,6 +23802,22 @@ var NBodySystem = class _NBodySystem {
     // ════════════════════════════════════════════════════════════════════
     /** Registry of terrain height functions per body name. */
     this.terrainFns = /* @__PURE__ */ new Map();
+    // ====================================================================
+    // [Iter 121-125] Performance optimisation & numerical stability
+    // ====================================================================
+    /** Cached total energy for drift monitoring (Iter 122 / 124). */
+    this.prevTotalEnergy = null;
+    /** Acceleration cache for repeated trajectory queries (Iter 125). */
+    this.accelCache = [];
+    // ====================================================================
+    // [Iter 126-130] Magnetospheric physics
+    // Magnetic-field deflection of charged particles, Van Allen belts,
+    // magnetopause standoff, and trapped-particle diagnostics.
+    // ====================================================================
+    /** Magnetosphere registry: body name → magnetosphere data. */
+    this.magnetospheres = /* @__PURE__ */ new Map();
+    /** Rotation period registry: body name → sidereal rotation period (s). */
+    this.rotationPeriods = /* @__PURE__ */ new Map();
   }
   addBody(body) {
     this.bodies.push(body);
@@ -24073,6 +24133,16 @@ var NBodySystem = class _NBodySystem {
     const totalMass = M + m;
     const muRatio = m / totalMass;
     const sep = primary.position.distanceTo(secondary.position);
+    if (sep < 1) {
+      const z = new Vector3();
+      return [
+        { position: z.clone(), label: "L1", stability: "unstable" },
+        { position: z.clone(), label: "L2", stability: "unstable" },
+        { position: z.clone(), label: "L3", stability: "unstable" },
+        { position: z.clone(), label: "L4", stability: "stable" },
+        { position: z.clone(), label: "L5", stability: "stable" }
+      ];
+    }
     const dir = secondary.position.clone().sub(primary.position).normalize();
     const along = (f) => primary.position.clone().addScaledVector(dir, f * sep);
     const perpDir = new Vector3(0, 1, 0).cross(dir);
@@ -24110,7 +24180,6 @@ var NBodySystem = class _NBodySystem {
     }
     const cos60 = 0.5;
     const sin60 = Math.sqrt(3) / 2;
-    const posL4 = primary.position.clone().addScaledVector(dir, sep * (1 - muRatio - cos60 * muRatio + cos60)).addScaledVector(perpDir, sep * sin60);
     const baryCenter = primary.position.clone().addScaledVector(dir, (1 - muRatio) * sep);
     const posL4v2 = baryCenter.clone().addScaledVector(dir, sep * cos60 * 0.5).addScaledVector(perpDir, sep * sin60 * 0.5);
     const posL5v2 = baryCenter.clone().addScaledVector(dir, sep * cos60 * 0.5).addScaledVector(perpDir, -sep * sin60 * 0.5);
@@ -24142,7 +24211,7 @@ var NBodySystem = class _NBodySystem {
     const n = Math.sqrt(mu / (a * a * a));
     const dPert = satPos.distanceTo(perturber.position);
     if (dPert < 1) return 0;
-    const daDt = 2 * muP / (dPert * dPert * dPert) * a * a / (n * dPert);
+    const daDt = 2 * muP / (dPert * dPert * dPert) * a * a * n;
     return daDt;
   }
   /**
@@ -24367,6 +24436,7 @@ var NBodySystem = class _NBodySystem {
    * @returns Speed of sound (m/s).
    */
   speedOfSound(temp, molarMass = 0.02896) {
+    if (molarMass <= 0 || temp <= 0) return 0;
     const gamma = 1.4;
     const R = 8.314;
     return Math.sqrt(gamma * R * temp / molarMass);
@@ -24441,6 +24511,7 @@ var NBodySystem = class _NBodySystem {
     const dy = pos.y - bodyPos.y;
     const dz = pos.z - bodyPos.z;
     const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < 1e-10) return { lat: 0, lon: 0, alt: 0 };
     const lat = Math.asin(Math.max(-1, Math.min(1, dy / r)));
     const lon = Math.atan2(dz, dx);
     return { lat, lon, alt: r };
@@ -24507,7 +24578,7 @@ var NBodySystem = class _NBodySystem {
    * @returns { force: impact force (N), gForce: equivalent g-load, willBreak: whether part fails }
    */
   landingImpactForce(mass, impactSpeed, crushDistance = 0.5) {
-    if (impactSpeed <= 0) return { force: 0, gForce: 0, willBreak: false };
+    if (impactSpeed <= 0 || mass <= 0) return { force: 0, gForce: 0, willBreak: false };
     const stopTime = Math.max(1e-3, 2 * crushDistance / impactSpeed);
     const force = mass * impactSpeed / stopTime;
     const g = 9.81;
@@ -24555,12 +24626,26 @@ var NBodySystem = class _NBodySystem {
     const mu = G * parentMass;
     const r = pos.length();
     const v = vel.length();
+    if (mu <= 0 || r < 1) {
+      return {
+        semiMajorAxis: 0,
+        eccentricity: 0,
+        inclination: 0,
+        longitudeOfAscendingNode: 0,
+        argumentOfPeriapsis: 0,
+        trueAnomaly: 0,
+        periapsis: 0,
+        apoapsis: 0,
+        orbitalPeriod: 0
+      };
+    }
     const energy = v * v / 2 - mu / r;
-    const a = -mu / (2 * energy);
+    const a = Math.abs(energy) < 1e-10 ? Infinity : -mu / (2 * energy);
     const h = new Vector3().crossVectors(pos, vel);
     const eVec = new Vector3().crossVectors(vel, h).divideScalar(mu).sub(pos.clone().normalize());
     const e = eVec.length();
-    const inc = Math.acos(Math.abs(h.y) / h.length());
+    const hMag = h.length();
+    const inc = hMag > 1e-10 ? Math.acos(Math.max(-1, Math.min(1, Math.abs(h.y) / hMag))) : 0;
     let lan = 0;
     const node = new Vector3(-h.z, 0, h.x);
     if (node.length() > 1e-10) {
@@ -24579,7 +24664,7 @@ var NBodySystem = class _NBodySystem {
     }
     const periapsis = a * (1 - e);
     const apoapsis = a * (1 + e);
-    const period = 2 * Math.PI * Math.sqrt(a * a * a / mu);
+    const period = a > 0 && mu > 0 ? 2 * Math.PI * Math.sqrt(a * a * a / mu) : 0;
     return {
       semiMajorAxis: a,
       eccentricity: e,
@@ -24653,7 +24738,8 @@ var NBodySystem = class _NBodySystem {
    */
   static _positionFromTrueAnomaly(a, e, ta, inc, lan, aop) {
     const p = a * (1 - e * e);
-    const r = p / (1 + e * Math.cos(ta));
+    const denom = 1 + e * Math.cos(ta);
+    const r = Math.abs(denom) > 1e-10 ? p / denom : 1e10;
     const x_pf = r * Math.cos(ta);
     const y_pf = r * Math.sin(ta);
     const cosO = Math.cos(lan), sinO = Math.sin(lan);
@@ -24713,12 +24799,2484 @@ var NBodySystem = class _NBodySystem {
   }
   /** Initialize circular orbit velocity for a body around its parent */
   static circularOrbitVelocity(parentMass, orbitRadius) {
+    if (orbitRadius <= 0) return 0;
     return Math.sqrt(G * parentMass / orbitRadius);
   }
   /** Compute orbital velocity at a given position in an orbit */
   static orbitalVelocity(parentMass, radius, semiMajorAxis) {
     const mu = G * parentMass;
-    return Math.sqrt(mu * (2 / radius - 1 / semiMajorAxis));
+    if (radius <= 0 || mu <= 0 || semiMajorAxis <= 0) return 0;
+    const val = mu * (2 / radius - 1 / semiMajorAxis);
+    return val > 0 ? Math.sqrt(val) : 0;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 1-5] RK4 numerical integrator (4th-order Runge-Kutta)
+  // Replaces first-order Euler with O(dt⁵) local truncation error.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 1] RK4 integrator for a single body under a generic acceleration
+   * function. Propagates position and velocity with 4th-order accuracy.
+   * The acceleration function accFn(pos) returns gravitational acceleration
+   * at position `pos`. This is the building block for higher-level integrators.
+   *
+   * RK4: k1=f(y), k2=f(y+dt/2·k1), k3=f(y+dt/2·k2), k4=f(y+dt·k3)
+   *      y(t+dt) = y + dt/6·(k1 + 2·k2 + 2·k3 + k4)
+   */
+  rk4StepSingle(pos, vel, accFn, dt) {
+    const k1v = vel.clone();
+    const k1a = accFn(pos);
+    const k2v = vel.clone().addScaledVector(k1a, dt * 0.5);
+    const k2a = accFn(pos.clone().addScaledVector(k1v, dt * 0.5));
+    const k3v = vel.clone().addScaledVector(k2a, dt * 0.5);
+    const k3a = accFn(pos.clone().addScaledVector(k2v, dt * 0.5));
+    const k4v = vel.clone().addScaledVector(k3a, dt);
+    const k4a = accFn(pos.clone().addScaledVector(k3v, dt));
+    const newPos = pos.clone().addScaledVector(k1v, dt / 6).addScaledVector(k2v, dt / 3).addScaledVector(k3v, dt / 3).addScaledVector(k4v, dt / 6);
+    const newVel = vel.clone().addScaledVector(k1a, dt / 6).addScaledVector(k2a, dt / 3).addScaledVector(k3a, dt / 3).addScaledVector(k4a, dt / 6);
+    return { pos: newPos, vel: newVel };
+  }
+  /**
+   * [Iter 2] RK4 integration step for the entire N-body system. Propagates
+   * all non-static bodies simultaneously. Each RK4 stage evaluates pairwise
+   * gravitational accelerations at the trial positions. ~4× the cost of
+   * velocity-Verlet step() but has far better long-term energy conservation
+   * for eccentric orbits.
+   */
+  rk4StepSystem(dt) {
+    const n = this.bodies.length;
+    const p0 = [];
+    const v0 = [];
+    const isStatic = [];
+    for (let i = 0; i < n; i++) {
+      p0.push(this.bodies[i].position.clone());
+      v0.push(this.bodies[i].velocity.clone());
+      isStatic.push(this.bodies[i].isStatic);
+    }
+    const computeAcc = (trialPos) => {
+      const accs = [];
+      for (let i = 0; i < n; i++) accs.push(new Vector3());
+      for (let i = 0; i < n; i++) {
+        if (isStatic[i]) continue;
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue;
+          const dx = trialPos[j].x - trialPos[i].x;
+          const dy = trialPos[j].y - trialPos[i].y;
+          const dz = trialPos[j].z - trialPos[i].z;
+          const distSq = dx * dx + dy * dy + dz * dz;
+          if (distSq < 1) continue;
+          const dist = Math.sqrt(distSq);
+          const f = G * this.bodies[j].mass / distSq;
+          accs[i].x += f * dx / dist;
+          accs[i].y += f * dy / dist;
+          accs[i].z += f * dz / dist;
+        }
+      }
+      return accs;
+    };
+    const a1 = computeAcc(p0);
+    const p2 = [];
+    const v2 = [];
+    for (let i = 0; i < n; i++) {
+      p2.push(p0[i].clone().addScaledVector(v0[i], dt * 0.5));
+      v2.push(isStatic[i] ? v0[i].clone() : v0[i].clone().addScaledVector(a1[i], dt * 0.5));
+    }
+    const a2 = computeAcc(p2);
+    const p3 = [];
+    const v3 = [];
+    for (let i = 0; i < n; i++) {
+      p3.push(p0[i].clone().addScaledVector(v2[i], dt * 0.5));
+      v3.push(isStatic[i] ? v0[i].clone() : v0[i].clone().addScaledVector(a2[i], dt * 0.5));
+    }
+    const a3 = computeAcc(p3);
+    const p4 = [];
+    const v4 = [];
+    for (let i = 0; i < n; i++) {
+      p4.push(p0[i].clone().addScaledVector(v3[i], dt));
+      v4.push(isStatic[i] ? v0[i].clone() : v0[i].clone().addScaledVector(a3[i], dt));
+    }
+    const a4 = computeAcc(p4);
+    for (let i = 0; i < n; i++) {
+      if (isStatic[i]) continue;
+      this.bodies[i].position.x = p0[i].x + dt / 6 * (v0[i].x + 2 * v2[i].x + 2 * v3[i].x + v4[i].x);
+      this.bodies[i].position.y = p0[i].y + dt / 6 * (v0[i].y + 2 * v2[i].y + 2 * v3[i].y + v4[i].y);
+      this.bodies[i].position.z = p0[i].z + dt / 6 * (v0[i].z + 2 * v2[i].z + 2 * v3[i].z + v4[i].z);
+      this.bodies[i].velocity.x = v0[i].x + dt / 6 * (a1[i].x + 2 * a2[i].x + 2 * a3[i].x + a4[i].x);
+      this.bodies[i].velocity.y = v0[i].y + dt / 6 * (a1[i].y + 2 * a2[i].y + 2 * a3[i].y + a4[i].y);
+      this.bodies[i].velocity.z = v0[i].z + dt / 6 * (a1[i].z + 2 * a2[i].z + 2 * a3[i].z + a4[i].z);
+      this.bodies[i].acceleration.copy(a4[i]);
+    }
+  }
+  /**
+   * [Iter 3] Adaptive RK4 sub-stepping. Determines the optimal number of
+   * sub-steps based on the fastest orbital period in the system, ensuring
+   * dt per step is small enough to resolve the fastest dynamics. Uses the
+   * criterion dt < T_min / 32 for 4th-order accuracy.
+   */
+  rk4AdaptiveStep(dt) {
+    let minPeriod = Infinity;
+    for (const body of this.bodies) {
+      if (body.isStatic) continue;
+      let nearestDist = Infinity;
+      let nearestMass = 0;
+      for (const other of this.bodies) {
+        if (other.name === body.name) continue;
+        const d = body.position.distanceTo(other.position);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearestMass = other.mass;
+        }
+      }
+      if (nearestDist < Infinity && nearestMass > 0) {
+        const mu = G * nearestMass;
+        const a = nearestDist;
+        const period = 2 * Math.PI * Math.sqrt(a * a * a / mu);
+        if (period < minPeriod) minPeriod = period;
+      }
+    }
+    const maxStepDt = minPeriod === Infinity ? dt : minPeriod / 32;
+    const numSteps = Math.max(1, Math.min(Math.ceil(dt / maxStepDt), MAX_SUBSTEPS));
+    const stepDt = dt / numSteps;
+    for (let i = 0; i < numSteps; i++) {
+      this.rk4StepSystem(stepDt);
+    }
+  }
+  /**
+   * [Iter 4] RK4-based trajectory prediction. Uses the RK4 single-body
+   * integrator with N-body acceleration for higher-accuracy orbit prediction
+   * than the Euler-based predictTrajectory. Suitable for map-view rendering
+   * and encounter planning.
+   */
+  static predictTrajectoryRK4(startPos, startVel, bodies, excludeName, steps, dt) {
+    const points = [];
+    let pos = startPos.clone();
+    let vel = startVel.clone();
+    const accFn = (p) => {
+      const acc = new Vector3();
+      for (const body of bodies) {
+        if (body.name === excludeName) continue;
+        if (body.mass < 1e18) continue;
+        const dx = body.position.x - p.x;
+        const dy = body.position.y - p.y;
+        const dz = body.position.z - p.z;
+        const distSq = dx * dx + dy * dy + dz * dz;
+        if (distSq < 1) continue;
+        const dist = Math.sqrt(distSq);
+        const f = G * body.mass / distSq;
+        acc.x += f * dx / dist;
+        acc.y += f * dy / dist;
+        acc.z += f * dz / dist;
+      }
+      return acc;
+    };
+    for (let i = 0; i < steps; i++) {
+      points.push(pos.clone());
+      const k1v = vel;
+      const k1a = accFn(pos);
+      const k2v = vel.clone().addScaledVector(k1a, dt * 0.5);
+      const k2a = accFn(pos.clone().addScaledVector(k1v, dt * 0.5));
+      const k3v = vel.clone().addScaledVector(k2a, dt * 0.5);
+      const k3a = accFn(pos.clone().addScaledVector(k2v, dt * 0.5));
+      const k4v = vel.clone().addScaledVector(k3a, dt);
+      const k4a = accFn(pos.clone().addScaledVector(k3v, dt));
+      pos = pos.clone().addScaledVector(k1v, dt / 6).addScaledVector(k2v, dt / 3).addScaledVector(k3v, dt / 3).addScaledVector(k4v, dt / 6);
+      vel = vel.clone().addScaledVector(k1a, dt / 6).addScaledVector(k2a, dt / 3).addScaledVector(k3a, dt / 3).addScaledVector(k4a, dt / 6);
+    }
+    return points;
+  }
+  /**
+   * [Iter 5] Compute energy and angular momentum conservation diagnostics
+   * for the N-body system. RK4 integration conserves these to high order;
+   * monitoring drift helps detect integration instability.
+   *
+   * @returns Kinetic energy, potential energy, total energy, angular and
+   *          linear momentum vectors.
+   */
+  computeEnergyMomentum() {
+    let ke = 0, pe = 0;
+    const am = new Vector3();
+    const lm = new Vector3();
+    for (let i = 0; i < this.bodies.length; i++) {
+      const b = this.bodies[i];
+      const vSq = b.velocity.lengthSq();
+      ke += 0.5 * b.mass * vSq;
+      lm.addScaledVector(b.velocity, b.mass);
+      am.add(new Vector3().crossVectors(b.position, b.velocity).multiplyScalar(b.mass));
+      for (let j = i + 1; j < this.bodies.length; j++) {
+        const o = this.bodies[j];
+        const d = b.position.distanceTo(o.position);
+        if (d > 0) pe -= G * b.mass * o.mass / d;
+      }
+    }
+    return {
+      kineticEnergy: ke,
+      potentialEnergy: pe,
+      totalEnergy: ke + pe,
+      angularMomentum: am,
+      linearMomentum: lm
+    };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 6-10] Encke's method for perturbed orbits
+  // Propagates deviation from a reference Keplerian orbit rather than
+  // the full position — efficient when perturbations are small.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 6] Initialize Encke method state for a body. The reference orbit
+   * is established from the current state vectors and the parent body's
+   * gravitational parameter. The deviation starts at zero.
+   */
+  initEnckeState(pos, vel, _parentMass) {
+    return {
+      referencePos: pos.clone(),
+      referenceVel: vel.clone(),
+      deviationPos: new Vector3(),
+      deviationVel: new Vector3(),
+      lastCorrectionTime: 0
+    };
+  }
+  /**
+   * [Iter 7] Propagate the Encke reference orbit (unperturbed Keplerian)
+   * to time t using the analytic two-body solution. The reference orbit
+   * follows the osculating orbit defined at the last rectification.
+   */
+  propagateEnckeReference(state, parentMass, dt) {
+    const mu = G * parentMass;
+    const r0 = state.referencePos.length();
+    const v0 = state.referenceVel.length();
+    if (r0 < 1 || v0 < 1e-10) return;
+    const energy = v0 * v0 / 2 - mu / r0;
+    const a = -mu / (2 * energy);
+    if (a <= 0 || !isFinite(a)) {
+      state.referencePos.addScaledVector(state.referenceVel, dt);
+      return;
+    }
+    const n = Math.sqrt(mu / (a * a * a));
+    const period = 2 * Math.PI / n;
+    const elements = _NBodySystem.computeOrbitalElements(
+      state.referencePos,
+      state.referenceVel,
+      parentMass
+    );
+    const newPos = _NBodySystem.predictPositionAtTime(elements, new Vector3(), mu, dt);
+    const dt2 = Math.min(dt * 0.01, period * 1e-3);
+    const newPos2 = _NBodySystem.predictPositionAtTime(elements, new Vector3(), mu, dt + dt2);
+    const newVel = newPos2.clone().sub(newPos).divideScalar(dt2);
+    const r1 = newPos.length();
+    const v1 = Math.sqrt(Math.max(0, mu * (2 / r1 - 1 / a)));
+    const velMag = newVel.length();
+    if (velMag > 0) newVel.multiplyScalar(v1 / velMag);
+    state.referencePos.copy(newPos);
+    state.referenceVel.copy(newVel);
+    state.lastCorrectionTime += dt;
+  }
+  /**
+   * [Iter 8] Rectify the Encke reference orbit. When the position deviation
+   * grows beyond a threshold (1% of the orbital radius), the reference orbit
+   * is reset to the current osculating orbit. This prevents loss of
+   * precision in the deviation equations.
+   *
+   * @returns true if rectification was performed.
+   */
+  rectifyEncke(state) {
+    const devMag = state.deviationPos.length();
+    const refMag = state.referencePos.length();
+    if (refMag > 0 && devMag / refMag > 0.01) {
+      state.referencePos.add(state.deviationPos);
+      state.referenceVel.add(state.deviationVel);
+      state.deviationPos.set(0, 0, 0);
+      state.deviationVel.set(0, 0, 0);
+      state.lastCorrectionTime = 0;
+      return true;
+    }
+    return false;
+  }
+  /**
+   * [Iter 9] Compute the perturbation acceleration for Encke's method.
+   * This is the difference between the true N-body acceleration and the
+   * reference (two-body) acceleration:
+   *
+   *   a_pert = a_true(r_ref + δ) − a_ref(r_ref)
+   *
+   * Includes third-body perturbations. The central-body difference is
+   * handled separately via the Encke f-function in enckeStep.
+   */
+  computeEnckePerturbation(state, parent) {
+    const truePos = state.referencePos.clone().add(state.deviationPos);
+    const accTrue = this.computeNBodyAcceleration(truePos, parent.name);
+    const dx = parent.position.x - state.referencePos.x;
+    const dy = parent.position.y - state.referencePos.y;
+    const dz = parent.position.z - state.referencePos.z;
+    const distSq = dx * dx + dy * dy + dz * dz;
+    const dist = Math.sqrt(Math.max(distSq, 1));
+    const mu = G * parent.mass;
+    const accRef = new Vector3(
+      mu * dx / (dist * Math.max(distSq, 1)),
+      mu * dy / (dist * Math.max(distSq, 1)),
+      mu * dz / (dist * Math.max(distSq, 1))
+    );
+    return accTrue.sub(accRef);
+  }
+  /**
+   * [Iter 10] Full Encke method step: propagate reference orbit, integrate
+   * the deviation under perturbation acceleration with the Encke f-function,
+   * and rectify if needed. The deviation equation is:
+   *
+   *   δr'' = f(q)·a_ref + a_pert
+   *
+   * where f(q) = [(1+q)^(−3/2) − 1] / q captures the nonlinear gravity
+   * difference, and q = (r_ref · δr) / |r_ref|².
+   */
+  enckeStep(state, parent, dt) {
+    this.propagateEnckeReference(state, parent.mass, dt);
+    const aPert = this.computeEnckePerturbation(state, parent);
+    const mu = G * parent.mass;
+    const rRefSq = Math.max(state.referencePos.lengthSq(), 1);
+    const accFn = (devPos) => {
+      const q = state.referencePos.dot(devPos) / rRefSq;
+      let f;
+      if (Math.abs(q) < 1e-10) {
+        f = -1.5;
+      } else {
+        f = (1 / Math.pow(1 + q, 1.5) - 1) / q;
+      }
+      const dx = parent.position.x - state.referencePos.x;
+      const dy = parent.position.y - state.referencePos.y;
+      const dz = parent.position.z - state.referencePos.z;
+      const distSq = Math.max(dx * dx + dy * dy + dz * dz, 1);
+      const dist = Math.sqrt(distSq);
+      const aRefMag = mu / distSq;
+      const aRefDir = new Vector3(dx / dist, dy / dist, dz / dist);
+      return aRefDir.multiplyScalar(f * aRefMag).add(aPert);
+    };
+    const dev = this.rk4StepSingle(
+      state.deviationPos,
+      state.deviationVel,
+      accFn,
+      dt
+    );
+    state.deviationPos.copy(dev.pos);
+    state.deviationVel.copy(dev.vel);
+    const rectified = this.rectifyEncke(state);
+    return {
+      pos: state.referencePos.clone().add(state.deviationPos),
+      vel: state.referenceVel.clone().add(state.deviationVel),
+      rectified
+    };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 11-15] Multi-layer thermal model (skin → structure → internal)
+  // Three-layer 1D thermal stack with Fourier conduction and ablation.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 11] Build a standard three-layer thermal model: skin (outer
+   * surface exposed to aero heating), structure (load-bearing frame),
+   * and internal (cabin/electronics). Each layer has its own heat capacity,
+   * conductivity, and thickness.
+   */
+  buildMultiLayerThermal(skinTemp, structTemp, internalTemp) {
+    return [
+      { name: "skin", temperature: skinTemp, heatCapacity: 8e3, conductivity: 50, thickness: 5e-3 },
+      { name: "structure", temperature: structTemp, heatCapacity: 5e4, conductivity: 15, thickness: 0.02 },
+      { name: "internal", temperature: internalTemp, heatCapacity: 3e4, conductivity: 5, thickness: 0.05 }
+    ];
+  }
+  /**
+   * [Iter 12] Conductive heat transfer between adjacent thermal layers.
+   * Uses Fourier's law: Q = k·A·ΔT/d, where d is the combined layer
+   * thickness. Heat flows from hot to cold layers. The layers are treated
+   * as a 1D thermal stack (skin → structure → internal).
+   */
+  multiLayerConduction(layers, area2, dt) {
+    if (layers.length < 2) return;
+    const deltaT = new Float64Array(layers.length);
+    for (let i = 0; i < layers.length - 1; i++) {
+      const a = layers[i];
+      const b = layers[i + 1];
+      const dT = b.temperature - a.temperature;
+      if (Math.abs(dT) < 1e-3) continue;
+      const kEff = a.conductivity * b.conductivity / (a.conductivity * b.thickness + b.conductivity * a.thickness + 1e-10);
+      const totalThick = a.thickness + b.thickness;
+      const Q = kEff * area2 * dT / totalThick;
+      deltaT[i] += Q * dt / a.heatCapacity;
+      deltaT[i + 1] -= Q * dt / b.heatCapacity;
+    }
+    for (let i = 0; i < layers.length; i++) {
+      layers[i].temperature += deltaT[i];
+      if (layers[i].temperature < 2.7) layers[i].temperature = 2.7;
+    }
+  }
+  /**
+   * [Iter 13] Update the multi-layer thermal model with external aero-
+   * dynamic heating on the skin layer and radiative cooling. The skin
+   * receives convective heat flux Q = 0.5·ρ·v³·C_h and radiates
+   * Q = ε·σ·T⁴. Internal layers receive waste heat from electronics.
+   */
+  updateMultiLayerThermal(layers, heatFlux, internalHeat, area2, dt) {
+    if (layers.length === 0) return;
+    const skin = layers[0];
+    const qIn = heatFlux * area2;
+    const t4 = skin.temperature * skin.temperature * skin.temperature * skin.temperature;
+    const qOut = 0.85 * _NBodySystem.STEFAN_BOLTZMANN * t4 * area2;
+    skin.temperature += (qIn - qOut) * dt / skin.heatCapacity;
+    if (layers.length >= 3) {
+      const internal = layers[layers.length - 1];
+      internal.temperature += internalHeat * dt / internal.heatCapacity;
+    }
+    this.multiLayerConduction(layers, area2, dt);
+    for (const l of layers) {
+      if (l.temperature < 2.7) l.temperature = 2.7;
+    }
+  }
+  /**
+   * [Iter 14] Compute the thermal gradient across the layer stack.
+   * Returns the temperature gradient (K/m) between each pair of adjacent
+   * layers and the maximum gradient for structural stress analysis.
+   */
+  thermalGradient(layers) {
+    const gradients = [];
+    let maxGrad = 0;
+    let maxIdx = 0;
+    for (let i = 0; i < layers.length - 1; i++) {
+      const g = Math.abs(layers[i].temperature - layers[i + 1].temperature) / (layers[i].thickness + layers[i + 1].thickness);
+      gradients.push(g);
+      if (g > maxGrad) {
+        maxGrad = g;
+        maxIdx = i;
+      }
+    }
+    return { gradients, maxGradient: maxGrad, maxGradientIndex: maxIdx };
+  }
+  /**
+   * [Iter 15] Ablative heat shield model. When the skin temperature exceeds
+   * the ablation threshold, the heat shield material vaporizes (pyrolysis),
+   * carrying away heat. This limits the skin temperature and protects inner
+   * layers. Models mass loss rate via the heat of ablation.
+   *
+   * @param skin           The skin thermal layer (mutated: temperature clamped).
+   * @param heatFlux       External heat flux (W/m²).
+   * @param area           Shield area (m²).
+   * @param dt             Time step (s).
+   * @param ablationTemp   Temperature at which ablation begins (K). Default 2500.
+   * @param heatOfAblation Energy to ablate 1 kg (J/kg). ~25 MJ/kg for phenolic.
+   * @returns { massLoss: kg, ablated: whether ablation occurred }
+   */
+  ablativeHeatShield(skin, heatFlux, area2, dt, ablationTemp = 2500, heatOfAblation = 25e6) {
+    if (skin.temperature < ablationTemp) {
+      return { massLoss: 0, ablated: false };
+    }
+    const totalHeat = heatFlux * area2 * dt;
+    const massLoss = totalHeat / heatOfAblation;
+    skin.temperature = ablationTemp;
+    return { massLoss, ablated: true };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 16-20] Radiator network calculation
+  // Multi-radiator heat distribution with view factors and mutual radiation.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 16] Compute view factors between radiators in a network. The view
+   * factor F_ij represents the fraction of radiation leaving surface i that
+   * strikes surface j. For a simplified spacecraft model, radiators on
+   * opposite faces have F=0, adjacent faces have F≈0.2.
+   */
+  radiatorViewFactors(radiators) {
+    const n = radiators.length;
+    const F = [];
+    for (let i = 0; i < n; i++) F.push(new Array(n).fill(0));
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === j) {
+          F[i][j] = 0;
+          continue;
+        }
+        const angleFrac = Math.abs(i - j) / n;
+        F[i][j] = 0.15 * (1 - angleFrac);
+      }
+      let sum = 0;
+      for (let j = 0; j < n; j++) sum += F[i][j];
+      if (sum > 1) {
+        for (let j = 0; j < n; j++) F[i][j] /= sum;
+      }
+    }
+    return F;
+  }
+  /**
+   * [Iter 17] Optimize heat distribution across multiple radiators. Given
+   * a total heat load, distribute it across radiators to minimize the
+   * maximum radiator temperature. Uses a capacity-proportional approach:
+   * assign more heat to cooler, larger radiators with higher emissivity.
+   *
+   * @param radiators     Radiator nodes in the network.
+   * @param totalHeatLoad Total heat to reject (W).
+   * @returns Array of heat assignments (W) per radiator.
+   */
+  optimizeRadiatorDistribution(radiators, totalHeatLoad) {
+    const n = radiators.length;
+    if (n === 0) return [];
+    const capacities = [];
+    let totalCap = 0;
+    for (const r of radiators) {
+      const t3 = r.temperature * r.temperature * r.temperature;
+      const cap = r.area * r.emissivity * t3 * Math.min(1, r.maxPower / Math.max(r.area, 1));
+      capacities.push(cap);
+      totalCap += cap;
+    }
+    const assignments = [];
+    for (let i = 0; i < n; i++) {
+      assignments.push(totalCap > 0 ? totalHeatLoad * capacities[i] / totalCap : 0);
+    }
+    return assignments;
+  }
+  /**
+   * [Iter 18] Solve for steady-state temperatures in a radiator network.
+   * Each radiator radiates to space and exchanges radiation with other
+   * radiators via view factors. Uses damped Newton iteration to find the
+   * equilibrium where heat in = heat out for each radiator.
+   */
+  solveRadiatorNetworkSteadyState(radiators, heatInputs, viewFactors, maxIter = 50) {
+    const n = radiators.length;
+    const temps = radiators.map((r) => r.temperature);
+    const sigma = _NBodySystem.STEFAN_BOLTZMANN;
+    for (let iter = 0; iter < maxIter; iter++) {
+      let maxChange = 0;
+      for (let i = 0; i < n; i++) {
+        const spaceRad = radiators[i].emissivity * sigma * radiators[i].area * Math.pow(temps[i], 4);
+        let mutualIn = 0;
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue;
+          mutualIn += viewFactors[i][j] * radiators[j].emissivity * sigma * radiators[j].area * Math.pow(temps[j], 4);
+        }
+        const dTdQ = 1 / (4 * radiators[i].emissivity * sigma * radiators[i].area * Math.pow(temps[i], 3) + 1e-10);
+        const residual = heatInputs[i] + mutualIn - spaceRad;
+        const dT = residual * dTdQ;
+        temps[i] = Math.max(2.7, temps[i] + dT * 0.5);
+        if (Math.abs(dT) > maxChange) maxChange = Math.abs(dT);
+      }
+      if (maxChange < 0.1) break;
+    }
+    return temps;
+  }
+  /**
+   * [Iter 19] Compute mutual radiation exchange between radiators. When
+   * radiators face each other, they absorb each other's radiation, reducing
+   * net cooling efficiency. Returns the net heat exchange matrix.
+   *
+   * @returns exchange[i][j] = heat from radiator j absorbed by radiator i (W).
+   */
+  radiatorMutualExchange(radiators, viewFactors) {
+    const n = radiators.length;
+    const sigma = _NBodySystem.STEFAN_BOLTZMANN;
+    const exchange = [];
+    for (let i = 0; i < n; i++) {
+      exchange.push(new Array(n).fill(0));
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        exchange[i][j] = viewFactors[i][j] * radiators[j].emissivity * sigma * radiators[j].area * Math.pow(radiators[j].temperature, 4);
+      }
+    }
+    return exchange;
+  }
+  /**
+   * [Iter 20] Dynamic radiator network cooling simulation. Steps the
+   * radiator network forward in time, accounting for heat input, mutual
+   * radiation, and radiative cooling to deep space. Updates radiator
+   * temperatures in place.
+   */
+  stepRadiatorNetwork(radiators, heatInputs, viewFactors, dt, deepSpaceTemp = 2.7) {
+    const n = radiators.length;
+    const sigma = _NBodySystem.STEFAN_BOLTZMANN;
+    const deltaT = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = radiators[i];
+      const qSpace = r.emissivity * sigma * r.area * (Math.pow(r.temperature, 4) - Math.pow(deepSpaceTemp, 4));
+      let qMutualIn = 0;
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue;
+        qMutualIn += viewFactors[i][j] * radiators[j].emissivity * sigma * radiators[j].area * Math.pow(radiators[j].temperature, 4);
+      }
+      const netQ = heatInputs[i] + qMutualIn - qSpace;
+      deltaT[i] = netQ * dt / Math.max(r.heatCapacity, 1);
+    }
+    for (let i = 0; i < n; i++) {
+      radiators[i].temperature += deltaT[i];
+      if (radiators[i].temperature < deepSpaceTemp) {
+        radiators[i].temperature = deepSpaceTemp;
+      }
+    }
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 21-25] Reentry aerodynamic heating (stagnation point)
+  // Sutton-Graves convective + Tauber-Sutton radiative heating.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 21] Stagnation point heat flux using the Sutton-Graves equation.
+   * This is the standard engineering correlation for convective heating at
+   * the stagnation point of a blunt body during hypersonic reentry:
+   *
+   *   q_s = k · √(ρ / R_n) · v³
+   *
+   * where k = 1.83e-4 (SI), R_n is the nose radius, ρ is density, v is
+   * velocity. Captures the √(ρ/R_n)·v³ scaling that simple ρ·v³ models miss.
+   */
+  stagnationHeatFlux(density, velocity, noseRadius) {
+    const k = 183e-6;
+    if (noseRadius <= 0 || density <= 0 || velocity <= 0) return 0;
+    return k * Math.sqrt(density / noseRadius) * Math.pow(velocity, 3);
+  }
+  /**
+   * [Iter 22] Compute stagnation temperature — the maximum temperature at
+   * the stagnation point where flow velocity is zero. Based on total
+   * enthalpy of the flow:
+   *
+   *   T0 = T · (1 + (γ−1)/2 · M²)
+   *
+   * where γ=1.4 for air, M is Mach number. For hypersonic flight this can
+   * exceed 8000 K (real-gas effects limit the effective temperature).
+   */
+  stagnationTemperature(staticTemp, machNumber, gamma = 1.4) {
+    const factor = 1 + (gamma - 1) / 2 * machNumber * machNumber;
+    return staticTemp * factor;
+  }
+  /**
+   * [Iter 23] Boundary layer convective heating model. Computes the
+   * convective heat transfer coefficient h for a flat plate in hypersonic
+   * flow, using the Eckert reference enthalpy method:
+   *
+   *   h = Nu · k_air / L
+   *
+   * where Nu is the Nusselt number (function of Reynolds and Mach numbers),
+   * k_air is thermal conductivity of air, and L is characteristic length.
+   */
+  boundaryLayerHeating(density, velocity, machNumber, staticTemp, length) {
+    const kAir = 0.026;
+    const mu = 18e-6;
+    const Pr = 0.71;
+    const gamma = 1.4;
+    const Re = density * velocity * length / Math.max(mu, 1e-20);
+    const r = Math.sqrt(Pr);
+    const recoveryTemp = staticTemp * (1 + r * (gamma - 1) / 2 * machNumber * machNumber);
+    const Nu = 0.332 * Math.sqrt(Math.max(Re, 0)) * Math.pow(Pr, 1 / 3);
+    const h = Nu * kAir / Math.max(length, 1e-6);
+    const heatFlux = h * (recoveryTemp - staticTemp);
+    return { heatTransferCoeff: h, heatFlux, recoveryTemp };
+  }
+  /**
+   * [Iter 24] Equilibrium radiative heating using the Tauber-Sutton
+   * correlation. At very high velocities (>6 km/s) and high densities,
+   * radiative heating from the shock layer becomes significant:
+   *
+   *   q_rad ∝ ρ^1.22 · R_n^0.5 · v^5.3
+   *
+   * with empirically-determined exponents for Earth atmosphere.
+   */
+  radiativeHeating(density, velocity, noseRadius) {
+    if (velocity < 6e3 || density <= 0 || noseRadius <= 0) return 0;
+    const C = 4736e-7;
+    const qRad = C * Math.pow(density, 1.22) * Math.pow(noseRadius, 0.5) * Math.pow(velocity / 1e3, 5.3) * 1e4;
+    return Math.max(0, qRad);
+  }
+  /**
+   * [Iter 25] Coupled stagnation heating with the multi-layer thermal model.
+   * Computes the total heat flux at the stagnation point (convective +
+   * radiative), feeds it into the multi-layer thermal model, and returns
+   * a comprehensive reentry heating result including stagnation properties.
+   *
+   * This is the top-level reentry heating function that ties together the
+   * Sutton-Graves convective model, Tauber-Sutton radiative model, and the
+   * three-layer thermal conduction stack.
+   */
+  coupledStagnationHeating(layers, density, velocity, noseRadius, staticTemp, machNumber, area2, internalHeat, dt) {
+    const convFlux = this.stagnationHeatFlux(density, velocity, noseRadius);
+    const radFlux = this.radiativeHeating(density, velocity, noseRadius);
+    const totalHeatFlux = convFlux + radFlux;
+    const stagTemp = this.stagnationTemperature(staticTemp, machNumber);
+    this.updateMultiLayerThermal(layers, totalHeatFlux, internalHeat, area2, dt);
+    return {
+      heatFlux: totalHeatFlux,
+      stagnationTemp: stagTemp,
+      machNumber,
+      totalHeatFlux,
+      convFlux,
+      radFlux
+    };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 1-5] Orbit Determination — Gauss method
+  // From 3+ observations, determine the full set of classical orbital
+  // elements via Gauss's method + iterative least-squares refinement.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 1] Gauss method: determine orbit from 3 position observations.
+   * Given three position vectors at known times, compute the velocity at
+   * the middle observation using the Herrick-Gibbs method, then derive
+   * full orbital elements.
+   *
+   * @param observations  Array of at least 3 observations (position + time).
+   * @param parentMass    Mass of the central body (kg).
+   * @returns Orbital elements, or null if determination fails.
+   */
+  gaussOrbitDetermination(observations, parentMass) {
+    if (observations.length < 3) return null;
+    const mu = G * parentMass;
+    const o1 = observations[0];
+    const o2 = observations[Math.floor(observations.length / 2)];
+    const o3 = observations[observations.length - 1];
+    const dt12 = o2.time - o1.time;
+    const dt23 = o3.time - o2.time;
+    if (Math.abs(dt12) < 1e-10 || Math.abs(dt23) < 1e-10) return null;
+    const v2 = this.herrickGibbsVelocity(o1.position, o2.position, o3.position, dt12, dt23, mu);
+    if (!v2) return null;
+    return _NBodySystem.computeOrbitalElements(o2.position, v2, parentMass);
+  }
+  /**
+   * [Iter 2] Herrick-Gibbs velocity estimation. Given three position vectors
+   * and the time intervals between them, estimate the velocity at the middle
+   * point using a truncated Taylor-series expansion of the two-body motion.
+   *
+   *   v₂ ≈ (−Δt₂₃·r₁ + (Δt₂₃−Δt₁₂)·r₂ + Δt₁₂·r₃) / (Δt₁₂·Δt₂₃·Δt₁₃)
+   *         − μ/(6·r₂)·(Δt₂₃−Δt₁₂)·r̂₂
+   */
+  herrickGibbsVelocity(r1, r2, r3, dt12, dt23, mu) {
+    const r2Mag = r2.length();
+    if (r2Mag < 1) return null;
+    const dt13 = dt12 + dt23;
+    if (Math.abs(dt12) < 1e-10 || Math.abs(dt23) < 1e-10 || Math.abs(dt13) < 1e-10) return null;
+    const v = r1.clone().multiplyScalar(-dt23 / (dt12 * dt13)).add(r2.clone().multiplyScalar((dt23 - dt12) / (dt12 * dt23))).add(r3.clone().multiplyScalar(dt12 / (dt23 * dt13)));
+    const r2Hat = r2.clone().multiplyScalar(1 / r2Mag);
+    v.addScaledVector(r2Hat, -mu / (6 * r2Mag) * (dt23 - dt12));
+    return v;
+  }
+  /**
+   * [Iter 3] Gibbs method: compute velocity from three coplanar position
+   * vectors (exact for a Keplerian orbit, no time information needed).
+   * Determines the semi-latus rectum p from the geometric relationship
+   * between three points on an ellipse, then constructs velocity from
+   * the angular momentum h = √(μ·p) and the flight-path angle.
+   */
+  gibbsVelocity(r1, r2, r3, mu) {
+    const r1m = r1.length(), r2m = r2.length(), r3m = r3.length();
+    if (r1m < 1 || r2m < 1 || r3m < 1) return null;
+    const C12 = new Vector3().crossVectors(r1, r2);
+    const C23 = new Vector3().crossVectors(r2, r3);
+    const c12m = C12.length(), c23m = C23.length();
+    if (c12m < 1e-8 || c23m < 1e-8) return null;
+    const hHat = C12.clone().multiplyScalar(1 / c12m);
+    if (hHat.dot(C23) / c23m < 0.999) return null;
+    const cosF = Math.max(-1, Math.min(1, r1.dot(r2) / (r1m * r2m)));
+    const sinF = c12m / (r1m * r2m);
+    const cosG = Math.max(-1, Math.min(1, r2.dot(r3) / (r2m * r3m)));
+    const sinG = c23m / (r2m * r3m);
+    if (sinF < 1e-10 || sinG < 1e-10) return null;
+    const sinFG = sinF * cosG + cosF * sinG;
+    if (Math.abs(sinFG) < 1e-10) return null;
+    const num = sinF + sinG - sinFG;
+    const den = sinG / r1m - sinFG / r2m + sinF / r3m;
+    if (Math.abs(den) < 1e-10) return null;
+    const p = num / den;
+    if (p <= 0 || !isFinite(p)) return null;
+    const h = Math.sqrt(mu * p);
+    const eCosNu1 = p / r1m - 1;
+    const eCosNu2 = p / r2m - 1;
+    const eSinNu1 = (eCosNu1 * cosF - eCosNu2) / sinF;
+    const eSinNu2 = eSinNu1 * cosF + eCosNu1 * sinF;
+    const r2Hat = r2.clone().multiplyScalar(1 / r2m);
+    const tHat = new Vector3().crossVectors(hHat, r2Hat).normalize();
+    const vTang = h / r2m;
+    const vRad = mu / h * eSinNu2;
+    return tHat.multiplyScalar(vTang).add(r2Hat.multiplyScalar(vRad));
+  }
+  /**
+   * [Iter 4] Least-squares refinement of orbit from multiple observations.
+   * Given an initial orbit estimate and 6+ observations, iteratively refine
+   * the state vector by minimizing the residual between predicted and
+   * observed positions using a damped Gauss-Newton approach.
+   */
+  refineOrbitLeastSquares(observations, initial, parentMass, maxIter = 20) {
+    const mu = G * parentMass;
+    let pos = initial.pos.clone();
+    let vel = initial.vel.clone();
+    let rmsResidual = Infinity;
+    const refTime = observations[0].time;
+    for (let iter = 0; iter < maxIter; iter++) {
+      let totalResidualSq = 0;
+      const elements = _NBodySystem.computeOrbitalElements(pos, vel, parentMass);
+      const corrections = [];
+      for (const obs of observations) {
+        const dt = obs.time - refTime;
+        const predicted = _NBodySystem.predictPositionAtTime(elements, new Vector3(), mu, dt);
+        const residual = obs.position.clone().sub(predicted);
+        corrections.push(residual);
+        totalResidualSq += residual.lengthSq();
+      }
+      rmsResidual = Math.sqrt(totalResidualSq / observations.length);
+      if (rmsResidual < 1) break;
+      const corrPos = new Vector3();
+      const corrVel = new Vector3();
+      for (let i = 0; i < corrections.length; i++) {
+        const w = 1 / (1 + i * 0.1);
+        corrPos.addScaledVector(corrections[i], w * 0.1);
+        const dt = observations[i].time - refTime;
+        if (Math.abs(dt) > 1e-6) {
+          corrVel.addScaledVector(corrections[i], w * 0.1 / dt);
+        }
+      }
+      pos.add(corrPos);
+      vel.add(corrVel);
+    }
+    return { pos, vel, rmsResidual };
+  }
+  /**
+   * [Iter 5] Full orbit determination pipeline: take 3+ raw observations,
+   * run Gauss/Herrick-Gibbs for an initial estimate, then least-squares
+   * refinement. Returns the determined orbital elements with quality metrics.
+   */
+  determineOrbit(observations, parentMass) {
+    const elements0 = this.gaussOrbitDetermination(observations, parentMass);
+    if (!elements0) return { elements: null, rmsResidual: Infinity, success: false };
+    const mu = G * parentMass;
+    const initialPos = _NBodySystem._positionFromTrueAnomaly(
+      elements0.semiMajorAxis,
+      elements0.eccentricity,
+      elements0.trueAnomaly,
+      elements0.inclination,
+      elements0.longitudeOfAscendingNode,
+      elements0.argumentOfPeriapsis
+    );
+    const r0 = initialPos.length();
+    const v0Mag = elements0.semiMajorAxis > 0 ? Math.sqrt(Math.max(0, mu * (2 / r0 - 1 / elements0.semiMajorAxis))) : Math.sqrt(mu / Math.max(r0, 1));
+    const radial = initialPos.clone().multiplyScalar(1 / Math.max(r0, 1));
+    const tangent = new Vector3(-radial.z, 0, radial.x);
+    if (tangent.lengthSq() < 1e-10) tangent.set(radial.y, -radial.x, 0);
+    tangent.normalize();
+    const refined = this.refineOrbitLeastSquares(
+      observations,
+      { pos: initialPos, vel: tangent.multiplyScalar(v0Mag) },
+      parentMass
+    );
+    const elementsFinal = _NBodySystem.computeOrbitalElements(refined.pos, refined.vel, parentMass);
+    return {
+      elements: elementsFinal,
+      rmsResidual: refined.rmsResidual,
+      success: refined.rmsResidual < 1e3
+    };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 6-10] Orbit Transfer — Hohmann & Bi-elliptic
+  // ΔV and transfer-time calculations for coplanar orbit transfers.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 6] Hohmann transfer: the minimum-energy two-impulse transfer
+   * between two coplanar circular orbits. Uses an elliptical transfer orbit
+   * tangent to both circles.
+   *
+   *   ΔV₁ = √(μ/r₁)·(√(2r₂/(r₁+r₂)) − 1)
+   *   ΔV₂ = √(μ/r₂)·(1 − √(2r₁/(r₁+r₂)))
+   *   t = π·√(a_t³/μ),  a_t = (r₁+r₂)/2
+   */
+  hohmannTransfer(mu, r1, r2) {
+    if (r1 <= 0 || r2 <= 0 || r1 === r2) {
+      return { deltaV1: 0, deltaV2: 0, totalDeltaV: 0, transferTime: 0, semiMajorAxis: (r1 + r2) / 2 };
+    }
+    const ri = Math.min(r1, r2);
+    const ro = Math.max(r1, r2);
+    const at = (ri + ro) / 2;
+    const v1 = Math.sqrt(mu / ri);
+    const v2 = Math.sqrt(mu / ro);
+    const vpTrans = Math.sqrt(mu * (2 / ri - 1 / at));
+    const vaTrans = Math.sqrt(mu * (2 / ro - 1 / at));
+    const deltaV1 = Math.abs(vpTrans - v1);
+    const deltaV2 = Math.abs(v2 - vaTrans);
+    const transferTime = Math.PI * Math.sqrt(at * at * at / mu);
+    return { deltaV1, deltaV2, totalDeltaV: deltaV1 + deltaV2, transferTime, semiMajorAxis: at };
+  }
+  /**
+   * [Iter 7] Bi-elliptic transfer: a three-impulse transfer that can be
+   * more efficient than Hohmann when r₂/r₁ > 11.94. The spacecraft first
+   * transfers to an intermediate radius r_b > r₂, then to the final orbit.
+   */
+  biEllipticTransfer(mu, r1, r2, rb) {
+    if (r1 <= 0 || r2 <= 0 || rb <= Math.max(r1, r2)) {
+      const hohmann = this.hohmannTransfer(mu, r1, r2);
+      return { ...hohmann, deltaV3: 0, intermediateRadius: rb };
+    }
+    const a1 = (r1 + rb) / 2;
+    const a2 = (r2 + rb) / 2;
+    const v1Circ = Math.sqrt(mu / r1);
+    const vp1 = Math.sqrt(mu * (2 / r1 - 1 / a1));
+    const va1 = Math.sqrt(mu * (2 / rb - 1 / a1));
+    const va2 = Math.sqrt(mu * (2 / rb - 1 / a2));
+    const v2Circ = Math.sqrt(mu / r2);
+    const vp2 = Math.sqrt(mu * (2 / r2 - 1 / a2));
+    const deltaV1 = Math.abs(vp1 - v1Circ);
+    const deltaV2 = Math.abs(va2 - va1);
+    const deltaV3 = Math.abs(v2Circ - vp2);
+    const t1 = Math.PI * Math.sqrt(a1 * a1 * a1 / mu);
+    const t2 = Math.PI * Math.sqrt(a2 * a2 * a2 / mu);
+    return {
+      deltaV1,
+      deltaV2,
+      totalDeltaV: deltaV1 + deltaV2 + deltaV3,
+      transferTime: t1 + t2,
+      semiMajorAxis: a1,
+      deltaV3,
+      intermediateRadius: rb
+    };
+  }
+  /**
+   * [Iter 8] Compute the transfer orbit's semi-major axis and eccentricity
+   * for a Hohmann transfer between two circular orbits.
+   */
+  transferOrbitProperties(mu, r1, r2) {
+    const ri = Math.min(r1, r2);
+    const ro = Math.max(r1, r2);
+    const a = (ri + ro) / 2;
+    const e = (ro - ri) / (ro + ri);
+    return { semiMajorAxis: a, eccentricity: e, periapsis: ri, apoapsis: ro };
+  }
+  /**
+   * [Iter 9] Compute the required phase angle for a Hohmann transfer.
+   * The target body must be at a specific angular position when the transfer
+   * burn is executed so that the spacecraft arrives at the target orbit
+   * simultaneously with the target body.
+   */
+  computePhaseAngle(mu, r1, r2) {
+    if (r1 <= 0 || r2 <= 0) return 0;
+    const at = (r1 + r2) / 2;
+    const tTransfer = Math.PI * Math.sqrt(at * at * at / mu);
+    const nTarget = Math.sqrt(mu / (r2 * r2 * r2));
+    const angleTravelled = nTarget * tTransfer;
+    return Math.PI - angleTravelled;
+  }
+  /**
+   * [Iter 10] Compare Hohmann and bi-elliptic transfers and return the
+   * optimal (minimum ΔV) option. For r₂/r₁ > 11.94 and large r_b, the
+   * bi-elliptic transfer can save ΔV at the cost of much longer transfer time.
+   */
+  compareTransferOptions(mu, r1, r2, rb) {
+    const hohmann = this.hohmannTransfer(mu, r1, r2);
+    const rbDefault = rb ?? Math.max(r1, r2) * 3;
+    const bielliptic = this.biEllipticTransfer(mu, r1, r2, rbDefault);
+    const optimal = bielliptic.totalDeltaV < hohmann.totalDeltaV ? "bielliptic" : "hohmann";
+    return { optimal, hohmann, bielliptic };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 11-15] Tidal Forces — orbital evolution from tidal interactions
+  // Models tidal bulge, tidal torque, tidal heating, and orbital decay.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 11] Compute the tidal force on a satellite due to the differential
+   * gravity across its diameter. The tidal force stretches the satellite
+   * along the radial direction and compresses it perpendicular to that.
+   *
+   *   F_tidal ≈ 2·G·M·m·R_sat / r³  (stretching force)
+   */
+  tidalForce(satPos, parent, satRadius, satMass) {
+    const dx = satPos.x - parent.position.x;
+    const dy = satPos.y - parent.position.y;
+    const dz = satPos.z - parent.position.z;
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < 1) return { force: new Vector3(), differential: 0, stretchAxis: new Vector3() };
+    const r3 = r * r * r;
+    const forceMag = 2 * G * parent.mass * satMass * satRadius / r3;
+    const stretchAxis = new Vector3(dx / r, dy / r, dz / r);
+    return {
+      force: stretchAxis.clone().multiplyScalar(forceMag),
+      differential: forceMag,
+      stretchAxis
+    };
+  }
+  /**
+   * [Iter 12] Tidal drag (orbital decay) rate. The tidal bulge raised on the
+   * parent body by the satellite transfers angular momentum, causing the
+   * satellite's orbit to decay (or expand, depending on relative rotation).
+   * Uses the constant time-lag model with Love number k₂ and quality factor Q.
+   *
+   *   da/dt = −6·(k₂/Q)·n·(R_p/a)⁵·(1 + 7.5·e²)
+   *   de/dt = −21·(k₂/Q)·n·(R_p/a)⁵·e / a
+   */
+  tidalDragRate(elements, parentMass, parentRadius, k2Love, qFactor) {
+    const a = elements.semiMajorAxis;
+    if (a <= 0 || elements.eccentricity >= 1) return { daDt: 0, deDt: 0, decayTime: Infinity };
+    const mu = G * parentMass;
+    const n = Math.sqrt(mu / (a * a * a));
+    const k2q = k2Love / Math.max(qFactor, 1);
+    const Rp5 = Math.pow(parentRadius, 5);
+    const a5 = Math.pow(a, 5);
+    const eFactor = 1 + 7.5 * elements.eccentricity * elements.eccentricity;
+    const daDt = -6 * k2q * n * Rp5 * eFactor / Math.max(a5, 1);
+    const deDt = -21 * k2q * n * Rp5 * elements.eccentricity / Math.max(a5 * a, 1);
+    const decayTime = Math.abs(daDt) > 1e-20 ? a / Math.abs(daDt) : Infinity;
+    return { daDt, deDt, decayTime };
+  }
+  /**
+   * [Iter 13] Tidal torque on a satellite. The tidal bulge on the satellite
+   * (raised by the parent) creates a torque that tends to despin the satellite
+   * toward synchronous rotation (tidal locking).
+   *
+   *   τ = (3/2)·k₂·G·M_p²·R_sat⁵ / r⁶ · sin(2θ)
+   *
+   * where θ ≈ 1/Q is the tidal lag angle.
+   */
+  tidalTorque(satPos, parent, satRadius, k2Love, qFactor) {
+    const dx = satPos.x - parent.position.x;
+    const dy = satPos.y - parent.position.y;
+    const dz = satPos.z - parent.position.z;
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < satRadius) return new Vector3();
+    const r6 = r * r * r * r * r * r;
+    const sin2theta = 2 / Math.max(qFactor, 1);
+    const torqueMag = 1.5 * k2Love * G * parent.mass * parent.mass * Math.pow(satRadius, 5) / r6 * sin2theta;
+    const spinAxis = new Vector3(0, 1, 0);
+    return spinAxis.multiplyScalar(torqueMag);
+  }
+  /**
+   * [Iter 14] Tidal dissipation heating rate. The flexing of the satellite
+   * due to tidal forces generates internal heat — the dominant heat source
+   * for Io, Europa, and Enceladus.
+   *
+   *   Ė = (21/2)·(k₂/Q)·G·M_p²·R_sat⁵·n·e² / r⁶
+   */
+  tidalHeatingRate(satPos, parent, satRadius, k2Love, qFactor, eccentricity) {
+    const dx = satPos.x - parent.position.x;
+    const dy = satPos.y - parent.position.y;
+    const dz = satPos.z - parent.position.z;
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < satRadius) return 0;
+    const mu = G * parent.mass;
+    const n = Math.sqrt(mu / (r * r * r));
+    const r6 = r * r * r * r * r * r;
+    const k2q = k2Love / Math.max(qFactor, 1);
+    const Rsat5 = Math.pow(satRadius, 5);
+    return 10.5 * k2q * G * parent.mass * parent.mass * Rsat5 * n * eccentricity * eccentricity / r6;
+  }
+  /**
+   * [Iter 15] Step the tidal evolution of an orbit. Updates the semi-major
+   * axis and eccentricity based on tidal drag rates over a time step dt.
+   * Returns the updated orbital elements.
+   */
+  tidalEvolutionStep(elements, parentMass, parentRadius, k2Love, qFactor, dt) {
+    const rates = this.tidalDragRate(elements, parentMass, parentRadius, k2Love, qFactor);
+    const newA = Math.max(parentRadius * 1.01, elements.semiMajorAxis + rates.daDt * dt);
+    const newE = Math.max(0, elements.eccentricity + rates.deDt * dt);
+    const mu = G * parentMass;
+    const newPeriod = 2 * Math.PI * Math.sqrt(newA * newA * newA / mu);
+    return {
+      ...elements,
+      semiMajorAxis: newA,
+      eccentricity: newE,
+      periapsis: newA * (1 - newE),
+      apoapsis: newA * (1 + newE),
+      orbitalPeriod: newPeriod
+    };
+  }
+  static {
+    // ════════════════════════════════════════════════════════════════════
+    // [Iter 16-20] Solar Radiation Pressure — solar sail & Yarkovsky
+    // Radiation pressure, solar sail acceleration, eclipse shadowing, and
+    // the Yarkovsky thermal recoil force.
+    // ════════════════════════════════════════════════════════════════════
+    /** Solar constant at 1 AU (W/m²). */
+    this.SOLAR_CONSTANT_1AU = 1361;
+  }
+  static {
+    /** Speed of light (m/s). */
+    this.SPEED_OF_LIGHT = 2998e5;
+  }
+  static {
+    /** 1 AU in metres. */
+    this.AU_METERS = 1496e8;
+  }
+  /**
+   * [Iter 16] Solar radiation pressure at a given distance from the Sun.
+   * Pressure falls off as 1/r² (same as gravity):
+   *
+   *   P = S₀/c · (1 AU / r)²
+   *
+   * where S₀ = 1361 W/m² (solar constant), c = speed of light.
+   */
+  solarRadiationPressure(sunPos, bodyPos) {
+    const dx = bodyPos.x - sunPos.x;
+    const dy = bodyPos.y - sunPos.y;
+    const dz = bodyPos.z - sunPos.z;
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < 1) return 0;
+    const rAU = r / _NBodySystem.AU_METERS;
+    const flux = _NBodySystem.SOLAR_CONSTANT_1AU / (rAU * rAU);
+    return flux / _NBodySystem.SPEED_OF_LIGHT;
+  }
+  /**
+   * [Iter 17] Solar sail acceleration. Computes the acceleration on a solar
+   * sail from radiation pressure, accounting for the sail orientation and
+   * reflectivity. The force has components both along the Sun-line (absorption)
+   * and along the sail normal (specular reflection).
+   *
+   *   F = P·A·cos θ·[(1−ρ)·ŝ + 2·ρ·cos θ·n̂]
+   *
+   * where θ is the angle between the sail normal and the Sun direction,
+   * ρ is reflectivity (0=absorb, 1=perfect mirror).
+   */
+  solarSailAcceleration(sunPos, bodyPos, sailArea, sailNormal, sailMass, reflectivity = 0.9) {
+    const dx = bodyPos.x - sunPos.x;
+    const dy = bodyPos.y - sunPos.y;
+    const dz = bodyPos.z - sunPos.z;
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < 1 || sailMass <= 0) {
+      return { pressure: 0, force: new Vector3(), acceleration: 0 };
+    }
+    const pressure = this.solarRadiationPressure(sunPos, bodyPos);
+    const sunDir = new Vector3(dx / r, dy / r, dz / r);
+    let cosTheta = sailNormal.dot(sunDir);
+    cosTheta = Math.max(0, Math.min(1, cosTheta));
+    const absorbComponent = sunDir.clone().multiplyScalar(
+      pressure * sailArea * cosTheta * (1 - reflectivity)
+    );
+    const reflectComponent = sailNormal.clone().multiplyScalar(
+      pressure * sailArea * 2 * reflectivity * cosTheta * cosTheta
+    );
+    const force = absorbComponent.add(reflectComponent);
+    const acceleration = force.length() / Math.max(sailMass, 1);
+    return { pressure, force, acceleration };
+  }
+  /**
+   * [Iter 18] Secular changes in orbital elements due to solar sail
+   * perturbation. A solar sail can change the semi-major axis, eccentricity,
+   * and inclination over time. Returns the instantaneous rates da/dt, de/dt, di/dt.
+   */
+  solarSailSecularRates(elements, sunDir, sailNormal, sailArea, sailMass, mu, reflectivity = 0.9) {
+    const a = elements.semiMajorAxis;
+    if (a <= 0) return { daDt: 0, deDt: 0, diDt: 0 };
+    const rAU = a / _NBodySystem.AU_METERS;
+    const flux = _NBodySystem.SOLAR_CONSTANT_1AU / Math.max(rAU * rAU, 1e-6);
+    const pressure = flux / _NBodySystem.SPEED_OF_LIGHT;
+    let cosTheta = sailNormal.dot(sunDir);
+    cosTheta = Math.max(0, Math.min(1, cosTheta));
+    const forceMag = pressure * sailArea * (1 + reflectivity) * cosTheta * cosTheta;
+    const accel = forceMag / Math.max(sailMass, 1);
+    const n = Math.sqrt(mu / (a * a * a));
+    const velAlign = Math.abs(sailNormal.clone().cross(sunDir).length());
+    const daDt = 2 * a * a * n * accel * velAlign / Math.max(mu, 1);
+    const eFactor = Math.sqrt(Math.max(1 - elements.eccentricity * elements.eccentricity, 1e-6));
+    const deDt = 1.5 * n * accel * velAlign * eFactor;
+    const outOfPlane = Math.abs(sailNormal.y);
+    const diDt = n * accel * outOfPlane * a / Math.max(mu, 1);
+    return { daDt, deDt, diDt };
+  }
+  /**
+   * [Iter 19] Eclipse shadow factor. Determines whether a body is in the
+   * umbral (full shadow), penumbral (partial shadow), or full sunlight
+   * region of a planet as seen from the Sun.
+   *
+   * Returns a factor 0..1: 0 = full umbra, 0..1 = penumbra, 1 = full sun.
+   */
+  eclipseShadowFactor(bodyPos, planetPos, sunPos, planetRadius) {
+    const sunToPlanet = planetPos.clone().sub(sunPos);
+    const sunToBody = bodyPos.clone().sub(sunPos);
+    const d = sunToPlanet.length();
+    if (d < 1) return 1;
+    const sunDir = sunToPlanet.clone().multiplyScalar(1 / d);
+    const proj = sunToBody.dot(sunDir);
+    if (proj < d) return 1;
+    const distFromPlanet = proj - d;
+    const perp = sunToBody.clone().sub(sunDir.clone().multiplyScalar(proj)).length();
+    const sunRadius = _NBodySystem.AU_METERS * 465e-5;
+    const tanUmbra = (planetRadius - sunRadius) / d;
+    const umbraRadius = planetRadius + distFromPlanet * tanUmbra;
+    const tanPenumbra = (sunRadius + planetRadius) / d;
+    const penumbraRadius = planetRadius + distFromPlanet * tanPenumbra;
+    if (umbraRadius > 0 && perp < umbraRadius) return 0;
+    if (perp < penumbraRadius) {
+      const frac = (perp - Math.max(umbraRadius, 0)) / Math.max(penumbraRadius - Math.max(umbraRadius, 0), 1e-6);
+      return Math.max(0, Math.min(1, frac));
+    }
+    return 1;
+  }
+  /**
+   * [Iter 20] Yarkovsky effect: a small thermal recoil force caused by the
+   * anisotropic emission of thermal radiation from a rotating body. The
+   * afternoon side is warmer and emits more photons, creating a net force
+   * that can drift the semi-major axis over long timescales.
+   *
+   *   F ≈ (4/3)·σ·ΔT·T³·A / c
+   */
+  yarkovskyEffect(bodyPos, sunPos, bodyRadius, bodyTemp, thermalInertia, bodyMass) {
+    const dx = bodyPos.x - sunPos.x;
+    const dy = bodyPos.y - sunPos.y;
+    const dz = bodyPos.z - sunPos.z;
+    const r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (r < 1 || bodyMass <= 0) return { force: new Vector3(), acceleration: 0, daDt: 0 };
+    const rAU = r / _NBodySystem.AU_METERS;
+    const flux = _NBodySystem.SOLAR_CONSTANT_1AU / Math.max(rAU * rAU, 1e-6);
+    const deltaT = thermalInertia * flux * 1e-4;
+    const sigma = _NBodySystem.STEFAN_BOLTZMANN;
+    const area2 = Math.PI * bodyRadius * bodyRadius;
+    const forceMag = 4 / 3 * sigma * deltaT * Math.pow(bodyTemp, 3) * area2 / _NBodySystem.SPEED_OF_LIGHT;
+    const sunDir = new Vector3(dx / r, dy / r, dz / r);
+    const tangent = new Vector3(-sunDir.z, 0, sunDir.x);
+    if (tangent.lengthSq() < 1e-10) tangent.set(sunDir.y, -sunDir.x, 0);
+    tangent.normalize();
+    const force = tangent.clone().multiplyScalar(forceMag);
+    const acceleration = forceMag / Math.max(bodyMass, 1);
+    const muSun = G * 1989e27;
+    const a = r;
+    const n = Math.sqrt(muSun / (a * a * a));
+    const daDt = 2 * a * a * n * acceleration / Math.max(muSun, 1);
+    return { force, acceleration, daDt };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 21-25] Atmospheric Turbulence Enhancement
+  // Von Karman spectrum, Dryden model, wake buffeting, discrete gusts,
+  // and altitude-dependent turbulence intensity profiles.
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * [Iter 21] Von Karman turbulence power spectral density (PSD). The von
+   * Karman model is the standard atmospheric turbulence spectrum used in
+   * aircraft flight dynamics:
+   *
+   *   Φ(Ω) = σ²·L / π · 1 / (1 + (1.339·L·Ω)²)^(5/6)
+   *
+   * @param sigma       Turbulence intensity (m/s).
+   * @param lengthScale Integral turbulence length scale (m).
+   * @param frequency   Spatial frequency Ω (rad/m).
+   * @returns PSD value (m²/s²·m).
+   */
+  vonKarmanSpectrum(sigma, lengthScale, frequency) {
+    if (frequency < 0 || sigma <= 0 || lengthScale <= 0) return 0;
+    const L = 1.339 * lengthScale;
+    const denom = Math.pow(1 + L * L * frequency * frequency, 5 / 6);
+    return sigma * sigma * lengthScale / (Math.PI * denom);
+  }
+  /**
+   * [Iter 22] Dryden turbulence model (time-domain). Generates a turbulence
+   * velocity vector at a given altitude and time using the Dryden transfer
+   * function. The Dryden model is the FAA-standard continuous turbulence
+   * model for aircraft simulation.
+   *
+   * @param altitude    Altitude above surface (m).
+   * @param velocity    Body velocity magnitude (m/s).
+   * @param time        Current simulation time (s).
+   * @param seed        Per-craft randomization seed.
+   * @param bodyName    Body with atmosphere (for layer-dependent scaling).
+   * @returns Turbulence velocity vector (m/s).
+   */
+  drydenTurbulence(altitude, velocity, time, seed = 0, bodyName) {
+    if (velocity < 0.1 || altitude < 0) return new Vector3();
+    const sigma = this.turbulenceIntensityProfile(altitude, bodyName);
+    const lengthScale = Math.max(300, altitude * 0.1 + 300);
+    const numModes = 8;
+    const dOmega = 0.5;
+    const result = new Vector3();
+    for (let i = 0; i < numModes; i++) {
+      const mode = i + 1;
+      const omega = mode * dOmega;
+      const omegaL_V = omega * lengthScale / Math.max(velocity, 1);
+      const amp = sigma * Math.sqrt(2 * lengthScale * velocity * dOmega / (Math.PI * (1 + omegaL_V * omegaL_V)));
+      const phaseX = (seed * 1.1 + mode * 2.3) % (2 * Math.PI);
+      const phaseY = (seed * 2.7 + mode * 3.1) % (2 * Math.PI);
+      const phaseZ = (seed * 3.3 + mode * 5.7) % (2 * Math.PI);
+      result.x += amp * Math.sin(omega * time + phaseX);
+      result.y += amp * 0.5 * Math.sin(omega * time + phaseY);
+      result.z += amp * Math.sin(omega * time + phaseZ);
+    }
+    const currentMag = result.length();
+    if (currentMag > sigma * 3) {
+      result.multiplyScalar(sigma * 3 / currentMag);
+    }
+    return result;
+  }
+  /**
+   * [Iter 23] Wake buffeting force. When a body flies through the turbulent
+   * wake of another body, it experiences oscillating forces driven by von
+   * Karman vortex shedding (Strouhal number):
+   *
+   *   f = St·V / D    (vortex shedding frequency)
+   *   F = 0.5·ρ·V²·A·C_b·sin(2π·f·t)
+   */
+  wakeBuffeting(bodyPos, parentName, parentPos, velocity, bodyRadius, time) {
+    const parent = this.getBody(parentName);
+    if (!parent || velocity < 0.1) {
+      return { force: new Vector3(), sheddingFreq: 0, amplitude: 0 };
+    }
+    const dx = bodyPos.x - parentPos.x;
+    const dy = bodyPos.y - parentPos.y;
+    const dz = bodyPos.z - parentPos.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const altitude = dist - parent.radius;
+    const rho = this.atmosphericDensity(parentName, altitude);
+    if (rho <= 0) return { force: new Vector3(), sheddingFreq: 0, amplitude: 0 };
+    const St = 0.2;
+    const diameter = Math.max(bodyRadius * 2, 0.1);
+    const sheddingFreq = St * velocity / diameter;
+    const Re = rho * velocity * diameter / 18e-6;
+    const Cb = Re > 1e3 ? 0.3 : 0.1;
+    const area2 = Math.PI * bodyRadius * bodyRadius;
+    const amplitude = 0.5 * rho * velocity * velocity * area2 * Cb;
+    const phase = 2 * Math.PI * sheddingFreq * time;
+    const forceY = amplitude * Math.sin(phase);
+    const forceZ = amplitude * Math.cos(phase) * 0.3;
+    return {
+      force: new Vector3(0, forceY, forceZ),
+      sheddingFreq,
+      amplitude
+    };
+  }
+  /**
+   * [Iter 24] Discrete gust model (1-cosine gust). The FAA-certified gust
+   * model for aircraft loads. A gust is a localized region of upward or
+   * downward air velocity with a 1-cosine spatial profile:
+   *
+   *   w(s) = (V_gust/2)·(1 − cos(2π·s/L_gust))  for 0 ≤ s ≤ L_gust
+   */
+  discreteGust(altitude, time, velocity, seedOffset = 0, gustType = "cosine") {
+    if (velocity < 0.1) return new Vector3();
+    const Lgust = Math.max(50, altitude * 0.01 + 50);
+    const Vgust = this.turbulenceIntensityProfile(altitude) * 2.5;
+    if (Vgust < 0.01) return new Vector3();
+    const gustPeriod = Lgust / velocity;
+    const phase = (time + seedOffset) % (gustPeriod * 2) / gustPeriod;
+    let wGust = 0;
+    if (phase < 1) {
+      if (gustType === "cosine") {
+        wGust = Vgust / 2 * (1 - Math.cos(2 * Math.PI * phase));
+      } else if (gustType === "square") {
+        wGust = phase < 0.5 ? Vgust : 0;
+      } else {
+        wGust = Vgust * Math.sin(2 * Math.PI * phase);
+      }
+    }
+    return new Vector3(0, wGust, 0);
+  }
+  /**
+   * [Iter 25] Turbulence intensity profile as a function of altitude.
+   * Models the variation of turbulence intensity with altitude based on
+   * the atmospheric boundary layer structure:
+   *
+   *   σ(h) = σ₀·(h/h_ref)^(−1/3)     for h < h_ref (boundary layer)
+   *   σ(h) = σ₀·exp(−(h−h_ref)/H_t)  for h ≥ h_ref (free atmosphere)
+   *
+   * @param altitude   Altitude above surface (m).
+   * @param bodyName   Body with atmosphere (optional, for composition scaling).
+   * @returns Turbulence intensity σ (m/s).
+   */
+  turbulenceIntensityProfile(altitude, bodyName) {
+    const sigma0 = 1.5;
+    const hRef = 1e3;
+    const Hturb = 3e3;
+    let sigma;
+    if (altitude < hRef) {
+      const h = Math.max(altitude, 10);
+      sigma = sigma0 * Math.pow(h / hRef, -1 / 3);
+    } else {
+      sigma = sigma0 * Math.exp(-(altitude - hRef) / Hturb);
+    }
+    if (bodyName) {
+      const atm = this.atmospheres.get(bodyName);
+      if (atm) {
+        if (atm.composition.includes("H2")) sigma *= 1.5;
+        if (atm.composition.includes("CO2")) sigma *= 0.8;
+      }
+    }
+    return sigma;
+  }
+  // ====================================================================
+  // [Iter 101-105] Relativistic corrections (special relativity)
+  // Time dilation for high-speed warp flight, relativistic velocity
+  // addition, relativistic energy, and length contraction.
+  // ====================================================================
+  /**
+   * [Iter 101] Lorentz factor gamma = 1 / sqrt(1 - beta^2). Returns 1 for
+   * non-relativistic speeds and caps near c to avoid floating-point blowup
+   * during warp travel.
+   */
+  lorentzFactor(velocity) {
+    const v = velocity.length();
+    const c = _NBodySystem.SPEED_OF_LIGHT;
+    if (v >= c) return 1e6;
+    const betaSq = v * v / (c * c);
+    if (betaSq < 1e-12) return 1;
+    return 1 / Math.sqrt(1 - betaSq);
+  }
+  /**
+   * [Iter 102] Time dilation during high-speed (warp) flight. The moving
+   * craft experiences proper time tau = t / gamma, so at 0.9c it ages only
+   * ~44% as fast as the rest frame. Reuses the RelativisticResult interface.
+   */
+  relativisticTimeDilation(velocity, coordinateTime) {
+    const gamma = this.lorentzFactor(velocity);
+    return {
+      gammaFactor: gamma,
+      timeDilation: gamma,
+      // dt/dtau
+      properTime: coordinateTime / gamma
+    };
+  }
+  /**
+   * [Iter 103] Einstein velocity addition. Composes two velocities
+   * relativistically: the component parallel to v1 is added as
+   *   u_par = (v1 + v2_par) / (1 + v1*v2_par/c^2)
+   * while the perpendicular component is scaled by 1/(gamma1 * denom).
+   */
+  relativisticVelocityAddition(v1, v2) {
+    const c = _NBodySystem.SPEED_OF_LIGHT;
+    const cSq = c * c;
+    const v1Mag = v1.length();
+    if (v1Mag < 1e-6) return v2.clone();
+    const n1 = v1.clone().multiplyScalar(1 / v1Mag);
+    const v2ParMag = v2.dot(n1);
+    const v2Perp = v2.clone().addScaledVector(n1, -v2ParMag);
+    const denom = 1 + v1Mag * v2ParMag / cSq;
+    const uPar = n1.clone().multiplyScalar((v1Mag + v2ParMag) / denom);
+    const gamma1 = 1 / Math.sqrt(1 - v1Mag * v1Mag / cSq);
+    const uPerp = v2Perp.multiplyScalar(1 / (gamma1 * denom));
+    return uPar.add(uPerp);
+  }
+  /**
+   * [Iter 104] Relativistic kinematics summary: kinetic energy
+   * KE = (gamma - 1) m c^2, total energy E = gamma m c^2, length contraction
+   * L = L0 / gamma, and proper-time rate dtau/dt = 1 / gamma.
+   */
+  relativisticKinematics(mass, velocity, properLength = 1) {
+    const gamma = this.lorentzFactor(velocity);
+    const c = _NBodySystem.SPEED_OF_LIGHT;
+    const mcSq = mass * c * c;
+    return {
+      gammaFactor: gamma,
+      relativisticKineticEnergy: (gamma - 1) * mcSq,
+      totalEnergy: gamma * mcSq,
+      lengthContraction: properLength / gamma,
+      properTimePerSecond: 1 / gamma
+    };
+  }
+  /**
+   * [Iter 105] Apply relativistic length contraction to a displacement
+   * during warp flight. The apparent path contracts along the velocity
+   * direction by 1/gamma while the transverse component is unchanged.
+   * Useful for rendering the warp tunnel and synchronising on-board clocks.
+   */
+  relativisticPositionCorrection(displacement, velocity) {
+    const gamma = this.lorentzFactor(velocity);
+    if (gamma <= 1 + 1e-9) return displacement.clone();
+    const v = velocity.length();
+    if (v < 1e-6) return displacement.clone();
+    const n = velocity.clone().multiplyScalar(1 / v);
+    const parMag = displacement.dot(n);
+    const perp = displacement.clone().addScaledVector(n, -parMag);
+    return perp.addScaledVector(n, parMag / gamma);
+  }
+  // ====================================================================
+  // [Iter 106-110] Gravitational-wave radiation (quadrupole formula)
+  // Orbital decay and inspiral of binary systems from GW energy loss.
+  // ====================================================================
+  /**
+   * [Iter 106] Gravitational-wave luminosity of a circular binary from the
+   * quadrupole formula (Peters & Mathews 1963):
+   *   P = (32/5) G^4 / c^5 * m1^2 m2^2 (m1+m2) / a^5
+   */
+  gravitationalWavePower(m1, m2, semiMajorAxis) {
+    const c = _NBodySystem.SPEED_OF_LIGHT;
+    const c5 = c * c * c * c * c;
+    const a5 = Math.pow(semiMajorAxis, 5);
+    if (a5 < 1) return 0;
+    return 32 / 5 * (G * G * G * G / c5) * (m1 * m1 * m2 * m2 * (m1 + m2)) / a5;
+  }
+  /**
+   * [Iter 107] Orbital decay rate da/dt from GW radiation:
+   *   da/dt = -(64/5) G^3 m1 m2 (m1+m2) / (c^5 a^3)
+   */
+  gwOrbitalDecayRate(m1, m2, semiMajorAxis) {
+    const c = _NBodySystem.SPEED_OF_LIGHT;
+    const c5 = c * c * c * c * c;
+    const a3 = Math.pow(semiMajorAxis, 3);
+    if (a3 < 1) return 0;
+    return -(64 / 5) * (G * G * G * m1 * m2 * (m1 + m2)) / (c5 * a3);
+  }
+  /**
+   * [Iter 108] Inspiral (coalescence) time from the current semi-major
+   * axis to merger, integrating Peters' formula for a circular orbit:
+   *   t = (5/256) c^5 a^4 / (G^3 m1 m2 (m1+m2))
+   */
+  gwInspiralTime(m1, m2, semiMajorAxis) {
+    const c = _NBodySystem.SPEED_OF_LIGHT;
+    const c5 = c * c * c * c * c;
+    const a4 = Math.pow(semiMajorAxis, 4);
+    const denom = G * G * G * m1 * m2 * (m1 + m2);
+    if (denom < 1) return 0;
+    return 5 / 256 * (c5 * a4) / denom;
+  }
+  /**
+   * [Iter 109] GW strain amplitude and frequencies for a circular binary
+   * observed at a given distance. The GW frequency is twice the orbital
+   * frequency f_orb = (1/2pi) sqrt(mu/a^3); the characteristic strain uses
+   * the chirp mass.
+   */
+  gwStrainAndFrequency(m1, m2, semiMajorAxis, observerDistance) {
+    const c = _NBodySystem.SPEED_OF_LIGHT;
+    const M = m1 + m2;
+    const mu = G * M;
+    const a3 = semiMajorAxis * semiMajorAxis * semiMajorAxis;
+    const orbitalFreq = a3 > 0 ? Math.sqrt(mu / a3) / (2 * Math.PI) : 0;
+    const gwFreq = 2 * orbitalFreq;
+    const radiatedPower = this.gravitationalWavePower(m1, m2, semiMajorAxis);
+    const decayRate = this.gwOrbitalDecayRate(m1, m2, semiMajorAxis);
+    const inspiralTime = this.gwInspiralTime(m1, m2, semiMajorAxis);
+    const reducedMass = M > 0 ? m1 * m2 / M : 0;
+    const chirpMass = Math.pow(reducedMass, 3 / 5) * Math.pow(M, 2 / 5);
+    const h = 4 / Math.max(observerDistance, 1) * Math.pow(G * chirpMass / (c * c), 5 / 3) * Math.pow(Math.PI * gwFreq, 2 / 3) / c;
+    return {
+      radiatedPower,
+      orbitalDecayRate: decayRate,
+      inspiralTime,
+      strainAmplitude: h,
+      gwFrequency: gwFreq,
+      orbitalFrequency: orbitalFreq
+    };
+  }
+  /**
+   * [Iter 110] Step a binary system forward under GW-driven inspiral.
+   * Decays the separation by da/dt * dt (capped at contact), scales the
+   * relative position and circular orbital speed to the new separation,
+   * and repositions both bodies about their barycentre. Returns the new
+   * separation in metres.
+   */
+  gwInspiralStep(primary, secondary, dt) {
+    const sep = primary.position.distanceTo(secondary.position);
+    const contactDist = primary.radius + secondary.radius;
+    if (sep <= contactDist) return sep;
+    const daDt = this.gwOrbitalDecayRate(primary.mass, secondary.mass, sep);
+    const newSep = Math.max(sep + daDt * dt, contactDist);
+    if (newSep >= sep) return sep;
+    const M = primary.mass + secondary.mass;
+    const relPos = secondary.position.clone().sub(primary.position);
+    const relVel = secondary.velocity.clone().sub(primary.velocity);
+    const ratio = newSep / sep;
+    relPos.multiplyScalar(ratio);
+    const vNew = Math.sqrt(G * M / newSep);
+    if (relVel.length() > 1e-6) relVel.setLength(vNew);
+    if (primary.isStatic) {
+      secondary.position.copy(primary.position).add(relPos);
+      secondary.velocity.copy(primary.velocity).add(relVel);
+    } else {
+      const comPos = new Vector3().addScaledVector(primary.position, primary.mass).addScaledVector(secondary.position, secondary.mass).multiplyScalar(1 / M);
+      const comVel = new Vector3().addScaledVector(primary.velocity, primary.mass).addScaledVector(secondary.velocity, secondary.mass).multiplyScalar(1 / M);
+      primary.position.copy(comPos).addScaledVector(relPos, -secondary.mass / M);
+      secondary.position.copy(comPos).addScaledVector(relPos, primary.mass / M);
+      primary.velocity.copy(comVel).addScaledVector(relVel, -secondary.mass / M);
+      secondary.velocity.copy(comVel).addScaledVector(relVel, primary.mass / M);
+    }
+    return newSep;
+  }
+  // ====================================================================
+  // [Iter 111-115] Roche limit & tidal disruption
+  // ====================================================================
+  /**
+   * [Iter 111] Rigid-body Roche limit - the distance inside which a rigid
+   * satellite (bound only by self-gravity) is torn apart by tides:
+   *   d = R_M * (2 * rho_M / rho_m)^(1/3)  ~= 1.26 R_M (rho_M/rho_m)^(1/3)
+   */
+  rigidRocheLimit(primaryRadius, primaryDensity, satelliteDensity) {
+    if (satelliteDensity <= 0) return Infinity;
+    return primaryRadius * Math.cbrt(2 * primaryDensity / satelliteDensity);
+  }
+  /**
+   * [Iter 112] Fluid Roche limit - a fluid satellite that deforms under
+   * tides disrupts farther out:
+   *   d ~= 2.44 * R_M * (rho_M / rho_m)^(1/3)
+   */
+  fluidRocheLimit(primaryRadius, primaryDensity, satelliteDensity) {
+    if (satelliteDensity <= 0) return Infinity;
+    return 2.44 * primaryRadius * Math.cbrt(primaryDensity / satelliteDensity);
+  }
+  /**
+   * [Iter 113] Roche limit corrected for the satellite's spin. A
+   * synchronously rotating body has extra centrifugal support that pulls
+   * the effective limit from the fluid value toward the rigid value.
+   * spinFraction = 0 (non-rotating) .. 1 (synchronous).
+   */
+  rocheLimitWithRotation(primaryRadius, primaryDensity, satelliteDensity, spinFraction) {
+    const rigid = this.rigidRocheLimit(primaryRadius, primaryDensity, satelliteDensity);
+    const fluid = this.fluidRocheLimit(primaryRadius, primaryDensity, satelliteDensity);
+    const f = Math.max(0, Math.min(1, spinFraction));
+    return fluid + (rigid - fluid) * f;
+  }
+  /**
+   * [Iter 114] Tidal disruption radius and fragmentation test. Computes
+   * densities from the body masses/radii, the rigid/fluid/rotation-aware
+   * disruption distance, and the Eggleton Roche-lobe radii for both
+   * bodies at their current separation.
+   */
+  tidalDisruption(primary, satellite, spinFraction = 0) {
+    const vol = (r) => 4 / 3 * Math.PI * r * r * r;
+    const rhoP = primary.mass / Math.max(vol(primary.radius), 1);
+    const rhoS = satellite.mass / Math.max(vol(satellite.radius), 1);
+    const rigid = this.rigidRocheLimit(primary.radius, rhoP, rhoS);
+    const fluid = this.fluidRocheLimit(primary.radius, rhoP, rhoS);
+    const disruption = this.rocheLimitWithRotation(primary.radius, rhoP, rhoS, spinFraction);
+    const dist = primary.position.distanceTo(satellite.position);
+    const eggleton = (q) => 0.49 * Math.cbrt(q) / (0.6 * Math.cbrt(q) + Math.log(1 + Math.cbrt(q)));
+    const rl1 = dist * eggleton(primary.mass / satellite.mass);
+    const rl2 = dist * eggleton(satellite.mass / primary.mass);
+    return {
+      rigidRocheLimit: rigid,
+      fluidRocheLimit: fluid,
+      disruptionRadius: disruption,
+      isFragmented: dist < disruption,
+      rocheLobeRadiusPrimary: rl1,
+      rocheLobeRadiusSecondary: rl2
+    };
+  }
+  /**
+   * [Iter 115] Eggleton Roche-lobe radii for a binary of given masses and
+   * separation. Determines when Roche-lobe overflow (mass transfer) begins.
+   * Returns both lobes in metres.
+   */
+  rocheLobeRadii(primaryMass, secondaryMass, separation) {
+    const eggleton = (q) => separation * 0.49 * Math.cbrt(q) / (0.6 * Math.cbrt(q) + Math.log(1 + Math.cbrt(q)));
+    return {
+      primary: eggleton(primaryMass / secondaryMass),
+      secondary: eggleton(secondaryMass / primaryMass)
+    };
+  }
+  // ====================================================================
+  // [Iter 116-120] Precise multi-body SOI (3-D, eccentricity-corrected)
+  // ====================================================================
+  /**
+   * [Iter 116] Hill radius - the physically grounded 3-D SOI scale that
+   * accounts for orbital eccentricity. Uses the pericentre distance
+   * a(1-e) for a conservative (smallest) Hill sphere:
+   *   r_H = a(1-e) * (m / (3M))^(1/3)
+   */
+  hillRadius(bodyMass, parentMass, semiMajorAxis, eccentricity = 0) {
+    const pericentre = semiMajorAxis * (1 - eccentricity);
+    return pericentre * Math.cbrt(bodyMass / (3 * parentMass));
+  }
+  /**
+   * [Iter 117] Effective 3-D SOI. Blends the Hill radius with the classic
+   * Laplace SOI and returns an eccentricity-corrected value plus
+   * equatorial/polar components reflecting the tidal elongation of the SOI
+   * boundary along the parent-body axis.
+   */
+  effectiveSOI3D(body, parent, semiMajorAxis, eccentricity = 0) {
+    const hill = this.hillRadius(body.mass, parent.mass, semiMajorAxis, eccentricity);
+    const laplace = _NBodySystem.computeSOI(body.mass, parent.mass, semiMajorAxis);
+    const effective = (hill + laplace) * 0.5;
+    const stretch = 1 + 0.05 * (parent.mass > 0 ? body.mass / parent.mass : 0);
+    const equatorial = effective * stretch;
+    const polar = effective / stretch;
+    const dist = body.position.distanceTo(parent.position);
+    return {
+      hillRadius: hill,
+      effectiveSOI: effective,
+      equatorialSOI: equatorial,
+      polarSOI: polar,
+      isInside: dist <= effective
+    };
+  }
+  /**
+   * [Iter 118] Direction-dependent (non-spherical) SOI radius. The boundary
+   * is elongated along the parent-body axis and compressed perpendicular to
+   * it. Returns the SOI radius in the given direction (unit vector from the
+   * body centre).
+   */
+  nonSphericalSOI(body, parent, direction, semiMajorAxis, eccentricity = 0) {
+    const soi = this.effectiveSOI3D(body, parent, semiMajorAxis, eccentricity);
+    const axis = body.position.clone().sub(parent.position);
+    const axisLen = axis.length();
+    if (axisLen < 1) return soi.effectiveSOI;
+    axis.multiplyScalar(1 / axisLen);
+    const dir = direction.length() > 1e-6 ? direction.clone().normalize() : axis;
+    const cosTheta = Math.abs(dir.dot(axis));
+    const aniso = soi.polarSOI > 0 ? soi.equatorialSOI / soi.polarSOI : 1;
+    const factor = 1 + (aniso - 1) * cosTheta;
+    return soi.effectiveSOI * factor;
+  }
+  /**
+   * [Iter 119] Dynamically recompute and register the SOI for a body from
+   * its current state, shrinking the usable SOI when third-body
+   * perturbations are strong (ratio of perturbing to parent acceleration).
+   * The corrected radius is cached via setSOI.
+   */
+  recomputeSOIDynamic(body, parent) {
+    const a = body.position.distanceTo(parent.position);
+    if (a < 1) return 0;
+    const hill = this.hillRadius(body.mass, parent.mass, a, 0);
+    const parentAcc = G * parent.mass / (a * a);
+    let perturb = 0;
+    for (const other of this.bodies) {
+      if (other.name === body.name || other.name === parent.name) continue;
+      const dEdge = other.position.distanceTo(body.position);
+      if (dEdge < 1) continue;
+      perturb += G * other.mass / (dEdge * dEdge);
+    }
+    const ratio = parentAcc > 0 ? perturb / parentAcc : 0;
+    const corrected = hill * Math.max(0.5, 1 - ratio);
+    this.setSOI(body.name, corrected);
+    return corrected;
+  }
+  /**
+   * [Iter 120] Detect an SOI boundary crossing between two consecutive
+   * positions. Returns whether the craft entered or exited the body's SOI
+   * during the step, plus the interpolated crossing point - used for
+   * patched-conic SOI switching.
+   */
+  detectSOITransition(prevPos, pos, body) {
+    const r = this.soiRadii.get(body.name);
+    if (r === void 0 || r <= 0) {
+      return { crossed: false, direction: "none", crossingPoint: null };
+    }
+    const d0 = body.position.distanceTo(prevPos);
+    const d1 = body.position.distanceTo(pos);
+    const wasInside = d0 <= r;
+    const isInside = d1 <= r;
+    if (wasInside === isInside) {
+      return { crossed: false, direction: "none", crossingPoint: null };
+    }
+    const denom = d1 - d0;
+    const t = denom !== 0 ? (r - d0) / denom : 0.5;
+    const crossingPoint = prevPos.clone().lerp(pos, Math.max(0, Math.min(1, t)));
+    return {
+      crossed: true,
+      direction: isInside ? "enter" : "exit",
+      crossingPoint
+    };
+  }
+  /**
+   * [Iter 121] Adaptive step optimiser. Estimates the local truncation
+   * error by comparing one full RK4 step against two half steps (embedded
+   * estimate), then scales the next step to keep the error near the
+   * requested tolerance. Returns the recommended step size in seconds.
+   */
+  adaptiveStepOptimized(pos, vel, dt, tolerance = 1e-6, excludeName) {
+    const accFn = (p) => this.computeNBodyAcceleration(p, excludeName);
+    const k1v = vel;
+    const k1a = accFn(pos);
+    const k2v = vel.clone().addScaledVector(k1a, dt * 0.5);
+    const k2a = accFn(pos.clone().addScaledVector(k1v, dt * 0.5));
+    const k3v = vel.clone().addScaledVector(k2a, dt * 0.5);
+    const k3a = accFn(pos.clone().addScaledVector(k2v, dt * 0.5));
+    const k4v = vel.clone().addScaledVector(k3a, dt);
+    const k4a = accFn(pos.clone().addScaledVector(k3v, dt));
+    const posFull = pos.clone().addScaledVector(k1v, dt / 6).addScaledVector(k2v, dt / 3).addScaledVector(k3v, dt / 3).addScaledVector(k4v, dt / 6);
+    const h = dt * 0.5;
+    const h1a = accFn(pos);
+    const h2v = vel.clone().addScaledVector(h1a, h * 0.5);
+    const h2a = accFn(pos.clone().addScaledVector(vel, h * 0.5));
+    const h3v = vel.clone().addScaledVector(h2a, h * 0.5);
+    const h3a = accFn(pos.clone().addScaledVector(h2v, h * 0.5));
+    const h4v = vel.clone().addScaledVector(h3a, h);
+    const h4a = accFn(pos.clone().addScaledVector(h3v, h));
+    const midPos = pos.clone().addScaledVector(vel, h / 6).addScaledVector(h2v, h / 3).addScaledVector(h3v, h / 3).addScaledVector(h4v, h / 6);
+    const midVel = vel.clone().addScaledVector(h1a, h / 6).addScaledVector(h2a, h / 3).addScaledVector(h3a, h / 3).addScaledVector(h4a, h / 6);
+    const g1a = accFn(midPos);
+    const g2v = midVel.clone().addScaledVector(g1a, h * 0.5);
+    const g2a = accFn(midPos.clone().addScaledVector(midVel, h * 0.5));
+    const g3v = midVel.clone().addScaledVector(g2a, h * 0.5);
+    const g3a = accFn(midPos.clone().addScaledVector(g2v, h * 0.5));
+    const g4v = midVel.clone().addScaledVector(g3a, h);
+    const g4a = accFn(midPos.clone().addScaledVector(g3v, h));
+    const posHalf = midPos.clone().addScaledVector(midVel, h / 6).addScaledVector(g2v, h / 3).addScaledVector(g3v, h / 3).addScaledVector(g4v, h / 6);
+    const err = posFull.distanceTo(posHalf) / 15;
+    if (err < 1e-15) return dt * 2;
+    const scale = 0.9 * Math.pow(tolerance / err, 0.2);
+    return Math.max(dt * 0.1, Math.min(dt * 5, dt * scale));
+  }
+  /**
+   * [Iter 122] Energy conservation monitor. Steps the system and measures
+   * the fractional total-energy drift; if it exceeds the tolerance the
+   * velocities are rescaled to restore the original kinetic energy (a
+   * symplectic-like correction for long-running simulations).
+   */
+  energyConservationMonitor(dt, tolerance = 1e-4) {
+    const before = this.computeEnergyMomentum();
+    this.step(dt);
+    const after = this.computeEnergyMomentum();
+    const e0 = before.totalEnergy;
+    const e1 = after.totalEnergy;
+    if (Math.abs(e0) < 1e-3) return { drift: 0, corrected: false, scale: 1 };
+    const drift = Math.abs(e1 - e0) / Math.abs(e0);
+    if (drift <= tolerance) return { drift, corrected: false, scale: 1 };
+    if (after.kineticEnergy <= 0) return { drift, corrected: false, scale: 1 };
+    const scale = Math.sqrt(Math.max(0, before.kineticEnergy / after.kineticEnergy));
+    for (const b of this.bodies) {
+      if (b.isStatic) continue;
+      b.velocity.multiplyScalar(scale);
+    }
+    return { drift, corrected: true, scale };
+  }
+  /**
+   * [Iter 123] Integrator comparison. Steps the system with RK4, a
+   * symplectic (semi-implicit) Euler, and the built-in velocity-Verlet
+   * leapfrog over the same interval, then reports the fractional energy
+   * drift of each so the caller can pick the most stable integrator.
+   */
+  compareIntegrators(dt, steps) {
+    const snapshot = this.bodies.map((b) => ({
+      name: b.name,
+      pos: b.position.clone(),
+      vel: b.velocity.clone()
+    }));
+    const e0 = this.computeEnergyMomentum().totalEnergy;
+    for (let i = 0; i < steps; i++) this.rk4StepSystem(dt);
+    const eRK4 = this.computeEnergyMomentum().totalEnergy;
+    this.restoreSnapshot(snapshot);
+    for (let i = 0; i < steps; i++) {
+      this.computeAccelerations();
+      for (const b of this.bodies) {
+        if (b.isStatic) continue;
+        const acc = this.accelerations.get(b.name);
+        b.velocity.addScaledVector(acc, dt);
+        b.position.addScaledVector(b.velocity, dt);
+      }
+    }
+    const eSymp = this.computeEnergyMomentum().totalEnergy;
+    this.restoreSnapshot(snapshot);
+    for (let i = 0; i < steps; i++) this.step(dt);
+    const eVerlet = this.computeEnergyMomentum().totalEnergy;
+    this.restoreSnapshot(snapshot);
+    const drift = (e) => Math.abs(e0) > 1e-3 ? Math.abs(e - e0) / Math.abs(e0) : 0;
+    const dRK4 = drift(eRK4), dSymp = drift(eSymp), dVerlet = drift(eVerlet);
+    let rec = "rk4";
+    if (dSymp <= dRK4 && dSymp <= dVerlet) rec = "symplectic";
+    else if (dVerlet <= dRK4 && dVerlet <= dSymp) rec = "verlet";
+    return {
+      energyDriftRK4: dRK4,
+      energyDriftSymplectic: dSymp,
+      energyDriftVerlet: dVerlet,
+      recommended: rec,
+      optimalStep: dt
+    };
+  }
+  /** Restore body positions/velocities from a snapshot (helper). */
+  restoreSnapshot(snap) {
+    for (const s of snap) {
+      const b = this.getBody(s.name);
+      if (b) {
+        b.position.copy(s.pos);
+        b.velocity.copy(s.vel);
+      }
+    }
+  }
+  /**
+   * [Iter 124] Numerical stability guard. Detects close approaches that
+   * would cause acceleration singularities, recommends a gravitational
+   * softening length and a max step from the shortest free-fall time, and
+   * reports the energy drift since the previous call.
+   */
+  numericalStabilityGuard() {
+    let closest = Infinity;
+    for (let i = 0; i < this.bodies.length; i++) {
+      for (let j = i + 1; j < this.bodies.length; j++) {
+        const d = this.bodies[i].position.distanceTo(this.bodies[j].position);
+        if (d < closest) closest = d;
+      }
+    }
+    const softening = Math.max(1, (closest === Infinity ? 1 : closest) * 0.01);
+    const e = this.computeEnergyMomentum();
+    let drift = 0;
+    if (this.prevTotalEnergy !== null && Math.abs(e.totalEnergy) > 1e-3) {
+      drift = Math.abs(e.totalEnergy - this.prevTotalEnergy) / Math.abs(e.totalEnergy);
+    }
+    this.prevTotalEnergy = e.totalEnergy;
+    let minTff = Infinity;
+    for (const b of this.bodies) {
+      if (b.isStatic) continue;
+      for (const o of this.bodies) {
+        if (o.name === b.name) continue;
+        const d = b.position.distanceTo(o.position);
+        const mu = G * o.mass;
+        if (d > 0 && mu > 0) {
+          const tff = Math.PI / 2 * Math.sqrt(d * d * d / (8 * mu));
+          if (tff < minTff) minTff = tff;
+        }
+      }
+    }
+    const maxStep = minTff === Infinity ? 1 : minTff / 20;
+    return {
+      energyDrift: drift,
+      closestApproach: closest === Infinity ? 0 : closest,
+      softeningUsed: softening,
+      isStable: closest > 1,
+      maxRecommendedStep: maxStep
+    };
+  }
+  /**
+   * [Iter 125] Cached N-body acceleration. Memoises the acceleration for
+   * nearby positions so repeated trajectory-prediction queries (e.g.
+   * map-view rendering) reuse cached values within a tolerance, falling
+   * back to the exact computation on a miss. Call invalidateAccelCache()
+   * after bodies move.
+   */
+  cachedNBodyAcceleration(pos, excludeName, tolerance = 1e3) {
+    const key = excludeName ?? "__all__";
+    let bestIdx = -1;
+    let bestDist = tolerance;
+    for (let i = 0; i < this.accelCache.length; i++) {
+      if (this.accelCache[i].excludeName !== key) continue;
+      const d = this.accelCache[i].pos.distanceTo(pos);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx >= 0) {
+      return this.accelCache[bestIdx].acc.clone();
+    }
+    const acc = this.computeNBodyAcceleration(pos, excludeName);
+    this.accelCache.push({ excludeName: key, pos: pos.clone(), acc: acc.clone() });
+    if (this.accelCache.length > 256) this.accelCache.shift();
+    return acc;
+  }
+  /** Invalidate the acceleration cache (call after bodies move). */
+  invalidateAccelCache() {
+    this.accelCache.length = 0;
+  }
+  static {
+    // Physical constants for magnetospheric calculations.
+    this.PROTON_MASS = 16726219e-34;
+  }
+  static {
+    // kg
+    this.ELECTRON_MASS = 91093837e-38;
+  }
+  static {
+    // kg
+    this.ELEMENTARY_CHARGE = 16021766e-26;
+  }
+  static {
+    // C
+    this.BOLTZMANN_K = 1380649e-29;
+  }
+  // J/K
+  /**
+   * [Iter 126] Register magnetosphere data for a body. The surface field
+   * strength, dipole tilt, offset, and standoff distance define a tilted
+   * offset-dipole model used by all subsequent magnetospheric queries.
+   */
+  setMagnetosphere(name, data) {
+    this.magnetospheres.set(name, data);
+  }
+  /** Get magnetosphere data for a body, if registered. */
+  getMagnetosphere(name) {
+    return this.magnetospheres.get(name);
+  }
+  /**
+   * Register a body's sidereal rotation period (seconds). Used by the
+   * Coriolis and atmospheric-circulation methods to derive the angular
+   * velocity of the rotating frame.
+   */
+  setRotationPeriod(name, period) {
+    this.rotationPeriods.set(name, period);
+  }
+  /** Get the angular velocity (rad/s) of a body's rotating frame. */
+  getAngularVelocity(name) {
+    const period = this.rotationPeriods.get(name);
+    if (!period || period === 0) return 0;
+    return 2 * Math.PI / Math.abs(period) * Math.sign(period);
+  }
+  /**
+   * [Iter 127] Compute the magnetic field vector at a given position
+   * relative to a body's centre, using a tilted offset-dipole model.
+   *
+   * The dipole field in spherical coordinates is:
+   *   B_r  = (μ₀ / 4π) * (2m / r³) * cos(θ)
+   *   B_θ  = (μ₀ / 4π) * (m / r³)  * sin(θ)
+   *
+   * where m = B_surface * R³ is the magnetic dipole moment, θ is the
+   * magnetic colatitude, and the dipole axis is tilted by `dipoleTilt`
+   * from the rotation axis.
+   *
+   * Returns the field vector in Tesla, or a zero vector if the body has
+   * no registered magnetosphere.
+   */
+  magnetosphereField(bodyName, position) {
+    const mag = this.magnetospheres.get(bodyName);
+    const body = this.getBody(bodyName);
+    if (!mag || !body) return new Vector3();
+    const r = position.length();
+    if (r < 1) return new Vector3();
+    const m = mag.surfaceField * body.radius * body.radius * body.radius;
+    const tilt = mag.dipoleTilt;
+    const dipoleAxis = new Vector3(
+      Math.sin(tilt),
+      Math.cos(tilt),
+      0
+    ).normalize();
+    const cosTheta = position.clone().normalize().dot(dipoleAxis);
+    const sinTheta = Math.sqrt(Math.max(0, 1 - cosTheta * cosTheta));
+    const r3 = r * r * r;
+    const bR = 2 * m * cosTheta / r3;
+    const bTheta = m * sinTheta / r3;
+    const rHat = position.clone().normalize();
+    let field;
+    if (sinTheta > 1e-10) {
+      const eTheta = dipoleAxis.clone().addScaledVector(rHat, -cosTheta).divideScalar(sinTheta);
+      field = rHat.multiplyScalar(bR).addScaledVector(eTheta, bTheta);
+    } else {
+      field = rHat.multiplyScalar(bR);
+    }
+    if (mag.dipoleOffset > 0) {
+      const offsetDist = mag.dipoleOffset * body.radius;
+      const offsetPos = position.clone().addScaledVector(dipoleAxis, -offsetDist);
+      const rOff = offsetPos.length();
+      if (rOff > 1) {
+        const rOff3 = rOff * rOff * rOff;
+        const cosThetaOff = offsetPos.clone().normalize().dot(dipoleAxis);
+        const sinThetaOff = Math.sqrt(Math.max(0, 1 - cosThetaOff * cosThetaOff));
+        const bROff = 2 * m * cosThetaOff / rOff3;
+        const bThetaOff = m * sinThetaOff / rOff3;
+        const rHatOff = offsetPos.clone().normalize();
+        if (sinThetaOff > 1e-10) {
+          const eThetaOff = dipoleAxis.clone().addScaledVector(rHatOff, -cosThetaOff).divideScalar(sinThetaOff);
+          field = rHatOff.multiplyScalar(bROff).addScaledVector(eThetaOff, bThetaOff);
+        } else {
+          field = rHatOff.multiplyScalar(bROff);
+        }
+      }
+    }
+    return field;
+  }
+  /**
+   * [Iter 128] Compute the Lorentz force and trapping diagnostics for a
+   * charged particle moving through a body's magnetosphere.
+   *
+   * The Lorentz force is  F = q (v × B).  The gyroradius (Larmor radius)
+   * is  r_L = m v_⊥ / (|q| B),  and the cyclotron frequency is
+   * ω_c = |q| B / m.
+   *
+   * A particle is considered trapped if its pitch angle α (angle between
+   * v and B) is large enough that the mirror force will reflect it before
+   * it reaches the atmosphere — i.e. sin²(α) > B_eq / B_surface along the
+   * field line. We approximate this using the local field ratio.
+   */
+  chargedParticleDeflection(bodyName, position, velocity, charge, mass) {
+    const B = this.magnetosphereField(bodyName, position);
+    const Bmag = B.length();
+    const vmag = velocity.length();
+    const force = new Vector3().crossVectors(velocity, B).multiplyScalar(charge);
+    let gyroRadius = 0;
+    let gyroFrequency = 0;
+    let deflectionAngle = 0;
+    if (Bmag > 0 && Math.abs(charge) > 0) {
+      const vPar = velocity.clone().dot(B) / (Bmag * Bmag);
+      const vPerp = velocity.clone().addScaledVector(B, -vPar / Bmag);
+      const vPerpMag = vPerp.length();
+      gyroRadius = mass * vPerpMag / (Math.abs(charge) * Bmag);
+      gyroFrequency = Math.abs(charge) * Bmag / mass;
+      if (vmag > 0 && gyroFrequency > 0) {
+        const pitchAngle = Math.acos(Math.max(-1, Math.min(1, vPar / (Bmag * vmag / Bmag))));
+        deflectionAngle = 2 * Math.abs(Math.sin(pitchAngle));
+      }
+    }
+    const mag = this.magnetospheres.get(bodyName);
+    let isTrapped = false;
+    if (mag && Bmag > 0 && vmag > 0) {
+      const bSurface = mag.surfaceField;
+      const bRatio = Bmag / Math.max(bSurface, 1e-20);
+      if (bRatio < 1) {
+        const lossConeAngle = Math.asin(Math.sqrt(bRatio));
+        const vParComp = velocity.clone().dot(B) / Bmag;
+        const vPerpComp = Math.sqrt(Math.max(0, vmag * vmag - vParComp * vParComp));
+        const pitchAngle = Math.atan2(vPerpComp, Math.abs(vParComp));
+        isTrapped = pitchAngle > lossConeAngle;
+      }
+    }
+    return {
+      force,
+      deflectionAngle,
+      isTrapped,
+      gyroRadius,
+      gyroFrequency
+    };
+  }
+  /**
+   * [Iter 129] Van Allen radiation belt model. Computes the inner and
+   * outer belt peak altitudes, widths (FWHM), peak particle flux, and
+   * whether a given altitude lies inside a belt.
+   *
+   * The inner belt (protons) peaks near 1.5 R_body altitude; the outer
+   * belt (electrons) peaks near 4.5 R_body. Belt widths and flux scale
+   * with the dipole moment. We use Gaussian profiles centred at these
+   * altitudes with physically motivated widths.
+   */
+  vanAllenBelts(bodyName, altitude) {
+    const body = this.getBody(bodyName);
+    const mag = this.magnetospheres.get(bodyName);
+    if (!body || !mag || mag.surfaceField < 1e-10) {
+      return {
+        innerBeltCenter: 0,
+        innerBeltWidth: 0,
+        outerBeltCenter: 0,
+        outerBeltWidth: 0,
+        peakFlux: 0,
+        isWithinBelt: false
+      };
+    }
+    const R = body.radius;
+    const standoff = mag.standoffDistance > 0 ? mag.standoffDistance : 10;
+    const scaleInner = Math.min(standoff / 10, 2);
+    const scaleOuter = Math.min(standoff / 10, 2);
+    const innerCenter = 0.5 * R * scaleInner;
+    const innerWidth = 0.3 * R * scaleInner;
+    const outerCenter = 3.5 * R * scaleOuter;
+    const outerWidth = 1 * R * scaleOuter;
+    const dipoleMoment = mag.surfaceField * R * R * R;
+    const earthMoment = 312e-7 * R * R * R;
+    const fluxScale = dipoleMoment / Math.max(earthMoment, 1);
+    const peakFlux = 1e10 * fluxScale;
+    const innerSigma = innerWidth / 2.355;
+    const outerSigma = outerWidth / 2.355;
+    const innerGauss = Math.exp(-0.5 * Math.pow((altitude - innerCenter) / Math.max(innerSigma, 1), 2));
+    const outerGauss = Math.exp(-0.5 * Math.pow((altitude - outerCenter) / Math.max(outerSigma, 1), 2));
+    const isWithinBelt = innerGauss > 0.1 || outerGauss > 0.1;
+    return {
+      innerBeltCenter: innerCenter,
+      innerBeltWidth: innerWidth,
+      outerBeltCenter: outerCenter,
+      outerBeltWidth: outerWidth,
+      peakFlux,
+      isWithinBelt
+    };
+  }
+  /**
+   * [Iter 130] Magnetopause standoff distance. The pressure balance
+   * between the solar wind dynamic pressure and the planetary magnetic
+   * field determines the subsolar magnetopause distance:
+   *
+   *   R_mp = [ μ₀ m² / (2π² P_sw) ]^(1/6)
+   *
+   * where m is the dipole moment and P_sw is the solar-wind dynamic
+   * pressure. Returns the standoff distance in body radii.
+   */
+  magnetopauseStandoff(bodyName, solarWindPressure = 2e-9) {
+    const body = this.getBody(bodyName);
+    const mag = this.magnetospheres.get(bodyName);
+    if (!body || !mag) return 0;
+    const R = body.radius;
+    const m = mag.surfaceField * R * R * R;
+    const mu0 = 4 * Math.PI * 1e-7;
+    if (solarWindPressure <= 0 || m <= 0) return 0;
+    const ratio = mu0 * m * m / (2 * Math.PI * Math.PI * solarWindPressure);
+    const rMp = Math.pow(ratio, 1 / 6);
+    return rMp / R;
+  }
+  static {
+    // ====================================================================
+    // [Iter 131-135] Atmospheric chemistry
+    // Ozone-layer UV absorption, Chapman-cycle photochemistry, chemical
+    // heating, and CO₂ infrared cooling.
+    // ====================================================================
+    // Avogadro's number for number-density conversions.
+    this.AVOGADRO = 602214076e15;
+  }
+  // /mol
+  /**
+   * [Iter 131] Ozone-layer UV absorption. Computes the O₃ number density
+   * at a given altitude using a Chapman-type profile (peak near 25 km),
+   * then derives the UV absorption coefficient from the Beer–Lambert law:
+   *
+   *   α = σ_O₃ * n_O₃
+   *
+   * where σ_O₃ ≈ 1.0e-20 m² (Hartley–Huggins cross-section at 250 nm).
+   * Also accounts for solar-zenith-angle dependence via the path-length
+   * factor 1/cos(χ).
+   */
+  ozoneLayerAbsorption(bodyName, altitude, solarZenith = 0) {
+    const atm = this.atmospheres.get(bodyName);
+    const body = this.getBody(bodyName);
+    if (!atm || !body) return { ozoneDensity: 0, uvAbsorption: 0 };
+    const rho = this.atmosphericDensity(bodyName, altitude);
+    const T = this.atmosphericTemperature(bodyName, altitude);
+    const nTotal = rho / Math.max(atm.molarMass, 1e-10) * _NBodySystem.AVOGADRO;
+    const peakAlt = 25e3 * (atm.scaleHeight / 8500);
+    const peakMixing = 1e-5;
+    const width = atm.scaleHeight * 0.5;
+    const mixingRatio = peakMixing * Math.exp(-Math.pow((altitude - peakAlt) / Math.max(width, 1), 2));
+    const ozoneDensity = nTotal * mixingRatio;
+    const sigmaO3 = 1e-20;
+    const cosZenith = Math.cos(solarZenith);
+    const pathFactor = cosZenith > 0.01 ? 1 / cosZenith : 50;
+    const uvAbsorption = sigmaO3 * ozoneDensity * pathFactor;
+    return { ozoneDensity, uvAbsorption };
+  }
+  /**
+   * [Iter 132] Chapman-cycle photochemistry. Computes the O₂ photolysis
+   * rate, O₃ photolysis rate, recombination rate, and net ozone production
+   * rate using the four Chapman reactions:
+   *
+   *   (1) O₂ + hν → 2O           (O₂ photolysis, rate J₂)
+   *   (2) O + O₂ + M → O₃ + M    (recombination, rate k₁)
+   *   (3) O₃ + hν → O + O₂       (O₃ photolysis, rate J₃)
+   *   (4) O + O₃ → 2O₂           (recombination, rate k₂)
+   *
+   * The photolysis rates decrease exponentially with optical depth
+   * (altitude-dependent), while the recombination rates depend on the
+   * third-body (air) number density.
+   */
+  chapmanCycle(bodyName, altitude, solarFlux = 1361) {
+    const atm = this.atmospheres.get(bodyName);
+    const body = this.getBody(bodyName);
+    if (!atm || !body) {
+      return {
+        o2PhotolysisRate: 0,
+        o3PhotolysisRate: 0,
+        recombinationRate: 0,
+        netOzoneRate: 0,
+        equilibriumOzone: 0
+      };
+    }
+    const rho = this.atmosphericDensity(bodyName, altitude);
+    const T = this.atmosphericTemperature(bodyName, altitude);
+    const nTotal = rho / Math.max(atm.molarMass, 1e-10) * _NBodySystem.AVOGADRO;
+    const o2Fraction = atm.composition.includes("O2") ? 0.21 : 0;
+    const nO2 = nTotal * o2Fraction;
+    const sigmaO2 = 1e-24;
+    const columnO2 = nO2 * atm.scaleHeight;
+    const tau = sigmaO2 * columnO2;
+    const uvFlux = solarFlux * Math.exp(-tau);
+    const j2Ref = 1e-10;
+    const o2PhotolysisRate = j2Ref * (uvFlux / 1361);
+    const j3Ref = 1e-3;
+    const ozoneInfo = this.ozoneLayerAbsorption(bodyName, altitude);
+    const o3Tau = ozoneInfo.uvAbsorption * atm.scaleHeight;
+    const o3PhotolysisRate = j3Ref * Math.exp(-o3Tau) * (uvFlux / 1361 + 0.01);
+    const k1 = 6e-34 * Math.pow(300 / Math.max(T, 1), 2.4) * 1e-12;
+    const k2 = 8e-12 * Math.exp(-2060 / Math.max(T, 1)) * 1e-6;
+    const nO = o2PhotolysisRate > 0 ? 2 * o2PhotolysisRate * nO2 / Math.max(k1 * nO2 * nTotal + k2 * 1e18, 1) : 0;
+    const netOzoneRate = k1 * nO * nO2 * nTotal - o3PhotolysisRate * ozoneInfo.ozoneDensity - k2 * nO * ozoneInfo.ozoneDensity;
+    const equilibriumOzone = o3PhotolysisRate > 0 ? k1 * nO2 * nTotal * nO / o3PhotolysisRate : 0;
+    return {
+      o2PhotolysisRate,
+      o3PhotolysisRate,
+      recombinationRate: k1,
+      netOzoneRate,
+      equilibriumOzone
+    };
+  }
+  /**
+   * [Iter 133] Chemical heating rate from exothermic reactions. The
+   * dominant chemical heating source in the mesosphere/lower thermosphere
+   * is O₃ photolysis followed by recombination:
+   *
+   *   O₃ + hν → O + O₂  (absorbs UV, ~3.0 eV per molecule)
+   *   O + O₂ + M → O₃ + M (releases ~1.0 eV as thermal energy)
+   *
+   * The net heating is the difference between absorbed UV energy and
+   * re-radiated energy, modulated by the local reaction rates.
+   */
+  chemicalHeatingRate(bodyName, altitude) {
+    const chapman = this.chapmanCycle(bodyName, altitude);
+    const ozoneInfo = this.ozoneLayerAbsorption(bodyName, altitude);
+    const energyPerReaction = 1602e-22;
+    const atm = this.atmospheres.get(bodyName);
+    const body = this.getBody(bodyName);
+    if (!atm || !body) return 0;
+    const rho = this.atmosphericDensity(bodyName, altitude);
+    const T = this.atmosphericTemperature(bodyName, altitude);
+    const nTotal = rho / Math.max(atm.molarMass, 1e-10) * _NBodySystem.AVOGADRO;
+    const o2Fraction = atm.composition.includes("O2") ? 0.21 : 0;
+    const nO2 = nTotal * o2Fraction;
+    const nO = chapman.o2PhotolysisRate > 0 ? 2 * chapman.o2PhotolysisRate * nO2 / Math.max(chapman.recombinationRate * nO2 * nTotal + 1e-30, 1) : 0;
+    const heating = chapman.recombinationRate * nO * nO2 * nTotal * energyPerReaction;
+    return heating;
+  }
+  /**
+   * [Iter 134] CO₂ infrared cooling rate. CO₂ radiates thermal energy
+   * in the 15 μm band. The cooling rate follows the Curtis–Godson
+   * approximation:
+   *
+   *   Q_CO₂ = -n_CO₂ * σ_CO₂ * σ_SB * T⁴ * f(T)
+   *
+   * where f(T) is a band-model correction factor. For simplicity we use
+   * a parameterisation calibrated to Earth's mesosphere.
+   */
+  co2CoolingRate(bodyName, altitude, temperature) {
+    const atm = this.atmospheres.get(bodyName);
+    const body = this.getBody(bodyName);
+    if (!atm || !body) return 0;
+    const rho = this.atmosphericDensity(bodyName, altitude);
+    const nTotal = rho / Math.max(atm.molarMass, 1e-10) * _NBodySystem.AVOGADRO;
+    let co2Fraction = 0;
+    if (atm.composition.includes("CO2")) {
+      if (body.name === "Earth") co2Fraction = 4e-4;
+      else co2Fraction = 0.95;
+    }
+    const nCO2 = nTotal * co2Fraction;
+    if (nCO2 < 1) return 0;
+    const sigmaEff = 3e-23;
+    const fT = Math.pow(temperature / 250, 3);
+    const cooling = -nCO2 * sigmaEff * _NBodySystem.STEFAN_BOLTZMANN * Math.pow(temperature, 4) * fT * 1e-4;
+    return cooling;
+  }
+  /**
+   * [Iter 135] Full atmospheric chemistry result at a given altitude and
+   * solar-zenith angle. Combines ozone absorption, Chapman-cycle rates,
+   * chemical heating, and CO₂ cooling into a single AtmosphericChemistry
+   * structure.
+   */
+  atmosphericChemistry(bodyName, altitude, solarZenith = 0) {
+    const ozone = this.ozoneLayerAbsorption(bodyName, altitude, solarZenith);
+    const chapman = this.chapmanCycle(bodyName, altitude);
+    const temp = this.atmosphericTemperature(bodyName, altitude);
+    const chemHeat = this.chemicalHeatingRate(bodyName, altitude);
+    const co2Cool = this.co2CoolingRate(bodyName, altitude, temp);
+    const atm = this.atmospheres.get(bodyName);
+    const rho = this.atmosphericDensity(bodyName, altitude);
+    const nTotal = atm ? rho / Math.max(atm.molarMass, 1e-10) * _NBodySystem.AVOGADRO : 0;
+    const o2Fraction = atm && atm.composition.includes("O2") ? 0.21 : 0;
+    const nO2 = nTotal * o2Fraction;
+    const o2DissociationRate = chapman.o2PhotolysisRate * nO2;
+    return {
+      ozoneDensity: ozone.ozoneDensity,
+      uvAbsorption: ozone.uvAbsorption,
+      o2DissociationRate,
+      chemicalHeating: chemHeat,
+      co2Cooling: co2Cool
+    };
+  }
+  // ====================================================================
+  // [Iter 141-145] Coriolis & rotating-frame dynamics
+  // Coriolis acceleration, centrifugal/euler fictitious forces, Hadley
+  // cell circulation, geostrophic wind, Rossby waves, and the full
+  // atmospheric-circulation result.
+  // ====================================================================
+  /**
+   * [Iter 141] Compute fictitious accelerations in a rotating reference
+   * frame. The three inertial (fictitious) accelerations are:
+   *
+   *   a_Coriolis  = -2 ω × v            (Coriolis)
+   *   a_centrif   = -ω × (ω × r)        (centrifugal, outward)
+   *   a_Euler     = -dω/dt × r          (Euler, from angular acceleration)
+   *
+   * The Rossby number Ro = U / (f L) characterises whether rotation
+   * dominates (Ro < 1) or inertia dominates (Ro > 1), where f = 2ω sin(lat)
+   * is the Coriolis parameter.
+   */
+  coriolisAcceleration(bodyName, velocity, position, latitude, angularAccel = 0) {
+    const omega = this.getAngularVelocity(bodyName);
+    const omegaVec = new Vector3(0, omega, 0);
+    const coriolisAcc = new Vector3().crossVectors(omegaVec, velocity).multiplyScalar(-2);
+    const wCrossR = new Vector3().crossVectors(omegaVec, position);
+    const centrifugalAcc = new Vector3().crossVectors(omegaVec, wCrossR).multiplyScalar(-1);
+    const eulerAcc = new Vector3(0, 0, 0);
+    if (angularAccel !== 0) {
+      eulerAcc.crossVectors(new Vector3(0, angularAccel, 0), position).multiplyScalar(-1);
+    }
+    const totalRotAcc = coriolisAcc.clone().add(centrifugalAcc).add(eulerAcc);
+    const f = 2 * omega * Math.sin(latitude);
+    const U = velocity.length();
+    const L = position.length();
+    const rossbyNumber = Math.abs(f) > 1e-15 && L > 0 ? U / (Math.abs(f) * L) : Infinity;
+    return {
+      coriolisAcc,
+      centrifugalAcc,
+      eulerAcc,
+      totalRotAcc,
+      rossbyNumber
+    };
+  }
+  /**
+   * [Iter 142] Hadley cell circulation strength. The Hadley cell is the
+   * tropical overturning circulation driven by latent heat release. Its
+   * mass flux scales with the surface pressure, the Coriolis parameter,
+   * and the meridional temperature gradient:
+   *
+   *   Ψ_H ∝ P₀ * ΔT / (f * H)
+   *
+   * where ΔT is the equator-to-pole temperature difference, f is the
+   * Coriolis parameter, and H is the scale height.
+   */
+  hadleyCellStrength(bodyName, latitude) {
+    const atm = this.atmospheres.get(bodyName);
+    const body = this.getBody(bodyName);
+    if (!atm || !body) return 0;
+    const omega = this.getAngularVelocity(bodyName);
+    const f = 2 * omega * Math.sin(latitude);
+    const tropicsExtent = Math.PI / 6;
+    if (Math.abs(latitude) > tropicsExtent) return 0;
+    const deltaT = 30 * (atm.scaleHeight / 8500);
+    const massFlux = atm.seaLevelPressure * deltaT * Math.cos(latitude / tropicsExtent * Math.PI / 2) / Math.max(Math.abs(f) * atm.scaleHeight, 1);
+    return massFlux;
+  }
+  /**
+   * [Iter 143] Geostrophic wind speed. In the mid-latitudes, the Coriolis
+   * force balances the pressure-gradient force, producing the geostrophic
+   * wind:
+   *
+   *   V_g = |∇P| / (ρ * f)
+   *
+   * where ∇P is the horizontal pressure gradient and f = 2ω sin(lat).
+   */
+  geostrophicWind(pressureGradient, bodyName, latitude, altitude = 0) {
+    const atm = this.atmospheres.get(bodyName);
+    if (!atm) return 0;
+    const omega = this.getAngularVelocity(bodyName);
+    const f = 2 * omega * Math.sin(latitude);
+    if (Math.abs(f) < 1e-15) return 0;
+    const rho = this.atmosphericDensity(bodyName, altitude);
+    if (rho < 1e-15) return 0;
+    return Math.abs(pressureGradient) / (rho * Math.abs(f));
+  }
+  /**
+   * [Iter 144] Rossby wave dynamics. Planetary (Rossby) waves are large-
+   * scale atmospheric waves driven by the variation of the Coriolis
+   * parameter with latitude (the β-effect). The Rossby wave number is:
+   *
+   *   k = β / U
+   *
+   * where β = df/dy = 2ω cos(lat) / R is the Rossby parameter and U is
+   * the mean zonal wind speed. The wave number determines the dominant
+   * wavelength of meandering in the jet stream.
+   */
+  rossbyWaveDynamics(bodyName, latitude, windSpeed) {
+    const body = this.getBody(bodyName);
+    if (!body) return { rossbyParameter: 0, rossbyWaveNumber: 0, wavelength: 0 };
+    const omega = this.getAngularVelocity(bodyName);
+    const R = body.radius;
+    const beta = 2 * omega * Math.cos(latitude) / R;
+    const k = Math.abs(windSpeed) > 0.1 ? beta / windSpeed : 0;
+    const wavelength = k > 0 ? 2 * Math.PI / k : Infinity;
+    return {
+      rossbyParameter: beta,
+      rossbyWaveNumber: k,
+      wavelength
+    };
+  }
+  /**
+   * [Iter 145] Full atmospheric-circulation result. Combines Hadley cell
+   * strength, jet-stream velocity, Coriolis deflection angle, Rossby wave
+   * number, and geostrophic wind into a single AtmosphericCirculationResult.
+   *
+   * The jet-stream velocity is estimated from the thermal-wind relation:
+   *   U_jet ≈ (g / f) * (ΔT / Δy)
+   * where ΔT/Δy is the meridional temperature gradient.
+   */
+  atmosphericCirculation(bodyName, latitude, windSpeed, pressureGradient = 0) {
+    const atm = this.atmospheres.get(bodyName);
+    const body = this.getBody(bodyName);
+    const omega = this.getAngularVelocity(bodyName);
+    const hadleyStrength = this.hadleyCellStrength(bodyName, latitude);
+    const geoWind = this.geostrophicWind(pressureGradient, bodyName, latitude);
+    const rossbyInfo = this.rossbyWaveDynamics(bodyName, latitude, windSpeed);
+    let jetStreamVelocity = 0;
+    if (atm && body && Math.abs(omega) > 0) {
+      const f2 = 2 * omega * Math.sin(latitude);
+      if (Math.abs(f2) > 1e-15) {
+        const g = G * body.mass / (body.radius * body.radius);
+        const deltaT = 30 * (atm.scaleHeight / 8500);
+        const deltaY = body.radius * 0.5;
+        jetStreamVelocity = g / Math.abs(f2) * (deltaT / deltaY);
+      }
+    }
+    const f = 2 * omega * Math.sin(latitude);
+    const U = Math.max(Math.abs(windSpeed), 1);
+    const L = body ? body.radius * 0.1 : 1e6;
+    const t = L / U;
+    const deflectionAngle = Math.abs(f) * t;
+    return {
+      hadleyCellStrength: hadleyStrength,
+      jetStreamVelocity,
+      deflectionAngle: Math.min(deflectionAngle, Math.PI / 2),
+      rossbyWaveNumber: rossbyInfo.rossbyWaveNumber,
+      geostrophicWindSpeed: geoWind
+    };
   }
 };
 var J2_PRESETS = {
@@ -24772,7 +27330,7 @@ var TextureFactory = class _TextureFactory {
       amp *= persistence;
       freq *= lacunarity;
     }
-    return total / maxVal;
+    return maxVal > 0 ? total / maxVal : 0;
   }
   // --- Planet color palettes ---
   static getPalette(textureType) {
@@ -24834,6 +27392,7 @@ var TextureFactory = class _TextureFactory {
           const bandNoise = _TextureFactory.fbm(sx * 3, sz * 8 + sy * 20, octaves, 0.55, 2.2);
           const turbulence = _TextureFactory.fbm(sx * 12, sy * 6 + bandNoise * 5, 8, 0.5, 2.5);
           const fineDetail = _TextureFactory.fbm(sx * 40, sy * 20, 5, 0.4, 2.8);
+          const microEddy = _TextureFactory.fbm(sx * 80, sy * 40 + turbulence * 8, 4, 0.4, 2.5);
           const band = Math.sin(sy * 18 + turbulence * 3) * 0.5 + 0.5;
           const c = data.color;
           let grsBoost = 0;
@@ -25234,7 +27793,41 @@ var TextureFactory = class _TextureFactory {
       }
     }
     ctx.putImageData(img, 0, 0);
-    return new CanvasTexture(canvas);
+    const cloudShadowTex = new CanvasTexture(canvas);
+    cloudShadowTex.wrapS = RepeatWrapping;
+    cloudShadowTex.wrapT = RepeatWrapping;
+    return cloudShadowTex;
+  }
+  // ★ Iter87: Saturn ring texture — high-density ring system with Cassini Division and Encke Gap
+  static generateRingTexture() {
+    const size = 2048;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    const img = ctx.createImageData(size, 1);
+    const d = img.data;
+    for (let x = 0; x < size; x++) {
+      const i = x * 4;
+      const t = x / size;
+      let density = 0.7 + _TextureFactory.fbm(t * 80, 0, 5, 0.5, 2.2) * 0.3;
+      if (t > 0.62 && t < 0.67) density *= 0.15;
+      if (t > 0.84 && t < 0.86) density *= 0.1;
+      if (t > 0.92 && t < 0.94) density = Math.max(density, 0.85);
+      if (t < 0.08) density *= t / 0.08;
+      if (t > 0.96) density *= (1 - t) / 0.04;
+      const brightness = Math.floor(180 * density + 50);
+      d[i] = brightness;
+      d[i + 1] = Math.floor(brightness * 0.92);
+      d[i + 2] = Math.floor(brightness * 0.75);
+      d[i + 3] = Math.floor(255 * density);
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = new CanvasTexture(canvas);
+    tex.colorSpace = SRGBColorSpace;
+    tex.wrapS = ClampToEdgeWrapping;
+    tex.wrapT = ClampToEdgeWrapping;
+    return tex;
   }
 };
 function createStarField(count = 15e3) {
@@ -25598,7 +28191,7 @@ function addSurfaceScatter(group, data, renderRadius, quality) {
   const euler = new Euler();
   if (data.textureType === "rock" || data.textureType === "lava") {
     const count = quality === "high" ? 700 : 300;
-    const rockGeo = new IcosahedronGeometry(1, 0);
+    const rockGeo = new IcosahedronGeometry2(1, 0);
     const rockMat = new MeshStandardMaterial({ color: 5589052, roughness: 0.95, metalness: 0.1, flatShading: true });
     const inst = new InstancedMesh(rockGeo, rockMat, count);
     let placed = 0, attempts = 0;
@@ -26120,6 +28713,8 @@ function createCelestialMesh(data, quality = "high") {
     }
     const stormTex = new CanvasTexture(stormCanvas);
     stormTex.colorSpace = SRGBColorSpace;
+    stormTex.wrapS = RepeatWrapping;
+    stormTex.wrapT = RepeatWrapping;
     const stormGeo = new SphereGeometry(renderRadius * 0.15, 24, 16);
     const stormMat = new MeshStandardMaterial({
       map: stormTex,
@@ -26900,7 +29495,8 @@ function texFoamInsulation(size = 1024) {
       const bigBubble = TextureFactory.fbm(x * 8e-3, y * 8e-3, 3, 0.6, 2.5);
       const smallBubble = TextureFactory.fbm(x * 0.15, y * 0.15, 3, 0.4, 2.2);
       const repair = TextureFactory.fbm(x * 4e-3, y * 4e-3, 2, 0.5, 2);
-      const bubblePit = (bigBubble > 0.6 ? (bigBubble - 0.6) * 30 : 0) + (smallBubble > 0.55 ? (smallBubble - 0.55) * 15 : 0);
+      const microBubble = TextureFactory.fbm(x * 0.35, y * 0.35, 2, 0.4, 2);
+      const bubblePit = (bigBubble > 0.6 ? (bigBubble - 0.6) * 30 : 0) + (smallBubble > 0.55 ? (smallBubble - 0.55) * 15 : 0) + (microBubble > 0.65 ? (microBubble - 0.65) * 8 : 0);
       const repairMark = repair > 0.65 ? (repair - 0.65) * 40 : 0;
       const v = lumps * 0.5 + medium * 0.25 + fine * 0.1 + peel * 0.08 - bubblePit * 0.3;
       d[i] = Math.max(0, Math.min(255, 232 + v * 22 - 12 + repairMark * 0.5));
@@ -26976,24 +29572,42 @@ function texNozzleThermal(size = 1024) {
       r -= (1 - heatFactor) * sootStreak * 25;
       g -= (1 - heatFactor) * sootStreak * 22;
       b -= (1 - heatFactor) * sootStreak * 18;
-      if (heatFactor > 0.92) {
-        const blueZone = (heatFactor - 0.92) / 0.08;
-        b += blueZone * 80 * heatColor;
-        g += blueZone * 40 * heatColor;
-        r += blueZone * 20 * heatColor;
-      } else if (heatFactor > 0.78) {
-        const purpleZone = (heatFactor - 0.78) / 0.14;
-        b += purpleZone * 50 * heatColor;
-        r += purpleZone * 30 * heatColor;
-      } else if (heatFactor > 0.55) {
-        const redZone = (heatFactor - 0.55) / 0.23;
-        r += redZone * 35 * heatColor;
-        g += redZone * 10 * heatColor;
+      if (heatFactor > 0.94) {
+        const whZone = (heatFactor - 0.94) / 0.06;
+        r += whZone * 100 * heatColor;
+        g += whZone * 90 * heatColor;
+        b += whZone * 80 * heatColor;
+      } else if (heatFactor > 0.88) {
+        const bwZone = (heatFactor - 0.88) / 0.06;
+        b += bwZone * 80 * heatColor;
+        g += bwZone * 50 * heatColor;
+        r += bwZone * 30 * heatColor;
+      } else if (heatFactor > 0.8) {
+        const blueZone = (heatFactor - 0.8) / 0.08;
+        b += blueZone * 60 * heatColor;
+        r += blueZone * 10 * heatColor;
+      } else if (heatFactor > 0.72) {
+        const purpleZone = (heatFactor - 0.72) / 0.08;
+        b += purpleZone * 45 * heatColor;
+        r += purpleZone * 25 * heatColor;
+      } else if (heatFactor > 0.62) {
+        const magentaZone = (heatFactor - 0.62) / 0.1;
+        r += magentaZone * 35 * heatColor;
+        b += magentaZone * 20 * heatColor;
+      } else if (heatFactor > 0.5) {
+        const redZone = (heatFactor - 0.5) / 0.12;
+        r += redZone * 30 * heatColor;
+        g += redZone * 8 * heatColor;
+      } else if (heatFactor > 0.3) {
+        const brownZone = (heatFactor - 0.3) / 0.2;
+        r += brownZone * 15 * heatColor;
+        g -= brownZone * 5;
+        b -= brownZone * 8;
       } else {
-        const darkZone = (0.55 - heatFactor) / 0.55;
-        r -= darkZone * 20;
-        g -= darkZone * 18;
-        b -= darkZone * 15;
+        const darkZone = (0.3 - heatFactor) / 0.3;
+        r -= darkZone * 25;
+        g -= darkZone * 22;
+        b -= darkZone * 18;
       }
       r -= streak * 15 * (1 - heatFactor);
       g -= streak * 15 * (1 - heatFactor);
@@ -28013,18 +30627,11 @@ function buildFuelTank(part) {
   const skirtBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
   addBoltRing(group, 32, r * 1.1, -h / 2 - 0.35, skirtBoltMat, 0.016);
   const capPts = [];
-  capPts.push(new Vector2(0, 0));
-  capPts.push(new Vector2(r * 0.08, 5e-3));
-  capPts.push(new Vector2(r * 0.18, 0.02));
-  capPts.push(new Vector2(r * 0.3, 0.05));
-  capPts.push(new Vector2(r * 0.42, 0.1));
-  capPts.push(new Vector2(r * 0.55, 0.18));
-  capPts.push(new Vector2(r * 0.68, 0.28));
-  capPts.push(new Vector2(r * 0.8, 0.4));
-  capPts.push(new Vector2(r * 0.9, 0.54));
-  capPts.push(new Vector2(r * 0.96, 0.66));
-  capPts.push(new Vector2(r * 0.99, 0.74));
-  capPts.push(new Vector2(r, 0.78));
+  for (let i = 0; i <= 30; i++) {
+    const t = i / 30;
+    const theta = t * Math.PI / 2;
+    capPts.push(new Vector2(r * Math.sin(theta), r * 0.78 * (1 - Math.cos(theta))));
+  }
   const topCapGeo = new LatheGeometry(capPts, 56);
   const capMat = new MeshStandardMaterial({
     map: tankTex,
@@ -28860,8 +31467,9 @@ function buildEngine(part) {
   delavalInner.position.y = -0.15;
   group.add(delavalInner);
   const channelEndMat = new MeshStandardMaterial({ map: texBrushedMetal("inconel", 256), color: 3815994, metalness: 0.7, roughness: 0.5 });
-  for (let i = 0; i < (big ? 36 : med ? 24 : 16); i++) {
-    const angle = i / (big ? 36 : med ? 24 : 16) * Math.PI * 2;
+  const channelCount = big ? 48 : med ? 32 : 20;
+  for (let i = 0; i < channelCount; i++) {
+    const angle = i / channelCount * Math.PI * 2;
     const channel = new Mesh(new BoxGeometry(0.012, 0.04, 0.02), channelEndMat);
     channel.position.set(Math.cos(angle) * nozzleR * 0.94, -nozzleH / 2 + nozzleH * 0.06, Math.sin(angle) * nozzleR * 0.94);
     channel.lookAt(0, -nozzleH / 2 + nozzleH * 0.06, 0);
@@ -28920,6 +31528,123 @@ function buildEngine(part) {
       group.add(countersink);
     }
   }
+  const impellerHousingMat = new MeshPhysicalMaterial({
+    color: 11184827,
+    metalness: 0.3,
+    roughness: 0.15,
+    transmission: 0.5,
+    thickness: 0.02,
+    transparent: true,
+    opacity: 0.6
+  });
+  const impellerHousing = new Mesh(new CylinderGeometry(0.1, 0.1, 0.22, 20), impellerHousingMat);
+  impellerHousing.position.set(nozzleR * 0.42 - 0.05, nozzleH / 2 + 0.24, 0);
+  impellerHousing.rotation.z = Math.PI / 2;
+  group.add(impellerHousing);
+  const impellerBladeMat = new MeshStandardMaterial({ map: texBrushedMetal("aluminum", 256), color: 8947865, metalness: 0.8, roughness: 0.2 });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    const blade = new Mesh(new BoxGeometry(0.18, 8e-3, 0.04), impellerBladeMat);
+    blade.position.set(nozzleR * 0.42 - 0.05, nozzleH / 2 + 0.24, 0);
+    blade.rotation.x = a;
+    blade.rotation.y = 0.4;
+    group.add(blade);
+  }
+  const impHub = new Mesh(new CylinderGeometry(0.03, 0.03, 0.2, 12), impellerBladeMat);
+  impHub.position.set(nozzleR * 0.42 - 0.05, nozzleH / 2 + 0.24, 0);
+  impHub.rotation.z = Math.PI / 2;
+  group.add(impHub);
+  const baffleMat = new MeshStandardMaterial({ map: texBrushedMetal("inconel", 256), color: 6702114, metalness: 0.7, roughness: 0.4 });
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2;
+    const baffle = new Mesh(new BoxGeometry(6e-3, 0.04, nozzleR * 0.28), baffleMat);
+    baffle.position.set(Math.cos(a) * nozzleR * 0.14, nozzleH / 2 + 0.28, Math.sin(a) * nozzleR * 0.14);
+    baffle.lookAt(0, nozzleH / 2 + 0.28, 0);
+    baffle.rotation.x = Math.PI / 2;
+    group.add(baffle);
+  }
+  const flowChannelMat = new MeshStandardMaterial({
+    color: 4491468,
+    emissive: 2245734,
+    emissiveIntensity: 0.3,
+    metalness: 0.2,
+    roughness: 0.4,
+    transparent: true,
+    opacity: 0.5
+  });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + Math.PI / 16;
+    const channel = new Mesh(new BoxGeometry(8e-3, 0.04, nozzleR * 0.1), flowChannelMat);
+    channel.position.set(Math.cos(a) * nozzleR * 0.31, nozzleH / 2 + 0.15, Math.sin(a) * nozzleR * 0.31);
+    channel.lookAt(0, nozzleH / 2 + 0.15, 0);
+    channel.rotation.x = Math.PI / 2;
+    group.add(channel);
+  }
+  const hoseMat = new MeshStandardMaterial({ color: 2236962, metalness: 0.3, roughness: 0.7 });
+  for (let i = 0; i < 2; i++) {
+    const sign2 = i === 0 ? 1 : -1;
+    const hosePts = [
+      new Vector3(sign2 * nozzleR * 0.2, nozzleH / 2 + 0.3, 0),
+      new Vector3(sign2 * nozzleR * 0.26, nozzleH / 2 + 0.32, 0.02),
+      new Vector3(sign2 * nozzleR * 0.3, nozzleH / 2 + 0.28, 0)
+    ];
+    const hoseCurve = new CatmullRomCurve3(hosePts);
+    const hose = new Mesh(new TubeGeometry(hoseCurve, 12, 8e-3, 6, false), hoseMat);
+    group.add(hose);
+  }
+  for (let i = 0; i < 2; i++) {
+    const sign2 = i === 0 ? 1 : -1;
+    const hosePts = [
+      new Vector3(0.02, nozzleH / 2 + 0.3, sign2 * nozzleR * 0.2),
+      new Vector3(0, nozzleH / 2 + 0.32, sign2 * nozzleR * 0.26),
+      new Vector3(0, nozzleH / 2 + 0.28, sign2 * nozzleR * 0.3)
+    ];
+    const hoseCurve = new CatmullRomCurve3(hosePts);
+    const hose = new Mesh(new TubeGeometry(hoseCurve, 12, 8e-3, 6, false), hoseMat);
+    group.add(hose);
+  }
+  const oringMat = new MeshStandardMaterial({ color: 13378082, metalness: 0.1, roughness: 0.9 });
+  const oring = new Mesh(new TorusGeometry(nozzleR * 0.36, 8e-3, 8, 48), oringMat);
+  oring.position.y = nozzleH / 2 + 0.395;
+  oring.rotation.x = Math.PI / 2;
+  group.add(oring);
+  const grooveMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.7 });
+  const groove = new Mesh(new TorusGeometry(nozzleR * 0.36, 0.012, 8, 48), grooveMat);
+  groove.position.y = nozzleH / 2 + 0.395;
+  groove.rotation.x = Math.PI / 2;
+  group.add(groove);
+  const oring2 = new Mesh(new TorusGeometry(nozzleR * 0.33, 6e-3, 8, 48), oringMat);
+  oring2.position.y = nozzleH / 2 + 0.398;
+  oring2.rotation.x = Math.PI / 2;
+  group.add(oring2);
+  const ceramicMat = new MeshStandardMaterial({ color: 15658734, metalness: 0, roughness: 0.3 });
+  const ceramicInsulator = new Mesh(new CylinderGeometry(0.01, 0.014, 0.04, 12), ceramicMat);
+  ceramicInsulator.position.y = nozzleH / 2 + 0.35;
+  group.add(ceramicInsulator);
+  const electrodeMat = new MeshStandardMaterial({ color: 14540253, metalness: 0.9, roughness: 0.1 });
+  const electrode = new Mesh(new CylinderGeometry(3e-3, 3e-3, 0.02, 8), electrodeMat);
+  electrode.position.y = nozzleH / 2 + 0.375;
+  group.add(electrode);
+  const sparkGlowMat = new MeshStandardMaterial({ color: 16777096, emissive: 16777028, emissiveIntensity: 2, transparent: true, opacity: 0.6 });
+  const sparkGlow = new Mesh(new SphereGeometry(6e-3, 8, 6), sparkGlowMat);
+  sparkGlow.position.y = nozzleH / 2 + 0.33;
+  group.add(sparkGlow);
+  const mufflerMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.7, roughness: 0.4 });
+  const muffler = new Mesh(new CylinderGeometry(0.05, 0.05, 0.15, 16), mufflerMat);
+  muffler.position.set(nozzleR * 0.65, -nozzleH * 0.1, 0);
+  muffler.rotation.z = 0.4;
+  muffler.castShadow = true;
+  group.add(muffler);
+  const bafflePlateMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.5, roughness: 0.6 });
+  for (let i = 0; i < 3; i++) {
+    const bafflePlate = new Mesh(new CircleGeometry(0.045, 16), bafflePlateMat);
+    bafflePlate.position.set(nozzleR * 0.65 + Math.cos(0.4) * (0.06 - i * 0.04), -nozzleH * 0.1 - Math.sin(0.4) * (0.06 - i * 0.04), 0);
+    bafflePlate.rotation.z = 0.4 + Math.PI / 2;
+    group.add(bafflePlate);
+  }
+  const mufflerBracket = new Mesh(new BoxGeometry(0.04, 0.02, 0.08), bracketMat);
+  mufflerBracket.position.set(nozzleR * 0.55, -nozzleH * 0.05, 0);
+  group.add(mufflerBracket);
   group.userData.height = nozzleH + 0.6;
   group.userData.radius = nozzleR;
   return group;
@@ -29370,8 +32095,8 @@ function buildDecoupler(part) {
   pistonHousing.castShadow = true;
   group.add(pistonHousing);
   const explBoltMat = new MeshStandardMaterial({ color: 13404160, metalness: 0.7, roughness: 0.35, emissive: 4460800, emissiveIntensity: 0.1 });
-  for (let i = 0; i < 8; i++) {
-    const a = i / 8 * Math.PI * 2;
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2;
     const eBolt = new Mesh(new CylinderGeometry(0.02, 0.022, 0.05, 12), explBoltMat);
     eBolt.position.set(Math.cos(a) * r * 0.85, 0, Math.sin(a) * r * 0.85);
     eBolt.castShadow = true;
@@ -29521,9 +32246,9 @@ function buildAeroFin(part) {
   rootPlate.castShadow = true;
   group.add(rootPlate);
   const finBoltMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.8, roughness: 0.3 });
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const bolt = new Mesh(new SphereGeometry(0.012, 8, 6), finBoltMat);
-    bolt.position.set(0, 0, i * (root * 0.22) - root * 0.33);
+    bolt.position.set(0, 0, i * (root * 0.15) - root * 0.38);
     group.add(bolt);
   }
   const ctrlShape = new Shape();
@@ -29918,6 +32643,35 @@ function buildLandingLeg(part) {
     scale.position.set(0.355 + i * 0.01, -0.2 - i * 0.04, 0.03);
     group.add(scale);
   }
+  const chromeSealMat = new MeshStandardMaterial({ color: 16777215, metalness: 1, roughness: 0.02 });
+  const chromeSeal = new Mesh(new TorusGeometry(0.017, 4e-3, 8, 16), chromeSealMat);
+  chromeSeal.position.set(0.28, -0.19, 0.03);
+  chromeSeal.rotation.z = -0.5;
+  chromeSeal.rotation.x = Math.PI / 2;
+  group.add(chromeSeal);
+  const strutDamperMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 6710886, metalness: 0.8, roughness: 0.2 });
+  const strutDamper = new Mesh(new CylinderGeometry(0.022, 0.022, 0.15, 10), strutDamperMat);
+  strutDamper.position.set(0.55, -0.4, 0);
+  strutDamper.rotation.z = 0.85;
+  strutDamper.castShadow = true;
+  group.add(strutDamper);
+  const gearboxMat = new MeshStandardMaterial({ map: texBrushedMetal("steel", 256), color: 5592405, metalness: 0.8, roughness: 0.2 });
+  const gearbox = new Mesh(new CylinderGeometry(0.035, 0.035, 0.05, 12), gearboxMat);
+  gearbox.position.set(0.06, -0.04, 0.05);
+  gearbox.rotation.z = -0.6;
+  gearbox.castShadow = true;
+  group.add(gearbox);
+  const outputShaft = new Mesh(new CylinderGeometry(8e-3, 8e-3, 0.06, 8), gearboxMat);
+  outputShaft.position.set(0.1, -0.06, 0.05);
+  outputShaft.rotation.z = -0.6;
+  group.add(outputShaft);
+  const sensorMat = new MeshStandardMaterial({ color: 3355443, metalness: 0.7, roughness: 0.3, emissive: 17408, emissiveIntensity: 0.3 });
+  const pressureSensor = new Mesh(new CylinderGeometry(0.02, 0.02, 8e-3, 10), sensorMat);
+  pressureSensor.position.set(0.78, -0.885, 0);
+  group.add(pressureSensor);
+  const sensorLed = new Mesh(new SphereGeometry(5e-3, 8, 6), new MeshStandardMaterial({ color: 65280, emissive: 65280, emissiveIntensity: 1 }));
+  sensorLed.position.set(0.78, -0.88, 0.025);
+  group.add(sensorLed);
   group.userData.height = 1;
   group.userData.radius = 0.18;
   return group;
@@ -30297,6 +33051,29 @@ function buildDockingPort(part) {
     track.lookAt(Math.cos(a) * 3, 0.22, Math.sin(a) * 3);
     group.add(track);
   }
+  const detentMat = new MeshStandardMaterial({ color: 6710886, metalness: 0.8, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2;
+    for (let d = 0; d < 3; d++) {
+      const detent = new Mesh(new BoxGeometry(4e-3, 4e-3, 4e-3), detentMat);
+      detent.position.set(Math.cos(a) * r * 0.18, 0.12 + d * 0.03, Math.sin(a) * r * 0.18);
+      group.add(detent);
+    }
+  }
+  const extraLedMat = new MeshStandardMaterial({ color: 65535, emissive: 65535, emissiveIntensity: 1, metalness: 0.3, roughness: 0.3 });
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 8;
+    const led = new Mesh(new SphereGeometry(0.014, 8, 6), extraLedMat);
+    led.position.set(Math.cos(a) * r * 0.78, 0.06, Math.sin(a) * r * 0.78);
+    group.add(led);
+  }
+  const seal2 = new Mesh(
+    new TorusGeometry(r * 0.42, 0.016, 8, 36),
+    new MeshStandardMaterial({ color: 6710886, metalness: 0.5, roughness: 0.5 })
+  );
+  seal2.position.y = 0.055;
+  seal2.rotation.x = Math.PI / 2;
+  group.add(seal2);
   group.userData.height = 0.24;
   group.userData.radius = r;
   return group;
@@ -31314,6 +34091,14 @@ function buildColonyModule(part) {
     cable.rotation.x = Math.PI / 2;
     group.add(cable);
   }
+  const seal2Mat = new MeshStandardMaterial({ color: 4473924, metalness: 0.3, roughness: 0.8 });
+  for (let i = 0; i < 2; i++) {
+    const angle = i * Math.PI;
+    const seal2 = new Mesh(new TorusGeometry(r * 0.22, 6e-3, 6, 16), seal2Mat);
+    seal2.position.set(Math.cos(angle) * r * 1.03, -h * 0.1, Math.sin(angle) * r * 1.03);
+    seal2.lookAt(0, -h * 0.1, 0);
+    group.add(seal2);
+  }
   group.userData.height = h + 0.2;
   group.userData.radius = r;
   return group;
@@ -31585,376 +34370,9 @@ function createResearchBaseModel() {
   group.add(dish);
   return group;
 }
-function createSpaceCenterScene() {
-  const group = new Group();
-  const groundCanvas = document.createElement("canvas");
-  groundCanvas.width = 512;
-  groundCanvas.height = 512;
-  const gctx = groundCanvas.getContext("2d");
-  gctx.fillStyle = "#3a5a3a";
-  gctx.fillRect(0, 0, 512, 512);
-  for (let i = 0; i < 5e3; i++) {
-    const x = Math.random() * 512, y = Math.random() * 512;
-    const shade = 30 + Math.random() * 40;
-    gctx.fillStyle = `rgba(${shade},${shade + 20},${shade},0.5)`;
-    gctx.fillRect(x, y, 2, 2);
-  }
-  const groundTex = new CanvasTexture(groundCanvas);
-  groundTex.wrapS = groundTex.wrapT = RepeatWrapping;
-  groundTex.repeat.set(8, 8);
-  const groundMat = new MeshStandardMaterial({ map: groundTex, roughness: 0.9, metalness: 0 });
-  const buildingMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.6, metalness: 0.3 });
-  const roofMat = new MeshStandardMaterial({ color: 8952234, roughness: 0.5, metalness: 0.4 });
-  const darkMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
-  const metalMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.7 });
-  const ground = new Mesh(new CircleGeometry(80, 64), groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  group.add(ground);
-  const runwayMat = new MeshStandardMaterial({ color: 1710618, roughness: 0.8, metalness: 0.1 });
-  const runway = new Mesh(new BoxGeometry(4, 0.1, 40), runwayMat);
-  runway.position.set(0, 0.05, -20);
-  runway.receiveShadow = true;
-  group.add(runway);
-  for (let i = 0; i < 20; i++) {
-    const line = new Mesh(new BoxGeometry(0.15, 0.02, 1.2), new MeshBasicMaterial({ color: 16777215 }));
-    line.position.set(0, 0.11, -38 + i * 2);
-    group.add(line);
-  }
-  const edgeLineMat = new MeshBasicMaterial({ color: 16777215 });
-  for (const side of [-1, 1]) {
-    const edgeLine = new Mesh(new BoxGeometry(0.1, 0.02, 38), edgeLineMat);
-    edgeLine.position.set(side * 1.85, 0.11, -20);
-    group.add(edgeLine);
-  }
-  for (const end of [-1, 1]) {
-    for (let i = 0; i < 6; i++) {
-      const bar = new Mesh(new BoxGeometry(0.3, 0.02, 2), edgeLineMat);
-      bar.position.set(-1.2 + i * 0.5, 0.11, end > 0 ? 0.5 : -40.5);
-      group.add(bar);
-    }
-  }
-  const edgeLightMat = new MeshStandardMaterial({
-    color: 43775,
-    emissive: 43775,
-    emissiveIntensity: 0.8
-  });
-  for (let i = 0; i <= 20; i++) {
-    for (const side of [-1, 1]) {
-      const light = new Mesh(new SphereGeometry(0.06, 6, 4), edgeLightMat);
-      light.position.set(side * 2.1, 0.12, -38 + i * 2);
-      group.add(light);
-    }
-  }
-  for (let i = 0; i < 5; i++) {
-    const appLight = new Mesh(
-      new SphereGeometry(0.08, 6, 4),
-      new MeshStandardMaterial({ color: 16777215, emissive: 16777215, emissiveIntensity: 0.6 })
-    );
-    appLight.position.set(0, 0.12, -41 - i * 1.5);
-    group.add(appLight);
-  }
-  const vabBody = new Mesh(new BoxGeometry(12, 10, 8), buildingMat);
-  vabBody.position.set(-15, 5, 5);
-  vabBody.castShadow = true;
-  vabBody.receiveShadow = true;
-  group.add(vabBody);
-  const vabRoof = new Mesh(new SphereGeometry(6, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
-  vabRoof.position.set(-15, 10, 5);
-  vabRoof.scale.set(1, 0.4, 0.67);
-  vabRoof.castShadow = true;
-  group.add(vabRoof);
-  const vabRoofRing = new Mesh(
-    new TorusGeometry(6, 0.15, 8, 32),
-    new MeshStandardMaterial({ color: 6710903, metalness: 0.5, roughness: 0.5 })
-  );
-  vabRoofRing.position.set(-15, 10, 5);
-  vabRoofRing.rotation.x = Math.PI / 2;
-  vabRoofRing.scale.set(1, 1, 0.67);
-  vabRoofRing.castShadow = true;
-  group.add(vabRoofRing);
-  const doorMat = new MeshStandardMaterial({ color: 6710903, roughness: 0.5, metalness: 0.5 });
-  for (let i = 0; i < 2; i++) {
-    const door = new Mesh(new BoxGeometry(3, 7, 0.2), doorMat);
-    door.position.set(-15 + (i === 0 ? -2 : 2), 3.5, 9.1);
-    door.castShadow = true;
-    group.add(door);
-    for (let j = 0; j < 5; j++) {
-      const dl = new Mesh(
-        new BoxGeometry(2.8, 0.04, 0.02),
-        new MeshStandardMaterial({ color: 4473941, metalness: 0.5, roughness: 0.5 })
-      );
-      dl.position.set(-15 + (i === 0 ? -2 : 2), 0.7 + j * 1.4, 9.22);
-      group.add(dl);
-    }
-  }
-  const vabWinMat = new MeshStandardMaterial({ color: 4491519, emissive: 2245734, emissiveIntensity: 0.5, roughness: 0.2, metalness: 0.8 });
-  const vabFrameMat = new MeshStandardMaterial({ color: 5592422, metalness: 0.6, roughness: 0.4 });
-  for (let i = 0; i < 6; i++) {
-    const frame2 = new Mesh(new BoxGeometry(1.1, 0.9, 0.12), vabFrameMat);
-    frame2.position.set(-12 + i * 1.5, 8, 9.1);
-    frame2.castShadow = true;
-    group.add(frame2);
-    const win = new Mesh(new BoxGeometry(1, 0.8, 0.1), vabWinMat);
-    win.position.set(-12 + i * 1.5, 8, 9.15);
-    group.add(win);
-  }
-  const vabAntBase = new Mesh(new CylinderGeometry(0.1, 0.12, 0.3, 8), metalMat);
-  vabAntBase.position.set(-15, 10.2, 5);
-  vabAntBase.castShadow = true;
-  group.add(vabAntBase);
-  const vabAnt = new Mesh(new CylinderGeometry(0.05, 0.05, 2.5, 8), metalMat);
-  vabAnt.position.set(-15, 11.6, 5);
-  vabAnt.castShadow = true;
-  group.add(vabAnt);
-  const vabDish = new Mesh(
-    new SphereGeometry(0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-    new MeshStandardMaterial({ color: 14540270, roughness: 0.3, metalness: 0.6, side: DoubleSide })
-  );
-  vabDish.position.set(-15, 13, 5);
-  vabDish.rotation.x = -0.8;
-  vabDish.castShadow = true;
-  group.add(vabDish);
-  const vabAnnex = new Mesh(new BoxGeometry(5, 5, 6), buildingMat);
-  vabAnnex.position.set(-22, 2.5, 5);
-  vabAnnex.castShadow = true;
-  vabAnnex.receiveShadow = true;
-  group.add(vabAnnex);
-  const vabStripe = new Mesh(
-    new BoxGeometry(0.1, 8, 7.8),
-    new MeshStandardMaterial({ color: 13382451, metalness: 0.3, roughness: 0.5 })
-  );
-  vabStripe.position.set(-9, 5, 5);
-  group.add(vabStripe);
-  const padMat = new MeshStandardMaterial({ color: 5592405, roughness: 0.8, metalness: 0.2 });
-  const pad = new Mesh(new CylinderGeometry(5, 5.5, 0.5, 48), padMat);
-  pad.position.set(15, 0.25, 5);
-  pad.castShadow = true;
-  pad.receiveShadow = true;
-  group.add(pad);
-  const padDetail = new Mesh(
-    new CylinderGeometry(4.8, 4.8, 0.02, 48),
-    new MeshStandardMaterial({ color: 4473924, roughness: 0.9 })
-  );
-  padDetail.position.set(15, 0.51, 5);
-  padDetail.receiveShadow = true;
-  group.add(padDetail);
-  const trench = new Mesh(new BoxGeometry(3, 1, 3), darkMat);
-  trench.position.set(15, 0, 5);
-  trench.castShadow = true;
-  group.add(trench);
-  const trenchInt = new Mesh(
-    new BoxGeometry(2.8, 0.8, 2.8),
-    new MeshStandardMaterial({ color: 1710618, roughness: 1 })
-  );
-  trenchInt.position.set(15, 0.1, 5);
-  group.add(trenchInt);
-  const towerLegMat = new MeshStandardMaterial({ color: 8947848, metalness: 0.7, roughness: 0.3 });
-  for (let i = 0; i < 4; i++) {
-    const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-    const leg = new Mesh(new CylinderGeometry(0.08, 0.08, 12, 8), towerLegMat);
-    leg.position.set(15 + Math.cos(angle) * 2, 6, 5 + Math.sin(angle) * 2);
-    leg.castShadow = true;
-    group.add(leg);
-  }
-  for (let level = 0; level < 4; level++) {
-    const yLevel = 2 + level * 3;
-    for (let i = 0; i < 4; i++) {
-      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
-      const angle2 = (i + 1) / 4 * Math.PI * 2 + Math.PI / 4;
-      const support = new Mesh(new CylinderGeometry(0.04, 0.04, 3.2, 6), metalMat);
-      const mx = 15 + Math.cos((angle + angle2) / 2) * 2;
-      const mz = 5 + Math.sin((angle + angle2) / 2) * 2;
-      support.position.set(mx, yLevel, mz);
-      support.lookAt(15, yLevel, 5);
-      support.rotation.x = Math.PI / 2;
-      group.add(support);
-    }
-    const ringGeo = new TorusGeometry(2, 0.03, 6, 24);
-    const ring = new Mesh(ringGeo, metalMat);
-    ring.position.set(15, yLevel, 5);
-    ring.rotation.x = Math.PI / 2;
-    ring.castShadow = true;
-    group.add(ring);
-  }
-  const platform = new Mesh(
-    new BoxGeometry(1.5, 0.1, 1.5),
-    new MeshStandardMaterial({ color: 6710886, metalness: 0.5, roughness: 0.5 })
-  );
-  platform.position.set(16.5, 6, 5);
-  platform.castShadow = true;
-  group.add(platform);
-  const arm = new Mesh(new CylinderGeometry(0.06, 0.06, 2.5, 8), metalMat);
-  arm.position.set(16.5, 7, 5);
-  arm.rotation.z = Math.PI / 2;
-  arm.castShadow = true;
-  group.add(arm);
-  const rodBase = new Mesh(new CylinderGeometry(0.06, 0.08, 0.3, 8), metalMat);
-  rodBase.position.set(15, 12.2, 5);
-  rodBase.castShadow = true;
-  group.add(rodBase);
-  const rod = new Mesh(new CylinderGeometry(0.03, 0.03, 3, 8), metalMat);
-  rod.position.set(15, 13.8, 5);
-  rod.castShadow = true;
-  group.add(rod);
-  const rodTip = new Mesh(new ConeGeometry(0.03, 0.2, 8), metalMat);
-  rodTip.position.set(15, 15.4, 5);
-  rodTip.castShadow = true;
-  group.add(rodTip);
-  const warnLightMat = new MeshStandardMaterial({ color: 16711680, emissive: 16711680, emissiveIntensity: 1.5 });
-  for (let level = 0; level < 3; level++) {
-    const warnLight = new Mesh(new SphereGeometry(0.12, 8, 6), warnLightMat);
-    warnLight.position.set(15, 4 + level * 4, 5);
-    group.add(warnLight);
-  }
-  const topWarn = new Mesh(new SphereGeometry(0.15, 8, 6), warnLightMat);
-  topWarn.position.set(15, 12.5, 5);
-  group.add(topWarn);
-  const trackBody = new Mesh(new CylinderGeometry(2, 2.5, 3, 24), buildingMat);
-  trackBody.position.set(-25, 1.5, -15);
-  trackBody.castShadow = true;
-  group.add(trackBody);
-  const trackDome = new Mesh(new SphereGeometry(2.2, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
-  trackDome.position.set(-25, 3, -15);
-  trackDome.castShadow = true;
-  group.add(trackDome);
-  const domeSlit = new Mesh(
-    new BoxGeometry(0.5, 1.5, 0.1),
-    new MeshStandardMaterial({ color: 2236962, roughness: 0.9 })
-  );
-  domeSlit.position.set(-25, 3.5, -12.8);
-  group.add(domeSlit);
-  const dishPole = new Mesh(new CylinderGeometry(0.1, 0.12, 4, 12), metalMat);
-  dishPole.position.set(-25, 5, -15);
-  dishPole.castShadow = true;
-  group.add(dishPole);
-  const paraPts = [];
-  paraPts.push(new Vector2(0, 0));
-  paraPts.push(new Vector2(0.2, 0.02));
-  paraPts.push(new Vector2(0.5, 0.08));
-  paraPts.push(new Vector2(0.8, 0.18));
-  paraPts.push(new Vector2(1.1, 0.32));
-  paraPts.push(new Vector2(1.4, 0.5));
-  paraPts.push(new Vector2(1.6, 0.65));
-  const paraDishGeo = new LatheGeometry(paraPts, 32);
-  const paraDishMat = new MeshStandardMaterial({
-    color: 14540270,
-    roughness: 0.25,
-    metalness: 0.7,
-    side: DoubleSide
-  });
-  const paraDish = new Mesh(paraDishGeo, paraDishMat);
-  paraDish.position.set(-25, 7, -15);
-  paraDish.rotation.x = -0.6;
-  paraDish.castShadow = true;
-  group.add(paraDish);
-  const feedHorn = new Mesh(
-    new ConeGeometry(0.08, 0.3, 12),
-    new MeshStandardMaterial({ color: 5592405, metalness: 0.6, roughness: 0.4 })
-  );
-  feedHorn.position.set(-25, 7.5, -14.5);
-  feedHorn.rotation.x = -0.6 + Math.PI;
-  feedHorn.castShadow = true;
-  group.add(feedHorn);
-  const strutMat2 = new MeshStandardMaterial({ color: 8947848, metalness: 0.6, roughness: 0.4 });
-  for (let i = 0; i < 3; i++) {
-    const a = i / 3 * Math.PI * 2;
-    const strut = new Mesh(new CylinderGeometry(0.015, 0.015, 1.2, 6), strutMat2);
-    strut.position.set(
-      -25 + Math.cos(a) * 0.7,
-      7.2,
-      -15 + Math.sin(a) * 0.7
-    );
-    strut.lookAt(-25, 7.5, -14.5);
-    strut.rotation.x += Math.PI / 2;
-    group.add(strut);
-  }
-  const smallDishPole = new Mesh(new CylinderGeometry(0.05, 0.06, 2, 8), metalMat);
-  smallDishPole.position.set(-22, 4, -13);
-  smallDishPole.castShadow = true;
-  group.add(smallDishPole);
-  const smallDish = new Mesh(
-    new SphereGeometry(0.6, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-    new MeshStandardMaterial({ color: 15658751, roughness: 0.25, metalness: 0.7, side: DoubleSide })
-  );
-  smallDish.position.set(-22, 5, -13);
-  smallDish.rotation.x = -0.5;
-  smallDish.castShadow = true;
-  group.add(smallDish);
-  for (let i = 0; i < 4; i++) {
-    const tw = new Mesh(new BoxGeometry(0.5, 0.4, 0.1), vabWinMat);
-    tw.position.set(-25 + (i - 1.5) * 0.8, 1.5, -13.8);
-    group.add(tw);
-  }
-  const astroBody = new Mesh(new CylinderGeometry(1.5, 1.8, 2.5, 16), buildingMat);
-  astroBody.position.set(10, 1.25, -15);
-  astroBody.castShadow = true;
-  group.add(astroBody);
-  const astroDome = new Mesh(new SphereGeometry(1.7, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
-  astroDome.position.set(10, 2.5, -15);
-  astroDome.castShadow = true;
-  group.add(astroDome);
-  const canopy = new Mesh(new BoxGeometry(3, 0.1, 1.5), roofMat);
-  canopy.position.set(10, 0.5, -13.5);
-  group.add(canopy);
-  const rndBase = new Mesh(new BoxGeometry(6, 2, 5), buildingMat);
-  rndBase.position.set(-10, 1, -15);
-  rndBase.castShadow = true;
-  rndBase.receiveShadow = true;
-  group.add(rndBase);
-  const rndUpper = new Mesh(new BoxGeometry(5, 1.5, 4), buildingMat);
-  rndUpper.position.set(-10, 2.75, -15);
-  rndUpper.castShadow = true;
-  group.add(rndUpper);
-  for (let i = 0; i < 4; i++) {
-    const win = new Mesh(
-      new BoxGeometry(0.8, 0.6, 0.1),
-      new MeshStandardMaterial({ color: 4491519, emissive: 2245734, roughness: 0.2, metalness: 0.8 })
-    );
-    win.position.set(-11.5 + i * 1, 1, -12.5);
-    group.add(win);
-  }
-  const flagPole = new Mesh(new CylinderGeometry(0.04, 0.04, 5, 8), metalMat);
-  flagPole.position.set(0, 2.5, 0);
-  group.add(flagPole);
-  const flag = new Mesh(
-    new PlaneGeometry(1, 0.6),
-    new MeshBasicMaterial({ color: 2245802, side: DoubleSide })
-  );
-  flag.position.set(0.5, 4, 0);
-  group.add(flag);
-  const roadMat = new MeshStandardMaterial({ color: 3355443, roughness: 0.9 });
-  const roadH = new Mesh(new PlaneGeometry(50, 2), roadMat);
-  roadH.rotation.x = -Math.PI / 2;
-  roadH.position.set(0, 0.02, 5);
-  group.add(roadH);
-  for (let i = -20; i < 20; i += 3) {
-    const mark = new Mesh(new PlaneGeometry(1, 0.1), new MeshBasicMaterial({ color: 16763904 }));
-    mark.rotation.x = -Math.PI / 2;
-    mark.position.set(i, 0.03, 5);
-    group.add(mark);
-  }
-  const treeMat = new MeshStandardMaterial({ color: 2771498, roughness: 0.9 });
-  const trunkMat = new MeshStandardMaterial({ color: 4863264, roughness: 0.9 });
-  for (let i = 0; i < 20; i++) {
-    const angle = i / 20 * Math.PI * 2;
-    const r = 50 + Math.random() * 25;
-    const tx = Math.cos(angle) * r;
-    const tz = Math.sin(angle) * r;
-    const trunk = new Mesh(new CylinderGeometry(0.15, 0.2, 1.5, 6), trunkMat);
-    trunk.position.set(tx, 0.75, tz);
-    trunk.castShadow = true;
-    group.add(trunk);
-    const leaves = new Mesh(new ConeGeometry(0.8 + Math.random() * 0.5, 2.5 + Math.random() * 1.5, 6), treeMat);
-    leaves.position.set(tx, 2.5, tz);
-    leaves.castShadow = true;
-    group.add(leaves);
-  }
-  return group;
-}
 
 // src/game/entities.ts
-var Rocket = class _Rocket {
+var Rocket = class {
   constructor(name, startMass, fuel, thrust, isp, parts) {
     this.throttle = 0;
     this.orientation = new Quaternion();
@@ -31963,96 +34381,52 @@ var Rocket = class _Rocket {
     this.isLanded = true;
     this.stages = [];
     this.currentStage = 0;
-    // SAS (Stability Augmentation System)
     this.sasEnabled = true;
-    // KSP-style indicator flags (no physics effect yet)
     this.rcsEnabled = false;
     this.gearDown = true;
     this.lightsOn = false;
-    // ── Resources (electric charge, monoprop, intake air, ...) ─────────
-    /** Per-resource current/max/flow state. Keyed by ResourceType. */
     this.resources = /* @__PURE__ */ new Map();
-    // ── Engines (mode, gimbal, propellant) ─────────────────────────────
-    /** Engine configs derived from the active stage's engine parts. */
     this.engines = [];
-    /** Current thrust-vector (gimbal) angle for TVC, in radians. */
     this.thrustVectorAngle = 0;
-    /** Max thrust-vector angle across all gimballing engines (rad). */
     this.maxThrustVectorAngle = 0;
-    // ── Thermal & aero state ───────────────────────────────────────────
-    /** Rocket skin temperature (K). Updated by physics heating model. */
     this.skinTemperature = 300;
-    /** Maximum survivable skin temperature before structural failure (K). */
     this.maxSkinTemp = 2e3;
-    /** Per-part heat state for ablation tracking. */
     this.partHeat = /* @__PURE__ */ new Map();
-    /** Drag coefficient (set by parts; default capsule-like). */
     this.dragCoefficient = 0.2;
-    /** Reference cross-sectional area (m²). */
     this.referenceArea = 10;
-    /** Lift coefficient for wings/fins. */
     this.liftCoefficient = 0;
-    // ── Parachutes ─────────────────────────────────────────────────────
     this.parachutes = [];
-    // ── Landing gear ───────────────────────────────────────────────────
     this.landingGear = [];
-    // ── Debris from stage separation ───────────────────────────────────
-    /** Debris bodies spawned by staging. Game loop integrates these. */
     this.debris = [];
-    // ════════════════════════════════════════════════════════════════════
-    // [Iter 16-18] Part damage, mass properties, crossfeed
-    // ════════════════════════════════════════════════════════════════════
-    /** Per-part damage state: 0 (intact) .. 1 (destroyed). */
     this.partDamage = /* @__PURE__ */ new Map();
-    /** Per-part failure flags (overheated, over-g, impact). */
     this.partFailed = /* @__PURE__ */ new Map();
-    /** Center of mass offset from geometric center (local frame, m). */
     this.centerOfMass = new Vector3(0, 0, 0);
-    /** Moment of inertia tensor components (kg·m²): Ixx, Iyy, Izz. */
     this.momentOfInertia = new Vector3(1e3, 1e3, 1e3);
-    /** Whether fuel crossfeed is enabled between stages. */
     this.crossfeedEnabled = false;
-    /** Whether the rocket has radiator panels for active cooling. */
     this.hasRadiator = false;
-    // ════════════════════════════════════════════════════════════════════
-    // [Iter 19-21] Engine enhancement: ISP curve, failure, throttle delay
-    // ════════════════════════════════════════════════════════════════════
-    /** Per-engine cumulative thermal stress (0..1). Higher = more likely to fail. */
     this.engineStress = /* @__PURE__ */ new Map();
-    /** Per-engine failure state. */
     this.engineFailed = /* @__PURE__ */ new Map();
-    /** Throttle command with delay buffer. */
     this.throttleCommand = 0;
-    /** Per-engine ISP at sea level (cached for interpolation). */
     this.engineIspSL = /* @__PURE__ */ new Map();
-    // ════════════════════════════════════════════════════════════════════
-    // [Iter 22-25] Resource enhancement: fuel ratio, solar tracking, battery
-    // ════════════════════════════════════════════════════════════════════
-    /** Solar panel tracking angle (rad) — automatically points at sun. */
     this.solarPanelAngle = 0;
-    /** Battery cycle count (affects efficiency). */
     this.batteryCycles = 0;
-    /** Battery efficiency (1.0 = new, decreases with cycles). */
     this.batteryEfficiency = 1;
-    /** Docked vessels for resource transfer. */
     this.dockedVessels = [];
-    /** Whether resource transfer is active with a docked vessel. */
     this.transferActive = false;
-    // ════════════════════════════════════════════════════════════════════
-    // [Iter 26-27] Stall recovery & landing stability state
-    // ════════════════════════════════════════════════════════════════════
-    /** Current stall recovery factor (0..1). 1 = full lift, 0 = fully stalled. */
     this.stallRecovery = 1;
-    /** Previous angle of attack (rad) for stall hysteresis tracking. */
     this.prevAoA = 0;
-    /** Whether the craft is currently in a stalled state. */
     this.isStalled = false;
-    /** Landing stability result cached from last check. */
     this.landingStabilityResult = null;
-    // Engine flame reference
+    this.engineMassFlow = /* @__PURE__ */ new Map();
+    this.engineEccentricity = /* @__PURE__ */ new Map();
+    this.fuelSettling = 1;
+    this.ullageThreshold = 0.5;
+    this.sloshAmplitude = new Vector3();
+    this.sloshVelocity = new Vector3();
+    this.sloshFrequency = 1.2;
+    this.sloshDamping = 0.15;
     this.flameGroup = null;
     this._chutesArmed = false;
-    /** Cached part-id → RocketPart map, populated in the constructor. */
     this._partLookup = /* @__PURE__ */ new Map();
     this.dryMass = startMass;
     this.fuelMass = fuel;
@@ -32088,31 +34462,52 @@ var Rocket = class _Rocket {
     this.initResources(parts);
     this.initPartStates(parts);
     this.rebuildActiveEngines();
+    this.crewCount = 0;
+    this.lifeSupport = {
+      oxygen: 100,
+      oxygenMax: 100,
+      water: 100,
+      waterMax: 100,
+      food: 100,
+      foodMax: 100,
+      co2: 0,
+      co2Max: 50,
+      cabinPressure: 101.3,
+      cabinTemp: 295
+    };
+    this.radiationDose = 0;
+    this.ore = 0;
+    this.oreMax = 1e3;
+    this.antennas = [];
+    this.dataQueue = [];
+    this.transmitRate = 0;
+    this.scienceData = [];
+    this.labLevel = 0;
+    this.coolingLoops = [];
+    this.heatPumpPower = 0;
+    this.cargo = [];
+    this.cargoCapacity = 100;
+    this.cargoMass = 0;
+    this.cargoCOM = new Vector3();
+    this.inWater = false;
+    this.submergedFraction = 0;
   }
   static {
-    /** Throttle response time constant (s). */
     this.THROTTLE_DELAY = 0.5;
   }
   static {
-    // ── Rotation tuning (KSP-style) ──────────────────────────────────
-    /** Max angular velocity from input (rad/s). Responsive but not twitchy. */
     this.MAX_ROT_SPEED = 2;
   }
   static {
-    /** Angular acceleration from input when SAS is OFF (rad/s²). Snappy / raw. */
     this.INPUT_ACCEL = 6;
   }
   static {
-    /** Angular acceleration from input when SAS is ON (rad/s²). Damped / controlled. */
     this.SAS_ASSIST_RATE = 4;
   }
   static {
-    /** SAS rotation-kill strength when no input (rad/s²). Strong enough to hold orientation. */
     this.SAS_KILL_RATE = 10;
   }
   static {
-    // ── Throttle tuning ──────────────────────────────────────────────
-    /** Throttle change rate for Shift / Ctrl (per second). Full range = 2 s, like KSP. */
     this.THROTTLE_RATE = 0.5;
   }
   /**
@@ -32239,7 +34634,9 @@ var Rocket = class _Rocket {
         ispSL: this.isp * 0.8,
         canGimbal: false,
         maxGimbalAngle: 0,
-        propellant: "liquidFuel"
+        propellant: "liquidFuel",
+        chamberPressure: 5e6,
+        nozzleAreaRatio: 16
       });
       return;
     }
@@ -32271,7 +34668,9 @@ var Rocket = class _Rocket {
         canGimbal,
         maxGimbalAngle: maxGimbal,
         propellant,
-        powerConsumption: mode === "ion" ? 12 : void 0
+        powerConsumption: mode === "ion" ? 12 : void 0,
+        chamberPressure: mode === "solid" ? 3e6 : 8e6,
+        nozzleAreaRatio: p.isp >= 350 ? 40 : 12
       });
       if (maxGimbal > this.maxThrustVectorAngle) this.maxThrustVectorAngle = maxGimbal;
     }
@@ -32514,7 +34913,7 @@ var Rocket = class _Rocket {
     this.fuelMass = Math.max(0, this.fuelMass - fuelConsumed);
     this.updateMass();
     const effectiveIsp = totalThrust > 0 ? totalIspW / totalThrust : this.isp;
-    const accelMag = totalThrust / this.totalMass;
+    const accelMag = this.totalMass > 0 ? totalThrust / this.totalMass : 0;
     const thrustDir = this._gimballedThrustDir();
     this.body.velocity.x += thrustDir.x * accelMag * dt;
     this.body.velocity.y += thrustDir.y * accelMag * dt;
@@ -32555,13 +34954,14 @@ var Rocket = class _Rocket {
   }
   /** Get Thrust-to-Weight Ratio relative to a body */
   getTWR(parentMass, distance) {
-    if (this.totalMass <= 0) return 0;
+    if (this.totalMass <= 0 || distance <= 0) return 0;
     const g = G * parentMass / (distance * distance);
+    if (g <= 0) return 0;
     return this.thrust * this.throttle / (this.totalMass * g);
   }
   /** Get Delta-V remaining */
   getDeltaV() {
-    if (this.fuelMass <= 0) return 0;
+    if (this.fuelMass <= 0 || this.dryMass <= 0 || this.totalMass <= this.dryMass) return 0;
     const massRatio = this.totalMass / this.dryMass;
     return this.isp * 9.81 * Math.log(massRatio);
   }
@@ -32695,7 +35095,8 @@ var Rocket = class _Rocket {
    */
   deployParachutes() {
     for (const ch of this.parachutes) {
-      if (!ch.cut && ch.state === "stowed") ch.state = "stowed";
+      if (!ch.cut && ch.state === "stowed") {
+      }
     }
     this._chutesArmed = true;
   }
@@ -33025,7 +35426,7 @@ var Rocket = class _Rocket {
     const ambientTemp = 3;
     const radiativeCooling = emissivity * sigma * (Math.pow(avgTemp, 4) - Math.pow(ambientTemp, 4));
     const radiatorCooling = this.hasRadiator ? 5e3 * dt : 0;
-    const netCooling = (radiativeCooling + radiatorCooling) * dt / (this.totalMass * 1e3);
+    const netCooling = (radiativeCooling + radiatorCooling) * dt / Math.max(this.totalMass * 1e3, 1);
     this.skinTemperature = Math.max(ambientTemp, this.skinTemperature - netCooling);
   }
   // ════════════════════════════════════════════════════════════════════
@@ -33055,7 +35456,6 @@ var Rocket = class _Rocket {
         const transferRate = 50;
         const amount = Math.min(upper.fuel, transferRate * dt);
         upper.fuel -= amount;
-        upper.maxFuel = Math.max(upper.maxFuel, upper.fuel);
         active.fuel += amount;
         const lf = this.resources.get("liquidFuel");
         const ox = this.resources.get("oxidizer");
@@ -33364,13 +35764,1554 @@ var Rocket = class _Rocket {
     this.landingStabilityResult = { stability, willTip, tipDir };
     return this.landingStabilityResult;
   }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-1] Terrain slope analysis
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute terrain slope angle from the surface normal vector.
+   * The slope is the angle between the surface normal and the local "up"
+   * (radial from body centre). A flat surface has normal == up → slope 0.
+   *
+   * @param surfaceNormal  Unit normal of the terrain at the contact point.
+   * @param upDir          Local up direction (unit vector from body centre).
+   * @returns Slope angle in radians (0 = flat, π/2 = vertical cliff).
+   */
+  computeTerrainSlope(surfaceNormal, upDir) {
+    const dot = Math.max(-1, Math.min(1, surfaceNormal.dot(upDir)));
+    return Math.acos(dot);
+  }
+  /**
+   * Compute the maximum safe slope the vessel can rest on without tipping.
+   * Derived from the stability geometry: the COM must project inside the
+   * support polygon. For a symmetric craft with COM height h and footprint
+   * half-width w, the critical slope is atan(w / h).
+   *
+   * @param footprintWidth  Total width of the landing gear footprint (m).
+   * @param comHeight       Height of COM above the ground (m).
+   * @returns Max safe slope angle (rad).
+   */
+  computeMaxSafeSlope(footprintWidth, comHeight) {
+    const halfWidth = footprintWidth / 2;
+    if (comHeight <= 0) return 0;
+    return Math.atan(halfWidth / comHeight);
+  }
+  /**
+   * Check whether the current slope is within safe limits.
+   *
+   * @param slopeAngle      Current terrain slope (rad).
+   * @param footprintWidth  Total landing gear footprint width (m).
+   * @param comHeight       COM height above ground (m).
+   * @returns { safe, slope, maxSafe, margin }.
+   */
+  checkSlopeSafety(slopeAngle, footprintWidth, comHeight) {
+    const maxSafe = this.computeMaxSafeSlope(footprintWidth, comHeight);
+    const margin = maxSafe - slopeAngle;
+    return { safe: slopeAngle <= maxSafe, slope: slopeAngle, maxSafe, margin };
+  }
+  /**
+   * Compute a slope-adjusted stability factor (0..1). As slope increases
+   * toward the critical angle, the effective stability decreases. Beyond
+   * the critical angle, stability is 0 (craft will tip).
+   *
+   * @param slopeAngle      Current terrain slope (rad).
+   * @param footprintWidth  Total landing gear footprint width (m).
+   * @param comHeight       COM height above ground (m).
+   * @returns Stability factor (1 = perfectly stable, 0 = will tip).
+   */
+  computeSlopeAdjustedStability(slopeAngle, footprintWidth, comHeight) {
+    const maxSafe = this.computeMaxSafeSlope(footprintWidth, comHeight);
+    if (maxSafe <= 0) return 0;
+    if (slopeAngle >= maxSafe) return 0;
+    return Math.max(0, 1 - slopeAngle / maxSafe);
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-2] Landing gear auto-tuning
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute optimal spring stiffness for a landing gear wheel given the
+   * mass it supports and a target natural frequency.
+   * k = m · ω²  where ω = 2π·f
+   *
+   * @param massPerWheel  Mass supported by one wheel (kg).
+   * @param targetFreq    Target natural frequency (Hz).
+   * @returns Spring stiffness (N/m).
+   */
+  computeOptimalGearStiffness(massPerWheel, targetFreq) {
+    const omega = 2 * Math.PI * targetFreq;
+    return massPerWheel * omega * omega;
+  }
+  /**
+   * Compute optimal damping coefficient for critical-to-underdamped response.
+   * c = 2 · ζ · √(k · m)
+   *
+   * @param massPerWheel   Mass supported by one wheel (kg).
+   * @param stiffness      Spring stiffness (N/m).
+   * @param dampingRatio   Target damping ratio ζ (1 = critical, 0.7 = typical).
+   * @returns Damping coefficient (N·s/m).
+   */
+  computeOptimalGearDamping(massPerWheel, stiffness, dampingRatio) {
+    return 2 * dampingRatio * Math.sqrt(stiffness * massPerWheel);
+  }
+  /**
+   * Auto-tune all landing gear for the current local gravity.
+   * Scales stiffness and damping so that the natural frequency and damping
+   * ratio remain consistent regardless of the gravitational environment.
+   *
+   * @param gravity       Local gravitational acceleration (m/s²).
+   * @param targetFreq    Target natural frequency (Hz). Default 2 Hz.
+   * @param dampingRatio  Target damping ratio. Default 0.7.
+   */
+  autoTuneLandingGear(gravity, targetFreq = 2, dampingRatio = 0.7) {
+    if (this.landingGear.length === 0) return;
+    const massPerWheel = this.totalMass / this.landingGear.length;
+    const k = this.computeOptimalGearStiffness(massPerWheel, targetFreq);
+    const c = this.computeOptimalGearDamping(massPerWheel, k, dampingRatio);
+    for (const gear of this.landingGear) {
+      gear.stiffness = k;
+      gear.damping = c;
+    }
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-3] Water splashdown / buoyancy
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute buoyancy force: F = ρ · g · V_submerged.
+   *
+   * @param submergedVolume  Volume of the craft below the waterline (m³).
+   * @param waterDensity     Density of water (kg/m³). Default 1000.
+   * @param gravity          Local gravitational acceleration (m/s²).
+   * @returns Buoyancy force magnitude (N).
+   */
+  computeBuoyancy(submergedVolume, waterDensity = 1e3, gravity = 9.81) {
+    return waterDensity * gravity * submergedVolume;
+  }
+  /**
+   * Compute the equilibrium submerged volume fraction for floating.
+   * At equilibrium, buoyancy = weight → ρ_water · g · V_sub = m · g
+   * → V_sub / V_total = m / (ρ_water · V_total)
+   *
+   * @param totalVolume   Total volume of the craft (m³).
+   * @param mass          Total mass (kg).
+   * @param waterDensity  Water density (kg/m³). Default 1000.
+   * @returns Submerged fraction (0..1). >1 means the craft sinks.
+   */
+  computeFloatEquilibrium(totalVolume, mass, waterDensity = 1e3) {
+    if (totalVolume <= 0 || waterDensity <= 0) return 1;
+    return mass / (waterDensity * totalVolume);
+  }
+  /**
+   * Determine if the craft will sink. The craft sinks if its average
+   * density (mass / volume) exceeds the water density.
+   *
+   * @param totalVolume   Total volume of the craft (m³).
+   * @param mass          Total mass (kg).
+   * @param waterDensity  Water density (kg/m³). Default 1000.
+   * @returns True if the craft will sink.
+   */
+  willSink(totalVolume, mass, waterDensity = 1e3) {
+    if (totalVolume <= 0) return true;
+    return mass / totalVolume > waterDensity;
+  }
+  /**
+   * Compute hydrodynamic drag on the submerged portion of the craft.
+   * F_drag = 0.5 · ρ · v² · Cd · A_submerged
+   *
+   * @param velocity           Velocity vector (m/s).
+   * @param submergedFraction  Fraction of the craft submerged (0..1).
+   * @param area               Reference cross-sectional area (m²).
+   * @param waterDensity       Water density (kg/m³). Default 1000.
+   * @returns Drag force vector (N), opposing velocity.
+   */
+  computeWaterDrag(velocity, submergedFraction, area2, waterDensity = 1e3) {
+    const vSq = velocity.lengthSq();
+    if (vSq < 1e-6 || submergedFraction <= 0) return new Vector3();
+    const v = Math.sqrt(vSq);
+    const cd = 0.8;
+    const dragMag = 0.5 * waterDensity * vSq * cd * area2 * submergedFraction;
+    return velocity.clone().multiplyScalar(-dragMag / v);
+  }
+  /**
+   * Check if the craft will capsize using metacentric height (GM).
+   * GM = BM - BG, where BM = I_waterplane / V_displaced.
+   * For a rectangular waterplane: I = L·B³/12, BM = B²/(12·draft).
+   * If GM ≤ 0, the craft is unstable and will capsize.
+   *
+   * @param comHeight   Height of COM above keel (m).
+   * @param beamWidth   Width of the craft at the waterline (m).
+   * @param draft       Submerged depth (draft) (m).
+   * @returns { gm, stable } metacentric height and stability flag.
+   */
+  checkCapsize(comHeight, beamWidth, draft) {
+    if (draft <= 0) return { gm: 0, stable: false };
+    const BM = beamWidth * beamWidth / (12 * draft);
+    const BG = Math.max(0, comHeight - draft / 2);
+    const GM = BM - BG;
+    return { gm: GM, stable: GM > 0 };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-4] Life support system
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Consume life support resources per NASA baseline rates:
+   *   O₂:    0.84 kg/person/day
+   *   Water: 3.9  kg/person/day
+   *   Food:  1.5  kg/person/day
+   *
+   * @param dt        Time step (s).
+   * @param crewCount Number of crew members.
+   * @returns Object with consumed amounts { oxygen, water, food }.
+   */
+  consumeLifeSupport(dt, crewCount) {
+    const days = dt / 86400;
+    const o2Need = 0.84 * crewCount * days;
+    const waterNeed = 3.9 * crewCount * days;
+    const foodNeed = 1.5 * crewCount * days;
+    const ls = this.lifeSupport;
+    const o2Used = Math.min(ls.oxygen, o2Need);
+    const waterUsed = Math.min(ls.water, waterNeed);
+    const foodUsed = Math.min(ls.food, foodNeed);
+    ls.oxygen -= o2Used;
+    ls.water -= waterUsed;
+    ls.food -= foodUsed;
+    ls.co2 = Math.min(ls.co2Max, ls.co2 + o2Used * 1);
+    return { oxygen: o2Used, water: waterUsed, food: foodUsed };
+  }
+  /**
+   * Update cabin environment: CO₂ accumulation (via scrubber) and pressure leak.
+   *
+   * @param dt        Time step (s).
+   * @param crewCount Number of crew.
+   * @param leakRate  Cabin leak rate (kPa/s). Default 0 (sealed).
+   */
+  updateCabinEnvironment(dt, crewCount, leakRate = 0) {
+    const ls = this.lifeSupport;
+    const scrubRate = 1e-3 * dt;
+    ls.co2 = Math.max(0, ls.co2 - scrubRate);
+    ls.cabinPressure = Math.max(0, ls.cabinPressure - leakRate * dt);
+    const tempDiff = this.skinTemperature - ls.cabinTemp;
+    ls.cabinTemp += tempDiff * 0.01 * dt;
+  }
+  /**
+   * Evaluate the life support status and flag critical shortages.
+   *
+   * @returns { oxygen, water, food, co2, pressure, status }
+   *   status: "nominal" | "warning" | "critical"
+   */
+  evaluateLifeSupportStatus() {
+    const ls = this.lifeSupport;
+    const o2Frac = ls.oxygenMax > 0 ? ls.oxygen / ls.oxygenMax : 0;
+    const waterFrac = ls.waterMax > 0 ? ls.water / ls.waterMax : 0;
+    const foodFrac = ls.foodMax > 0 ? ls.food / ls.foodMax : 0;
+    const co2Frac = ls.co2Max > 0 ? ls.co2 / ls.co2Max : 0;
+    let status = "nominal";
+    if (o2Frac < 0.15 || waterFrac < 0.15 || foodFrac < 0.15 || co2Frac > 0.8 || ls.cabinPressure < 70) {
+      status = "critical";
+    } else if (o2Frac < 0.3 || waterFrac < 0.3 || foodFrac < 0.3 || co2Frac > 0.5 || ls.cabinPressure < 90) {
+      status = "warning";
+    }
+    return { oxygen: o2Frac, water: waterFrac, food: foodFrac, co2: co2Frac, pressure: ls.cabinPressure, status };
+  }
+  /**
+   * Estimate survival time given current life support resources.
+   *
+   * @param crewCount Number of crew members.
+   * @returns Estimated survival time in seconds.
+   */
+  estimateSurvivalTime(crewCount) {
+    if (crewCount <= 0) return Infinity;
+    const ls = this.lifeSupport;
+    const o2Days = ls.oxygen / (0.84 * crewCount);
+    const waterDays = ls.water / (3.9 * crewCount);
+    const foodDays = ls.food / (1.5 * crewCount);
+    return Math.max(0, Math.min(o2Days, waterDays, foodDays) * 86400);
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-5] Radiation protection
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute radiation dose rate from GCR, SPE, and atmospheric shielding.
+   *
+   * GCR (Galactic Cosmic Rays): ~0.3 mSv/day in deep space, attenuated
+   *   by atmospheric depth and spacecraft shielding.
+   * SPE (Solar Particle Events): episodic, up to 100+ mSv/day during events.
+   * Atmospheric shielding reduces dose exponentially with column depth.
+   *
+   * @param altitude       Altitude above surface (m).
+   * @param shielding      Spacecraft shielding thickness (g/cm²). Default 5.
+   * @param solarActivity  Solar activity factor (0 = quiet, 1 = major SPE).
+   * @returns Dose rate (mSv/day).
+   */
+  computeRadiationDoseRate(altitude, shielding = 5, solarActivity = 0) {
+    const gcrBase = 0.3;
+    const atmDepth = Math.max(0, 1e4 * Math.exp(-altitude / 8500));
+    const atmAttenuation = Math.exp(-atmDepth / 1e3);
+    const gcr = gcrBase * atmAttenuation * Math.exp(-shielding / 20);
+    const speBase = 100 * solarActivity;
+    const spe = speBase * atmAttenuation * Math.exp(-shielding / 10);
+    return gcr + spe;
+  }
+  /**
+   * Accumulate radiation dose over a time step.
+   *
+   * @param dt        Time step (s).
+   * @param doseRate  Current dose rate (mSv/day).
+   */
+  accumulateRadiation(dt, doseRate) {
+    this.radiationDose += doseRate * (dt / 86400);
+  }
+  /**
+   * Evaluate radiation status against safety limits.
+   * NASA career limit: ~1 Sv (conservative). 30-day limit: 250 mSv.
+   *
+   * @returns { dose, status, limit } current dose, status, and career limit.
+   */
+  evaluateRadiationStatus() {
+    const careerLimit = 1e3;
+    const annualLimit = 500;
+    const thirtyDayLimit = 250;
+    let status = "nominal";
+    if (this.radiationDose >= careerLimit) {
+      status = "exceeded";
+    } else if (this.radiationDose >= annualLimit) {
+      status = "critical";
+    } else if (this.radiationDose >= thirtyDayLimit) {
+      status = "warning";
+    }
+    return { dose: this.radiationDose, status, limit: careerLimit };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-6] ISRU (In-Situ Resource Utilization)
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Extract ore from the surface at a power-limited rate.
+   *
+   * @param dt               Time step (s).
+   * @param power            Available power (kW).
+   * @param oreConcentration Ore concentration (0..1). Default 0.05 (5%).
+   * @returns Amount of ore extracted (units).
+   */
+  extractOre(dt, power, oreConcentration = 0.05) {
+    const extractionRate = power * 0.01 * oreConcentration;
+    const extracted = extractionRate * dt;
+    const space = this.oreMax - this.ore;
+    const actual = Math.min(extracted, space);
+    this.ore += actual;
+    return actual;
+  }
+  /**
+   * Run a converter recipe. Four standard ISRU recipes:
+   *   "lf":       Ore → LiquidFuel       (1 ore → 0.5 LF)
+   *   "ox":       Ore → Oxidizer          (1 ore → 0.5 OX)
+   *   "monoprop": Ore → Monopropellant    (1 ore → 0.3 MP)
+   *   "lf_ox":    Ore → LF + OX           (1 ore → 0.225 LF + 0.275 OX)
+   *
+   * @param dt     Time step (s).
+   * @param recipe Recipe name.
+   * @param power  Available power (kW).
+   * @returns Amount of ore consumed.
+   */
+  runConverter(dt, recipe, power) {
+    const conversionRate = power * 5e-3;
+    const maxConvert = conversionRate * dt;
+    const oreUsed = Math.min(this.ore, maxConvert);
+    if (oreUsed <= 0) return 0;
+    this.ore -= oreUsed;
+    const lf = this.resources.get("liquidFuel");
+    const ox = this.resources.get("oxidizer");
+    const mp = this.resources.get("monopropellant");
+    switch (recipe) {
+      case "lf":
+        if (lf) lf.current = Math.min(lf.max, lf.current + oreUsed * 0.5);
+        break;
+      case "ox":
+        if (ox) ox.current = Math.min(ox.max, ox.current + oreUsed * 0.5);
+        break;
+      case "monoprop":
+        if (mp) mp.current = Math.min(mp.max, mp.current + oreUsed * 0.3);
+        break;
+      case "lf_ox":
+        if (lf) lf.current = Math.min(lf.max, lf.current + oreUsed * 0.225);
+        if (ox) ox.current = Math.min(ox.max, ox.current + oreUsed * 0.275);
+        break;
+    }
+    return oreUsed;
+  }
+  /**
+   * Run a chemical reduction reaction (Sabatier or electrolysis).
+   *
+   * Sabatier: CO₂ + 4H₂ → CH₄ + 2H₂O (produces methane fuel + water)
+   * Electrolysis: 2H₂O → 2H₂ + O₂ (produces oxygen)
+   *
+   * @param dt       Time step (s).
+   * @param reaction "sabatier" or "electrolysis".
+   * @param power    Available power (kW).
+   * @returns Amount of input consumed.
+   */
+  chemicalReduction(dt, reaction, power) {
+    const rate = power * 3e-3;
+    const processed = rate * dt;
+    const ls = this.lifeSupport;
+    const ec = this.resources.get("electricCharge");
+    if (ec) {
+      const ecUsed = Math.min(ec.current, power * dt * 0.5);
+      ec.current -= ecUsed;
+    }
+    switch (reaction) {
+      case "sabatier": {
+        const co2Used = Math.min(ls.co2, processed);
+        ls.co2 -= co2Used;
+        ls.water = Math.min(ls.waterMax, ls.water + co2Used * 0.5);
+        const lf = this.resources.get("liquidFuel");
+        if (lf) lf.current = Math.min(lf.max, lf.current + co2Used * 0.2);
+        return co2Used;
+      }
+      case "electrolysis": {
+        const waterUsed = Math.min(ls.water, processed);
+        ls.water -= waterUsed;
+        ls.oxygen = Math.min(ls.oxygenMax, ls.oxygen + waterUsed * 0.89);
+        return waterUsed;
+      }
+    }
+    return 0;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-7] Communication system
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute antenna gain from the Friis transmission equation.
+   * G = η · (π · D / λ)²
+   *
+   * @param diameter    Antenna diameter (m).
+   * @param wavelength  Signal wavelength (m).
+   * @param efficiency  Antenna efficiency (0..1). Default 0.7.
+   * @returns Antenna gain (dimensionless, linear).
+   */
+  computeAntennaGain(diameter, wavelength, efficiency = 0.7) {
+    if (wavelength <= 0) return 0;
+    return efficiency * Math.pow(Math.PI * diameter / wavelength, 2);
+  }
+  /**
+   * Compute received signal strength using the Friis transmission equation.
+   * Pr = Pt · Gt · Gr · (λ / (4π·d))²
+   *
+   * @param txPower     Transmit power (W).
+   * @param txGain      Transmit antenna gain (linear).
+   * @param rxGain      Receive antenna gain (linear).
+   * @param distance    Distance between transmitter and receiver (m).
+   * @param wavelength  Signal wavelength (m).
+   * @returns Received power (W).
+   */
+  computeSignalStrength(txPower, txGain, rxGain, distance, wavelength) {
+    if (distance <= 0 || wavelength <= 0) return 0;
+    const pathLoss = Math.pow(wavelength / (4 * Math.PI * distance), 2);
+    return txPower * txGain * rxGain * pathLoss;
+  }
+  /**
+   * Compute achievable data rate via the Shannon-Hartley theorem.
+   * C = B · log₂(1 + S/N)
+   *
+   * @param signalPower  Received signal power (W).
+   * @param noisePower   Noise power (W).
+   * @param bandwidth    Channel bandwidth (Hz).
+   * @returns Data rate (bits/s).
+   */
+  computeDataRate(signalPower, noisePower, bandwidth) {
+    const snr = signalPower / Math.max(noisePower, 1e-30);
+    return bandwidth * Math.log2(1 + snr);
+  }
+  /**
+   * Transmit data from the queue. Pops data from the front of the queue
+   * at the given data rate.
+   *
+   * @param dataRate  Current achievable data rate (bits/s).
+   * @param dt        Time step (s).
+   * @returns Amount of data transmitted (bits).
+   */
+  transmitData(dataRate, dt) {
+    let transmitted = 0;
+    const capacity = dataRate * dt;
+    while (this.dataQueue.length > 0 && transmitted < capacity) {
+      const front = this.dataQueue[0];
+      if (front.amount <= capacity - transmitted) {
+        transmitted += front.amount;
+        this.dataQueue.shift();
+      } else {
+        front.amount -= capacity - transmitted;
+        transmitted = capacity;
+      }
+    }
+    this.transmitRate = transmitted / Math.max(dt, 1e-4);
+    return transmitted;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-8] Science experiments
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Run multiple science experiments simultaneously, accumulating data.
+   *
+   * @param dt          Time step (s).
+   * @param experiments Array of { name, rate, value } experiment definitions.
+   * @returns Total science value generated.
+   */
+  runScienceExperiments(dt, experiments) {
+    let totalScience = 0;
+    for (const exp of experiments) {
+      const science = (exp.rate || 0) * dt;
+      const value = science * (exp.value || 1);
+      this.scienceData.push({ name: exp.name, amount: science, value, time: 0 });
+      totalScience += value;
+    }
+    return totalScience;
+  }
+  /**
+   * Process science data in a mobile processing lab. The lab boosts the
+   * value of raw science data over time, converting it to processed science.
+   *
+   * @param dt       Time step (s).
+   * @param labLevel Lab upgrade level (0 = no lab, 1+ = processing speed).
+   * @returns Total processed science value.
+   */
+  processLabData(dt, labLevel) {
+    if (labLevel <= 0) return 0;
+    let processed = 0;
+    const labRate = 0.1 * labLevel;
+    for (let i = this.scienceData.length - 1; i >= 0; i--) {
+      const data = this.scienceData[i];
+      const boost = Math.min(data.value, labRate * dt);
+      data.value -= boost;
+      processed += boost * 1.5;
+      if (data.value <= 0.01) {
+        this.scienceData.splice(i, 1);
+      }
+    }
+    return processed;
+  }
+  /**
+   * Decay science data value over time. Unprocessed data loses value
+   * as it degrades.
+   *
+   * @param dt        Time step (s).
+   * @param decayRate Fraction of value lost per second. Default 1e-5.
+   */
+  decayScienceData(dt, decayRate = 1e-5) {
+    for (let i = this.scienceData.length - 1; i >= 0; i--) {
+      const data = this.scienceData[i];
+      data.time += dt;
+      data.value *= Math.max(0, 1 - decayRate * dt);
+      if (data.value < 0.01) {
+        this.scienceData.splice(i, 1);
+      }
+    }
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-9] Thermal management
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Update multiple cooling loops circulating coolant. Each loop moves
+   * heat from a hot source to a cold sink.
+   *
+   * @param dt        Time step (s).
+   * @param heatLoad  Total heat load to dissipate (W).
+   * @returns Total heat dissipated (J).
+   */
+  updateCoolingLoops(dt, heatLoad) {
+    let totalDissipated = 0;
+    for (const loop of this.coolingLoops) {
+      if (!loop.active) continue;
+      const capacity = loop.flowRate * loop.specificHeat * (loop.hotTemp - loop.coldTemp);
+      const dissipated = Math.min(heatLoad * loop.fraction, capacity) * dt;
+      loop.heatDissipated = dissipated;
+      totalDissipated += dissipated;
+      const avgTemp = (loop.hotTemp + loop.coldTemp) / 2;
+      loop.hotTemp += (avgTemp - loop.hotTemp) * 0.1 * dt;
+      loop.coldTemp += (avgTemp - loop.coldTemp) * 0.1 * dt;
+    }
+    return totalDissipated;
+  }
+  /**
+   * Run a heat pump to move heat against the gradient (from cold to hot).
+   * Consumes power to pump heat from a cold source to a hot sink.
+   *
+   * @param dt        Time step (s).
+   * @param hotTemp   Hot-side temperature (K).
+   * @param coldTemp  Cold-side temperature (K).
+   * @param power     Input power (W).
+   * @returns Heat moved (J).
+   */
+  runHeatPump(dt, hotTemp, coldTemp, power) {
+    if (hotTemp <= coldTemp || power <= 0) return 0;
+    const cop = this.computeHeatPumpCOP(hotTemp, coldTemp);
+    const heatMoved = power * cop * dt;
+    this.heatPumpPower = power;
+    return heatMoved;
+  }
+  /**
+   * Compute the Carnot COP (Coefficient of Performance) for a heat pump.
+   * COP_Carnot = T_cold / (T_hot - T_cold)
+   * Real COP is typically 40-60% of Carnot.
+   *
+   * @param hotTemp   Hot-side temperature (K).
+   * @param coldTemp  Cold-side temperature (K).
+   * @returns Real-world COP (dimensionless).
+   */
+  computeHeatPumpCOP(hotTemp, coldTemp) {
+    if (hotTemp <= coldTemp) return 0;
+    const carnotCop = coldTemp / (hotTemp - coldTemp);
+    return carnotCop * 0.5;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 2-10] Cargo bay
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Load a cargo item into the cargo bay, respecting capacity limits.
+   *
+   * @param item  { id, name, mass, volume, position? }
+   * @returns True if the item was loaded.
+   */
+  loadCargo(item) {
+    const totalVolume = this.cargo.reduce((s, c) => s + (c.volume || 0), 0);
+    if (totalVolume + (item.volume || 0) > this.cargoCapacity) return false;
+    this.cargo.push({
+      id: item.id,
+      name: item.name,
+      mass: item.mass,
+      volume: item.volume || 0,
+      position: item.position ? item.position.clone() : new Vector3()
+    });
+    this.cargoMass += item.mass;
+    this.updateCargoCOM();
+    return true;
+  }
+  /**
+   * Unload a cargo item by its id.
+   *
+   * @param itemId  Cargo item id.
+   * @returns The unloaded item, or null if not found.
+   */
+  unloadCargo(itemId) {
+    const idx = this.cargo.findIndex((c) => c.id === itemId);
+    if (idx < 0) return null;
+    const item = this.cargo.splice(idx, 1)[0];
+    this.cargoMass -= item.mass;
+    this.updateCargoCOM();
+    return item;
+  }
+  /**
+   * Update the center of mass offset due to cargo placement.
+   * Computes the weighted average position of all cargo items.
+   */
+  updateCargoCOM() {
+    if (this.cargo.length === 0 || this.cargoMass <= 0) {
+      this.cargoCOM = new Vector3();
+      return;
+    }
+    const com = new Vector3();
+    for (const c of this.cargo) {
+      com.add(c.position.clone().multiplyScalar(c.mass));
+    }
+    com.divideScalar(this.cargoMass);
+    this.cargoCOM = com;
+  }
+  /**
+   * Compute the moment of inertia contribution from cargo items.
+   * Uses the parallel axis theorem: I = Σ m·r² for each axis.
+   *
+   * @returns { Ixx, Iyy, Izz } cargo inertia contributions (kg·m²).
+   */
+  computeCargoInertia() {
+    let Ixx = 0, Iyy = 0, Izz = 0;
+    for (const c of this.cargo) {
+      const r = c.position;
+      const m = c.mass;
+      Ixx += m * (r.y * r.y + r.z * r.z);
+      Iyy += m * (r.x * r.x + r.z * r.z);
+      Izz += m * (r.x * r.x + r.y * r.y);
+    }
+    return { Ixx, Iyy, Izz };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 32] Crew system: skills, fatigue, health, space sickness
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Add a crew member to the vessel with optional skill levels.
+   * Skills: piloting, engineering, science, medical (each 0..5).
+   * @returns New crew count.
+   */
+  addCrewMember(name, skills) {
+    if (!this.crew) this.crew = [];
+    var s = skills || {};
+    this.crew.push({
+      name,
+      skills: {
+        piloting: s.piloting != null ? s.piloting : 1,
+        engineering: s.engineering != null ? s.engineering : 1,
+        science: s.science != null ? s.science : 1,
+        medical: s.medical != null ? s.medical : 1
+      },
+      fatigue: 0,
+      health: 100,
+      spaceSickness: 1,
+      alive: true
+    });
+    return this.crew.length;
+  }
+  /**
+   * Remove a crew member by name.
+   * @returns True if the member was found and removed.
+   */
+  removeCrewMember(name) {
+    if (!this.crew) return false;
+    for (var i = 0; i < this.crew.length; i++) {
+      if (this.crew[i].name === name) {
+        this.crew.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+  /**
+   * Update crew fatigue based on activity level.
+   * @param dt       Time step (s).
+   * @param activity Activity multiplier (1 = normal, 0 = resting).
+   */
+  updateCrewFatigue(dt, activity) {
+    if (activity == null) activity = 1;
+    if (!this.crew) return;
+    for (var i = 0; i < this.crew.length; i++) {
+      var m = this.crew[i];
+      if (!m.alive) continue;
+      if (activity > 0.1) {
+        m.fatigue = Math.min(1, m.fatigue + activity * 0.01 * dt);
+      } else {
+        m.fatigue = Math.max(0, m.fatigue - 0.02 * dt);
+      }
+    }
+  }
+  /**
+   * Update crew health. High G-forces and extreme fatigue damage health.
+   * @param dt     Time step (s).
+   * @param gForce Current G-force in Earth g's.
+   */
+  updateCrewHealth(dt, gForce) {
+    if (gForce == null) gForce = 1;
+    if (!this.crew) return;
+    for (var i = 0; i < this.crew.length; i++) {
+      var m = this.crew[i];
+      if (!m.alive) continue;
+      if (gForce > 8) {
+        m.health -= (gForce - 8) * 5 * dt;
+      }
+      if (m.fatigue > 0.8) {
+        m.health -= (m.fatigue - 0.8) * 10 * dt;
+      }
+      if (m.health < 50) {
+        m.health += 0.1 * dt;
+      }
+      m.health = Math.max(0, Math.min(100, m.health));
+      if (m.health <= 0) m.alive = false;
+    }
+  }
+  /**
+   * Update space adaptation syndrome. Crew gradually adapt to microgravity.
+   * spaceSickness goes from 1 (fully sick) to 0 (fully adapted).
+   * @param dt Time step (s).
+   */
+  updateSpaceSickness(dt) {
+    if (!this.crew) return;
+    for (var i = 0; i < this.crew.length; i++) {
+      var m = this.crew[i];
+      if (!m.alive) continue;
+      m.spaceSickness = Math.max(0, m.spaceSickness - 1e-3 * dt);
+    }
+  }
+  /**
+   * Compute overall crew effectiveness (0..1), factoring in fatigue,
+   * health, and space sickness. Affects piloting precision and science.
+   */
+  computeCrewEffectiveness() {
+    if (!this.crew || this.crew.length === 0) return 1;
+    var total = 0;
+    var count = 0;
+    for (var i = 0; i < this.crew.length; i++) {
+      var m = this.crew[i];
+      if (!m.alive) continue;
+      var fatigueFactor = 1 - m.fatigue * 0.5;
+      var healthFactor = m.health / 100;
+      var sicknessFactor = 1 - m.spaceSickness * 0.3;
+      total += fatigueFactor * healthFactor * sicknessFactor;
+      count++;
+    }
+    return count > 0 ? total / count : 0;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 33] Automation: command queue, autopilot, suicide burn
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Queue a flight command to execute after a delay.
+   * @param command A function(rocket) or a string action name.
+   * @param delay   Delay in seconds before execution.
+   */
+  queueFlightCommand(command, delay) {
+    if (!this._commandQueue) this._commandQueue = [];
+    if (this._flightTime == null) this._flightTime = 0;
+    this._commandQueue.push({
+      command,
+      executeAt: this._flightTime + delay,
+      executed: false
+    });
+  }
+  /**
+   * Load a preset command sequence. Each entry: { command, delay }.
+   * Delays are cumulative.
+   * @param sequence Array of { command: function|string, delay: number }.
+   */
+  loadCommandSequence(sequence) {
+    if (!this._commandQueue) this._commandQueue = [];
+    if (this._flightTime == null) this._flightTime = 0;
+    var cumulative = 0;
+    for (var i = 0; i < sequence.length; i++) {
+      cumulative += sequence[i].delay || 0;
+      this._commandQueue.push({
+        command: sequence[i].command,
+        executeAt: this._flightTime + cumulative,
+        executed: false
+      });
+    }
+  }
+  /**
+   * Update autopilot: process command queue and align orientation to mode.
+   * @param dt        Time step (s).
+   * @param mode      "prograde" | "retrograde" | "hold" | "off"
+   * @param parentPos Parent body position (world space, for reference).
+   */
+  updateAutopilot(dt, mode, parentPos) {
+    if (this._flightTime == null) this._flightTime = 0;
+    this._flightTime += dt;
+    if (this._commandQueue) {
+      for (var i = 0; i < this._commandQueue.length; i++) {
+        var cmd = this._commandQueue[i];
+        if (!cmd.executed && this._flightTime >= cmd.executeAt) {
+          cmd.executed = true;
+          if (typeof cmd.command === "function") cmd.command(this);
+        }
+      }
+      this._commandQueue = this._commandQueue.filter(function(c) {
+        return !c.executed;
+      });
+    }
+    if (!mode || mode === "off" || mode === "hold") return;
+    var targetDir;
+    if (mode === "prograde") {
+      targetDir = this.getProgradeDir();
+    } else if (mode === "retrograde") {
+      targetDir = this.getRetrogradeDir();
+    } else {
+      return;
+    }
+    var currentUp = new Vector3(0, 1, 0).applyQuaternion(this.orientation);
+    var dot = currentUp.dot(targetDir);
+    if (dot > 0.9999) return;
+    if (dot < -0.9999) {
+      var axis = new Vector3(1, 0, 0);
+      if (Math.abs(currentUp.x) > 0.9) axis.set(0, 1, 0);
+      var dq = new Quaternion().setFromAxisAngle(axis, Math.PI * Math.min(1, 2 * dt));
+      this.orientation.premultiply(dq).normalize();
+      return;
+    }
+    var q = new Quaternion().setFromUnitVectors(currentUp, targetDir);
+    var targetOri = q.clone().multiply(this.orientation);
+    var slerpT = Math.min(1, 2 * dt);
+    this.orientation.slerp(targetOri, slerpT);
+    this.orientation.normalize();
+  }
+  /**
+   * Compute suicide burn parameters: the altitude at which to start
+   * a full-throttle burn to come to rest at the surface.
+   *
+   * @param altitude  Current altitude above surface (m).
+   * @param velocity  Current downward speed (m/s, positive = descending).
+   * @param gravity   Local gravitational acceleration (m/s²).
+   * @returns { possible, burnAltitude, burnTime, twr, netDecel }
+   */
+  computeSuicideBurn(altitude, velocity, gravity) {
+    var g = gravity > 0 ? gravity : 9.81;
+    var twr = this.thrust / Math.max(this.totalMass * g, 1);
+    var netDecel = (twr - 1) * g;
+    if (netDecel <= 0) {
+      return { possible: false, burnAltitude: 0, burnTime: 0, twr, netDecel: 0 };
+    }
+    var burnDistance = velocity * velocity / (2 * netDecel);
+    var burnTime = velocity / netDecel;
+    return {
+      possible: true,
+      burnAltitude: burnDistance,
+      burnTime,
+      twr,
+      netDecel
+    };
+  }
+  /**
+   * Smart throttle: adjust throttle to approach a target speed.
+   * Uses proportional control on the speed error.
+   * @param dt           Time step (s).
+   * @param targetSpeed  Desired speed (m/s).
+   * @param currentSpeed Current speed (m/s).
+   * @returns New throttle command (0..1).
+   */
+  updateSmartThrottle(dt, targetSpeed, currentSpeed) {
+    var error = targetSpeed - currentSpeed;
+    var kp = 0.5;
+    var newThrottle = Math.max(0, Math.min(1, this.throttleCommand + kp * error * dt));
+    this.setThrottleCommand(newThrottle);
+    return newThrottle;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 34] Fault diagnosis: sensor fusion, anomaly detection, FDIR
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Record a sensor reading for fusion and anomaly detection.
+   * Maintains a rolling window of the last 100 readings per sensor.
+   * @param sensorId  Sensor identifier string.
+   * @param value     Sensor reading value.
+   * @param timestamp Optional timestamp (ms); defaults to Date.now().
+   */
+  recordSensorReading(sensorId, value, timestamp) {
+    if (!this._sensorHistory) this._sensorHistory = /* @__PURE__ */ new Map();
+    if (!this._sensorHistory.has(sensorId)) {
+      this._sensorHistory.set(sensorId, { readings: [], mean: 0, variance: 0, count: 0 });
+    }
+    var sensor = this._sensorHistory.get(sensorId);
+    sensor.readings.push({ value, time: timestamp || Date.now() });
+    if (sensor.readings.length > 100) sensor.readings.shift();
+    var n = sensor.readings.length;
+    var sum = 0;
+    for (var i = 0; i < n; i++) sum += sensor.readings[i].value;
+    sensor.mean = sum / n;
+    var sqSum = 0;
+    for (var i = 0; i < n; i++) {
+      var d = sensor.readings[i].value - sensor.mean;
+      sqSum += d * d;
+    }
+    sensor.variance = sqSum / n;
+    sensor.count = n;
+  }
+  /**
+   * Fuse multiple sensor readings using inverse-variance weighting
+   * (simplified Kalman-style fusion). Sensors with lower variance get
+   * higher weight.
+   * @param sensorIds Array of sensor ids to fuse.
+   * @returns { value, variance } or null if no data available.
+   */
+  fuseSensorData(sensorIds) {
+    if (!this._sensorHistory) return null;
+    var totalWeight = 0;
+    var fusedValue = 0;
+    for (var i = 0; i < sensorIds.length; i++) {
+      var sensor = this._sensorHistory.get(sensorIds[i]);
+      if (!sensor || sensor.readings.length === 0) continue;
+      var last = sensor.readings[sensor.readings.length - 1].value;
+      var weight = 1 / Math.max(sensor.variance, 1e-6);
+      fusedValue += last * weight;
+      totalWeight += weight;
+    }
+    if (totalWeight === 0) return null;
+    fusedValue /= totalWeight;
+    return { value: fusedValue, variance: 1 / totalWeight };
+  }
+  /**
+   * Detect anomalies using a 3-sigma threshold. Any recent reading more
+   * than 3 standard deviations from the sensor's running mean is flagged.
+   * @returns Array of { sensorId, value, expected, sigma }.
+   */
+  detectAnomalies() {
+    if (!this._sensorHistory) return [];
+    var anomalies = [];
+    this._sensorHistory.forEach(function(sensor, id) {
+      if (sensor.readings.length < 10) return;
+      var stdDev = Math.sqrt(sensor.variance);
+      if (stdDev < 1e-6) return;
+      var recent = sensor.readings.slice(-5);
+      for (var i = 0; i < recent.length; i++) {
+        var sigma = Math.abs(recent[i].value - sensor.mean) / stdDev;
+        if (sigma > 3) {
+          anomalies.push({
+            sensorId: id,
+            value: recent[i].value,
+            expected: sensor.mean,
+            sigma
+          });
+          break;
+        }
+      }
+    });
+    return anomalies;
+  }
+  /**
+   * Switch to a redundant backup unit for a subsystem.
+   * @param subsystem Subsystem name (e.g. "guidance", "power").
+   * @returns { switched, newUnit, totalUnits }.
+   */
+  switchRedundancy(subsystem) {
+    if (!this._redundancyState) this._redundancyState = /* @__PURE__ */ new Map();
+    var state = this._redundancyState.get(subsystem);
+    if (!state) {
+      state = { activeUnit: 0, totalUnits: 2, failed: false };
+      this._redundancyState.set(subsystem, state);
+    }
+    state.activeUnit = (state.activeUnit + 1) % state.totalUnits;
+    state.failed = false;
+    return { switched: true, newUnit: state.activeUnit, totalUnits: state.totalUnits };
+  }
+  /**
+   * Run diagnostics across 6 subsystems and return a health tree.
+   * Subsystems: propulsion, power, thermal, guidance, lifeSupport, communications.
+   * Each entry: { health: 0..100, issues: string[], status: "nominal"|"degraded"|"critical" }.
+   * @returns Diagnostic health tree keyed by subsystem name.
+   */
+  runDiagnostics() {
+    var tree = {};
+    var subs = ["propulsion", "power", "thermal", "guidance", "lifeSupport", "communications"];
+    for (var si = 0; si < subs.length; si++) {
+      var sub = subs[si];
+      var health = 100;
+      var issues = [];
+      if (sub === "propulsion") {
+        var totalEng = this.engines.length;
+        var failedEng = 0;
+        this.engineFailed.forEach(function(f) {
+          if (f) failedEng++;
+        });
+        health = totalEng > 0 ? 100 * (1 - failedEng / totalEng) : 0;
+        if (failedEng > 0) issues.push(failedEng + "/" + totalEng + " engines failed");
+        if (this.fuelMass <= 0) {
+          health = 0;
+          issues.push("no fuel remaining");
+        }
+      } else if (sub === "power") {
+        var ec = this.resources.get("electricCharge");
+        health = ec ? ec.current / Math.max(ec.max, 1) * 100 : 0;
+        if (health < 20) issues.push("low electric charge");
+      } else if (sub === "thermal") {
+        var range = this.maxSkinTemp - 300;
+        health = range > 0 ? 100 * (1 - Math.max(0, (this.skinTemperature - 300) / range)) : 0;
+        if (this.skinTemperature > this.maxSkinTemp * 0.9) issues.push("critical skin temperature");
+      } else if (sub === "guidance") {
+        health = this.sasEnabled ? 100 : 50;
+        if (!this.sasEnabled) issues.push("SAS disabled");
+        var monoprop = this.resources.get("monopropellant");
+        if (monoprop && monoprop.current < 5) {
+          health -= 20;
+          issues.push("low monopropellant for RCS");
+        }
+      } else if (sub === "lifeSupport") {
+        if (this.crew && this.crew.length > 0) {
+          var alive = 0;
+          var hSum = 0;
+          for (var ci = 0; ci < this.crew.length; ci++) {
+            if (this.crew[ci].alive) {
+              alive++;
+              hSum += this.crew[ci].health;
+            }
+          }
+          health = alive > 0 ? hSum / alive : 0;
+          if (health < 50) issues.push("crew health critical");
+          if (alive < this.crew.length) issues.push("crew casualties");
+        } else {
+          health = 100;
+        }
+      } else if (sub === "communications") {
+        health = 100;
+      }
+      health = Math.max(0, Math.min(100, health));
+      var status = health > 75 ? "nominal" : health > 40 ? "degraded" : "critical";
+      tree[sub] = { health, issues, status };
+    }
+    return tree;
+  }
+  /**
+   * Update FDIR (Fault Detection, Isolation, and Recovery) status.
+   * State machine: nominal -> caution -> alert -> emergency.
+   * In emergency, auto-cuts throttle and logs the transition.
+   * @param dt Time step (s).
+   * @returns Current FDIR state { status, timer, actionLog }.
+   */
+  updateFDIRStatus(dt) {
+    if (!this._fdir) {
+      this._fdir = { status: "nominal", timer: 0, actionLog: [] };
+    }
+    var fdir = this._fdir;
+    var diag = this.runDiagnostics();
+    var critical = 0;
+    var degraded = 0;
+    var keys = Object.keys(diag);
+    for (var i = 0; i < keys.length; i++) {
+      if (diag[keys[i]].status === "critical") critical++;
+      else if (diag[keys[i]].status === "degraded") degraded++;
+    }
+    var newStatus = "nominal";
+    if (critical >= 2) newStatus = "emergency";
+    else if (critical >= 1) newStatus = "alert";
+    else if (degraded >= 2) newStatus = "caution";
+    if (newStatus !== fdir.status) {
+      fdir.actionLog.push({ time: Date.now(), from: fdir.status, to: newStatus });
+      fdir.status = newStatus;
+      fdir.timer = 0;
+      if (newStatus === "emergency") {
+        this.setThrottleCommand(0);
+      }
+    } else {
+      fdir.timer += dt;
+    }
+    return fdir;
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 35] Final validation: boundary checks, resource balance, health
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Validate boundary conditions: check for NaN, negative values,
+   * and out-of-range quantities that indicate physics instability.
+   * @returns { valid: boolean, errors: string[] }
+   */
+  validateBoundaryConditions() {
+    var errors = [];
+    if (isNaN(this.body.mass) || this.body.mass < 0) errors.push("body.mass invalid");
+    if (isNaN(this.fuelMass) || this.fuelMass < 0) errors.push("fuelMass invalid");
+    if (isNaN(this.dryMass) || this.dryMass < 0) errors.push("dryMass invalid");
+    if (isNaN(this.throttle) || this.throttle < 0 || this.throttle > 1) errors.push("throttle out of range");
+    if (isNaN(this.skinTemperature) || this.skinTemperature < 0) errors.push("skinTemperature invalid");
+    var p = this.body.position;
+    if (isNaN(p.x) || isNaN(p.y) || isNaN(p.z)) errors.push("position contains NaN");
+    var v = this.body.velocity;
+    if (isNaN(v.x) || isNaN(v.y) || isNaN(v.z)) errors.push("velocity contains NaN");
+    this.resources.forEach(function(res, key) {
+      if (isNaN(res.current) || res.current < 0) errors.push("resource " + key + ".current invalid");
+      if (isNaN(res.max) || res.max < 0) errors.push("resource " + key + ".max invalid");
+      if (res.current > res.max + 0.01) errors.push("resource " + key + ": current exceeds max");
+    });
+    return { valid: errors.length === 0, errors };
+  }
+  /**
+   * Validate that fuel mass is consistent between the aggregate fuelMass
+   * and the sum of individual resource tanks. Also checks LF:OX ratio.
+   * @returns { valid, errors, totalResourceFuel, fuelMass }
+   */
+  validateResourceBalance() {
+    var errors = [];
+    var total = 0;
+    var lf = this.resources.get("liquidFuel");
+    var ox = this.resources.get("oxidizer");
+    var xenon = this.resources.get("xenon");
+    var solid = this.resources.get("solidFuel");
+    if (lf) total += lf.current;
+    if (ox) total += ox.current;
+    if (xenon) total += xenon.current;
+    if (solid) total += solid.current;
+    var diff = Math.abs(total - this.fuelMass);
+    if (diff > 1) {
+      errors.push("fuel mass mismatch: fuelMass=" + this.fuelMass + " resources=" + total + " diff=" + diff.toFixed(2));
+    }
+    if (lf && ox && lf.current > 0) {
+      var expectedOx = lf.current * (0.55 / 0.45);
+      var oxDiff = Math.abs(ox.current - expectedOx);
+      if (oxDiff > expectedOx * 0.2) {
+        errors.push("LF:OX ratio off: lf=" + lf.current.toFixed(1) + " ox=" + ox.current.toFixed(1) + " expected_ox=" + expectedOx.toFixed(1));
+      }
+    }
+    return { valid: errors.length === 0, errors, totalResourceFuel: total, fuelMass: this.fuelMass };
+  }
+  /**
+   * Comprehensive health check combining boundary validation,
+   * resource balance, diagnostics, and FDIR status into a single report.
+   * @returns { score, status, boundaryCheck, resourceCheck, diagnostics, fdir, summary }
+   */
+  comprehensiveHealthCheck() {
+    var boundary = this.validateBoundaryConditions();
+    var resources = this.validateResourceBalance();
+    var diagnostics = this.runDiagnostics();
+    var fdir = this._fdir || { status: "nominal", timer: 0 };
+    var healthSum = 0;
+    var healthCount = 0;
+    var keys = Object.keys(diagnostics);
+    for (var i = 0; i < keys.length; i++) {
+      healthSum += diagnostics[keys[i]].health;
+      healthCount++;
+    }
+    var avgHealth = healthCount > 0 ? healthSum / healthCount : 0;
+    var score = avgHealth / 100;
+    if (!boundary.valid) score *= 0.5;
+    if (!resources.valid) score *= 0.7;
+    score = Math.max(0, Math.min(1, score));
+    var summary = fdir.status + " | score=" + (score * 100).toFixed(0) + "% | " + boundary.errors.length + " boundary, " + resources.errors.length + " resource issues";
+    return {
+      score,
+      status: fdir.status,
+      boundaryCheck: boundary,
+      resourceCheck: resources,
+      diagnostics,
+      fdir,
+      summary,
+      timestamp: Date.now()
+    };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 1.1] Realistic mass flow rate calculation
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute the ideal mass flow rate (kg/s) for a single engine based on
+   * chamber pressure and nozzle area ratio.
+   *
+   * Uses the choked-flow isentropic relation:
+   *   ṁ = (Pc · At / √Tc) · √(γ/R) · (2/(γ+1))^((γ+1)/(2(γ-1)))
+   *
+   * The throat area At is estimated from thrust and a vacuum thrust coefficient
+   * that scales with the nozzle area ratio:
+   *   Cf_vac ≈ 1.5 + 0.5·log₁₀(ε)
+   *   At = F / (Cf_vac · Pc)
+   *
+   * @param engineIndex Index into this.engines.
+   * @returns Mass flow rate (kg/s), or 0 if engine is invalid.
+   */
+  computeMassFlowRate(engineIndex) {
+    const eng = this.engines[engineIndex];
+    if (!eng || eng.thrust <= 0) return 0;
+    const Pc = eng.chamberPressure ?? 5e6;
+    const epsilon = Math.max(1, eng.nozzleAreaRatio ?? 16);
+    const gamma = 1.2;
+    const Tc = 3e3;
+    const Rgas = 287;
+    const CfVac = 1.5 + 0.5 * Math.log10(epsilon);
+    const At = eng.thrust / (CfVac * Pc);
+    const choking = Math.pow(2 / (gamma + 1), (gamma + 1) / (2 * (gamma - 1)));
+    const mdot = Pc * At / Math.sqrt(Tc) * Math.sqrt(gamma / Rgas) * choking;
+    return Math.max(0, mdot);
+  }
+  /**
+   * Compute per-engine mass-flow correction factors for ambient pressure.
+   *
+   * In overexpanded nozzles at high ambient pressure, flow separation reduces
+   * the effective mass flow. The Summerfield criterion (Pa/Pc > 0.4) triggers
+   * separation, and the correction factor degrades linearly with the pressure
+   * ratio. Below separation but still overexpanded, a mild 5% penalty applies.
+   *
+   * @param ambientPressure Local ambient pressure (Pa). 0 = vacuum.
+   * @returns Array of correction factors (0..1) per engine.
+   */
+  updateMassFlowCorrection(ambientPressure) {
+    const corrections = [];
+    for (let i = 0; i < this.engines.length; i++) {
+      const eng = this.engines[i];
+      if (!eng || eng.thrust <= 0) {
+        corrections.push(1);
+        continue;
+      }
+      const Pc = eng.chamberPressure ?? 5e6;
+      const epsilon = Math.max(1, eng.nozzleAreaRatio ?? 16);
+      const gamma = 1.2;
+      const peOverPc = Math.pow(1 + (gamma - 1) / 2 * Math.pow(epsilon, 0.4), -gamma / (gamma - 1));
+      const Pe = Pc * peOverPc;
+      const sepThreshold = 0.4;
+      const paOverPc = ambientPressure / Pc;
+      if (paOverPc > sepThreshold && ambientPressure > Pe * 1.5) {
+        const sepFactor = Math.max(0.7, 1 - (paOverPc - sepThreshold) * 2);
+        corrections.push(sepFactor);
+      } else if (ambientPressure > Pe) {
+        corrections.push(0.95);
+      } else {
+        corrections.push(1);
+      }
+    }
+    return corrections;
+  }
+  /**
+   * Cache the corrected mass flow rate for every engine. Call this before
+   * applyThrust() so that thrust / fuel-consumption calculations can use the
+   * physically-based mass flow instead of the simple F/(Isp·g₀) estimate.
+   *
+   * @param ambientPressure Local ambient pressure (Pa). Default 0 (vacuum).
+   */
+  updateEngineMassFlows(ambientPressure = 0) {
+    const corrections = this.updateMassFlowCorrection(ambientPressure);
+    for (let i = 0; i < this.engines.length; i++) {
+      const idealMdot = this.computeMassFlowRate(i);
+      this.engineMassFlow.set(i, idealMdot * corrections[i]);
+    }
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 1.2] Thrust eccentricity effects
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Generate random manufacturing-tolerance eccentricity offsets for all
+   * engines. Each engine receives a random offset of up to 2 mm in the
+   * lateral (x, z) plane. Call once at construction or after staging.
+   */
+  generateEngineEccentricity() {
+    this.engineEccentricity.clear();
+    for (let i = 0; i < this.engines.length; i++) {
+      const tolerance = 2e-3;
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * tolerance;
+      this.engineEccentricity.set(i, new Vector3(
+        Math.cos(angle) * r,
+        0,
+        Math.sin(angle) * r
+      ));
+    }
+  }
+  /**
+   * Compute the net torque from thrust eccentricity. For each firing engine,
+   * the offset r (from the thrust axis to the COM) crossed with the thrust
+   * force F gives a torque τ = r × F. Returns the total torque in the body frame.
+   *
+   * @returns Net eccentricity torque vector (N·m, body frame).
+   */
+  computeEccentricityTorque() {
+    const torque = new Vector3();
+    const thrustDir = this._gimballedThrustDir();
+    for (let i = 0; i < this.engines.length; i++) {
+      if (this.engineFailed.get(i)) continue;
+      const eng = this.engines[i];
+      if (!eng || eng.thrust <= 0) continue;
+      const offset = this.engineEccentricity.get(i);
+      if (!offset || offset.lengthSq() < 1e-14) continue;
+      const eThrust = eng.thrust * this.throttle;
+      const force = thrustDir.clone().multiplyScalar(eThrust);
+      torque.add(new Vector3().crossVectors(offset, force));
+    }
+    return torque;
+  }
+  /**
+   * Integrate the eccentricity torque into angular velocity.
+   * α = τ / I, then ω += α·dt. Should be called every physics tick while
+   * engines are firing to simulate the gradual rotation drift from misaligned
+   * thrust.
+   *
+   * @param dt Time step (s).
+   */
+  applyEccentricityTorque(dt) {
+    if (this.throttle <= 0) return;
+    const torque = this.computeEccentricityTorque();
+    if (torque.lengthSq() < 1e-16) return;
+    const I = this.momentOfInertia;
+    const alpha = new Vector3(
+      I.x > 0 ? torque.x / I.x : 0,
+      I.y > 0 ? torque.y / I.y : 0,
+      I.z > 0 ? torque.z / I.z : 0
+    );
+    this.angularVel.add(alpha.multiplyScalar(dt));
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 1.3] Stage separation dynamics
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute the separation Δv for both the shed stage and the remaining rocket
+   * based on the separation spring impulse and the mass ratio.
+   *
+   * Δv_shed = -I / m_shed (retrograde)
+   * Δv_remain = I / m_remain (prograde)
+   *
+   * @param stageMass     Mass of the stage being shed (kg).
+   * @param remainingMass Mass of the remaining rocket (kg).
+   * @returns { shed, remaining } Δv values (m/s).
+   */
+  computeSeparationImpulse(stageMass, remainingMass) {
+    const springImpulse = 1e4;
+    const dvShed = -springImpulse / Math.max(stageMass, 1);
+    const dvRemaining = springImpulse / Math.max(remainingMass, 1);
+    return { shed: dvShed, remaining: dvRemaining };
+  }
+  /**
+   * Compute the rocket's angular momentum L = I · ω.
+   * @returns Angular momentum vector (kg·m²/s).
+   */
+  computeAngularMomentum() {
+    return new Vector3(
+      this.momentOfInertia.x * this.angularVel.x,
+      this.momentOfInertia.y * this.angularVel.y,
+      this.momentOfInertia.z * this.angularVel.z
+    );
+  }
+  /**
+   * Apply angular momentum conservation after stage separation.
+   * L_total = L_remaining + L_shed → L_remaining = L_total - L_shed.
+   * The remaining rocket's angular velocity is adjusted accordingly.
+   *
+   * @param shedMass       Mass of shed stage (kept for API clarity).
+   * @param shedInertia    Moment of inertia of the shed stage (Ixx, Iyy, Izz).
+   * @param shedAngularVel Angular velocity of the shed stage at separation.
+   */
+  applyAngularMomentumConservation(shedMass, shedInertia, shedAngularVel) {
+    const Ltotal = this.computeAngularMomentum();
+    const Lshed = new Vector3(
+      shedInertia.x * shedAngularVel.x,
+      shedInertia.y * shedAngularVel.y,
+      shedInertia.z * shedAngularVel.z
+    );
+    const Lremaining = Ltotal.clone().sub(Lshed);
+    const I = this.momentOfInertia;
+    this.angularVel.set(
+      I.x > 0 ? Lremaining.x / I.x : 0,
+      I.y > 0 ? Lremaining.y / I.y : 0,
+      I.z > 0 ? Lremaining.z / I.z : 0
+    );
+  }
+  /**
+   * Compute the post-separation velocities of the shed stage and the remaining
+   * rocket using momentum conservation.
+   *
+   * m₁v₁ + m₂v₂ = (m₁+m₂)v₀
+   *
+   * The separation force acts equally and oppositely on both bodies along the
+   * prograde axis.
+   *
+   * @param shedMass         Mass of the shed stage (kg).
+   * @param separationForce  Separation spring force (N).
+   * @param dt               Time step (s).
+   * @returns { shed, remaining } velocity vectors (m/s).
+   */
+  computeSeparationVelocity(shedMass, separationForce, dt) {
+    const v0 = this.body.velocity.clone();
+    const impulse = separationForce * dt;
+    const prograde = this.getProgradeDir();
+    const dvShed = prograde.clone().multiplyScalar(-impulse / Math.max(shedMass, 1));
+    const dvRemaining = prograde.clone().multiplyScalar(impulse / Math.max(this.totalMass, 1));
+    return {
+      shed: v0.clone().add(dvShed),
+      remaining: v0.clone().add(dvRemaining)
+    };
+  }
+  /**
+   * Predict whether the shed stage will re-collide with the remaining rocket
+   * within a look-ahead time window. Uses linear propagation of the relative
+   * velocity.
+   *
+   * @param shedVel    Velocity of the shed stage (m/s).
+   * @param shedPos    Position of the shed stage (m).
+   * @param dt         Time step for prediction resolution (s).
+   * @param lookAhead  How far ahead to look (s). Default 5.
+   * @returns { willCollide, timeToCollision, distance }.
+   */
+  checkSeparationCollision(shedVel, shedPos, dt, lookAhead = 5) {
+    const steps = Math.max(1, Math.ceil(lookAhead / Math.max(dt, 1e-4)));
+    const stepDt = lookAhead / steps;
+    const rocketVel = this.body.velocity.clone();
+    const rocketPos = this.body.position.clone();
+    const relVel = shedVel.clone().sub(rocketVel);
+    const minDist = (this.body.radius ?? 2) + 2;
+    for (let i = 1; i <= steps; i++) {
+      const t = i * stepDt;
+      const shedP = shedPos.clone().addScaledVector(relVel, t);
+      const dist = shedP.distanceTo(rocketPos);
+      if (dist < minDist) {
+        return { willCollide: true, timeToCollision: t, distance: dist };
+      }
+    }
+    return { willCollide: false, timeToCollision: -1, distance: Infinity };
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 1.4] Fuel settling (ullage) effects
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Update the fuel settling factor based on the current acceleration.
+   * When acceleration ≥ ullageThreshold, propellant pools at the tank bottom
+   * (settling increases toward 1). Below the threshold, fuel drifts and
+   * settling decays toward 0.
+   *
+   * @param acceleration Current linear acceleration magnitude (m/s²).
+   * @param dt           Time step (s).
+   */
+  updateFuelSettling(acceleration, dt) {
+    if (acceleration >= this.ullageThreshold) {
+      const settleRate = Math.min(1, (acceleration - this.ullageThreshold) / this.ullageThreshold);
+      this.fuelSettling = Math.min(1, this.fuelSettling + settleRate * 2 * dt);
+    } else {
+      this.fuelSettling = Math.max(0, this.fuelSettling - 0.5 * dt);
+    }
+  }
+  /**
+   * Check for engine flameout due to insufficient fuel settling. When the
+   * settling factor drops below 0.3, liquid-fed engines may ingest ullage gas
+   * instead of propellant, causing flameout with a probability proportional to
+   * the settling deficit.
+   *
+   * @param dt Time step (s).
+   * @returns Array of engine indices that flamed out this tick.
+   */
+  checkFuelSettlingFlameout(dt) {
+    if (this.fuelSettling >= 0.3 || this.throttle <= 0) return [];
+    const flameoutProb = (0.3 - this.fuelSettling) / 0.3 * 0.1 * dt * 60;
+    const flamed = [];
+    for (let i = 0; i < this.engines.length; i++) {
+      if (this.engineFailed.get(i)) continue;
+      const eng = this.engines[i];
+      if (!eng || eng.thrust <= 0) continue;
+      if (eng.mode === "solid") continue;
+      if (Math.random() < flameoutProb) {
+        this.engineFailed.set(i, true);
+        flamed.push(i);
+      }
+    }
+    return flamed;
+  }
+  /**
+   * Get the throttle multiplier from fuel settling state. When fuel is poorly
+   * settled, engines cannot sustain full thrust. Returns 1.0 at good settling
+   * (≥0.5), scaling down to 0.3 at zero settling.
+   */
+  get fuelSettlingThrottleMultiplier() {
+    if (this.fuelSettling >= 0.5) return 1;
+    if (this.fuelSettling <= 0) return 0.3;
+    return 0.3 + 0.7 * (this.fuelSettling / 0.5);
+  }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 1.5] Fuel slosh model
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Update the fuel slosh state. Slosh is modelled as a damped harmonic
+   * oscillator in the lateral (x, z) plane, excited by angular and linear
+   * acceleration:
+   *   ẍ + 2ζωẋ + ω²x = -a_excitation
+   *
+   * Angular acceleration creates a tangential excitation at the tank location,
+   * proportional to the distance from the COM.
+   *
+   * @param angularAccel Angular acceleration vector (rad/s², body frame).
+   * @param linearAccel  Linear acceleration vector (m/s², body frame).
+   * @param dt           Time step (s).
+   */
+  updateFuelSlosh(angularAccel, linearAccel, dt) {
+    const omega = this.sloshFrequency;
+    const zeta = this.sloshDamping;
+    const omega2 = omega * omega;
+    const damping = 2 * zeta * omega;
+    const tankHeight = 5;
+    const exciteX = -linearAccel.x - angularAccel.z * tankHeight;
+    const exciteZ = -linearAccel.z + angularAccel.x * tankHeight;
+    const accelX = -omega2 * this.sloshAmplitude.x - damping * this.sloshVelocity.x + exciteX;
+    const accelZ = -omega2 * this.sloshAmplitude.z - damping * this.sloshVelocity.z + exciteZ;
+    this.sloshVelocity.x += accelX * dt;
+    this.sloshVelocity.z += accelZ * dt;
+    this.sloshAmplitude.x += this.sloshVelocity.x * dt;
+    this.sloshAmplitude.z += this.sloshVelocity.z * dt;
+    const maxSlosh = 0.5;
+    this.sloshAmplitude.x = Math.max(-maxSlosh, Math.min(maxSlosh, this.sloshAmplitude.x));
+    this.sloshAmplitude.z = Math.max(-maxSlosh, Math.min(maxSlosh, this.sloshAmplitude.z));
+  }
+  /**
+   * Get the center-of-mass offset caused by fuel slosh. The sloshing mass
+   * shifts the COM laterally, proportional to the slosh amplitude and the
+   * fuel mass fraction.
+   *
+   * @returns COM offset vector (m, body frame).
+   */
+  get sloshCOMOffset() {
+    const fuelFraction = this.totalMass > 0 ? this.fuelMass / this.totalMass : 0;
+    return this.sloshAmplitude.clone().multiplyScalar(fuelFraction * 0.3);
+  }
 };
 var Parachute = class {
   constructor(dragArea = 330) {
     this.state = "stowed";
-    /** Deployed orientation lerp (0..1) for animation. */
     this.deployAnim = 0;
-    /** Has been cut (cannot redeploy). */
     this.cut = false;
     this.dragArea = dragArea;
     this.semiArea = dragArea * 0.1;
@@ -33406,11 +37347,8 @@ var Parachute = class {
 };
 var LandingGear = class {
   constructor(offset, restLength = 1.5, wheelRadius = 0.6) {
-    /** Gear deployed (down) or retracted. */
     this.deployed = true;
-    /** Brake applied (0..1). */
     this.brake = 0;
-    /** Current compression (m); >0 means in contact. */
     this.compression = 0;
     this.contactOffset = offset.clone();
     this.restLength = restLength;
@@ -33443,15 +37381,10 @@ var LandingGear = class {
 };
 var DebrisBody = class {
   constructor(name, mass, radius, pos, vel, fuel = 0) {
-    /** Aerodynamic drag coefficient. */
     this.dragCoefficient = 1;
-    /** Reference area (m²). */
     this.referenceArea = 8;
-    /** Skin temperature (K) for reentry heating. */
     this.temperature = 300;
-    /** Lifetime in seconds before automatic cleanup (0 = never). */
     this.lifetime = 0;
-    /** Age in seconds. */
     this.age = 0;
     this.fuelMass = fuel;
     this.label = name;
@@ -33470,12 +37403,190 @@ var DebrisBody = class {
     this.age += dt;
     return this.lifetime > 0 && this.age >= this.lifetime;
   }
+  // ════════════════════════════════════════════════════════════════════
+  // [Group 1.6] Debris enhancement: orbital elements, aero, reentry, impact
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Compute classical orbital elements from the debris state relative to a
+   * parent body. Uses the standard two-body conversion from position and
+   * velocity vectors.
+   *
+   * @param parentMu   Gravitational parameter μ = G·M of the parent body (m³/s²).
+   * @param parentPos  Position of the parent body (world space).
+   * @returns Orbital elements object, or null if state is degenerate.
+   */
+  computeOrbitalElements(parentMu, parentPos) {
+    const r = this.body.position.clone().sub(parentPos);
+    const v = this.body.velocity.clone();
+    const rMag = r.length();
+    const vMag = v.length();
+    if (rMag < 1e-3 || vMag < 1e-3 || parentMu <= 0) return null;
+    const energy = vMag * vMag / 2 - parentMu / rMag;
+    const a = -parentMu / (2 * energy);
+    const h = new Vector3().crossVectors(r, v);
+    const hMag = h.length();
+    if (hMag < 1e-6) return null;
+    const eVec = new Vector3().crossVectors(v, h).divideScalar(parentMu).sub(r.clone().divideScalar(rMag));
+    const e = eVec.length();
+    const inc = Math.acos(Math.max(-1, Math.min(1, h.y / hMag)));
+    const n = new Vector3(h.z, 0, -h.x);
+    const nMag = n.length();
+    const raan = nMag > 1e-6 ? Math.atan2(n.z, n.x) : 0;
+    let argp = 0;
+    if (nMag > 1e-6 && e > 1e-6) {
+      const cosW = n.dot(eVec) / (nMag * e);
+      argp = Math.acos(Math.max(-1, Math.min(1, cosW)));
+      if (eVec.y < 0) argp = 2 * Math.PI - argp;
+    }
+    let nu = 0;
+    if (e > 1e-6) {
+      const cosNu = eVec.dot(r) / (e * rMag);
+      nu = Math.acos(Math.max(-1, Math.min(1, cosNu)));
+      if (r.dot(v) < 0) nu = 2 * Math.PI - nu;
+    }
+    const periapsis = a * (1 - e);
+    const apoapsis = a * (1 + e);
+    const period = a > 0 ? 2 * Math.PI * Math.sqrt(a * a * a / parentMu) : Infinity;
+    return {
+      semiMajorAxis: a,
+      eccentricity: e,
+      inclination: inc,
+      longitudeOfAscendingNode: raan,
+      argumentOfPeriapsis: argp,
+      trueAnomaly: nu,
+      periapsis,
+      apoapsis,
+      orbitalPeriod: period
+    };
+  }
+  /**
+   * Apply atmospheric drag to the debris. Drag force is:
+   *   F = 0.5 · ρ · v² · Cd · A
+   * applied opposite to the velocity vector.
+   *
+   * @param density Atmospheric density (kg/m³).
+   * @param dt      Time step (s).
+   */
+  applyAtmosphericDrag(density, dt) {
+    if (density <= 0) return;
+    const v = this.body.velocity;
+    const vSq = v.lengthSq();
+    if (vSq < 1e-3) return;
+    const vMag = Math.sqrt(vSq);
+    const dragMag = 0.5 * density * vSq * this.dragCoefficient * this.referenceArea;
+    const dragAccel = dragMag / Math.max(this.body.mass, 1);
+    v.addScaledVector(v.clone().normalize(), -dragAccel * dt);
+  }
+  /**
+   * Update reentry heating using the Sutton-Graves correlation:
+   *   q = 1.83e-4 · √(ρ/Rn) · v³  (W/m²)
+   *
+   * The heat flux is integrated into the debris temperature, with radiative
+   * cooling. Returns the peak heat flux experienced this tick.
+   *
+   * @param dt       Time step (s).
+   * @param density  Atmospheric density (kg/m³).
+   * @param velocity Velocity vector (m/s) — used for magnitude.
+   * @returns Heat flux (W/m²).
+   */
+  updateReentryHeating(dt, density, velocity) {
+    const vMag = velocity.length();
+    if (vMag < 100 || density <= 0) {
+      this.temperature = Math.max(250, this.temperature - 10 * dt);
+      return 0;
+    }
+    const Rn = Math.max(this.body.radius, 0.5);
+    const heatFlux = 183e-6 * Math.sqrt(density / Rn) * vMag * vMag * vMag;
+    const area2 = Math.PI * this.body.radius * this.body.radius;
+    const heatInput = heatFlux * area2 * dt;
+    const Cp = 800;
+    const dT = heatInput / (Math.max(this.body.mass, 1) * Cp);
+    this.temperature += dT;
+    const sigma = 567e-10;
+    const emissivity = 0.85;
+    const radCool = emissivity * sigma * Math.pow(this.temperature, 4) * area2 * dt;
+    this.temperature -= radCool / (Math.max(this.body.mass, 1) * Cp);
+    this.temperature = Math.max(250, this.temperature);
+    return heatFlux;
+  }
+  /**
+   * Predict the impact point of the debris on the parent body's surface.
+   * Propagates the orbit forward using simple Keplerian integration until the
+   * debris crosses the surface radius.
+   *
+   * @param parentPos     Position of the parent body (world space).
+   * @param parentRadius  Radius of the parent body (m).
+   * @param parentMu      Gravitational parameter of the parent body (m³/s²).
+   * @returns { willImpact, timeToImpact, impactPos }.
+   */
+  predictImpact(parentPos, parentRadius, parentMu) {
+    const r = this.body.position.clone().sub(parentPos);
+    const v = this.body.velocity.clone();
+    const rMag = r.length();
+    if (rMag <= parentRadius) {
+      return { willImpact: true, timeToImpact: 0, impactPos: this.body.position.clone() };
+    }
+    const vMag = v.length();
+    if (vMag < 1e-3 || parentMu <= 0) {
+      return { willImpact: false, timeToImpact: -1, impactPos: null };
+    }
+    const energy = vMag * vMag / 2 - parentMu / rMag;
+    const a = -parentMu / (2 * energy);
+    if (a > 0) {
+      const h = new Vector3().crossVectors(r, v);
+      const hMag = h.length();
+      const e = Math.sqrt(Math.max(0, 1 + 2 * energy * hMag * hMag / (parentMu * parentMu)));
+      const periapsis = a * (1 - e);
+      if (periapsis > parentRadius) {
+        return { willImpact: false, timeToImpact: -1, impactPos: null };
+      }
+    }
+    const dt = 1;
+    const maxSteps = 7200;
+    let pos = r.clone();
+    let vel = v.clone();
+    for (let step = 0; step < maxSteps; step++) {
+      const rm = pos.length();
+      if (rm <= parentRadius) {
+        return { willImpact: true, timeToImpact: step * dt, impactPos: pos.clone().add(parentPos) };
+      }
+      const accel = pos.clone().normalize().multiplyScalar(-parentMu / (rm * rm));
+      vel.addScaledVector(accel, dt);
+      pos.addScaledVector(vel, dt);
+    }
+    return { willImpact: false, timeToImpact: -1, impactPos: null };
+  }
+  /**
+   * Update orbital decay from atmospheric drag. Computes the semi-major axis
+   * decay rate and adjusts the debris velocity accordingly.
+   *
+   *   da/dt = -2 · a² · ρ · Cd · A · v / m
+   *
+   * @param dt           Time step (s).
+   * @param density      Atmospheric density (kg/m³).
+   * @param parentMu     Gravitational parameter of the parent body (m³/s²).
+   * @param parentRadius Radius of the parent body (m) — not used directly but
+   *                     kept for API consistency with predictImpact.
+   */
+  updateOrbitalDecay(dt, density, parentMu, parentRadius) {
+    if (density <= 0 || parentMu <= 0) return;
+    const v = this.body.velocity;
+    const vMag = v.length();
+    if (vMag < 1) return;
+    const r = this.body.position.length();
+    const energy = vMag * vMag / 2 - parentMu / r;
+    const a = -parentMu / (2 * energy);
+    if (a <= 0) return;
+    const dragAccel = 0.5 * density * vMag * vMag * this.dragCoefficient * this.referenceArea / Math.max(this.body.mass, 1);
+    const daDt = -2 * a * a * dragAccel / vMag;
+    const da = daDt * dt;
+    const dv = -da * vMag / (2 * a);
+    v.addScaledVector(v.clone().normalize(), dv);
+  }
 };
 var ResearchBase = class {
   constructor(name, bodyName, localPos) {
-    // Position relative to body center
     this.scienceRate = 0.1;
-    // Science per second
     this.totalScience = 0;
     this.level = 1;
     this.isActive = true;
@@ -33514,11 +37625,9 @@ var WarpDrive = class {
     this.isUnlocked = false;
     this.isActive = false;
     this.fuel = 100;
-    // Warp fuel
     this.maxFuel = 100;
     this.targetSystem = null;
     this.travelProgress = 0;
-    // 0-1
     this.startPos = new Vector3();
     this.endPos = new Vector3();
   }
@@ -33560,22 +37669,12 @@ var WarpDrive = class {
 var Astronaut = class {
   constructor() {
     this.isActive = false;
-    // ════════════════════════════════════════════════════════════════════
-    // [Iter 29-31] EVA enhancements: jetpack fuel, science samples, building
-    // ════════════════════════════════════════════════════════════════════
-    /** EVA jetpack propellant (monopropellant) remaining (units). */
     this.evaPropellant = 100;
-    /** Max EVA propellant. */
     this.evaPropellantMax = 100;
-    /** Collected science samples (array of biome+experiment info). */
     this.scienceSamples = [];
-    /** Whether the astronaut is in build mode (can place small structures). */
     this.buildMode = false;
-    /** Build materials carried (units). */
     this.buildMaterials = 0;
-    /** Orientation quaternion for EVA rotation. */
     this.orientation = new Quaternion();
-    /** Whether the astronaut is on a ladder (attached to a vessel). */
     this.onLadder = false;
     this.group = createAstronautModel();
     this.position = new Vector3();
@@ -33644,6 +37743,152 @@ var Astronaut = class {
   refillPropellant(amount) {
     this.evaPropellant = Math.min(this.evaPropellantMax, this.evaPropellant + amount);
   }
+  // ════════════════════════════════════════════════════════════════════
+  // [Iter 32] EVA enhancements: jetpack modes, tether, suit, sampling
+  // ════════════════════════════════════════════════════════════════════
+  /**
+   * Set EVA jetpack mode. Three modes control thrust multiplier and
+   * propellant consumption rate.
+   *   "precise"  - 0.3x thrust, 0.5x consumption (fine maneuvers)
+   *   "standard" - 1.0x thrust, 1.0x consumption (default)
+   *   "full"     - 2.0x thrust, 2.5x consumption (emergency)
+   */
+  setEVAJetpackMode(mode) {
+    this.evaJetpackMode = mode;
+  }
+  /**
+   * Get the thrust and consumption multipliers for the current jetpack mode.
+   * @returns { thrust: number, consumption: number }
+   */
+  getEVAJetpackMultiplier() {
+    var mode = this.evaJetpackMode || "standard";
+    if (mode === "precise") return { thrust: 0.3, consumption: 0.5 };
+    if (mode === "full") return { thrust: 2, consumption: 2.5 };
+    return { thrust: 1, consumption: 1 };
+  }
+  /**
+   * Update EVA tether safety. Models the tether as a spring with a
+   * 500 N breaking force. When the astronaut exceeds the tether length,
+   * the spring pulls them back; if tension exceeds 500 N, the tether snaps.
+   *
+   * @param dt        Time step (s).
+   * @param vesselPos Vessel position (world space) the tether is attached to.
+   * @param maxLen    Maximum tether length (m). Default 25.
+   * @returns { tension: number, broken: boolean, dist: number }
+   */
+  updateEVATether(dt, vesselPos, maxLen) {
+    if (maxLen == null) maxLen = 25;
+    if (this.tetherBroken == null) this.tetherBroken = false;
+    if (this.tetherActive == null) this.tetherActive = false;
+    if (this.tetherLength == null) this.tetherLength = maxLen;
+    if (this.tetherBroken || !this.tetherActive || !vesselPos) {
+      return { tension: 0, broken: this.tetherBroken, dist: 0 };
+    }
+    var toVessel = vesselPos.clone().sub(this.position);
+    var dist = toVessel.length();
+    if (dist <= this.tetherLength) {
+      return { tension: 0, broken: false, dist };
+    }
+    var stretch = dist - this.tetherLength;
+    var springK = 50;
+    var tension = springK * stretch;
+    if (tension > 500) {
+      this.tetherBroken = true;
+      this.tetherActive = false;
+      return { tension, broken: true, dist };
+    }
+    var pullDir = toVessel.normalize();
+    var mass = 100;
+    this.velocity.add(pullDir.multiplyScalar(tension * dt / mass));
+    return { tension, broken: false, dist };
+  }
+  /**
+   * Collect an enhanced science sample with quality grading.
+   * Quality affects science value multiplier.
+   *   "poor"     - 0.5x
+   *   "standard" - 1.0x
+   *   "good"     - 1.5x
+   *   "perfect"  - 2.5x
+   *
+   * @param biome      Biome name.
+   * @param experiment Experiment type.
+   * @param quality    Sample quality.
+   * @returns The collected sample object.
+   */
+  collectEnhancedSample(biome, experiment, quality) {
+    if (!quality) quality = "standard";
+    var mults = { poor: 0.5, standard: 1, good: 1.5, perfect: 2.5 };
+    var mult = mults[quality] || 1;
+    var baseValue = 10 + Math.random() * 20;
+    var sample = {
+      biome,
+      experiment,
+      value: baseValue * mult,
+      quality,
+      timestamp: Date.now()
+    };
+    this.scienceSamples.push(sample);
+    return sample;
+  }
+  /**
+   * Update EVA suit resources: O2, power, cooling, and integrity.
+   * These deplete over time during EVA. Solar flux can recharge power.
+   *
+   * @param dt        Time step (s).
+   * @param solarFlux Solar flux at the astronaut's position (W/m²).
+   * @returns Suit state { oxygen, oxygenMax, power, powerMax, cooling, coolingMax, integrity }.
+   */
+  updateEVASuit(dt, solarFlux) {
+    if (!solarFlux) solarFlux = 0;
+    if (!this.evaSuit) {
+      this.evaSuit = {
+        oxygen: 100,
+        oxygenMax: 100,
+        power: 100,
+        powerMax: 100,
+        cooling: 100,
+        coolingMax: 100,
+        integrity: 100
+      };
+    }
+    var suit = this.evaSuit;
+    suit.oxygen = Math.max(0, suit.oxygen - 0.5 * dt);
+    suit.power = Math.max(0, suit.power - 0.3 * dt);
+    if (solarFlux > 0) {
+      suit.power = Math.min(suit.powerMax, suit.power + solarFlux * 0.01 * dt);
+    }
+    suit.cooling = Math.max(0, suit.cooling - 0.2 * dt);
+    suit.integrity = Math.max(0, suit.integrity - 1e-3 * dt);
+    return suit;
+  }
+  /**
+   * Compute the delta-V and direction needed to return to the vessel.
+   * Uses simple proportional navigation: aim at the vessel and cancel
+   * relative velocity.
+   *
+   * @param vesselPos Vessel position (world space).
+   * @param vesselVel Vessel velocity (world space).
+   * @returns { needed, deltaV, direction, timeToClose, distance }
+   */
+  computeReturnToVessel(vesselPos, vesselVel) {
+    var toVessel = vesselPos.clone().sub(this.position);
+    var dist = toVessel.length();
+    if (dist < 1) {
+      return { needed: false, deltaV: 0, direction: new Vector3(), timeToClose: 0, distance: 0 };
+    }
+    var dir = toVessel.clone().normalize();
+    var relVel = vesselVel.clone().sub(this.velocity);
+    var closingSpeed = relVel.dot(dir);
+    var timeToClose = closingSpeed > 0.1 ? dist / closingSpeed : -1;
+    var neededDV = relVel.length();
+    return {
+      needed: true,
+      deltaV: neededDV,
+      direction: dir,
+      timeToClose,
+      distance: dist
+    };
+  }
 };
 
 // src/game/ui.ts
@@ -33701,7 +37946,8 @@ var GameUI = class {
     this.cameraModes = [
       { key: "follow", label: "\u8DDF\u968F", icon: "\u{1F680}" },
       { key: "map", label: "\u5730\u56FE", icon: "\u{1F5FA}\uFE0F" },
-      { key: "free", label: "\u81EA\u7531", icon: "\u{1F3A5}" }
+      { key: "free", label: "\u81EA\u7531", icon: "\u{1F3A5}" },
+      { key: "cinematic", label: "\u7535\u5F71", icon: "\u{1F3AC}" }
     ];
     this.cameraMode = "follow";
     // 时间加速控制状态
@@ -33710,6 +37956,32 @@ var GameUI = class {
     this.warpLimitReason = "";
     // 飞行器信息
     this.vesselInfo = { name: "", partCount: 0, crewCount: 0 };
+    // 迭代61-65: 界面主题切换
+    this.uiTheme = "dark";
+    // 迭代66-70: 界面缩放
+    this.uiScale = 1;
+    this.UI_SCALE_MIN = 0.5;
+    this.UI_SCALE_MAX = 2;
+    // 迭代71-75: 快捷键面板
+    this.shortcutPanelVisible = false;
+    this.customShortcuts = /* @__PURE__ */ new Map();
+    // 迭代76-80: 教程系统
+    this.tutorialStep = 0;
+    this.tutorialActive = false;
+    this.tutorialSteps = [
+      { title: "\u6B22\u8FCE\u6765\u5230KSP\uFF01", text: "\u6309WASD\u63A7\u5236\u706B\u7BAD\u59FF\u6001\uFF0CShift/Ctrl\u63A7\u5236\u6CB9\u95E8", action: "next" },
+      { title: "\u5206\u7EA7\u5206\u79BB", text: "\u6309\u7A7A\u683C\u952E\u8FDB\u884C\u5206\u7EA7\u5206\u79BB\uFF0C\u629B\u5F03\u7A7A\u7684\u71C3\u6599\u7F50", action: "next" },
+      { title: "\u91CD\u529B\u8F6C\u5F2F", text: "\u98DE\u884C\u523010km\u540E\u6309D\u952E\u5411\u4E1C\u503E\u659C45\xB0\uFF0C\u8FDB\u884C\u91CD\u529B\u8F6C\u5F2F", action: "next" },
+      { title: "\u5165\u8F68", text: "\u52A0\u901F\u5230\u7EA62300m/s\uFF0C\u6309M\u952E\u6253\u5F00\u5730\u56FE\u67E5\u770B\u8F68\u9053", action: "next" },
+      { title: "\u65F6\u95F4\u52A0\u901F", text: "\u6309.\u952E\u52A0\u901F\u65F6\u95F4\uFF0C\u7B49\u5F85\u5230\u8FBE\u8FDC\u5730\u70B9", action: "next" },
+      { title: "\u5706\u5316\u8F68\u9053", text: "\u5728\u8FDC\u5730\u70B9\u70B9\u706B\u52A0\u901F\uFF0C\u4F7F\u8FD1\u5730\u70B9\u4E5F\u8FBE\u523070km\u4EE5\u4E0A", action: "finish" }
+    ];
+    // 迭代81-85: 事件通知历史
+    this.eventHistory = [];
+    // 迭代86-90: 屏幕效果状态
+    this.screenShakeActive = false;
+    // 迭代96-100: 性能监控显示
+    this.perfVisible = false;
     // 科研实验
     this.experiments = [
       { id: "crew_report", name: "\u4E58\u5458\u62A5\u544A", points: 5, done: false },
@@ -34013,7 +38285,7 @@ var GameUI = class {
       const curR = data.altitude !== void 0 ? (data.altitude / 1e3).toFixed(1) : "--";
       const curV = data.speed.toFixed(1);
       const parent = data.parentName;
-      const circV = data.orbit.semiMajorAxis > 0 ? Math.sqrt(3986e11 / (data.orbit.semiMajorAxis * 1e3)).toFixed(0) : "--";
+      const circV = data.orbit.semiMajorAxis > 0 ? Math.sqrt(3986e11 / data.orbit.semiMajorAxis).toFixed(0) : "--";
       orbitEl.innerHTML = `\u8FDC\u5730\u70B9: ${ap} km<br>\u8FD1\u5730\u70B9: ${pe} km<br>\u504F\u5FC3\u7387: ${e}<br>\u503E\u89D2: ${inc}\xB0<br>\u5468\u671F: ${T}h<br>\u81F3\u8FDC\u70B9: ${tAp}<br>\u81F3\u8FD1\u70B9: ${tPe}<br><span style="color:#88ccff">\u5F53\u524D\u9AD8\u5EA6: ${curR} km</span><br><span style="color:#88ccff">\u5F53\u524D\u901F\u5EA6: ${curV} m/s</span><br><span style="color:#aaaaaa">\u5706\u8F68\u9053\u901F\u5EA6: ${circV} m/s</span>`;
     } else {
       orbitPanel.style.display = "block";
@@ -34097,6 +38369,9 @@ var GameUI = class {
     } else {
       cameraEl.textContent = "\u8DDF\u968F";
     }
+    this.updateEventNotifications(data);
+    this.updateScreenFlash(data);
+    this.updatePerfDisplay(data);
   }
   /** 格式化任务时间 (MET) */
   formatMET(seconds) {
@@ -34733,7 +39008,13 @@ var GameUI = class {
     const modeObj = this.cameraModes.find((m) => m.key === mode);
     if (modeObj) this.showNotification(`\u76F8\u673A: ${modeObj.label}`);
     if (this.game) {
-      this.game.isMapMode = mode === "map";
+      if (mode === "map") {
+        this.game.isMapMode = true;
+      } else if (mode === "cinematic") {
+        if (this.game.toggleCinematic) this.game.toggleCinematic();
+      } else {
+        this.game.isMapMode = false;
+      }
     }
     this.initCameraModes();
     const cameraEl = document.getElementById("hud-camera");
@@ -34785,7 +39066,7 @@ var GameUI = class {
     } else {
       this.clearAlert("low-fuel");
     }
-    if (this.resources.electricCharge / this.resources.maxEC < 0.1) {
+    if (this.resources.maxEC > 0 && this.resources.electricCharge / this.resources.maxEC < 0.1) {
       this.triggerAlert("low-ec", "\u7535\u529B\u4E0D\u8DB3", "warn");
     } else {
       this.clearAlert("low-ec");
@@ -35067,6 +39348,237 @@ var GameUI = class {
     });
     document.getElementById("close-starmap").addEventListener("click", () => overlay.remove());
   }
+  // === 迭代61-80: UI/UX增强 ===
+  /** 迭代61-65: 界面主题切换 */
+  toggleTheme() {
+    this.uiTheme = this.uiTheme === "dark" ? "light" : "dark";
+    this.applyTheme();
+    this.showNotification(`\u4E3B\u9898: ${this.uiTheme === "dark" ? "\u6697\u8272" : "\u4EAE\u8272"}`);
+  }
+  applyTheme() {
+    const root = document.documentElement;
+    if (this.uiTheme === "light") {
+      root.style.setProperty("--ksp-bg", "rgba(240,245,255,0.9)");
+      root.style.setProperty("--ksp-fg", "#1a2a3a");
+      root.style.setProperty("--ksp-border", "rgba(100,140,180,0.6)");
+      root.style.setProperty("--ksp-accent", "#3366aa");
+    } else {
+      root.style.setProperty("--ksp-bg", "rgba(8,14,24,0.85)");
+      root.style.setProperty("--ksp-fg", "#aabbcc");
+      root.style.setProperty("--ksp-border", "rgba(42,64,96,0.7)");
+      root.style.setProperty("--ksp-accent", "#5a9abf");
+    }
+    const hud = document.getElementById("hud-container");
+    if (hud) {
+      hud.style.filter = this.uiTheme === "light" ? "invert(0.85) hue-rotate(180deg)" : "none";
+    }
+  }
+  getTheme() {
+    return this.uiTheme;
+  }
+  /** 迭代66-70: 界面缩放 */
+  setUIScale(scale) {
+    this.uiScale = Math.max(this.UI_SCALE_MIN, Math.min(this.UI_SCALE_MAX, scale));
+    this.applyUIScale();
+    this.showNotification(`\u754C\u9762\u7F29\u653E: ${Math.round(this.uiScale * 100)}%`);
+  }
+  applyUIScale() {
+    const hud = document.getElementById("hud-container");
+    if (hud) {
+      hud.style.transform = `scale(${this.uiScale})`;
+      hud.style.transformOrigin = "top left";
+    }
+  }
+  uiZoomIn() {
+    this.setUIScale(this.uiScale + 0.1);
+  }
+  uiZoomOut() {
+    this.setUIScale(this.uiScale - 0.1);
+  }
+  getUIScale() {
+    return this.uiScale;
+  }
+  /** 迭代71-75: 快捷键面板 */
+  toggleShortcutPanel() {
+    this.shortcutPanelVisible = !this.shortcutPanelVisible;
+    if (this.shortcutPanelVisible) this.showShortcutPanel();
+    else this.hideShortcutPanel();
+  }
+  showShortcutPanel() {
+    const existing = document.getElementById("shortcut-panel");
+    if (existing) existing.remove();
+    const defaults = [
+      { key: "Space", action: "\u5206\u7EA7\u5206\u79BB" },
+      { key: "T", action: "SAS\u5F00\u5173" },
+      { key: "R", action: "RCS\u5F00\u5173" },
+      { key: "G", action: "\u8D77\u843D\u67B6" },
+      { key: "U", action: "\u706F\u5149" },
+      { key: "M", action: "\u5730\u56FE\u89C6\u56FE" },
+      { key: "C", action: "\u5207\u6362\u76F8\u673A" },
+      { key: "Q", action: "\u7535\u5F71\u6A21\u5F0F" },
+      { key: "X", action: "\u79D1\u5B66\u5B9E\u9A8C" },
+      { key: "Z", action: "\u6EE1\u6CB9\u95E8" },
+      { key: "L", action: "RCS\u5E73\u79FB\u6A21\u5F0F" },
+      { key: "CapsLock", action: "SAS\u6A21\u5F0F\u5FAA\u73AF" },
+      { key: ".", action: "\u65F6\u95F4\u52A0\u901F+" },
+      { key: ",", action: "\u65F6\u95F4\u52A0\u901F-" },
+      { key: "F5", action: "\u5FEB\u901F\u4FDD\u5B58" },
+      { key: "F9", action: "\u5FEB\u901F\u8BFB\u53D6" },
+      { key: "F6", action: "\u5BFC\u51FA\u98DE\u884C\u8BA1\u5212" },
+      { key: "F7", action: "\u5BFC\u5165\u98DE\u884C\u8BA1\u5212" },
+      { key: "F8", action: "\u56DE\u653E\u5F55\u5236\u5F00\u5173" },
+      { key: "Tab", action: "\u5730\u56FE\u7126\u70B9\u5207\u6362" }
+    ];
+    const panel = document.createElement("div");
+    panel.id = "shortcut-panel";
+    panel.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0a0e1a;border:1px solid #2a4060;border-radius:10px;padding:16px 20px;z-index:9999;min-width:300px;font-family:monospace;max-height:80vh;overflow-y:auto;";
+    panel.innerHTML = `
+      <div style="text-align:center;color:#5a9abf;font-size:13px;margin-bottom:10px;">\u2328\uFE0F \u5FEB\u6377\u952E</div>
+      <div style="display:grid;grid-template-columns:80px 1fr;gap:4px 12px;font-size:10px;">
+        ${defaults.map((d) => `<div style="color:#ffdd44;font-weight:bold;">${d.key}</div><div style="color:#aabbcc;">${d.action}</div>`).join("")}
+      </div>
+      <button id="shortcut-close" style="margin-top:12px;width:100%;padding:6px;background:#1a2540;border:1px solid #2a4060;color:#c0d0e0;border-radius:6px;cursor:pointer;font-size:11px;">\u5173\u95ED</button>`;
+    document.body.appendChild(panel);
+    panel.querySelector("#shortcut-close").addEventListener("click", () => {
+      this.hideShortcutPanel();
+      this.shortcutPanelVisible = false;
+    });
+  }
+  hideShortcutPanel() {
+    const panel = document.getElementById("shortcut-panel");
+    if (panel) panel.remove();
+  }
+  /** 迭代76-80: 游戏内教程系统 */
+  startTutorial() {
+    this.tutorialActive = true;
+    this.tutorialStep = 0;
+    this.showTutorialStep();
+  }
+  showTutorialStep() {
+    if (!this.tutorialActive || this.tutorialStep >= this.tutorialSteps.length) {
+      this.endTutorial();
+      return;
+    }
+    const existing = document.getElementById("tutorial-overlay");
+    if (existing) existing.remove();
+    const step = this.tutorialSteps[this.tutorialStep];
+    const overlay = document.createElement("div");
+    overlay.id = "tutorial-overlay";
+    overlay.style.cssText = "position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#0a0e1a;border:1px solid #2a4060;border-radius:10px;padding:16px 24px;z-index:9999;min-width:350px;max-width:500px;font-family:monospace;";
+    overlay.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="color:#5a9abf;font-size:14px;font-weight:bold;">\u{1F4D6} ${step.title}</span>
+        <span style="color:#556677;font-size:10px;margin-left:auto;">\u6B65\u9AA4 ${this.tutorialStep + 1}/${this.tutorialSteps.length}</span>
+      </div>
+      <div style="color:#aabbcc;font-size:11px;line-height:1.6;margin-bottom:12px;">${step.text}</div>
+      <div style="display:flex;gap:8px;">
+        ${this.tutorialStep > 0 ? '<button id="tut-prev" style="padding:6px 12px;background:#1a2540;border:1px solid #2a4060;color:#aabbcc;border-radius:6px;cursor:pointer;font-size:10px;">\u4E0A\u4E00\u6B65</button>' : ""}
+        <button id="tut-next" style="padding:6px 12px;background:#1a3040;border:1px solid #3a6080;color:#c0d0e0;border-radius:6px;cursor:pointer;font-size:10px;flex:1;">${step.action === "finish" ? "\u5B8C\u6210\u6559\u7A0B" : "\u4E0B\u4E00\u6B65 \u2192"}</button>
+        <button id="tut-skip" style="padding:6px 12px;background:#2a1010;border:1px solid #603030;color:#cc8888;border-radius:6px;cursor:pointer;font-size:10px;">\u8DF3\u8FC7</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    const prevBtn = overlay.querySelector("#tut-prev");
+    if (prevBtn) prevBtn.addEventListener("click", () => {
+      this.tutorialStep--;
+      this.showTutorialStep();
+    });
+    overlay.querySelector("#tut-next").addEventListener("click", () => {
+      if (step.action === "finish") {
+        this.endTutorial();
+        return;
+      }
+      this.tutorialStep++;
+      this.showTutorialStep();
+    });
+    overlay.querySelector("#tut-skip").addEventListener("click", () => this.endTutorial());
+  }
+  endTutorial() {
+    this.tutorialActive = false;
+    const overlay = document.getElementById("tutorial-overlay");
+    if (overlay) overlay.remove();
+    this.showNotification("\u6559\u7A0B\u5B8C\u6210\uFF01\u795D\u98DE\u884C\u987A\u5229 \u{1F680}");
+  }
+  isTutorialActive() {
+    return this.tutorialActive;
+  }
+  /** 迭代96-100: 性能监控面板 */
+  togglePerfMonitor() {
+    this.perfVisible = !this.perfVisible;
+    if (!this.perfVisible) {
+      const el = document.getElementById("hud-perf");
+      if (el) el.remove();
+    }
+  }
+  updatePerfDisplay(data) {
+    if (!this.perfVisible) return;
+    let el = document.getElementById("hud-perf");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "hud-perf";
+      el.style.cssText = "position:fixed;top:4px;left:50%;transform:translateX(-50%);background:rgba(8,14,24,0.9);border:1px solid #2a4060;border-radius:4px;padding:3px 8px;font-family:monospace;font-size:9px;color:#aabbcc;z-index:200;pointer-events:none;";
+      document.body.appendChild(el);
+    }
+    const fps = data.perfFps || 60;
+    const ft = data.perfFrameTime || 16.7;
+    const dc = data.perfDrawCalls || 0;
+    const fpsColor = fps >= 55 ? "#44ff88" : fps >= 30 ? "#ffaa44" : "#ff4444";
+    el.innerHTML = `<span style="color:${fpsColor}">FPS:${fps}</span> | ${ft.toFixed(1)}ms | DC:${dc}`;
+  }
+  /** 迭代86-90: 屏幕闪光渲染 */
+  updateScreenFlash(data) {
+    if (!data.screenFlashAlpha || data.screenFlashAlpha < 0.01) {
+      const el2 = document.getElementById("screen-flash");
+      if (el2) el2.style.display = "none";
+      return;
+    }
+    let el = document.getElementById("screen-flash");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "screen-flash";
+      el.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;";
+      document.body.appendChild(el);
+    }
+    el.style.display = "block";
+    el.style.background = data.screenFlashColor || "#ffffff";
+    el.style.opacity = String(data.screenFlashAlpha);
+  }
+  /** 迭代81-85: 事件通知历史显示 */
+  updateEventNotifications(data) {
+    let el = document.getElementById("hud-flight-modes");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "hud-flight-modes";
+      el.style.cssText = "position:fixed;bottom:60px;left:8px;font-family:monospace;font-size:9px;z-index:200;pointer-events:none;";
+      document.body.appendChild(el);
+    }
+    let html = "";
+    if (data.sasMode && data.sasMode !== "off") {
+      const sasLabels = {
+        stability: "\u{1F7E2} SAS:\u7A33\u5B9A",
+        prograde: "\u{1F7E2} SAS:\u987A\u5411",
+        retrograde: "\u{1F7E2} SAS:\u9006\u5411",
+        normal: "\u{1F7E2} SAS:\u6CD5\u5411",
+        antinormal: "\u{1F7E2} SAS:\u53CD\u6CD5\u5411",
+        radial: "\u{1F7E2} SAS:\u5F84\u5411",
+        antiradial: "\u{1F7E2} SAS:\u53CD\u5F84\u5411",
+        hold: "\u{1F7E2} SAS:\u4FDD\u6301"
+      };
+      html += `<div style="color:#00ff88;margin:1px 0;">${sasLabels[data.sasMode] || data.sasMode}</div>`;
+    }
+    if (data.rcsTranslationMode) html += `<div style="color:#ffdd44;margin:1px 0;">\u{1F504} RCS\u5E73\u79FB\u6A21\u5F0F</div>`;
+    if (data.rcsFineMode) html += `<div style="color:#ff8844;margin:1px 0;">\u{1F52C} RCS\u7CBE\u7EC6\u6A21\u5F0F</div>`;
+    if (data.autopilotMode && data.autopilotMode !== "off") {
+      const apLabels = {
+        orbit_hold: "\u{1F916} \u81EA\u52A8\u9A7E\u9A76:\u8F68\u9053\u4FDD\u6301",
+        auto_circularize: "\u{1F916} \u81EA\u52A8\u9A7E\u9A76:\u81EA\u52A8\u5706\u5316",
+        auto_rendezvous: "\u{1F916} \u81EA\u52A8\u9A7E\u9A76:\u81EA\u52A8\u4EA4\u4F1A"
+      };
+      html += `<div style="color:#44aaff;margin:1px 0;">${apLabels[data.autopilotMode] || data.autopilotMode}</div>`;
+    }
+    if (data.cinematicMode) html += `<div style="color:#ff44dd;margin:1px 0;">\u{1F3AC} \u7535\u5F71\u6A21\u5F0F</div>`;
+    if (data.replayRecording) html += `<div style="color:#ff4444;margin:1px 0;">\u23FA \u56DE\u653E\u5F55\u5236\u4E2D (${data.replayFrames || 0})</div>`;
+    el.innerHTML = html;
+  }
   /** 显示通知消息 */
   showNotification(message, duration = 3e3) {
     const notif = document.createElement("div");
@@ -35129,6 +39641,8 @@ var STAR_TYPES = [
 ];
 var SOLAR_MASS = 1989e27;
 var SOLAR_RADIUS = 69634e4;
+var GALACTIC_BAR_LENGTH_LY = 15e3;
+var GALACTIC_HALO_RADIUS_LY = 1e5;
 var STAR_RENDER_SCALE = 1e5 / LY;
 var GC_DIR = new Vector3(
   Math.cos(GALACTIC_CENTER_DEC) * Math.cos(GALACTIC_CENTER_RA),
@@ -35142,29 +39656,47 @@ function galaxyDensityFactor(posLy) {
   const distFromCenter = fromGC.length();
   const scaleLength = 5e3;
   let factor = Math.exp(-(r - SUN_DIST_FROM_GALACTIC_CENTER_LY) / scaleLength);
+  if (r > GALACTIC_RADIUS_LY) {
+    factor *= Math.exp(-(r - GALACTIC_RADIUS_LY) / 3e3);
+  }
   if (distFromCenter < GALACTIC_BULGE_RADIUS_LY) {
     const bulgeT = 1 - distFromCenter / GALACTIC_BULGE_RADIUS_LY;
-    factor *= 1 + bulgeT * bulgeT * 15;
+    factor *= 1 + bulgeT * bulgeT * 20;
+  }
+  if (r < GALACTIC_BAR_LENGTH_LY) {
+    const barAngle = 0.35;
+    const barAlignment = Math.abs(Math.cos(Math.atan2(fromGC.z, fromGC.x) - barAngle));
+    factor *= 1 + barAlignment * barAlignment * 0.5 * (1 - r / GALACTIC_BAR_LENGTH_LY);
   }
   factor *= spiralArmFactor(r, Math.atan2(fromGC.z, fromGC.x));
-  const planeDist = Math.abs(fromGC.y);
-  if (planeDist > GALACTIC_DISK_THICKNESS_LY * 0.5) {
-    factor *= Math.exp(-(planeDist - GALACTIC_DISK_THICKNESS_LY * 0.5) / 500);
-  }
-  return Math.max(0.01, Math.min(factor, 50));
+  const scaleHeight = GALACTIC_DISK_THICKNESS_LY * 0.15;
+  const sechSq = 1 / Math.cosh(fromGC.y / scaleHeight);
+  factor *= sechSq * sechSq;
+  const haloFactor = 0.01 / Math.pow(1 + distFromCenter / 5e3, 3.5);
+  factor += haloFactor;
+  return Math.max(5e-3, Math.min(factor, 80));
 }
 function spiralArmFactor(r, angle) {
   if (r < 100) return 1;
-  const armWidth = 0.4;
-  let maxFactor = 1;
+  const baseArmWidth = 0.35;
+  const armWidth = baseArmWidth + Math.min(0.3, r / 1e5);
+  const armContrast = 2.8;
+  const interArmFloor = 0.3;
+  let maxFactor = interArmFloor;
+  const pitchPerArm = [GALACTIC_ARM_PITCH, GALACTIC_ARM_PITCH * 1.08, GALACTIC_ARM_PITCH * 0.95, GALACTIC_ARM_PITCH * 1.05];
+  const armScaleRadius = 2500;
   for (let i = 0; i < GALACTIC_ARM_COUNT; i++) {
     const armOffset = i * (Math.PI * 2 / GALACTIC_ARM_COUNT);
-    const spiralTheta = Math.log(r / 3e3) / GALACTIC_ARM_PITCH + armOffset;
+    const effectivePitch = pitchPerArm[i % pitchPerArm.length];
+    const spiralTheta = Math.log(r / armScaleRadius) / effectivePitch + armOffset;
     let dTheta = angle - spiralTheta;
     while (dTheta > Math.PI) dTheta -= 2 * Math.PI;
     while (dTheta < -Math.PI) dTheta += 2 * Math.PI;
-    const armFactor = Math.exp(-(dTheta * dTheta) / (2 * armWidth * armWidth));
-    maxFactor = Math.max(maxFactor, 1 + armFactor * 1.5);
+    const narrowComponent = Math.exp(-(dTheta * dTheta) / (2 * armWidth * armWidth));
+    const broadComponent = Math.exp(-(dTheta * dTheta) / (2 * (armWidth * 3) * (armWidth * 3)));
+    const armFactor = narrowComponent * 0.85 + broadComponent * 0.15;
+    const armTruncation = r > 45e3 ? Math.exp(-(r - 45e3) / 5e3) : 1;
+    maxFactor = Math.max(maxFactor, 1 + armFactor * armContrast * armTruncation);
   }
   return maxFactor;
 }
@@ -35222,7 +39754,9 @@ var StarChunk = class {
       const s5 = this.hash(cx * 83 + i * 5, cy * 89 + i * 5, cz * 97 + i * 5);
       const s6 = this.hash(cx * 101 + i * 6, cy * 103 + i * 6, cz * 107 + i * 6);
       const ox = (s1 - 0.5) * CHUNK_SIZE_M;
-      const oy = (s2 - 0.5) * CHUNK_SIZE_M * 0.3;
+      const scaleHeightM = GALACTIC_DISK_THICKNESS_LY * 0.15 * LY;
+      const u1 = Math.max(1e-3, Math.random());
+      const oy = (s2 - 0.5) * 2 * scaleHeightM * Math.sign(s2 - 0.5) * Math.sqrt(-Math.log(u1));
       const oz = (s3 - 0.5) * CHUNK_SIZE_M;
       const worldX = (cx + 0.5) * CHUNK_SIZE_M + ox;
       const worldY = (cy + 0.5) * CHUNK_SIZE_M + oy;
@@ -35308,6 +39842,23 @@ var StarChunk = class {
     this.isLoaded = false;
   }
 };
+var STAR_CLUSTERS = [
+  // Globular clusters (modeled on real Messier objects, positions in galactic coords)
+  { name: "M13", type: "globular", r: 25e3, theta: 2.1, z: 5e3, radius: 70, starCount: 500, color: 16772812 },
+  { name: "M3", type: "globular", r: 22e3, theta: 3.5, z: 8e3, radius: 80, starCount: 500, color: 16772812 },
+  { name: "M5", type: "globular", r: 24e3, theta: 4.2, z: 6e3, radius: 85, starCount: 500, color: 16772812 },
+  { name: "M15", type: "globular", r: 28e3, theta: 5, z: 4e3, radius: 75, starCount: 500, color: 16772812 },
+  { name: "M2", type: "globular", r: 26e3, theta: 5.5, z: 7e3, radius: 80, starCount: 450, color: 16772812 },
+  { name: "M92", type: "globular", r: 23e3, theta: 2.5, z: 5500, radius: 60, starCount: 400, color: 16772812 },
+  { name: "47 Tuc", type: "globular", r: 18e3, theta: 0.5, z: 3e3, radius: 90, starCount: 600, color: 16772812 },
+  { name: "Omega Cen", type: "globular", r: 19e3, theta: 1, z: 2e3, radius: 100, starCount: 700, color: 16772812 },
+  // Open clusters (in the disk, near spiral arms)
+  { name: "Pleiades", type: "open", r: 26e3, theta: 1.8, z: -200, radius: 20, starCount: 200, color: 11193599 },
+  { name: "Hyades", type: "open", r: 26e3, theta: 1.7, z: -150, radius: 25, starCount: 150, color: 16772812 },
+  { name: "M45", type: "open", r: 26e3, theta: 1.85, z: -180, radius: 22, starCount: 200, color: 11193599 },
+  { name: "Beehive", type: "open", r: 25500, theta: 2, z: 100, radius: 30, starCount: 180, color: 16774378 },
+  { name: "Double Cluster", type: "open", r: 27e3, theta: 0.5, z: -300, radius: 35, starCount: 250, color: 13293823 }
+];
 var MilkyWayBackground = class {
   // render units per ly (compressed galaxy scale)
   constructor() {
@@ -35324,12 +39875,29 @@ var MilkyWayBackground = class {
       let r, theta, z;
       let isBulge = false;
       let distFromGC;
-      if (Math.random() < 0.25) {
+      const randVal = Math.random();
+      if (randVal < 0.3) {
         isBulge = true;
-        r = GALACTIC_BULGE_RADIUS_LY * Math.sqrt(-Math.log(Math.max(1e-3, Math.random())));
+        const gaussR = Math.sqrt(-Math.log(Math.max(1e-3, Math.random())));
+        r = GALACTIC_BULGE_RADIUS_LY * gaussR;
         theta = Math.random() * Math.PI * 2;
-        z = (Math.random() - 0.5) * GALACTIC_BULGE_RADIUS_LY * 0.3;
+        const ellipsoidY = 0.6;
+        const ellipsoidZ = 0.4;
+        z = (Math.random() - 0.5) * GALACTIC_BULGE_RADIUS_LY * ellipsoidZ * gaussR;
+        const barAngle = 0.35;
+        const barStretch = 1 + 0.3 * Math.cos(2 * (theta - barAngle));
+        r *= barStretch;
+        distFromGC = Math.sqrt(r * r * (1 / (ellipsoidY * ellipsoidY)) + z * z * (1 / (ellipsoidZ * ellipsoidZ)));
+      } else if (randVal < 0.38) {
+        isBulge = true;
+        const haloR = GALACTIC_HALO_RADIUS_LY * Math.pow(Math.random(), 1.5);
+        r = haloR;
+        theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        z = r * Math.cos(phi);
+        r = r * Math.sin(phi);
         distFromGC = Math.sqrt(r * r + z * z);
+        sizes[i] = 0.2 + Math.random() * 0.4;
       } else {
         const u = Math.random();
         r = -3e3 * Math.log(Math.max(1e-3, 1 - u * 0.99));
@@ -35369,6 +39937,39 @@ var MilkyWayBackground = class {
       colors[i * 3 + 1] = Math.max(0, Math.min(1, g_col + variation));
       colors[i * 3 + 2] = Math.max(0, Math.min(1, b_col + variation));
       sizes[i] = isBulge ? 1 + Math.random() * 2 : 0.3 + Math.random() * 1.5;
+    }
+    let clusterStarOffset = count;
+    let totalClusterStars = 0;
+    for (const cluster of STAR_CLUSTERS) {
+      for (let c = 0; c < cluster.starCount; c++) {
+        const ci = clusterStarOffset + totalClusterStars;
+        if (ci >= count) break;
+        const cr = cluster.radius * Math.sqrt(-Math.log(Math.max(1e-3, Math.random())));
+        const ctheta = Math.random() * Math.PI * 2;
+        const cphi = cluster.type === "globular" ? Math.acos(2 * Math.random() - 1) : Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+        const cgx = cluster.r * Math.cos(cluster.theta);
+        const cgz = cluster.r * Math.sin(cluster.theta);
+        const cgy = cluster.z;
+        const dx = cr * Math.sin(cphi) * Math.cos(ctheta);
+        const dy = cr * Math.cos(cphi);
+        const dz = cr * Math.sin(cphi) * Math.sin(ctheta);
+        const gx = cgx + dx;
+        const gz = cgz + dz;
+        const gy = cgy + dy;
+        const relX = gx - sunFromGC.x;
+        const relY = gy - sunFromGC.y;
+        const relZ = gz - sunFromGC.z;
+        positions[ci * 3] = relX * this.bgScale;
+        positions[ci * 3 + 1] = relY * this.bgScale;
+        positions[ci * 3 + 2] = relZ * this.bgScale;
+        const clusterColor = new Color(cluster.color);
+        const colorVar = (Math.random() - 0.5) * 0.1;
+        colors[ci * 3] = Math.max(0, Math.min(1, clusterColor.r + colorVar));
+        colors[ci * 3 + 1] = Math.max(0, Math.min(1, clusterColor.g + colorVar));
+        colors[ci * 3 + 2] = Math.max(0, Math.min(1, clusterColor.b + colorVar));
+        sizes[ci] = cluster.type === "globular" ? 0.8 + Math.random() * 1.2 : 1 + Math.random() * 2;
+        totalClusterStars++;
+      }
     }
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
@@ -35658,20 +40259,30 @@ void main() {
 `;
 var BIOMES = {
   Kerbin: ["\u8349\u539F", "\u6D77\u6D0B", "\u5C71\u8109", "\u6C99\u6F20", "\u6781\u5730", "\u6D77\u5CB8", "\u51BB\u539F", "\u96E8\u6797"],
+  Earth: ["\u8349\u539F", "\u6D77\u6D0B", "\u5C71\u8109", "\u6C99\u6F20", "\u6781\u5730", "\u6D77\u5CB8", "\u51BB\u539F", "\u96E8\u6797"],
   Mun: ["\u4F4E\u5730", "\u9AD8\u5730", "\u9668\u77F3\u5751", "\u5CE1\u8C37", "\u6781\u5730", "\u5927\u88C2\u7F1D"],
+  Moon: ["\u4F4E\u5730", "\u9AD8\u5730", "\u9668\u77F3\u5751", "\u5CE1\u8C37", "\u6781\u5730", "\u5927\u88C2\u7F1D"],
   Minmus: ["\u5E73\u539F", "\u9AD8\u5730", "\u6E56\u6CCA", "\u6781\u5730", "\u76D0\u7530"],
   Trisolaris: ["\u4E71\u7EAA\u5143", "\u6052\u7EAA\u5143", "\u4E09\u65E5\u51CC\u7A7A", "\u98DE\u661F\u4E0D\u52A8"],
   Sun: ["\u5149\u7403\u5C42", "\u8272\u7403\u5C42", "\u65E5\u5195"],
   Duna: ["\u4F4E\u5730", "\u9AD8\u5730", "\u6781\u5730\u51B0\u76D6", "\u5CE1\u8C37"],
+  Mars: ["\u4F4E\u5730", "\u9AD8\u5730", "\u6781\u5730\u51B0\u76D6", "\u5CE1\u8C37"],
   Eve: ["\u4F4E\u5730", "\u9AD8\u5730", "\u6D77\u6D0B", "\u6781\u5730"],
+  Venus: ["\u4F4E\u5730", "\u9AD8\u5730", "\u6D77\u6D0B", "\u6781\u5730"],
+  Mercury: ["\u5E73\u539F", "\u9AD8\u539F", "\u6781\u5730"],
   Dres: ["\u5E73\u539F", "\u5CE1\u8C37", "\u6781\u5730"],
   Jool: ["\u4E0A\u5C42\u5927\u6C14", "\u4E2D\u5C42\u5927\u6C14", "\u6DF1\u5904\u5927\u6C14"],
+  Jupiter: ["\u4E0A\u5C42\u5927\u6C14", "\u4E2D\u5C42\u5927\u6C14", "\u6DF1\u5904\u5927\u6C14"],
+  Saturn: ["\u4E0A\u5C42\u5927\u6C14", "\u4E2D\u5C42\u5927\u6C14", "\u6DF1\u5904\u5927\u6C14"],
+  Uranus: ["\u4E0A\u5C42\u5927\u6C14", "\u4E2D\u5C42\u5927\u6C14", "\u6DF1\u5904\u5927\u6C14"],
+  Neptune: ["\u4E0A\u5C42\u5927\u6C14", "\u4E2D\u5C42\u5927\u6C14", "\u6DF1\u5904\u5927\u6C14"],
   Laythe: ["\u6D77\u5CB8", "\u6D77\u6D0B", "\u5C9B\u5C7F", "\u6781\u5730"],
   Vall: ["\u5E73\u539F", "\u9AD8\u5730", "\u51B0\u5DDD", "\u6781\u5730"],
   Tylo: ["\u9AD8\u5730", "\u4F4E\u5730", "\u9668\u77F3\u5751", "\u6781\u5730"],
   Bop: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"],
   Pol: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"],
-  Eeloo: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"]
+  Eeloo: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"],
+  Pluto: ["\u5E73\u539F", "\u9AD8\u5730", "\u6781\u5730"]
 };
 var BIOME_SCIENCE_VALUE = 15;
 var Game = class {
@@ -35718,6 +40329,33 @@ var Game = class {
     this.cameraSmoothDistance = 50;
     this.MIN_ZOOM = 2;
     this.MAX_ZOOM = 2e6;
+    // 迭代1-5: 自由相机惯性旋转
+    this.cameraThetaVel = 0;
+    this.cameraPhiVel = 0;
+    this.cameraDistVel = 0;
+    this.cameraInertiaEnabled = true;
+    // 迭代6-10: 追踪相机预测
+    this.chaseLeadFactor = 0.3;
+    this.chasePredictPos = new Vector3();
+    // 迭代11-15: 地图视图多目标切换
+    this.mapFocusIndex = 0;
+    this.mapFocusList = [];
+    this.mapZoomLevel = 0;
+    this.MAP_ZOOM_PRESETS = [500, 2e3, 1e4, 5e4, 2e5, 1e6];
+    // 迭代16-20: 电影相机模式
+    this.cinematicMode = false;
+    this.cinematicAngle = 0;
+    this.cinematicTimer = 0;
+    this.cinematicShots = [
+      { angle: 0, height: 0.3, dist: 1 },
+      { angle: Math.PI / 3, height: 0.5, dist: 1.2 },
+      { angle: Math.PI * 2 / 3, height: 0.2, dist: 0.8 },
+      { angle: Math.PI, height: 0.6, dist: 1.5 },
+      { angle: Math.PI * 4 / 3, height: 0.1, dist: 0.6 },
+      { angle: Math.PI * 5 / 3, height: 0.4, dist: 1.1 }
+    ];
+    this.cinematicShotIdx = 0;
+    this.cinematicEventDetected = false;
     // 计时
     this.gameTime = 0;
     this.sciencePoints = 0;
@@ -35765,6 +40403,33 @@ var Game = class {
     this.partFailureCount = 0;
     /** 迭代11: 合同连续完成计数 */
     this.contractStreak = 0;
+    // 迭代21-25: SAS模式增强
+    this.sasMode = "off";
+    this.sasHoldQuaternion = new Quaternion();
+    // 迭代26-30: RCS精确控制
+    this.rcsTranslationMode = false;
+    this.rcsFineMode = false;
+    this.RCS_FINE_FACTOR = 0.2;
+    // 迭代31-35: 自动驾驶
+    this.autopilotMode = "off";
+    this.autopilotTarget = null;
+    this.autopilotBurnTimer = 0;
+    // 迭代36-40: 飞行计划导入/导出
+    this.flightPlan = null;
+    // 迭代81-85: 事件通知系统
+    this.eventNotifications = /* @__PURE__ */ new Map();
+    this.lastEventState = { launched: false, orbited: false, landed: false, docked: false };
+    // 迭代86-90: 屏幕震动+闪光
+    this.screenShakeIntensity = 0;
+    this.screenFlashAlpha = 0;
+    this.screenFlashColor = "#ffffff";
+    // 迭代91-95: 回放系统
+    this.replayBuffer = [];
+    this.REPLAY_MAX_FRAMES = 1800;
+    // ~30秒@60fps
+    this.replayRecording = true;
+    // 迭代96-100: 性能监控
+    this.perfMonitor = { fps: 60, frameTime: 16.7, drawCalls: 0, lastUpdate: 0, frames: 0, fpsAccum: 0 };
     // 输入
     this.heldKeys = /* @__PURE__ */ new Set();
     this.mouseDown = false;
@@ -35884,6 +40549,14 @@ var Game = class {
     this.updateTrajectory();
     this.updateManeuverTrajectory();
     this.updateCamera();
+    this.updateSASMode(dt);
+    this.updateRCSControl(dt);
+    this.updateAutopilot(dt);
+    this.detectCinematicEvent();
+    this.checkEventNotifications();
+    this.updateScreenEffects(dt);
+    this.updateReplayBuffer(dt);
+    this.updatePerformanceMonitor(dt);
     if (this.rocket) {
       this.starChunkManager.update(this.rocket.body.position);
     }
@@ -35913,14 +40586,30 @@ var Game = class {
     window.removeEventListener("keydown", this.boundKeyDown);
     window.removeEventListener("keyup", this.boundKeyUp);
     window.removeEventListener("resize", this.boundResize);
+    const canvas = this.renderer.domElement;
+    canvas.removeEventListener("mousedown", this.boundMouseDown);
+    canvas.removeEventListener("mouseup", this.boundMouseUp);
+    canvas.removeEventListener("mousemove", this.boundMouseMove);
+    canvas.removeEventListener("wheel", this.boundWheel);
     this.cleanupTrisolarisSystem();
     this.starChunkManager?.dispose();
     this.scene.traverse((obj) => {
       if (obj instanceof Mesh || obj instanceof Line || obj instanceof Points) {
         obj.geometry?.dispose();
         const mat = obj.material;
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-        else if (mat) mat.dispose();
+        const disposeMat = (m) => {
+          const am = m;
+          if (am.map) am.map.dispose();
+          if (am.normalMap) am.normalMap.dispose();
+          if (am.roughnessMap) am.roughnessMap.dispose();
+          if (am.metalnessMap) am.metalnessMap.dispose();
+          if (am.emissiveMap) am.emissiveMap.dispose();
+          if (am.alphaMap) am.alphaMap.dispose();
+          if (am.aoMap) am.aoMap.dispose();
+          m.dispose();
+        };
+        if (Array.isArray(mat)) mat.forEach(disposeMat);
+        else if (mat) disposeMat(mat);
       }
     });
     this.sceneRT?.dispose();
@@ -36277,28 +40966,41 @@ var Game = class {
     window.addEventListener("keydown", this.boundKeyDown);
     window.addEventListener("keyup", this.boundKeyUp);
     const canvas = this.renderer.domElement;
-    canvas.addEventListener("mousedown", (e) => {
+    this.boundMouseDown = (e) => {
       this.mouseDown = true;
       this.lastMouseX = e.clientX;
       this.lastMouseY = e.clientY;
-    });
-    canvas.addEventListener("mouseup", () => {
+    };
+    this.boundMouseUp = () => {
       this.mouseDown = false;
-    });
-    canvas.addEventListener("mousemove", (e) => {
+    };
+    this.boundMouseMove = (e) => {
       if (!this.mouseDown) return;
       const dx = e.clientX - this.lastMouseX, dy = e.clientY - this.lastMouseY;
-      this.cameraTheta -= dx * 5e-3;
-      this.cameraPhi -= dy * 5e-3;
-      this.cameraPhi = Math.max(0.01, Math.min(Math.PI - 0.01, this.cameraPhi));
+      if (this.cameraMode === "free" && this.cameraInertiaEnabled) {
+        this.cameraThetaVel = -dx * 5e-3;
+        this.cameraPhiVel = -dy * 5e-3;
+      } else {
+        this.cameraTheta -= dx * 5e-3;
+        this.cameraPhi -= dy * 5e-3;
+        this.cameraPhi = Math.max(0.01, Math.min(Math.PI - 0.01, this.cameraPhi));
+      }
       this.lastMouseX = e.clientX;
       this.lastMouseY = e.clientY;
-    });
-    canvas.addEventListener("wheel", (e) => {
+    };
+    this.boundWheel = (e) => {
       e.preventDefault();
-      this.cameraDistance *= e.deltaY > 0 ? 1.1 : 0.9;
-      this.cameraDistance = Math.max(this.MIN_ZOOM, Math.min(this.MAX_ZOOM, this.cameraDistance));
-    });
+      if (this.cameraMode === "free" && this.cameraInertiaEnabled) {
+        this.cameraDistVel = e.deltaY > 0 ? this.cameraDistance * 0.1 : -this.cameraDistance * 0.1;
+      } else {
+        this.cameraDistance *= e.deltaY > 0 ? 1.1 : 0.9;
+        this.cameraDistance = Math.max(this.MIN_ZOOM, Math.min(this.MAX_ZOOM, this.cameraDistance));
+      }
+    };
+    canvas.addEventListener("mousedown", this.boundMouseDown);
+    canvas.addEventListener("mouseup", this.boundMouseUp);
+    canvas.addEventListener("mousemove", this.boundMouseMove);
+    canvas.addEventListener("wheel", this.boundWheel);
   }
   /** 一次性按键处理 */
   handleOneShotKey(key, e) {
@@ -36410,14 +41112,67 @@ var Game = class {
       case "f9":
         this.quickLoad();
         break;
-      case "tab":
-        this.hud.showNotification("\u5F53\u524D\u53EA\u6709\u4E00\u4E2A\u98DE\u884C\u5668");
-        break;
       case ",":
         this.decreaseTimeWarp();
         break;
       case ".":
         this.increaseTimeWarp();
+        break;
+      case "q":
+        this.toggleCinematic();
+        break;
+      case "tab":
+        if (this.isMapMode) {
+          this.cycleMapFocus();
+        } else {
+          this.hud.showNotification("\u5F53\u524D\u53EA\u6709\u4E00\u4E2A\u98DE\u884C\u5668");
+        }
+        break;
+      case "capslock":
+        this.cycleSASMode();
+        break;
+      case "l":
+        this.toggleRCSTranslation();
+        break;
+      case "a":
+        if (e.ctrlKey || e.altKey) {
+          this.cycleAutopilotMode();
+        }
+        break;
+      case "f6":
+        this.exportFlightPlan();
+        break;
+      case "f7":
+        this.importFlightPlan();
+        break;
+      case "f8":
+        this.toggleReplayRecording();
+        break;
+      case "f3":
+        this.hud.toggleTheme();
+        break;
+      case "f4":
+        this.hud.startTutorial();
+        break;
+      case "f1":
+        this.hud.toggleShortcutPanel();
+        break;
+      case "f10":
+        this.hud.togglePerfMonitor();
+        break;
+      case "f11":
+        this.hud.uiZoomOut();
+        break;
+      case "f12":
+        this.hud.uiZoomIn();
+        break;
+      case "+":
+      case "=":
+        if (this.isMapMode) this.mapZoomIn();
+        break;
+      case "-":
+      case "_":
+        if (this.isMapMode) this.mapZoomOut();
         break;
       default:
         if (key >= "0" && key <= "9") {
@@ -37019,6 +41774,11 @@ ${ach.description}`, 8e3);
       if (!body) return;
       targetPos = new Vector3(body.position.x * DIST_SCALE, body.position.y * DIST_SCALE, body.position.z * DIST_SCALE);
     }
+    if (this.cinematicMode) {
+      this.updateCinematicCamera(targetPos);
+      this.updateMarkers();
+      return;
+    }
     switch (this.cameraMode) {
       case "auto":
         this.updateOrbitCamera(targetPos);
@@ -37060,7 +41820,10 @@ ${ach.description}`, 8e3);
       this.updateOrbitCamera(targetPos);
       return;
     }
-    this.cameraTargetPos.lerp(targetPos, 0.15);
+    const vel = this.rocket.body.velocity;
+    const dtPredict = this.chaseLeadFactor;
+    this.chasePredictPos.copy(targetPos).addScaledVector(vel, dtPredict * 1e-3);
+    this.cameraTargetPos.lerp(this.chasePredictPos, 0.15);
     this.cameraSmoothDistance += (this.cameraDistance - this.cameraSmoothDistance) * 0.15;
     const localOffset = new Vector3(0, 0.3, 1).normalize().multiplyScalar(this.cameraSmoothDistance);
     const worldOffset = localOffset.applyQuaternion(this.rocket.orientation);
@@ -37071,6 +41834,16 @@ ${ach.description}`, 8e3);
     this.updateCameraClip();
   }
   updateFreeCamera(_targetPos) {
+    if (this.cameraInertiaEnabled) {
+      this.cameraTheta += this.cameraThetaVel;
+      this.cameraPhi += this.cameraPhiVel;
+      this.cameraPhi = Math.max(0.01, Math.min(Math.PI - 0.01, this.cameraPhi));
+      this.cameraThetaVel *= 0.92;
+      this.cameraPhiVel *= 0.92;
+      this.cameraDistance += this.cameraDistVel;
+      this.cameraDistance = Math.max(this.MIN_ZOOM, Math.min(this.MAX_ZOOM, this.cameraDistance));
+      this.cameraDistVel *= 0.88;
+    }
     this.cameraSmoothDistance += (this.cameraDistance - this.cameraSmoothDistance) * 0.15;
     const x = this.cameraTargetPos.x + this.cameraSmoothDistance * Math.sin(this.cameraPhi) * Math.cos(this.cameraTheta);
     const y = this.cameraTargetPos.y + this.cameraSmoothDistance * Math.cos(this.cameraPhi);
@@ -37099,7 +41872,8 @@ ${ach.description}`, 8e3);
   /** Map camera — top-down view showing orbits and trajectories. */
   updateMapCamera(targetPos) {
     this.cameraTargetPos.lerp(targetPos, 0.05);
-    const mapHeight = Math.max(this.cameraDistance * 3, 1e3);
+    const zoomDist = this.MAP_ZOOM_PRESETS[Math.min(this.mapZoomLevel, this.MAP_ZOOM_PRESETS.length - 1)];
+    const mapHeight = Math.max(zoomDist * 3, 1e3);
     const camPos = new Vector3(this.cameraTargetPos.x, this.cameraTargetPos.y + mapHeight, this.cameraTargetPos.z + mapHeight * 0.3);
     this.camera.position.lerp(camPos, 0.1);
     this.camera.up.set(0, 0, -1);
@@ -37107,6 +41881,89 @@ ${ach.description}`, 8e3);
     this.camera.near = 1;
     this.camera.far = 1e7;
     this.camera.updateProjectionMatrix();
+  }
+  /** 迭代11: 切换地图聚焦目标 */
+  cycleMapFocus() {
+    if (this.mapFocusList.length === 0) this.buildMapFocusList();
+    if (this.mapFocusList.length === 0) return;
+    this.mapFocusIndex = (this.mapFocusIndex + 1) % this.mapFocusList.length;
+    this.focusName = this.mapFocusList[this.mapFocusIndex];
+    this.hud.showNotification(`\u5730\u56FE\u7126\u70B9: ${this.focusName}`);
+  }
+  /** 迭代12: 构建地图焦点列表 */
+  buildMapFocusList() {
+    this.mapFocusList = ["Rocket"];
+    const bodyData = this.physics.bodies || [];
+    if (bodyData && bodyData.length > 0) {
+      for (const b of bodyData) {
+        if (b.name && b.name !== "Sun") this.mapFocusList.push(b.name);
+      }
+    }
+    if (this.mapFocusList.length <= 1) {
+      for (const sys of TRISOLARIS_SYSTEM) {
+        this.mapFocusList.push(sys.name);
+      }
+      for (const sys of SOLAR_SYSTEM) {
+        if (!this.mapFocusList.includes(sys.name)) this.mapFocusList.push(sys.name);
+      }
+    }
+  }
+  /** 迭代14: 设置地图缩放级别 */
+  setMapZoomLevel(level) {
+    this.mapZoomLevel = Math.max(0, Math.min(this.MAP_ZOOM_PRESETS.length - 1, level));
+    this.hud.showNotification(`\u5730\u56FE\u7F29\u653E: ${this.MAP_ZOOM_PRESETS[this.mapZoomLevel]}km`);
+  }
+  /** 迭代15: 地图缩放控制 */
+  mapZoomIn() {
+    this.setMapZoomLevel(this.mapZoomLevel + 1);
+  }
+  mapZoomOut() {
+    this.setMapZoomLevel(this.mapZoomLevel - 1);
+  }
+  /** 迭代16-20: 电影相机模式 */
+  toggleCinematic() {
+    this.cinematicMode = !this.cinematicMode;
+    this.cinematicTimer = 0;
+    this.cinematicShotIdx = 0;
+    if (this.cinematicMode) {
+      this.hud.showNotification("\u{1F3AC} \u7535\u5F71\u6A21\u5F0F\u5F00\u542F");
+    } else {
+      this.hud.showNotification("\u{1F3AC} \u7535\u5F71\u6A21\u5F0F\u5173\u95ED");
+    }
+  }
+  updateCinematicCamera(targetPos) {
+    if (!this.rocket) {
+      this.updateOrbitCamera(targetPos);
+      return;
+    }
+    this.cinematicTimer += 0.016;
+    if (this.cinematicTimer > 5) {
+      this.cinematicTimer = 0;
+      this.cinematicShotIdx = (this.cinematicShotIdx + 1) % this.cinematicShots.length;
+    }
+    const shot = this.cinematicShots[this.cinematicShotIdx];
+    const dist = this.cameraSmoothDistance * shot.dist;
+    const angle = shot.angle + this.cinematicTimer * 0.1;
+    const x = targetPos.x + dist * Math.sin(shot.height + 0.5) * Math.cos(angle);
+    const y = targetPos.y + dist * Math.cos(shot.height + 0.5);
+    const z = targetPos.z + dist * Math.sin(shot.height + 0.5) * Math.sin(angle);
+    this.camera.position.lerp(new Vector3(x, y, z), 0.05);
+    this.camera.up.set(0, 1, 0);
+    this.camera.lookAt(targetPos);
+    this.updateCameraClip();
+  }
+  /** 迭代17: 检测精彩时刻 */
+  detectCinematicEvent() {
+    if (!this.cinematicMode || !this.rocket) return;
+    const alt = this.getRocketAltitude();
+    const vel = this.rocket.body.velocity.length();
+    const orbit = this.physics.getOrbit ? this.physics.getOrbit(this.rocket.body) : null;
+    const isOrbital = orbit && orbit.eccentricity < 1 && orbit.apoapsis > 7e4;
+    const isLanded = this.rocket.isLanded;
+    if (alt > 100 && vel > 100 && !this.lastEventState.launched || isOrbital && !this.lastEventState.orbited || isLanded && !this.lastEventState.landed) {
+      this.cinematicEventDetected = true;
+      this.cinematicTimer = 5;
+    }
   }
   /** Find the nearest non-star body to the rocket (its "parent" / SOI body). */
   getRocketParentBody() {
@@ -37441,7 +42298,7 @@ ${ach.description}`, 8e3);
   // === Science experiments ===
   /** 迭代50: 解锁技术树节点 */
   unlockTech(techId) {
-    const tech = TECH_TREE.find((t) => t.id === techId);
+    const tech = TECH_TREE2.find((t) => t.id === techId);
     if (!tech || tech.unlocked || this.unlockedTechs.has(techId)) return false;
     for (const prereq of tech.prereq) {
       if (!this.unlockedTechs.has(prereq)) {
@@ -37818,18 +42675,17 @@ ${ach.description}`, 8e3);
     if (dist > parent.radius * 1.1) return "\u592A\u7A7A";
     const biomes = BIOMES[parent.name];
     if (!biomes || biomes.length === 0) return parent.name;
-    const lat = Math.asin(this.rocket.body.position.y / dist) * 180 / Math.PI;
     const lon = Math.atan2(this.rocket.body.position.z, this.rocket.body.position.x) * 180 / Math.PI;
     const idx = Math.floor((lon + 180) / 360 * biomes.length) % biomes.length;
     const biome = biomes[Math.abs(idx)];
     return biome;
   }
-  /** 迭代9: 数据传输延迟 — 基于到Kerbin距离的光速延迟 */
+  /** 迭代9: 数据传输延迟 — 基于到地球距离的光速延迟 */
   getCommDelay() {
     if (!this.rocket) return 0;
-    const kerbin = this.physics.getBody("Kerbin");
-    if (!kerbin) return 0;
-    const dist = this.rocket.body.position.distanceTo(kerbin.position);
+    const earth = this.physics.getBody("Earth");
+    if (!earth) return 0;
+    const dist = this.rocket.body.position.distanceTo(earth.position);
     const lightDelay = dist / 3e8;
     const hopCount = Math.floor(dist / 8e7);
     return lightDelay + hopCount * 0.1;
@@ -37846,19 +42702,30 @@ ${ach.description}`, 8e3);
   }
   /** 迭代10: 合同系统 — 随机生成多样化任务 */
   generateContract() {
-    const types = ["orbit", "land", "science", "mun", "sun", "eva", "kerbin"];
+    const types = ["orbit", "land", "science", "mun", "sun", "eva", "kerbin", "explore", "construct", "rescue", "test", "dock"];
     const type = types[Math.floor(Math.random() * types.length)];
     const targetMap = {
-      orbit: ["Kerbin", "Mun", "Minmus"],
-      land: ["Mun", "Minmus", "Kerbin"],
-      science: ["Mun", "Minmus", "Kerbin"],
-      mun: ["Mun"],
+      orbit: ["Earth", "Moon", "Mars"],
+      land: ["Moon", "Mars", "Earth"],
+      science: ["Moon", "Mars", "Earth"],
+      mun: ["Moon"],
       sun: ["Sun"],
-      eva: ["Kerbin", "Mun"],
-      kerbin: ["Kerbin"]
+      eva: ["Earth", "Moon"],
+      kerbin: ["Earth"],
+      explore: ["Mars", "Venus", "Mercury", "Jupiter", "Saturn"],
+      construct: ["Earth", "Moon"],
+      rescue: ["Earth", "Moon", "Mars"],
+      test: ["Earth", "Moon"],
+      dock: ["Earth", "Moon"]
     };
-    const possibleTargets = targetMap[type] || ["Kerbin"];
+    const possibleTargets = targetMap[type] || ["Earth"];
     const target = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+    const randAlt = Math.round((5e4 + Math.random() * 2e5) / 1e3) * 1e3;
+    const randSciAmt = Math.round(10 + Math.random() * 40);
+    const randPartNames = ["\u56FA\u4F53\u52A9\u63A8\u5668", "\u6DB2\u4F53\u53D1\u52A8\u673A", "\u5206\u79BB\u5668", "\u964D\u843D\u4F1E", "\u592A\u9633\u80FD\u677F"];
+    const randPart = randPartNames[Math.floor(Math.random() * randPartNames.length)];
+    const randRescueNames = ["Jeb", "Val", "Bob", "Bill", "Leroy"];
+    const randRescueTarget = randRescueNames[Math.floor(Math.random() * randRescueNames.length)];
     const titles = {
       orbit: `\u8FDB\u5165${target}\u7A33\u5B9A\u8F68\u9053`,
       land: `\u767B\u9646${target}\u8868\u9762`,
@@ -37866,34 +42733,415 @@ ${ach.description}`, 8e3);
       mun: `\u98DE\u8D8AMun`,
       sun: `\u62B5\u8FD1\u592A\u9633`,
       eva: `\u5728${target}\u6267\u884CEVA\u8231\u5916\u6D3B\u52A8`,
-      kerbin: `\u5728Kerbin\u5B8C\u6210\u5DE1\u822A\u4EFB\u52A1`
+      kerbin: `\u5728Kerbin\u5B8C\u6210\u5DE1\u822A\u4EFB\u52A1`,
+      explore: `\u63A2\u7D22${target}`,
+      construct: `\u5728${target}\u5EFA\u9020\u7A7A\u95F4\u7AD9`,
+      rescue: `\u6551\u63F4\u6EDE\u7559${target}\u7684\u5B87\u822A\u5458${randRescueTarget}`,
+      test: `\u5728${target}\u6D4B\u8BD5${randPart}`,
+      dock: `\u5728${target}\u8F68\u9053\u5B8C\u6210\u5BF9\u63A5`
     };
-    const difficulty = type === "sun" ? 3 : type === "mun" ? 2 : type === "land" ? 1.5 : 1;
+    const baseDifficulty = type === "sun" ? 3 : type === "explore" ? 2.5 : type === "mun" ? 2 : type === "land" ? 1.5 : type === "rescue" ? 2 : type === "dock" ? 1.8 : type === "construct" ? 2.2 : type === "test" ? 1.2 : 1;
+    const difficulty = baseDifficulty * (0.8 + Math.random() * 0.4);
+    let sciWeight = 1, fundWeight = 1, repWeight = 1;
+    if (type === "science") {
+      sciWeight = 2;
+      fundWeight = 0.5;
+    } else if (type === "construct") {
+      sciWeight = 0.5;
+      fundWeight = 2;
+    } else if (type === "explore") {
+      sciWeight = 1.5;
+      repWeight = 2;
+    } else if (type === "rescue") {
+      repWeight = 2.5;
+      fundWeight = 1.5;
+    } else if (type === "test") {
+      fundWeight = 1.5;
+      sciWeight = 0.5;
+    }
     return {
       id: `contract_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       type,
       title: titles[type] || "\u672A\u77E5\u4EFB\u52A1",
       description: `${titles[type]}\u3002\u5B8C\u6210\u540E\u83B7\u5F97\u79D1\u5B66\u70B9\u3001\u8D44\u91D1\u548C\u58F0\u671B\u5956\u52B1\u3002`,
       target,
-      rewardScience: Math.round((10 + Math.floor(Math.random() * 30)) * difficulty),
-      rewardFunds: Math.round((5e3 + Math.floor(Math.random() * 2e4)) * difficulty),
-      rewardReputation: Math.round((1 + Math.floor(Math.random() * 10)) * difficulty),
+      rewardScience: Math.round((10 + Math.floor(Math.random() * 30)) * difficulty * sciWeight),
+      rewardFunds: Math.round((5e3 + Math.floor(Math.random() * 2e4)) * difficulty * fundWeight),
+      rewardReputation: Math.round((1 + Math.floor(Math.random() * 10)) * difficulty * repWeight),
       deadline: this.gameTime + 3600 * (6 + Math.random() * 42 * difficulty),
-      // 6-48小时
       completed: false,
-      failed: false
+      failed: false,
+      paramAltitude: randAlt,
+      paramScienceAmount: randSciAmt,
+      paramPartName: randPart,
+      paramDifficulty: difficulty,
+      paramRescueTarget: randRescueTarget
     };
   }
-  /** 迭代38: 检查合同完成状态 */
+  // === 迭代21-40: 飞行控制系统增强 ===
+  /** 迭代21-25: SAS模式增强 — 轨道保持/航向保持/速度保持 */
+  updateSASMode(dt) {
+    if (!this.rocket || !this.rocket.sasEnabled || this.sasMode === "off") return;
+    const vel = this.rocket.body.velocity;
+    const velLen = vel.length();
+    const up = new Vector3(0, 1, 0);
+    const rocketUp = up.clone().applyQuaternion(this.rocket.orientation);
+    let targetDir;
+    switch (this.sasMode) {
+      case "stability":
+        if (this.rocket.angularVelocity) {
+          this.rocket.angularVelocity.multiplyScalar(0.85);
+        }
+        break;
+      case "prograde":
+        if (velLen > 1) {
+          targetDir = vel.clone().normalize();
+          this.rotateTowards(targetDir, dt, 2);
+        }
+        break;
+      case "retrograde":
+        if (velLen > 1) {
+          targetDir = vel.clone().negate().normalize();
+          this.rotateTowards(targetDir, dt, 2);
+        }
+        break;
+      case "normal":
+        if (velLen > 1) {
+          const normal = new Vector3().crossVectors(vel, rocketUp).normalize();
+          this.rotateTowards(normal, dt, 1.5);
+        }
+        break;
+      case "antinormal":
+        if (velLen > 1) {
+          const normal = new Vector3().crossVectors(vel, rocketUp).normalize().negate();
+          this.rotateTowards(normal, dt, 1.5);
+        }
+        break;
+      case "radial":
+        if (velLen > 1) {
+          const radial = new Vector3().crossVectors(vel, new Vector3().crossVectors(vel, rocketUp)).normalize();
+          this.rotateTowards(radial, dt, 1.5);
+        }
+        break;
+      case "antiradial":
+        if (velLen > 1) {
+          const radial = new Vector3().crossVectors(vel, new Vector3().crossVectors(vel, rocketUp)).normalize().negate();
+          this.rotateTowards(radial, dt, 1.5);
+        }
+        break;
+      case "hold":
+        const holdDir = new Vector3(0, 1, 0).applyQuaternion(this.sasHoldQuaternion);
+        this.rotateTowards(holdDir, dt, 3);
+        break;
+    }
+  }
+  /** 旋转火箭朝向目标方向 */
+  rotateTowards(targetDir, dt, speed) {
+    if (!this.rocket) return;
+    const currentDir = new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation);
+    const cross = new Vector3().crossVectors(currentDir, targetDir);
+    const angle = currentDir.angleTo(targetDir);
+    if (angle < 0.01) return;
+    const rotAxis = cross.normalize();
+    if (rotAxis.lengthSq() < 1e-10) return;
+    const rotAngle = Math.min(angle, speed * dt);
+    const correction = new Quaternion().setFromAxisAngle(rotAxis, rotAngle);
+    this.rocket.orientation.premultiply(correction);
+  }
+  /** 设置SAS模式 */
+  setSASMode(mode) {
+    this.sasMode = mode;
+    if (mode === "hold" && this.rocket) {
+      this.sasHoldQuaternion.copy(this.rocket.orientation);
+    }
+    const labels = {
+      off: "\u5173\u95ED",
+      stability: "\u7A33\u5B9A",
+      prograde: "\u987A\u5411",
+      retrograde: "\u9006\u5411",
+      normal: "\u6CD5\u5411",
+      antinormal: "\u53CD\u6CD5\u5411",
+      radial: "\u5F84\u5411",
+      antiradial: "\u53CD\u5F84\u5411",
+      hold: "\u822A\u5411\u4FDD\u6301"
+    };
+    this.hud.showNotification(`SAS: ${labels[mode] || mode}`);
+  }
+  /** 循环SAS模式 */
+  cycleSASMode() {
+    const modes = ["off", "stability", "prograde", "retrograde", "normal", "antinormal", "radial", "antiradial", "hold"];
+    const idx = modes.indexOf(this.sasMode);
+    const next = modes[(idx + 1) % modes.length];
+    if (this.rocket) this.rocket.sasEnabled = next !== "off";
+    this.setSASMode(next);
+  }
+  /** 循环自动驾驶模式 */
+  cycleAutopilotMode() {
+    const modes = ["off", "orbit_hold", "auto_circularize", "auto_rendezvous"];
+    const idx = modes.indexOf(this.autopilotMode);
+    const next = modes[(idx + 1) % modes.length];
+    this.setAutopilotMode(next);
+  }
+  /** 迭代26-30: RCS精确控制 — 平移模式、精细模式 */
+  updateRCSControl(dt) {
+    if (!this.rocket) return;
+    if (this.rcsTranslationMode) {
+      const force = this.rcsFineMode ? 0.5 * this.RCS_FINE_FACTOR : 0.5;
+      const forward = new Vector3(0, 1, 0).applyQuaternion(this.rocket.orientation);
+      const right = new Vector3(1, 0, 0).applyQuaternion(this.rocket.orientation);
+      const up = new Vector3(0, 0, 1).applyQuaternion(this.rocket.orientation);
+      if (this.heldKeys.has("w")) this.rocket.body.velocity.addScaledVector(forward, force * dt);
+      if (this.heldKeys.has("s")) this.rocket.body.velocity.addScaledVector(forward, -force * dt);
+      if (this.heldKeys.has("a")) this.rocket.body.velocity.addScaledVector(right, -force * dt);
+      if (this.heldKeys.has("d")) this.rocket.body.velocity.addScaledVector(right, force * dt);
+      if (this.heldKeys.has(" ")) this.rocket.body.velocity.addScaledVector(up, force * dt);
+      if (this.heldKeys.has("shift")) this.rocket.body.velocity.addScaledVector(up, -force * dt);
+    }
+  }
+  /** 切换RCS平移模式 */
+  toggleRCSTranslation() {
+    this.rcsTranslationMode = !this.rcsTranslationMode;
+    this.hud.showNotification(`RCS\u5E73\u79FB: ${this.rcsTranslationMode ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+  }
+  /** 切换RCS精细模式 */
+  toggleRCSFine() {
+    this.rcsFineMode = !this.rcsFineMode;
+    this.hud.showNotification(`RCS\u7CBE\u7EC6: ${this.rcsFineMode ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+  }
+  /** 迭代31-35: 自动驾驶 — 轨道保持/自动入轨 */
+  updateAutopilot(dt) {
+    if (!this.rocket || this.autopilotMode === "off") return;
+    const parent = this.getRocketParentBody();
+    if (!parent) return;
+    switch (this.autopilotMode) {
+      case "auto_circularize": {
+        const orbit = this.physics.getOrbit ? this.physics.getOrbit(this.rocket.body) : null;
+        if (!orbit) break;
+        const vel = this.rocket.body.velocity;
+        const pos = this.rocket.body.position.clone().sub(parent.position);
+        const isNearApoapsis = pos.angleTo(vel) < 0.3;
+        if (isNearApoapsis) {
+          this.rocket.throttle = Math.min(1, this.rocket.throttle + 0.05);
+          this.sasMode = "prograde";
+          this.rocket.sasEnabled = true;
+        } else {
+          this.rocket.throttle = 0;
+        }
+        if (orbit.eccentricity < 0.05) {
+          this.autopilotMode = "off";
+          this.rocket.throttle = 0;
+          this.hud.showNotification("\u2705 \u81EA\u52A8\u5706\u5316\u5B8C\u6210");
+        }
+        break;
+      }
+      case "orbit_hold": {
+        const orbit = this.physics.getOrbit ? this.physics.getOrbit(this.rocket.body) : null;
+        if (!orbit) break;
+        if (orbit.periapsis < parent.radius + 5e4) {
+          this.sasMode = "prograde";
+          this.rocket.sasEnabled = true;
+          this.rocket.throttle = 0.3;
+        } else {
+          this.rocket.throttle = 0;
+        }
+        break;
+      }
+      case "auto_rendezvous": {
+        if (this.autopilotTarget) {
+          const toTarget = this.autopilotTarget.clone().sub(this.rocket.body.position);
+          const dist = toTarget.length();
+          if (dist > 100) {
+            this.rotateTowards(toTarget.normalize(), dt, 1);
+            this.rocket.throttle = Math.min(0.5, dist * 1e-3);
+          } else {
+            this.rocket.throttle = 0;
+            this.autopilotMode = "off";
+            this.hud.showNotification("\u2705 \u4EA4\u4F1A\u5B8C\u6210");
+          }
+        }
+        break;
+      }
+    }
+  }
+  /** 设置自动驾驶模式 */
+  setAutopilotMode(mode) {
+    this.autopilotMode = mode;
+    const labels = {
+      off: "\u5173\u95ED",
+      orbit_hold: "\u8F68\u9053\u4FDD\u6301",
+      auto_circularize: "\u81EA\u52A8\u5706\u5316",
+      auto_rendezvous: "\u81EA\u52A8\u4EA4\u4F1A"
+    };
+    this.hud.showNotification(`\u81EA\u52A8\u9A7E\u9A76: ${labels[mode] || mode}`);
+  }
+  /** 迭代36-40: 飞行计划导入/导出 */
+  exportFlightPlan() {
+    const plan = {
+      name: "flight_plan",
+      timestamp: Date.now(),
+      nodes: this.maneuverNode ? [{
+        time: this.gameTime,
+        dv: { prograde: this.maneuverNode.prograde, normal: this.maneuverNode.normal, radial: this.maneuverNode.radial },
+        desc: "\u673A\u52A8\u8282\u70B9"
+      }] : []
+    };
+    localStorage.setItem("ksp_flight_plan", JSON.stringify(plan));
+    this.hud.showNotification("\u2705 \u98DE\u884C\u8BA1\u5212\u5DF2\u5BFC\u51FA");
+    return JSON.stringify(plan);
+  }
+  importFlightPlan() {
+    const data = localStorage.getItem("ksp_flight_plan");
+    if (!data) {
+      this.hud.showNotification("\u26A0\uFE0F \u65E0\u5DF2\u4FDD\u5B58\u7684\u98DE\u884C\u8BA1\u5212");
+      return false;
+    }
+    try {
+      const plan = JSON.parse(data);
+      if (plan.nodes && plan.nodes.length > 0) {
+        const n = plan.nodes[0];
+        this.maneuverNode = { prograde: n.dv.prograde, normal: n.dv.normal, radial: n.dv.radial };
+        this.hud.showNotification("\u2705 \u98DE\u884C\u8BA1\u5212\u5DF2\u5BFC\u5165");
+        return true;
+      }
+    } catch {
+    }
+    return false;
+  }
+  // === 迭代81-100: 通知+反馈系统增强 ===
+  /** 获取火箭高度（距最近天体表面） */
+  getRocketAltitude() {
+    if (!this.rocket) return 0;
+    const parent = this.getRocketParentBody();
+    if (!parent) return 0;
+    return this.rocket.body.position.distanceTo(parent.position) - parent.radius;
+  }
+  /** 获取对接状态（是否有对接目标在范围内） */
+  get hasDockingTarget() {
+    return this.dockedVessels.size > 0 || this.rocket && this.debrisMeshes.size > 0;
+  }
+  get dockingDistance() {
+    if (this.dockedVessels.size > 0) {
+      for (const v of this.dockedVessels.values()) {
+        if (v.relVel < 5) return 50;
+      }
+    }
+    return 999;
+  }
+  /** 迭代81-85: 事件通知系统 — 发射/入轨/着陆/对接/损坏 */
+  checkEventNotifications() {
+    if (!this.rocket) return;
+    const alt = this.getRocketAltitude();
+    const vel = this.rocket.body.velocity.length();
+    if (alt > 100 && vel > 50 && !this.lastEventState.launched) {
+      this.lastEventState.launched = true;
+      this.triggerEventNotification("launch", "\u{1F680} \u53D1\u5C04\u6210\u529F\uFF01", "#44ff88");
+    }
+    const orbit = this.physics.getOrbit ? this.physics.getOrbit(this.rocket.body) : null;
+    if (orbit && orbit.eccentricity < 1 && orbit.apoapsis > 7e4 && !this.lastEventState.orbited) {
+      this.lastEventState.orbited = true;
+      this.triggerEventNotification("orbit", "\u{1F6F0}\uFE0F \u6210\u529F\u5165\u8F68\uFF01", "#44aaff");
+    }
+    if (this.rocket.isLanded && !this.lastEventState.landed && alt < 1e3) {
+      this.lastEventState.landed = true;
+      this.triggerEventNotification("landing", "\u{1F6EC} \u6210\u529F\u7740\u9646\uFF01", "#ffdd44");
+    } else if (!this.rocket.isLanded && this.lastEventState.landed) {
+      this.lastEventState.landed = false;
+    }
+    if (this.hasDockingTarget && this.dockingDistance < 100 && !this.lastEventState.docked) {
+      this.lastEventState.docked = true;
+      this.triggerEventNotification("docking", "\u{1F517} \u5BF9\u63A5\u6210\u529F\uFF01", "#ff44dd");
+    }
+    if (this.rocketThermal.temperature > this.rocketThermal.maxTemperature * 0.9) {
+      this.triggerEventNotification("damage", "\u26A0\uFE0F \u822A\u5929\u5668\u635F\u574F\u8B66\u544A\uFF01", "#ff4444");
+    }
+  }
+  triggerEventNotification(type, message, color) {
+    const now2 = Date.now();
+    const lastTime = this.eventNotifications.get(type) || 0;
+    if (now2 - lastTime < 5e3) return;
+    this.eventNotifications.set(type, now2);
+    this.hud.showNotification(message, 4e3);
+    this.screenFlashAlpha = 0.3;
+    this.screenFlashColor = color;
+    this.screenShakeIntensity = type === "damage" ? 5 : 2;
+  }
+  /** 迭代86-90: 屏幕震动+闪光衰减 */
+  updateScreenEffects(dt) {
+    if (this.screenShakeIntensity > 0) {
+      const amt = this.screenShakeIntensity;
+      this.camera.position.x += (Math.random() - 0.5) * amt;
+      this.camera.position.y += (Math.random() - 0.5) * amt;
+      this.camera.position.z += (Math.random() - 0.5) * amt;
+      this.screenShakeIntensity *= 0.9;
+      if (this.screenShakeIntensity < 0.1) this.screenShakeIntensity = 0;
+    }
+    if (this.screenFlashAlpha > 0) {
+      this.screenFlashAlpha *= 0.92;
+      if (this.screenFlashAlpha < 0.01) this.screenFlashAlpha = 0;
+    }
+  }
+  /** 迭代91-95: 回放系统 — 记录最后30秒 */
+  updateReplayBuffer(dt) {
+    if (!this.replayRecording || !this.rocket) return;
+    const frame2 = {
+      time: this.gameTime,
+      pos: this.rocket.body.position.clone(),
+      vel: this.rocket.body.velocity.clone(),
+      orient: this.rocket.orientation.clone(),
+      throttle: this.rocket.throttle
+    };
+    this.replayBuffer.push(frame2);
+    if (this.replayBuffer.length > this.REPLAY_MAX_FRAMES) {
+      this.replayBuffer.shift();
+    }
+  }
+  /** 获取回放数据 */
+  getReplayData() {
+    return [...this.replayBuffer];
+  }
+  /** 切换回放录制 */
+  toggleReplayRecording() {
+    this.replayRecording = !this.replayRecording;
+    this.hud.showNotification(`\u56DE\u653E\u5F55\u5236: ${this.replayRecording ? "\u5F00\u542F" : "\u5173\u95ED"}`);
+  }
+  /** 迭代96-100: 性能监控 */
+  updatePerformanceMonitor(dt) {
+    this.perfMonitor.frameTime = dt * 1e3;
+    this.perfMonitor.frames++;
+    this.perfMonitor.fpsAccum += dt;
+    if (this.perfMonitor.fpsAccum >= 0.5) {
+      this.perfMonitor.fps = Math.round(this.perfMonitor.frames / this.perfMonitor.fpsAccum);
+      this.perfMonitor.frames = 0;
+      this.perfMonitor.fpsAccum = 0;
+      this.perfMonitor.drawCalls = this.renderer.info.render.calls;
+    }
+  }
+  /** 获取性能数据 */
+  getPerfData() {
+    return {
+      fps: this.perfMonitor.fps,
+      frameTime: this.perfMonitor.frameTime,
+      drawCalls: this.perfMonitor.drawCalls
+    };
+  }
   updateContracts() {
     if (!this.rocket) return;
     for (const c of this.contracts) {
       if (c.completed || c.failed) continue;
       if (this.gameTime > c.deadline) {
         c.failed = true;
+        c.failReason = "\u8D85\u65F6";
         this.reputation = Math.max(0, this.reputation - 2);
         this.contractStreak = 0;
-        this.hud.showNotification(`\u274C \u5408\u540C\u5931\u8D25: ${c.title}`, 3e3);
+        this.hud.showNotification(`\u274C \u5408\u540C\u5931\u8D25: ${c.title} (\u8D85\u65F6)`, 3e3);
+        continue;
+      }
+      if (this.rocketThermal.temperature > this.rocketThermal.maxTemperature) {
+        c.failed = true;
+        c.failReason = "\u706B\u7BAD\u635F\u6BC1";
+        this.reputation = Math.max(0, this.reputation - 5);
+        this.contractStreak = 0;
+        this.hud.showNotification(`\u{1F4A5} \u5408\u540C\u5931\u8D25: ${c.title} (\u706B\u7BAD\u635F\u6BC1)`, 4e3);
         continue;
       }
       const parent = this.getRocketParentBody();
@@ -37910,16 +43158,37 @@ ${ach.description}`, 8e3);
           if (parentName === c.target && this.rocket.isLanded) done = true;
           break;
         case "science":
-          if (parentName === c.target && this.sciencePoints > 0) done = true;
+          if (parentName === c.target && this.sciencePoints >= (c.paramScienceAmount || 0)) done = true;
           break;
         case "mun":
-          if (parentName === "Mun") done = true;
+          if (parentName === "Moon") done = true;
           break;
         case "sun":
           if (parentName === "Sun") done = true;
           break;
         case "eva":
           if (this.astronaut.isActive) done = true;
+          break;
+        case "explore":
+          if (parentName === c.target) {
+            const alt = this.rocket.body.position.distanceTo(parent.position);
+            if (alt > (c.paramAltitude || 5e4) && alt < parent.radius * 5) done = true;
+          }
+          break;
+        case "construct":
+          if (parentName === c.target && !this.rocket.isLanded) {
+            const alt = this.rocket.body.position.distanceTo(parent.position);
+            if (alt > (c.paramAltitude || 1e5)) done = true;
+          }
+          break;
+        case "rescue":
+          if (this.astronaut.isActive && parentName === c.target) done = true;
+          break;
+        case "test":
+          if (parentName === c.target && this.rocket.throttle > 0) done = true;
+          break;
+        case "dock":
+          if (this.hasDockingTarget && this.dockingDistance < 100) done = true;
           break;
       }
       if (done) {
@@ -38157,7 +43426,23 @@ ${ach.description}`, 8e3);
       evaPropellant: this.evaPropellant,
       contracts: this.contracts.map((c) => ({ title: c.title, deadline: c.deadline - this.gameTime, completed: c.completed })),
       partTemps,
-      resourceFlow
+      resourceFlow,
+      // 迭代21-40: 飞行控制系统
+      sasMode: this.sasMode,
+      rcsTranslationMode: this.rcsTranslationMode,
+      rcsFineMode: this.rcsFineMode,
+      autopilotMode: this.autopilotMode,
+      cinematicMode: this.cinematicMode,
+      // 迭代96-100: 性能监控
+      perfFps: this.perfMonitor.fps,
+      perfFrameTime: this.perfMonitor.frameTime,
+      perfDrawCalls: this.perfMonitor.drawCalls,
+      // 迭代86-90: 屏幕效果
+      screenFlashAlpha: this.screenFlashAlpha,
+      screenFlashColor: this.screenFlashColor,
+      // 迭代91-95: 回放状态
+      replayRecording: this.replayRecording,
+      replayFrames: this.replayBuffer.length
     };
     this.hud.update(data);
     this.hud.updateNavball(this.rocket.orientation, this.rocket.body.velocity);
@@ -38332,215 +43617,187 @@ ${ach.description}`, 8e3);
 };
 
 // src/game/menu.ts
-var PART_TYPE_CN = {
-  command: "\u6307\u4EE4\u8231",
-  fuel: "\u71C3\u6599\u7BB1",
-  engine: "\u5F15\u64CE",
-  decoupler: "\u5206\u79BB\u5668",
-  science: "\u79D1\u7814\u8BBE\u5907",
-  parachute: "\u964D\u843D\u4F1E",
-  aero: "\u7A7A\u6C14\u52A8\u529B",
-  rcs: "\u59FF\u6001\u63A7\u5236",
-  solar: "\u592A\u9633\u80FD\u677F",
-  antenna: "\u901A\u8BAF\u5929\u7EBF",
-  landing: "\u7740\u9646\u88C5\u7F6E",
-  adapter: "\u9002\u914D\u5668",
-  booster: "\u52A9\u63A8\u5668",
-  structural: "\u7ED3\u6784\u90E8\u4EF6",
-  utility: "\u5B9E\u7528\u5DE5\u5177",
-  fusion: "\u805A\u53D8",
-  warp: "\u66F2\u901F",
-  radiator: "\u6563\u70ED",
-  mining: "\u91C7\u77FF",
-  colony: "\u6B96\u6C11",
-  antimatter: "\u53CD\u7269\u8D28",
-  plasma: "\u7B49\u79BB\u5B50"
-};
-var PART_TYPE_ICON = {
-  command: "\u{1F4E6}",
-  fuel: "\u26FD",
-  engine: "\u{1F525}",
-  decoupler: "\u{1F517}",
-  science: "\u{1F52C}",
-  parachute: "\u{1FA82}",
-  aero: "\u2708\uFE0F",
-  rcs: "\u{1F3AF}",
-  solar: "\u2600\uFE0F",
-  antenna: "\u{1F4E1}",
-  landing: "\u{1F9B5}",
-  adapter: "\u{1F4D0}",
-  booster: "\u{1F680}",
-  structural: "\u{1F527}",
-  utility: "\u{1F50C}",
-  fusion: "\u269B\uFE0F",
-  warp: "\u{1F300}",
-  radiator: "\u2744\uFE0F",
-  mining: "\u26CF\uFE0F",
-  colony: "\u{1F3D9}\uFE0F",
-  antimatter: "\u{1F48E}",
-  plasma: "\u{1F535}"
-};
-var VAB_CATEGORIES = [
-  { id: "all", name: "\u5168\u90E8", icon: "\u{1F4DA}" },
-  { id: "command", name: "\u6307\u4EE4\u8231", icon: "\u{1F4E6}" },
-  { id: "fuel", name: "\u71C3\u6599\u7BB1", icon: "\u26FD" },
-  { id: "engine", name: "\u5F15\u64CE", icon: "\u{1F525}" },
-  { id: "booster", name: "\u52A9\u63A8\u5668", icon: "\u{1F680}" },
-  { id: "parachute", name: "\u964D\u843D\u4F1E", icon: "\u{1FA82}" },
-  { id: "aero", name: "\u6C14\u52A8", icon: "\u2708\uFE0F" },
-  { id: "structural", name: "\u7ED3\u6784", icon: "\u{1F527}" },
-  { id: "rcs", name: "\u59FF\u6001\u63A7\u5236", icon: "\u{1F3AF}" },
-  { id: "solar", name: "\u7535\u529B", icon: "\u2600\uFE0F" },
-  { id: "antenna", name: "\u901A\u4FE1", icon: "\u{1F4E1}" },
-  { id: "science", name: "\u79D1\u7814", icon: "\u{1F52C}" },
-  { id: "landing", name: "\u7740\u9646", icon: "\u{1F9B5}" },
-  { id: "decoupler", name: "\u5206\u79BB\u5668", icon: "\u{1F517}" },
-  { id: "adapter", name: "\u9002\u914D\u5668", icon: "\u{1F4D0}" },
-  { id: "utility", name: "\u5DE5\u5177", icon: "\u{1F50C}" },
-  { id: "fusion", name: "\u805A\u53D8", icon: "\u269B\uFE0F" },
-  { id: "warp", name: "\u66F2\u901F", icon: "\u{1F300}" },
-  { id: "radiator", name: "\u6563\u70ED", icon: "\u2744\uFE0F" },
-  { id: "mining", name: "\u91C7\u77FF", icon: "\u26CF\uFE0F" },
-  { id: "colony", name: "\u6B96\u6C11", icon: "\u{1F3D9}\uFE0F" },
-  { id: "antimatter", name: "\u53CD\u7269\u8D28", icon: "\u{1F48E}" },
-  { id: "plasma", name: "\u7B49\u79BB\u5B50", icon: "\u{1F535}" }
-];
-var PRESET_ASTRONAUTS = [
-  { name: "\u6C6A\u6DFC", level: 3, status: "\u53EF\u7528", specialty: "\u7EB3\u7C73\u6750\u6599\u4E13\u5BB6", bio: '\u7EB3\u7C73\u4E2D\u5FC3\u7814\u7A76\u5458\uFF0C\u66FE\u53C2\u4E0E"\u53E4\u7B5D\u884C\u52A8"\u3002\u64C5\u957F\u6750\u6599\u5DE5\u7A0B\u4E0E\u822A\u5929\u5668\u7ED3\u6784\u5206\u6790\u3002' },
-  { name: "\u53F2\u5F3A", level: 4, status: "\u53EF\u7528", specialty: "\u7279\u79CD\u4F5C\u6218/\u5B89\u4FDD", bio: "\u8D44\u6DF1\u5211\u8B66\u51FA\u8EAB\uFF0C\u5177\u5907\u51FA\u8272\u7684\u73B0\u573A\u5904\u7F6E\u4E0E\u5B89\u4FDD\u6307\u6325\u80FD\u529B\uFF0C\u591A\u6B21\u6267\u884C\u9AD8\u5371\u4EFB\u52A1\u3002" },
-  { name: "\u7AE0\u5317\u6D77", level: 5, status: "\u53EF\u7528", specialty: "\u6DF1\u7A7A\u822A\u884C\u6307\u6325", bio: "\u592A\u7A7A\u519B\u5C06\u9886\uFF0C\u6DF1\u7A7A\u6218\u7565\u4E0E\u822A\u884C\u6307\u6325\u4E13\u5BB6\uFF0C\u610F\u5FD7\u575A\u5B9A\uFF0C\u9002\u5408\u957F\u671F\u661F\u9645\u4EFB\u52A1\u3002" },
-  { name: "\u7A0B\u5FC3", level: 2, status: "\u8BAD\u7EC3\u4E2D", specialty: "\u661F\u9645\u5916\u4EA4", bio: "\u822A\u5929\u52A8\u529B\u4E13\u4E1A\u51FA\u8EAB\uFF0C\u81F4\u529B\u4E8E\u661F\u9645\u6587\u660E\u4EA4\u6D41\u4E0E\u5916\u4EA4\u534F\u8C03\uFF0C\u6B63\u5728\u8FDB\u884C\u5B87\u822A\u8BAD\u7EC3\u3002" },
-  { name: "\u53F6\u6587\u6D01", level: 5, status: "\u5DF2\u9000\u5F79", specialty: "\u5929\u4F53\u7269\u7406", bio: "\u7EA2\u5CB8\u57FA\u5730\u521B\u59CB\u4EBA\uFF0C\u9996\u6B21\u63A5\u6536\u5230\u4E09\u4F53\u6587\u660E\u4FE1\u53F7\u3002" },
-  { name: "\u4E01\u4EEA", level: 5, status: "\u53EF\u7528", specialty: "\u7406\u8BBA\u7269\u7406", bio: "\u7814\u7A76\u4E09\u4F53\u79D1\u5B66\u7684\u6838\u5FC3\u7269\u7406\u5B66\u5BB6\uFF0C\u591A\u6B21\u53C2\u4E0E\u5173\u952E\u5B9E\u9A8C\u3002" },
-  { name: "\u7533\u7389\u83F2", level: 4, status: "\u53EF\u7528", specialty: "\u6570\u5B66", bio: "\u4E09\u4F53\u8FD0\u52A8\u7684\u6570\u5B66\u5EFA\u6A21\u4E13\u5BB6\u3002" },
-  { name: "\u4E91\u5929\u660E", level: 5, status: "\u5728\u8F68", specialty: "\u6DF1\u7A7A\u901A\u4FE1", bio: "\u552F\u4E00\u6210\u529F\u6E17\u900F\u4E09\u4F53\u6587\u660E\u7684\u4EBA\u7C7B\u95F4\u8C0D\u3002" },
-  { name: "\u827EAA", level: 4, status: "\u8BAD\u7EC3\u4E2D", specialty: "\u661F\u9645\u5BFC\u822A", bio: "\u5A01\u6151\u7EAA\u5143\u540E\u7684\u65B0\u4E00\u4EE3\u661F\u9645\u822A\u884C\u5458\u3002" },
-  { name: "\u7F57\u8F91", level: 5, status: "\u53EF\u7528", specialty: "\u6218\u7565\u6307\u6325", bio: "\u9762\u58C1\u8005\uFF0C\u5EFA\u7ACB\u9ED1\u6697\u68EE\u6797\u5A01\u6151\u7684\u6267\u5251\u4EBA\u3002" }
-];
-var TECH_TREE2 = [
-  { id: "tech1", name: "\u57FA\u7840\u706B\u7BAD\u6280\u672F", cost: 0, unlocked: true, desc: "\u57FA\u7840\u5316\u5B66\u5F15\u64CE\u4E0E\u5C0F\u578B\u71C3\u6599\u7BB1" },
-  { id: "tech2", name: "\u5148\u8FDB\u63A8\u8FDB", cost: 50, unlocked: false, desc: "\u6838\u70ED\u5F15\u64CE\u4E0E\u79BB\u5B50\u63A8\u8FDB" },
-  { id: "tech3", name: "\u91CD\u578B\u8FD0\u8F7D", cost: 100, unlocked: false, desc: "\u91CD\u578B\u5F15\u64CE\u4E0E\u5927\u578B\u71C3\u6599\u7BB1" },
-  { id: "tech4", name: "\u6DF1\u7A7A\u63A2\u6D4B", cost: 200, unlocked: false, desc: "\u6DF1\u7A7A\u901A\u4FE1\u4E0E\u79D1\u5B66\u4EEA\u5668" },
-  { id: "tech5", name: "\u66F2\u901F\u6280\u672F", cost: 500, unlocked: false, desc: "\u661F\u9645\u66F2\u901F\u5F15\u64CE" }
-];
+var TRACKED_VEHICLES_KEY = "ksp_tracked_vehicles";
 var SCIENCE_POINTS_KEY = "ksp_science_points";
 var TECH_UNLOCK_KEY = "ksp_tech_unlocked";
-var TRACKED_VEHICLES_KEY = "ksp_tracked_vehicles";
 var SimpleOrbitControls = class {
-  constructor(camera, dom, target = new Vector3(0, 0, 0)) {
-    this.isDragging = false;
-    this.prevX = 0;
-    this.prevY = 0;
-    this.enabled = true;
-    // Inertia / damping for fluid camera motion (KSP-style smooth orbit)
-    this.thetaVel = 0;
-    // azimuthal angular velocity
-    this.phiVel = 0;
-    // polar angular velocity
-    this.radiusVel = 0;
-    // radial (zoom) velocity
-    this.damping = 0.9;
+  constructor(camera, domElement, target) {
     this.camera = camera;
-    this.dom = dom;
-    this.target = target;
-    this.autoRotateSpeed = 0.3;
+    this.domElement = domElement;
+    this.target = target ? target.clone() : new Vector3();
+    this.spherical = new Spherical();
+    this.sphericalDelta = new Spherical();
+    this.panOffset = new Vector3();
+    this.scale = 1;
+    this.autoRotateSpeed = 0;
     this.minDistance = 5;
-    this.maxDistance = 200;
-    this.minPolar = 0.1;
-    this.maxPolar = Math.PI - 0.1;
-    const offset = new Vector3().subVectors(camera.position, target);
-    this.spherical = new Spherical().setFromVector3(offset);
-    this.onPointerDown = (e) => {
-      if (!this.enabled) return;
-      if (e.button !== 0) return;
-      this.isDragging = true;
-      this.prevX = e.clientX;
-      this.prevY = e.clientY;
-      this.dom.style.cursor = "grabbing";
+    this.maxDistance = 1e3;
+    this.minPolarAngle = 0.1;
+    this.maxPolarAngle = Math.PI - 0.1;
+    this.enabled = true;
+    this.rotateSpeed = 1;
+    this.panSpeed = 1;
+    this.dollySpeed = 1;
+    this._pointers = [];
+    this._pointerPositions = {};
+    this._disposed = false;
+    const offset = new Vector3().copy(camera.position).sub(this.target);
+    this.spherical.setFromVector3(offset);
+    this._onPointerDown = (e) => {
+      if (!this.enabled || this._disposed) return;
+      this.domElement.setPointerCapture(e.pointerId);
+      this._pointers.push(e);
+      this._pointerPositions[e.pointerId] = { start: { x: e.clientX, y: e.clientY }, prev: { x: e.clientX, y: e.clientY } };
     };
-    this.onPointerMove = (e) => {
-      if (!this.enabled || !this.isDragging) return;
-      const dx = e.clientX - this.prevX;
-      const dy = e.clientY - this.prevY;
-      this.prevX = e.clientX;
-      this.prevY = e.clientY;
-      const dTheta = -dx * 5e-3;
-      const dPhi = -dy * 5e-3;
-      this.spherical.theta += dTheta;
-      this.spherical.phi += dPhi;
-      this.spherical.phi = Math.max(this.minPolar, Math.min(this.maxPolar, this.spherical.phi));
-      this.thetaVel = dTheta;
-      this.phiVel = dPhi;
+    this._onPointerMove = (e) => {
+      if (!this.enabled || this._disposed) return;
+      if (!(e.pointerId in this._pointerPositions)) return;
+      const pos = this._pointerPositions[e.pointerId];
+      pos.prev = { x: pos.prev.x, y: pos.prev.y };
+      const dx = e.clientX - pos.prev.x;
+      const dy = e.clientY - pos.prev.y;
+      pos.prev = { x: e.clientX, y: e.clientY };
+      if (this._pointers.length === 1) {
+        const element = this.domElement;
+        this.sphericalDelta.theta -= 2 * Math.PI * dx / element.clientHeight * this.rotateSpeed;
+        this.sphericalDelta.phi -= 2 * Math.PI * dy / element.clientHeight * this.rotateSpeed;
+      } else if (this._pointers.length === 2) {
+        this._pan(dx * this.panSpeed, dy * this.panSpeed);
+      }
     };
-    this.onPointerUp = () => {
-      this.isDragging = false;
-      this.dom.style.cursor = "grab";
+    this._onPointerUp = (e) => {
+      if (this._disposed) return;
+      delete this._pointerPositions[e.pointerId];
+      this._pointers = this._pointers.filter((p) => p.pointerId !== e.pointerId);
     };
-    this.onWheel = (e) => {
-      if (!this.enabled) return;
+    this._onWheel = (e) => {
+      if (!this.enabled || this._disposed) return;
       e.preventDefault();
-      const zoomStep = e.deltaY * 15e-4 * Math.max(this.spherical.radius, 1);
-      this.radiusVel += zoomStep;
-      const maxVel = this.spherical.radius * 0.3;
-      this.radiusVel = Math.max(-maxVel, Math.min(maxVel, this.radiusVel));
+      if (e.deltaY < 0) {
+        this.scale /= Math.pow(0.95, this.dollySpeed);
+      } else {
+        this.scale *= Math.pow(0.95, this.dollySpeed);
+      }
     };
-    dom.addEventListener("pointerdown", this.onPointerDown);
-    dom.addEventListener("pointermove", this.onPointerMove);
-    window.addEventListener("pointerup", this.onPointerUp);
-    dom.addEventListener("wheel", this.onWheel, { passive: false });
-    dom.style.cursor = "grab";
+    this._onContextMenu = (e) => {
+      e.preventDefault();
+    };
+    domElement.addEventListener("pointerdown", this._onPointerDown);
+    domElement.addEventListener("pointermove", this._onPointerMove);
+    domElement.addEventListener("pointerup", this._onPointerUp);
+    domElement.addEventListener("wheel", this._onWheel, { passive: false });
+    domElement.addEventListener("contextmenu", this._onContextMenu);
   }
   setAutoRotateSpeed(speed) {
     this.autoRotateSpeed = speed;
   }
-  setEnabled(enabled) {
-    this.enabled = enabled;
-    if (!enabled) {
-      this.isDragging = false;
-    }
-  }
   setLimits(minDist, maxDist, minPolar, maxPolar) {
     this.minDistance = minDist;
     this.maxDistance = maxDist;
-    this.minPolar = minPolar;
-    this.maxPolar = maxPolar;
-    this.spherical.radius = Math.max(minDist, Math.min(maxDist, this.spherical.radius));
-    this.thetaVel = 0;
-    this.phiVel = 0;
-    this.radiusVel = 0;
+    this.minPolarAngle = minPolar;
+    this.maxPolarAngle = maxPolar;
+  }
+  _pan(dx, dy) {
+    const offset = new Vector3().copy(this.camera.position).sub(this.target);
+    let panX = new Vector3();
+    let panY = new Vector3();
+    let panZ = new Vector3();
+    panZ.setFromMatrixColumn(this.camera.matrix, 2);
+    panX.crossVectors(panZ, this.camera.up).normalize();
+    panY.crossVectors(panX, panZ);
+    panX.multiplyScalar(-dx);
+    panY.multiplyScalar(dy);
+    this.panOffset.add(panX).add(panY);
   }
   update() {
-    if (this.autoRotateSpeed !== 0 && !this.isDragging && Math.abs(this.thetaVel) < 1e-4) {
-      this.spherical.theta += this.autoRotateSpeed * 0.01;
+    if (this._disposed) return;
+    const offset = new Vector3().copy(this.camera.position).sub(this.target);
+    this.spherical.setFromVector3(offset);
+    if (this.autoRotateSpeed !== 0) {
+      this.sphericalDelta.theta -= this.autoRotateSpeed * 0.01;
     }
-    if (!this.isDragging) {
-      if (Math.abs(this.thetaVel) > 1e-4 || Math.abs(this.phiVel) > 1e-4) {
-        this.spherical.theta += this.thetaVel;
-        this.spherical.phi += this.phiVel;
-        this.spherical.phi = Math.max(this.minPolar, Math.min(this.maxPolar, this.spherical.phi));
-        this.thetaVel *= this.damping;
-        this.phiVel *= this.damping;
-        if (Math.abs(this.thetaVel) < 1e-4) this.thetaVel = 0;
-        if (Math.abs(this.phiVel) < 1e-4) this.phiVel = 0;
-      }
-    }
-    if (Math.abs(this.radiusVel) > 1e-4) {
-      this.spherical.radius += this.radiusVel;
-      this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
-      this.radiusVel *= this.damping;
-      if (Math.abs(this.radiusVel) < 1e-4) this.radiusVel = 0;
-    }
-    const offset = new Vector3().setFromSpherical(this.spherical);
+    this.spherical.theta += this.sphericalDelta.theta;
+    this.spherical.phi += this.sphericalDelta.phi;
+    this.spherical.phi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.spherical.phi));
+    this.spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, this.spherical.phi));
+    this.spherical.radius *= this.scale;
+    this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
+    this.target.add(this.panOffset);
+    offset.setFromSpherical(this.spherical);
     this.camera.position.copy(this.target).add(offset);
     this.camera.lookAt(this.target);
+    this.sphericalDelta.set(0, 0, 0);
+    this.panOffset.set(0, 0, 0);
+    this.scale = 1;
   }
   dispose() {
-    this.dom.removeEventListener("pointerdown", this.onPointerDown);
-    this.dom.removeEventListener("pointermove", this.onPointerMove);
-    window.removeEventListener("pointerup", this.onPointerUp);
-    this.dom.removeEventListener("wheel", this.onWheel);
+    this._disposed = true;
+    this.domElement.removeEventListener("pointerdown", this._onPointerDown);
+    this.domElement.removeEventListener("pointermove", this._onPointerMove);
+    this.domElement.removeEventListener("pointerup", this._onPointerUp);
+    this.domElement.removeEventListener("wheel", this._onWheel);
+    this.domElement.removeEventListener("contextmenu", this._onContextMenu);
   }
+};
+var createSpaceCenterScene = function() {
+  const group = new Group();
+  const groundMat = new MeshStandardMaterial({ color: 3824186, roughness: 0.9, metalness: 0 });
+  const ground = new Mesh(new CircleGeometry(80, 64), groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  group.add(ground);
+  const runwayMat = new MeshStandardMaterial({ color: 1710618, roughness: 0.8, metalness: 0.1 });
+  const runway = new Mesh(new BoxGeometry(4, 0.1, 40), runwayMat);
+  runway.position.set(0, 0.05, -20);
+  runway.receiveShadow = true;
+  group.add(runway);
+  const lineMat = new MeshBasicMaterial({ color: 16777215 });
+  for (let i = 0; i < 20; i++) {
+    const line = new Mesh(new BoxGeometry(0.15, 0.02, 1.2), lineMat);
+    line.position.set(0, 0.11, -38 + i * 2);
+    group.add(line);
+  }
+  const bldMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.6, metalness: 0.3 });
+  const roofMat = new MeshStandardMaterial({ color: 8952234, roughness: 0.5, metalness: 0.4 });
+  const vabBody = new Mesh(new BoxGeometry(12, 10, 8), bldMat);
+  vabBody.position.set(-15, 5, 5);
+  vabBody.castShadow = true;
+  vabBody.receiveShadow = true;
+  group.add(vabBody);
+  const vabRoof = new Mesh(new SphereGeometry(6, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
+  vabRoof.position.set(-15, 10, 5);
+  vabRoof.scale.set(1, 0.4, 0.67);
+  vabRoof.castShadow = true;
+  group.add(vabRoof);
+  const padMat = new MeshStandardMaterial({ color: 4473924, roughness: 0.6, metalness: 0.4 });
+  const pad = new Mesh(new CylinderGeometry(6, 6, 0.3, 32), padMat);
+  pad.position.set(15, 0.15, 5);
+  pad.castShadow = true;
+  pad.receiveShadow = true;
+  group.add(pad);
+  const trackBld = new Mesh(new BoxGeometry(6, 4, 6), bldMat);
+  trackBld.position.set(-23, 2, -13);
+  trackBld.castShadow = true;
+  trackBld.receiveShadow = true;
+  group.add(trackBld);
+  const dishPole = new Mesh(new CylinderGeometry(0.05, 0.05, 2.5, 8), new MeshStandardMaterial({ color: 8947848, roughness: 0.4, metalness: 0.7 }));
+  dishPole.position.set(-23, 4.25, -13);
+  group.add(dishPole);
+  const dish = new Mesh(new SphereGeometry(0.8, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), new MeshStandardMaterial({ color: 14540253, roughness: 0.3, metalness: 0.6, side: DoubleSide }));
+  dish.position.set(-23, 5.5, -13);
+  dish.rotation.x = -0.7;
+  group.add(dish);
+  const astroBld = new Mesh(new BoxGeometry(5, 3, 5), bldMat);
+  astroBld.position.set(25, 1.5, -10);
+  astroBld.castShadow = true;
+  astroBld.receiveShadow = true;
+  group.add(astroBld);
+  const researchBld = new Mesh(new BoxGeometry(7, 3.5, 7), bldMat);
+  researchBld.position.set(28, 1.75, 15);
+  researchBld.castShadow = true;
+  researchBld.receiveShadow = true;
+  group.add(researchBld);
+  return group;
 };
 var VAB3DPreview = class {
   constructor(canvas) {
@@ -38548,7 +43805,6 @@ var VAB3DPreview = class {
     this.disposed = false;
     this.onResize = null;
     this.hintDiv = null;
-    // KSP-style building system state
     this.placedParts = [];
     this.ghostPart = null;
     this.ghostValid = true;
@@ -38557,28 +43813,24 @@ var VAB3DPreview = class {
     this.selectionOutline = null;
     this.selectionGlowMats = [];
     this.symmetryMode = 1;
-    // 1, 2, 3, 4, 6
     this.pointerDownPos = null;
     this.isPlacementMode = false;
     this.angleSnap = 15;
-    // angle snap in degrees (0 = off)
     this.angleSnapEnabled = true;
-    // R3-26~30: VAB交互增强视觉元素
     this.snapRipples = [];
     this.debrisParticles = [];
     this.symmetryGuide = null;
     this.angleIndicator = null;
     this.selectionOutline2 = null;
-    // R3-30: enhanced outline
-    // Undo/Redo history
     this.undoStack = [];
     this.redoStack = [];
     this.maxHistory = 50;
-    // Callback when parts change
     this.onPartsChanged = null;
-    // ============================================
-    // 指针事件处理
-    // ============================================
+    this.comIndicator = null;
+    this.thrustVectorIndicator = null;
+    this.hotkeyBar = null;
+    this.dragTooltip = null;
+    this.vabPanel = null;
     this.onCanvasPointerDown = (e) => {
       this.pointerDownPos = { x: e.clientX, y: e.clientY };
     };
@@ -38637,8 +43889,6 @@ var VAB3DPreview = class {
         }
       }
     };
-    // Track VAB panel for keyboard handling
-    this.vabPanel = null;
     this.animate = () => {
       if (this.disposed) return;
       this.animationId = requestAnimationFrame(this.animate);
@@ -38725,6 +43975,188 @@ var VAB3DPreview = class {
       });
       this.renderer.render(this.scene, this.camera);
     };
+    this.onCanvasPointerDown = (e) => {
+      this.pointerDownPos = { x: e.clientX, y: e.clientY };
+    };
+    this.onCanvasPointerMove = (e) => {
+      if (this.isPlacementMode && this.pickedUpPart) {
+        this.updateGhostFromMouse(e);
+      }
+    };
+    this.onCanvasPointerUp = (e) => {
+      if (!this.pointerDownPos) return;
+      const dx = e.clientX - this.pointerDownPos.x;
+      const dy = e.clientY - this.pointerDownPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      this.pointerDownPos = null;
+      if (dist > 5) return;
+      if (this.isPlacementMode && this.pickedUpPart) {
+        if (this.ghostValid) {
+          this.placePartFromMouse(e);
+        }
+      } else {
+        this.selectPartFromMouse(e);
+      }
+    };
+    this.onCanvasContextMenu = (e) => {
+      e.preventDefault();
+      if (this.isPlacementMode) {
+        this.cancelPickup();
+      }
+    };
+    this.onKeyDown = (e) => {
+      if (!this.vabPanel) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        if (this.undo()) {
+          this.onPartsChanged?.();
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === "y" || e.key.toLowerCase() === "z" && e.shiftKey)) {
+        e.preventDefault();
+        if (this.redo()) {
+          this.onPartsChanged?.();
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        if (this.isPlacementMode) {
+          this.cancelPickup();
+        } else if (this.selectedPart) {
+          this.selectPart(null);
+        }
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (this.selectedPart && !this.isPlacementMode) {
+          e.preventDefault();
+          this.removeSelectedPart();
+        }
+      }
+    };
+    this.vabPanel = null;
+    this.animate = () => {
+      if (this.disposed) return;
+      this.animationId = requestAnimationFrame(this.animate);
+      this.controls.update();
+      if (this.selectionGlowMats.length > 0) {
+        const t = performance.now() * 3e-3;
+        const pulse = 0.08 + 0.07 * (0.5 + 0.5 * Math.sin(t));
+        for (const m of this.selectionGlowMats) {
+          m.opacity = pulse;
+        }
+      }
+      const dt = 0.016;
+      for (let i = this.snapRipples.length - 1; i >= 0; i--) {
+        const r = this.snapRipples[i];
+        r.age += dt;
+        const expand = 1 + r.age * 5;
+        r.mesh.scale.set(expand, expand, expand);
+        r.mat.opacity = 0.8 * (1 - r.age / 0.5);
+        if (r.age > 0.5) {
+          this.scene.remove(r.mesh);
+          r.mesh.geometry.dispose();
+          r.mat.dispose();
+          this.snapRipples.splice(i, 1);
+        }
+      }
+      for (let i = this.debrisParticles.length - 1; i >= 0; i--) {
+        const p = this.debrisParticles[i];
+        p.age += dt;
+        p.vel.y -= 6 * dt;
+        p.mesh.position.x += p.vel.x * dt;
+        p.mesh.position.y += p.vel.y * dt;
+        p.mesh.position.z += p.vel.z * dt;
+        p.mesh.rotation.x += dt * 5;
+        p.mesh.rotation.y += dt * 7;
+        const mat = p.mesh.material;
+        mat.opacity = 1 * (1 - p.age / p.life);
+        if (p.age >= p.life) {
+          this.scene.remove(p.mesh);
+          p.mesh.geometry.dispose();
+          mat.dispose();
+          this.debrisParticles.splice(i, 1);
+        }
+      }
+      if (this.symmetryGuide) {
+        const t2 = performance.now() * 2e-3;
+        this.symmetryGuide.material.opacity = 0.15 + 0.12 * (0.5 + 0.5 * Math.sin(t2));
+      }
+      if (this.angleIndicator) {
+        const t3 = performance.now() * 3e-3;
+        this.angleIndicator.traverse((c) => {
+          if (c instanceof Mesh && c.material) {
+            const m = c.material;
+            m.opacity = (m.opacity > 0.3 ? 0.4 : 0.6) + 0.2 * Math.sin(t3);
+          }
+        });
+      }
+      const animT = performance.now() * 1e-3;
+      this.rocketGroup.traverse((child) => {
+        if (child instanceof Mesh && child.userData) {
+          const ud = child.userData;
+          if (ud._beacon) {
+            const flash = Math.sin(animT * 3) > 0.5 ? 1 : 0.1;
+            child.material.emissiveIntensity = flash * 3;
+          }
+          if (ud._plasma) {
+            child.material.emissiveIntensity = 1.5 + 0.8 * Math.sin(animT * 2);
+          }
+          if (ud._warpField) {
+            child.material.emissiveIntensity = 2 + 1.5 * Math.sin(animT * 1.5);
+            child.scale.setScalar(1 + 0.05 * Math.sin(animT * 1.5));
+          }
+          if (ud._warpLattice !== void 0) {
+            child.rotation.z = animT * (0.3 + ud._warpLattice * 0.1);
+          }
+          if (ud._warpCore) {
+            child.material.emissiveIntensity = 1.2 + 0.8 * Math.sin(animT * 2.5);
+            child.scale.setScalar(1 + 0.08 * Math.sin(animT * 2.5));
+          }
+          if (ud._antimatterCore) {
+            child.material.emissiveIntensity = 2.5 + 1.5 * Math.sin(animT * 4);
+            child.scale.setScalar(1 + 0.1 * Math.sin(animT * 4));
+          }
+          if (ud.r5WarpSpin !== void 0) {
+            child.rotation.y = animT * ud.r5WarpSpin;
+          }
+        }
+      });
+      if (this._r5ComMesh) {
+        let comY = 0;
+        let totalM = 0;
+        for (const p of this.placedParts) {
+          comY += p.position.y * p.part.mass;
+          totalM += p.part.mass;
+        }
+        if (totalM > 0) {
+          this._r5ComMesh.position.set(0, comY / totalM, 0);
+          this._r5ComMesh.visible = true;
+        } else {
+          this._r5ComMesh.visible = false;
+        }
+      }
+      if (this._r5TvArrow) {
+        let hasEngine = false;
+        let bottomY = Infinity;
+        let totalThrust = 0;
+        for (const p of this.placedParts) {
+          if (p.part.thrust > 0) {
+            hasEngine = true;
+            bottomY = Math.min(bottomY, p.position.y - p.height / 2);
+            totalThrust += p.part.thrust;
+          }
+        }
+        if (hasEngine && totalThrust > 0) {
+          const len = Math.min(1.5, 0.3 + totalThrust / 5e4);
+          this._r5TvArrow.scale.y = len;
+          this._r5TvArrow.position.set(0, bottomY - len * 0.5, 0);
+          this._r5TvArrow.visible = true;
+        } else {
+          this._r5TvArrow.visible = false;
+        }
+      }
+      this.renderer.render(this.scene, this.camera);
+    };
     this.canvas = canvas;
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -38734,13 +44166,13 @@ var VAB3DPreview = class {
     this.renderer.toneMappingExposure = 1;
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.scene = new Scene();
-    this.scene.background = new Color(657930);
-    this.scene.fog = new Fog(657930, 30, 80);
+    this.scene.background = new Color(658970);
+    this.scene.fog = new Fog(658970, 30, 80);
     this.camera = new PerspectiveCamera(45, 1, 0.1, 1e3);
     this.camera.position.set(8, 6, 12);
-    const ambient = new AmbientLight(4210760, 0.4);
+    const ambient = new AmbientLight(4210784, 0.4);
     this.scene.add(ambient);
-    const hemi = new HemisphereLight(8425632, 2105384, 0.3);
+    const hemi = new HemisphereLight(8425727, 2105384, 0.3);
     this.scene.add(hemi);
     const keyLight = new DirectionalLight(16777215, 2);
     keyLight.position.set(10, 20, 8);
@@ -38887,6 +44319,21 @@ var VAB3DPreview = class {
     const ring = new Mesh(ringGeo, ringMat);
     ring.position.y = -4.99;
     this.scene.add(ring);
+    this._r5ComMesh = new Mesh(
+      new SphereGeometry(0.12, 16, 12),
+      new MeshBasicMaterial({ color: 16720418, transparent: true, opacity: 0.7, depthTest: false })
+    );
+    this._r5ComMesh.renderOrder = 999;
+    this._r5ComMesh.visible = false;
+    this.scene.add(this._r5ComMesh);
+    this._r5TvArrow = new Mesh(
+      new ConeGeometry(0.15, 1, 16),
+      new MeshBasicMaterial({ color: 2254591, transparent: true, opacity: 0.6, depthTest: false })
+    );
+    this._r5TvArrow.renderOrder = 999;
+    this._r5TvArrow.rotation.x = Math.PI;
+    this._r5TvArrow.visible = false;
+    this.scene.add(this._r5TvArrow);
   }
   // ============================================
   // 零件类型判断
@@ -39191,7 +44638,7 @@ var VAB3DPreview = class {
       topCap.position.y = cmdHeight / 2 - 0.05;
       topCap.castShadow = true;
       group.add(topCap);
-      const winCount = part.mass > 1e3 ? 3 : 2;
+      const winCount = 4;
       const cabinGlassMat = new MeshPhysicalMaterial({
         color: 3368618,
         roughness: 0.05,
@@ -39295,15 +44742,26 @@ var VAB3DPreview = class {
       cabinHandle.rotation.z = Math.PI / 2;
       cabinHandle.position.set(cmdRadius * 0.98, 0, 0);
       group.add(cabinHandle);
-      for (let i = 0; i < 4; i++) {
-        const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+      for (let i = 0; i < 6; i++) {
+        const angle = i / 6 * Math.PI * 2 + Math.PI / 6;
         const rcsBlock = new Mesh(
           new BoxGeometry(0.06, 0.06, 0.04),
           this.mats.rcs
         );
         rcsBlock.position.set(Math.cos(angle) * cmdRadius * 0.98, cmdHeight * 0.3, Math.sin(angle) * cmdRadius * 0.98);
         rcsBlock.rotation.y = -angle;
+        rcsBlock.castShadow = true;
         group.add(rcsBlock);
+        for (const nyOff of [cmdHeight * 0.32, cmdHeight * 0.28]) {
+          const rcsNoz = new Mesh(
+            new ConeGeometry(0.018, 0.05, 5),
+            this.mats.dark
+          );
+          rcsNoz.position.set(Math.cos(angle) * (cmdRadius + 0.05), nyOff, Math.sin(angle) * (cmdRadius + 0.05));
+          rcsNoz.rotation.y = -angle;
+          rcsNoz.rotation.z = Math.PI / 2;
+          group.add(rcsNoz);
+        }
       }
     } else {
       const isMk3 = part.id.includes("mk3") || part.mass > 3e3;
@@ -39560,6 +45018,17 @@ var VAB3DPreview = class {
       );
       heatShieldEmissive.position.y = -cmdHeight / 2 - shieldH + 5e-3;
       group.add(heatShieldEmissive);
+      const ablatorRingMat = new MeshStandardMaterial({ color: 3807752, roughness: 0.95, metalness: 0.05 });
+      for (let r = 0; r < 8; r++) {
+        const ringR = cmdRadius * (0.18 + r * 0.092);
+        const ring = new Mesh(
+          new TorusGeometry(ringR, 6e-3, 4, 28),
+          ablatorRingMat
+        );
+        ring.position.y = -cmdHeight / 2 - shieldH + 8e-3;
+        ring.rotation.x = Math.PI / 2;
+        group.add(ring);
+      }
       if (isMk2 || isMk3) {
         for (let i = 0; i < (isMk3 ? 4 : 4); i++) {
           const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
@@ -40116,7 +45585,7 @@ var VAB3DPreview = class {
     const domeMat = new MeshStandardMaterial({ color: 14540253, roughness: 0.4, metalness: 0.5 });
     for (const domeSign of [1, -1]) {
       const domeProfile = [];
-      const domeSteps = 20;
+      const domeSteps = 30;
       const domeH = tankRadius * 0.5;
       for (let i = 0; i <= domeSteps; i++) {
         const t = i / domeSteps;
@@ -40169,20 +45638,31 @@ var VAB3DPreview = class {
       group.add(dimple);
     }
     const probeMat = new MeshStandardMaterial({ color: 11184810, roughness: 0.3, metalness: 0.6 });
-    const probe = new Mesh(
-      new CylinderGeometry(5e-3, 5e-3, tankHeight * 0.8, 6),
-      probeMat
-    );
-    probe.position.set(Math.cos(Math.PI / 3) * (tankRadius - 0.05), 0, Math.sin(Math.PI / 3) * (tankRadius - 0.05));
-    group.add(probe);
-    const probeHead = new Mesh(
-      new CylinderGeometry(0.012, 8e-3, 0.025, 8),
-      this.mats.copper
-    );
-    probeHead.position.copy(probe.position);
-    probeHead.position.y += tankHeight * 0.4 + 0.02;
-    group.add(probeHead);
-    const sepHoleCount = Math.max(8, Math.floor(tankRadius * 16));
+    for (let si = 0; si < 8; si++) {
+      const sa = si / 8 * Math.PI * 2;
+      const probe = new Mesh(
+        new CylinderGeometry(5e-3, 5e-3, tankHeight * 0.8, 6),
+        probeMat
+      );
+      probe.position.set(Math.cos(sa) * (tankRadius - 0.05), 0, Math.sin(sa) * (tankRadius - 0.05));
+      group.add(probe);
+      const probeHead = new Mesh(
+        new CylinderGeometry(0.012, 8e-3, 0.025, 8),
+        this.mats.copper
+      );
+      probeHead.position.copy(probe.position);
+      probeHead.position.y += tankHeight * 0.4 + 0.02;
+      group.add(probeHead);
+      const cable = new Mesh(
+        new CylinderGeometry(3e-3, 3e-3, 0.05, 4),
+        this.mats.dark
+      );
+      cable.position.set(Math.cos(sa) * (tankRadius + 5e-3), tankHeight * 0.4 + 0.05, Math.sin(sa) * (tankRadius + 5e-3));
+      cable.rotation.z = Math.PI / 2;
+      cable.rotation.y = -sa;
+      group.add(cable);
+    }
+    const sepHoleCount = 16;
     const holeMat = new MeshStandardMaterial({ color: 2236962, roughness: 0.8, metalness: 0.2 });
     for (let i = 0; i < sepHoleCount; i++) {
       const a = i / sepHoleCount * Math.PI * 2;
@@ -40205,7 +45685,7 @@ var VAB3DPreview = class {
     return { group, height: tankHeight, radius: tankRadius };
   }
   // ============================================
-  // 引擎模型 (Engines) - 使用 LatheGeometry 喷管
+  // 引擎模型 (Engines) - 使用 THREE.LatheGeometry 喷管
   // ============================================
   createEngine(part) {
     const group = new Group();
@@ -40442,6 +45922,29 @@ var VAB3DPreview = class {
       turbopump.rotation.z = Math.PI / 2;
       turbopump.castShadow = true;
       group.add(turbopump);
+      const impellerMat = new MeshStandardMaterial({ color: 6710903, roughness: 0.3, metalness: 0.8 });
+      for (let bi = 0; bi < 8; bi++) {
+        const ba = bi / 8 * Math.PI * 2;
+        const blade = new Mesh(
+          new BoxGeometry(bodyR * 0.16, 5e-3, bodyR * 0.04),
+          impellerMat
+        );
+        blade.position.set(
+          bodyR * 0.9 + Math.cos(ba) * bodyR * 0.08,
+          nozzleH / 2 + bodyH * 0.2,
+          Math.sin(ba) * bodyR * 0.08
+        );
+        blade.rotation.y = ba;
+        blade.rotation.x = Math.PI / 2;
+        group.add(blade);
+      }
+      const impShaft = new Mesh(
+        new CylinderGeometry(bodyR * 0.04, bodyR * 0.04, bodyH * 0.5, 8),
+        this.mats.dark
+      );
+      impShaft.position.set(bodyR * 0.9, nozzleH / 2 + bodyH * 0.2, 0);
+      impShaft.rotation.z = Math.PI / 2;
+      group.add(impShaft);
       const throatRing = new Mesh(
         new TorusGeometry(throatR, 0.025, 6, 24),
         this.mats.dark
@@ -40706,8 +46209,8 @@ var VAB3DPreview = class {
       deLavalInner.castShadow = true;
       group.add(deLavalInner);
       const channelMat = new MeshStandardMaterial({ color: 13404228, roughness: 0.4, metalness: 0.6 });
-      for (let i = 0; i < 32; i++) {
-        const a = i / 32 * Math.PI * 2;
+      for (let i = 0; i < 48; i++) {
+        const a = i / 48 * Math.PI * 2;
         const channel = new Mesh(
           new BoxGeometry(0.015, 0.04, 0.012),
           channelMat
@@ -40754,8 +46257,8 @@ var VAB3DPreview = class {
       }
       const oxidizerMat = new MeshStandardMaterial({ color: 4491519, roughness: 0.5, metalness: 0.4 });
       const fuelMat2 = new MeshStandardMaterial({ color: 16746564, roughness: 0.5, metalness: 0.4 });
-      for (let ring = 0; ring < 4; ring++) {
-        const ringR = bodyR * 0.15 + ring * bodyR * 0.12;
+      for (let ring = 0; ring < 6; ring++) {
+        const ringR = bodyR * 0.1 + ring * bodyR * 0.11;
         const holeCount = 6 + ring * 6;
         for (let i = 0; i < holeCount; i++) {
           const angle = i / holeCount * Math.PI * 2;
@@ -41206,6 +46709,40 @@ var VAB3DPreview = class {
     );
     haz.position.y = 0;
     group.add(haz);
+    const oRingMatB = new MeshStandardMaterial({ color: 2236962, roughness: 0.8, metalness: 0.1 });
+    for (const ringY of [bHeight * 0.45, bHeight * 0.42]) {
+      const oRingB = new Mesh(
+        new TorusGeometry(bRadius * 1.01, 8e-3, 6, 32),
+        oRingMatB
+      );
+      oRingB.rotation.x = Math.PI / 2;
+      oRingB.position.y = ringY;
+      group.add(oRingB);
+    }
+    for (let wi = 0; wi < 8; wi++) {
+      const wa = wi / 8 * Math.PI * 2;
+      const weldStrip = new Mesh(
+        new BoxGeometry(8e-3, bHeight * 0.9, 6e-3),
+        weldMat
+      );
+      weldStrip.position.set(Math.cos(wa) * bRadius * 1.006, 0, Math.sin(wa) * bRadius * 1.006);
+      weldStrip.rotation.y = -wa;
+      group.add(weldStrip);
+    }
+    const grainMat = new MeshStandardMaterial({ color: 5583650, roughness: 0.9, metalness: 0 });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+      const grain = new Mesh(
+        new CylinderGeometry(0.012, 0.012, 0.03, 6),
+        grainMat
+      );
+      grain.position.set(
+        Math.cos(a) * bRadius * 0.9,
+        -bHeight / 2 - 0.1,
+        Math.sin(a) * bRadius * 0.9
+      );
+      group.add(grain);
+    }
     const totalH = bHeight + noseH + 0.4;
     return { group, height: totalH, radius: bRadius };
   }
@@ -41289,20 +46826,32 @@ var VAB3DPreview = class {
     seam.position.set(canR * 0.99, 0, 0);
     group.add(seam);
     const foldedCanopy = new Mesh(
-      new SphereGeometry(canR * 0.7, 12, 8, 0, Math.PI * 2, 0, Math.PI / 3),
+      new SphereGeometry(canR * 0.7, 16, 10, 0, Math.PI * 2, 0, Math.PI / 3),
       this.mats.parachute
     );
     foldedCanopy.position.y = canH / 2 + 0.28;
     foldedCanopy.scale.set(1, 0.4, 1);
     group.add(foldedCanopy);
-    for (let i = 0; i < 2; i++) {
-      const angle = i === 0 ? 0.1 : -0.1;
-      const strap = new Mesh(
-        new CylinderGeometry(4e-3, 4e-3, 0.08, 4),
+    for (let fi = 0; fi < 8; fi++) {
+      const fa = fi / 8 * Math.PI * 2;
+      const fold = new Mesh(
+        new BoxGeometry(6e-3, 0.12, canR * 0.6),
         this.mats.dark
       );
-      strap.position.set(Math.sin(angle) * canR * 0.3, canH / 2 + 0.18, 0);
-      strap.rotation.z = angle;
+      fold.position.set(Math.cos(fa) * canR * 0.35, canH / 2 + 0.3, Math.sin(fa) * canR * 0.35);
+      fold.rotation.y = -fa;
+      fold.rotation.x = Math.PI / 6;
+      group.add(fold);
+    }
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * Math.PI * 2;
+      const strap = new Mesh(
+        new CylinderGeometry(4e-3, 4e-3, 0.1, 4),
+        this.mats.dark
+      );
+      strap.position.set(Math.cos(angle) * canR * 0.4, canH / 2 + 0.18, Math.sin(angle) * canR * 0.4);
+      strap.rotation.z = Math.cos(angle) * 0.3;
+      strap.rotation.x = Math.sin(angle) * 0.3;
       group.add(strap);
     }
     for (let i = 0; i < 3; i++) {
@@ -41524,6 +47073,34 @@ var VAB3DPreview = class {
         rBolt.rotation.z = Math.PI / 2;
         group.add(rBolt);
       }
+      const nacaMat = new MeshStandardMaterial({ color: 13421772, roughness: 0.25, metalness: 0.5 });
+      const leStrip = new Mesh(
+        new BoxGeometry(0.02, finH * 0.9, finThick * 0.6),
+        nacaMat
+      );
+      leStrip.position.set(0.01, 0, 0);
+      group.add(leStrip);
+      const tipRed = new Mesh(
+        new SphereGeometry(0.018, 8, 6),
+        new MeshStandardMaterial({ color: 16711680, emissive: 16711680, emissiveIntensity: 1.5 })
+      );
+      tipRed.position.set(finW, finH / 2 - 0.1, finThick / 2);
+      tipRed.userData._beacon = true;
+      group.add(tipRed);
+      const tipGreen = new Mesh(
+        new SphereGeometry(0.018, 8, 6),
+        new MeshStandardMaterial({ color: 65280, emissive: 65280, emissiveIntensity: 1.5 })
+      );
+      tipGreen.position.set(finW, finH / 2 - 0.1, -finThick / 2);
+      tipGreen.userData._beacon = true;
+      group.add(tipGreen);
+      const deiceMat = new MeshStandardMaterial({ color: 1118481, roughness: 0.2, metalness: 0.9 });
+      const deiceStrip = new Mesh(
+        new BoxGeometry(6e-3, finH * 0.85, finThick * 1.05),
+        deiceMat
+      );
+      deiceStrip.position.set(5e-3, 0, 0);
+      group.add(deiceStrip);
       return { group, height: finH, radius: finW };
     }
   }
@@ -41631,19 +47208,28 @@ var VAB3DPreview = class {
     );
     guardFrame.position.y = 0.07;
     group.add(guardFrame);
+    for (const hx of [-0.06, 0.06]) {
+      const hinge = new Mesh(
+        new CylinderGeometry(5e-3, 5e-3, 0.03, 6),
+        this.mats.copper
+      );
+      hinge.position.set(hx, 0.075, 0);
+      hinge.rotation.z = Math.PI / 2;
+      group.add(hinge);
+    }
     const rcsFlange = new Mesh(
       new CylinderGeometry(0.07, 0.06, 0.015, 10),
       this.mats.dark
     );
     rcsFlange.position.y = -0.07;
     group.add(rcsFlange);
-    for (let i = 0; i < 4; i++) {
-      const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
+    for (let i = 0; i < 8; i++) {
+      const angle = i / 8 * Math.PI * 2 + Math.PI / 8;
       const fbolt = new Mesh(
         new CylinderGeometry(6e-3, 6e-3, 0.01, 5),
         this.mats.copper
       );
-      fbolt.position.set(Math.cos(angle) * 0.055, -0.075, Math.sin(angle) * 0.055);
+      fbolt.position.set(Math.cos(angle) * 0.058, -0.075, Math.sin(angle) * 0.058);
       fbolt.rotation.x = Math.PI / 2;
       fbolt.rotation.y = -angle;
       group.add(fbolt);
@@ -41870,14 +47456,34 @@ var VAB3DPreview = class {
     );
     backRib.position.set(0.3 + panelW / 2 + 0.02, -0.018, 0);
     group.add(backRib);
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       const strip = new Mesh(
         new BoxGeometry(3e-3, 0.024, panelD * 0.95),
         this.mats.solarFrame
       );
-      const stripX = 0.3 + 0.02 + panelW * (0.25 + i * 0.25);
+      const stripX = 0.3 + 0.02 + panelW * (0.15 + i * 0.18);
       strip.position.set(stripX, 1e-3, 0);
       group.add(strip);
+    }
+    const gearMat = new MeshStandardMaterial({ color: 8947848, roughness: 0.3, metalness: 0.8 });
+    for (let gi = 0; gi < 8; gi++) {
+      const ga = gi / 8 * Math.PI * 2;
+      const tooth = new Mesh(
+        new BoxGeometry(8e-3, 0.012, 4e-3),
+        gearMat
+      );
+      tooth.position.set(0.3 + Math.cos(ga) * 0.04, Math.sin(ga) * 0.04, 0);
+      tooth.rotation.z = ga;
+      group.add(tooth);
+    }
+    const heatsinkMat = new MeshStandardMaterial({ color: 3355443, roughness: 0.6, metalness: 0.5 });
+    for (let hi = 0; hi < 3; hi++) {
+      const fin = new Mesh(
+        new BoxGeometry(panelW * 0.9, 4e-3, 0.012),
+        heatsinkMat
+      );
+      fin.position.set(0.3 + panelW / 2 + 0.02, -0.02, (hi - 1) * panelD * 0.28);
+      group.add(fin);
     }
     for (let i = 0; i < 4; i++) {
       const angle = i / 4 * Math.PI * 2 + Math.PI / 4;
@@ -41973,13 +47579,13 @@ var VAB3DPreview = class {
       mast2.castShadow = true;
       group.add(mast2);
       const dishPoints = [];
-      for (let i = 0; i <= 10; i++) {
-        const t = i / 10;
+      for (let i = 0; i <= 16; i++) {
+        const t = i / 16;
         const r = dishSize * t;
         const y = dishSize * 0.15 * t * t;
         dishPoints.push(new Vector2(Math.max(0.01, r), y));
       }
-      const dishGeo = new LatheGeometry(dishPoints, 24);
+      const dishGeo = new LatheGeometry(dishPoints, 64);
       const dish = new Mesh(dishGeo, this.mats.antenna);
       dish.position.y = mastH + 0.04;
       dish.rotation.x = Math.PI;
@@ -42043,6 +47649,23 @@ var VAB3DPreview = class {
       );
       junction.position.y = mastH + 0.04 + dishSize * 0.5;
       group.add(junction);
+      const waveguide = new Mesh(
+        new BoxGeometry(0.015, dishSize * 0.45, 8e-3),
+        this.mats.copper
+      );
+      waveguide.position.set(0, mastH + 0.04 + dishSize * 0.25, 0);
+      group.add(waveguide);
+      for (let si = 0; si < 4; si++) {
+        const sa = si / 4 * Math.PI * 2 + Math.PI / 4;
+        const adjScrew = new Mesh(
+          new CylinderGeometry(6e-3, 6e-3, 0.02, 6),
+          this.mats.copper
+        );
+        adjScrew.position.set(Math.cos(sa) * dishSize * 0.9, mastH + 0.04 + 0.01, Math.sin(sa) * dishSize * 0.9);
+        adjScrew.rotation.x = Math.PI / 2;
+        adjScrew.rotation.y = -sa;
+        group.add(adjScrew);
+      }
       return { group, height: mastH + dishSize + 0.1, radius: dishSize };
     }
   }
@@ -42145,26 +47768,38 @@ var VAB3DPreview = class {
       group.add(corner);
     }
     if (isSensor || part.id.includes("barometer") || part.id.includes("thermo") || part.id.includes("atmo")) {
-      const lensHousing = new Mesh(
-        new CylinderGeometry(0.055, 0.06, 0.04, 12),
-        this.mats.dark
-      );
-      lensHousing.rotation.x = Math.PI / 2;
-      lensHousing.position.z = boxSize / 2 + 0.02;
-      group.add(lensHousing);
-      const lens = new Mesh(
-        new CylinderGeometry(0.04, 0.05, 0.06, 12),
-        this.mats.glass
-      );
-      lens.rotation.x = Math.PI / 2;
-      lens.position.z = boxSize / 2 + 0.04;
-      group.add(lens);
-      const lensRing = new Mesh(
-        new TorusGeometry(0.05, 8e-3, 6, 12),
-        this.mats.copper
-      );
-      lensRing.position.z = boxSize / 2 + 0.05;
-      group.add(lensRing);
+      const lensPositions = [
+        [0, 0],
+        // 主透镜
+        [-0.06, 0.05],
+        // 左上辅助
+        [0.06, 0.05]
+        // 右上辅助
+      ];
+      for (let li = 0; li < 3; li++) {
+        const [lx, ly] = lensPositions[li];
+        const lensSize = li === 0 ? 1 : 0.6;
+        const lensHousing = new Mesh(
+          new CylinderGeometry(0.055 * lensSize, 0.06 * lensSize, 0.04, 12),
+          this.mats.dark
+        );
+        lensHousing.rotation.x = Math.PI / 2;
+        lensHousing.position.set(lx, ly, boxSize / 2 + 0.02);
+        group.add(lensHousing);
+        const lens = new Mesh(
+          new CylinderGeometry(0.04 * lensSize, 0.05 * lensSize, 0.06, 12),
+          this.mats.glass
+        );
+        lens.rotation.x = Math.PI / 2;
+        lens.position.set(lx, ly, boxSize / 2 + 0.04);
+        group.add(lens);
+        const lensRing = new Mesh(
+          new TorusGeometry(0.05 * lensSize, 8e-3, 6, 12),
+          this.mats.copper
+        );
+        lensRing.position.set(lx, ly, boxSize / 2 + 0.05);
+        group.add(lensRing);
+      }
     }
     if (isGoop) {
       const container2 = new Mesh(
@@ -42206,20 +47841,42 @@ var VAB3DPreview = class {
       sensor.position.set(Math.cos(angle) * boxSize * 0.3, boxSize / 2 + 0.16, Math.sin(angle) * boxSize * 0.3);
       group.add(sensor);
     }
-    const dataPort = new Mesh(
-      new BoxGeometry(0.04, 0.02, 0.015),
-      this.mats.dark
-    );
-    dataPort.position.set(-boxSize / 2 - 8e-3, 0, 0);
-    group.add(dataPort);
-    for (let i = 0; i < 4; i++) {
-      const pin = new Mesh(
-        new CylinderGeometry(3e-3, 3e-3, 8e-3, 5),
-        this.mats.copper
+    const portDirs = [
+      [-1, 0, 0],
+      // -X 面
+      [1, 0, 0],
+      // +X 面
+      [0, 0, -1],
+      // -Z 面
+      [0, 0, 1]
+      // +Z 面
+    ];
+    for (let pi = 0; pi < 4; pi++) {
+      const [nx, ny, nz] = portDirs[pi];
+      const dataPort = new Mesh(
+        new BoxGeometry(0.04, 0.02, 0.015),
+        this.mats.dark
       );
-      pin.rotation.z = Math.PI / 2;
-      pin.position.set(-boxSize / 2 - 0.014, -0.01 + i * 7e-3, 0);
-      group.add(pin);
+      if (nz !== 0) {
+        dataPort.rotation.y = Math.PI / 2;
+      }
+      dataPort.position.set(nx * (boxSize / 2 + 8e-3), 0, nz * (boxSize / 2 + 8e-3));
+      group.add(dataPort);
+      for (let i = 0; i < 4; i++) {
+        const pin = new Mesh(
+          new CylinderGeometry(3e-3, 3e-3, 8e-3, 5),
+          this.mats.copper
+        );
+        const off = -0.01 + i * 7e-3;
+        if (nz !== 0) {
+          pin.rotation.x = Math.PI / 2;
+          pin.position.set(nx * (boxSize / 2 + 0.014), off, nz * (boxSize / 2 + 0.014));
+        } else {
+          pin.rotation.z = Math.PI / 2;
+          pin.position.set(nx * (boxSize / 2 + 0.014), off, nz * (boxSize / 2 + 0.014));
+        }
+        group.add(pin);
+      }
     }
     const sciFlange = new Mesh(
       new CylinderGeometry(boxSize * 0.5, boxSize * 0.45, 0.02, 12),
@@ -42335,17 +47992,37 @@ var VAB3DPreview = class {
     secStrut.position.set(upperLen * 0.35, -upperLen * 0.5, -0.03);
     secStrut.rotation.z = Math.PI / 6;
     group.add(secStrut);
-    for (let i = 0; i < 6; i++) {
-      const angle = i / 6 * Math.PI * 2;
-      const cell = new Mesh(
-        new CylinderGeometry(0.015 * scale, 0.015 * scale, 0.01, 6),
-        this.mats.copper
-      );
-      const fx = upperLen * 0.6 + lowerLen * 0.7 + 0.02;
-      const fy = -upperLen * 0.6 - lowerLen * 0.7 - 0.035;
-      cell.position.set(fx + Math.cos(angle) * footR * 0.4, fy, Math.sin(angle) * footR * 0.4);
-      group.add(cell);
+    for (let ring = 0; ring < 5; ring++) {
+      const ringCount = 6 + ring * 2;
+      const ringR = footR * (0.15 + ring * 0.16);
+      for (let i = 0; i < ringCount; i++) {
+        const angle = i / ringCount * Math.PI * 2;
+        const cell = new Mesh(
+          new CylinderGeometry(0.012 * scale, 0.012 * scale, 0.01, 6),
+          this.mats.copper
+        );
+        const fx = upperLen * 0.6 + lowerLen * 0.7 + 0.02;
+        const fy = -upperLen * 0.6 - lowerLen * 0.7 - 0.035;
+        cell.position.set(fx + Math.cos(angle) * ringR, fy, Math.sin(angle) * ringR);
+        group.add(cell);
+      }
     }
+    const chromeMat = new MeshStandardMaterial({ color: 15659775, roughness: 0.05, metalness: 0.95 });
+    const chromePiston = new Mesh(
+      new CylinderGeometry(lowerR * 0.5, lowerR * 0.5, shockLen * 0.85, 10),
+      chromeMat
+    );
+    chromePiston.position.set(upperLen * 0.28, -upperLen * 0.42, 0.05);
+    chromePiston.rotation.z = -Math.PI / 4;
+    group.add(chromePiston);
+    const wiper = new Mesh(
+      new TorusGeometry(lowerR * 0.55, 6e-3, 5, 10),
+      this.mats.dark
+    );
+    wiper.position.set(upperLen * 0.22, -upperLen * 0.36, 0.05);
+    wiper.rotation.z = -Math.PI / 4;
+    wiper.rotation.y = Math.PI / 2;
+    group.add(wiper);
     const motor = new Mesh(
       new CylinderGeometry(0.03 * scale, 0.03 * scale, 0.05 * scale, 10),
       this.mats.dark
@@ -42572,8 +48249,8 @@ var VAB3DPreview = class {
       );
       midRing.rotation.x = Math.PI / 2;
       group.add(midRing);
-      for (let i = 0; i < 6; i++) {
-        const angle = i / 6 * Math.PI * 2;
+      for (let i = 0; i < 8; i++) {
+        const angle = i / 8 * Math.PI * 2;
         const stiff = new Mesh(
           new BoxGeometry(0.02, adH * 0.85, 0.015),
           this.mats.dark
@@ -42584,8 +48261,8 @@ var VAB3DPreview = class {
         group.add(stiff);
       }
       for (const [r, yOff] of [[0.42, 0.27], [0.57, -0.27]]) {
-        for (let i = 0; i < 12; i++) {
-          const angle = i / 12 * Math.PI * 2;
+        for (let i = 0; i < 16; i++) {
+          const angle = i / 16 * Math.PI * 2;
           const bolt = new Mesh(
             new CylinderGeometry(0.01, 0.01, 0.015, 6),
             this.mats.copper
@@ -42765,6 +48442,25 @@ var VAB3DPreview = class {
         sbolt.rotation.z = Math.PI / 2;
         group.add(sbolt);
       }
+    }
+    for (let ni = 0; ni < 12; ni++) {
+      const nx = ni / 11 * armLen;
+      const nodeBall = new Mesh(
+        new SphereGeometry(0.012, 6, 4),
+        this.mats.dark
+      );
+      nodeBall.position.set(nx, (ni % 2 === 0 ? 1 : -1) * armThick * 0.5, 0);
+      group.add(nodeBall);
+    }
+    for (let di = 0; di < 8; di++) {
+      const dx = di / 7 * armLen;
+      const dStrut = new Mesh(
+        new CylinderGeometry(4e-3, 4e-3, armLen * 0.18, 5),
+        this.mats.dark
+      );
+      dStrut.position.set(dx, (di % 2 === 0 ? 1 : -1) * armThick * 0.4, 0);
+      dStrut.rotation.z = (di % 2 === 0 ? 1 : -1) * Math.PI / 5;
+      group.add(dStrut);
     }
     return { group, height: armThick * 2, radius: armLen };
   }
@@ -43035,11 +48731,32 @@ var VAB3DPreview = class {
         coil.castShadow = true;
         group.add(coil);
       }
+      for (let pi = 0; pi < 6; pi++) {
+        const pa = pi / 6 * Math.PI * 2;
+        const pCoil = new Mesh(
+          new TorusGeometry(dims.radius * 0.45, 0.035, 6, 14),
+          this.mats.copper
+        );
+        pCoil.position.set(Math.cos(pa) * dims.radius * 0.7, 0, Math.sin(pa) * dims.radius * 0.7);
+        pCoil.rotation.x = Math.PI / 2;
+        pCoil.rotation.z = pa;
+        group.add(pCoil);
+      }
       const core = new Mesh(
-        new SphereGeometry(dims.radius * 0.25, 16, 12),
+        new SphereGeometry(dims.radius * 0.25, 24, 18),
         new MeshStandardMaterial({ color: 6741503, emissive: 3381759, emissiveIntensity: 0.8, transparent: true, opacity: 0.9 })
       );
       group.add(core);
+      for (let wi = 0; wi < 4; wi++) {
+        const wa = wi / 4 * Math.PI * 2 + Math.PI / 4;
+        const pWin = new Mesh(
+          new CircleGeometry(0.05, 16),
+          new MeshStandardMaterial({ color: 8974079, emissive: 4500223, emissiveIntensity: 1, transparent: true, opacity: 0.7 })
+        );
+        pWin.position.set(Math.cos(wa) * dims.radius * 1, 0, Math.sin(wa) * dims.radius * 1);
+        pWin.lookAt(Math.cos(wa) * 5, 0, Math.sin(wa) * 5);
+        group.add(pWin);
+      }
       const shell = new Mesh(
         new CylinderGeometry(dims.radius, dims.radius, dims.height * 0.8, 24, 1, true),
         this.mats.structural
@@ -43256,11 +48973,15 @@ var VAB3DPreview = class {
       new MeshStandardMaterial({ color: 13408767, emissive: 6697898, emissiveIntensity: 0.9, transparent: true, opacity: 0.8 })
     );
     group.add(coreGlow);
+    coreGlow.userData = coreGlow.userData || {};
+    coreGlow.userData.r5WarpSpin = 1;
     const crystal = new Mesh(
       new IcosahedronGeometry(dims.radius * 0.28, 1),
       new MeshStandardMaterial({ color: 14540287, emissive: 11184895, emissiveIntensity: 0.6, metalness: 0.4, roughness: 0.3 })
     );
     group.add(crystal);
+    crystal.userData = crystal.userData || {};
+    crystal.userData.r5WarpSpin = 0.6;
     for (let i = 0; i < 2; i++) {
       const ringR = i === 0 ? dims.radius * 0.95 : dims.radius * 0.7;
       const ring = new Mesh(
@@ -43307,6 +49028,14 @@ var VAB3DPreview = class {
       );
       strut.position.set(side * dims.radius * 0.55, 0, 0);
       group.add(strut);
+      for (let ni = 0; ni < 6; ni++) {
+        const channel = new Mesh(
+          new BoxGeometry(dims.height * 0.5, 0.012, 6e-3),
+          new MeshStandardMaterial({ color: 13408767, emissive: 10044637, emissiveIntensity: 0.8, transparent: true, opacity: 0.7 })
+        );
+        channel.position.set(side * dims.radius * 1.15, (ni - 2.5) * dims.radius * 0.05, dims.radius * 0.13);
+        group.add(channel);
+      }
     }
     const topRing = new Mesh(
       new CylinderGeometry(dims.radius * 0.45, dims.radius * 0.4, 0.08, 16),
@@ -43466,8 +49195,8 @@ var VAB3DPreview = class {
       frameBot.position.set(Math.cos(angle) * dims.radius * 0.55, -dims.height * 0.48, Math.sin(angle) * dims.radius * 0.55);
       frameBot.rotation.y = angle;
       group.add(frameBot);
-      for (let h = 0; h < 3; h++) {
-        const pipeY = dims.height * (-0.25 + h * 0.25);
+      for (let h = 0; h < 8; h++) {
+        const pipeY = dims.height * (-0.4 + h * (0.8 / 7));
         const pipe = new Mesh(
           new BoxGeometry(dims.radius * 0.85, 8e-3, 8e-3),
           this.mats.copper
@@ -43499,6 +49228,13 @@ var VAB3DPreview = class {
       hinge.rotation.z = Math.PI / 2;
       hinge.rotation.y = -angle;
       group.add(hinge);
+      const lockPin = new Mesh(
+        new CylinderGeometry(6e-3, 6e-3, 0.04, 6),
+        this.mats.copper
+      );
+      lockPin.position.set(Math.cos(angle) * dims.radius * 0.4, -dims.height * 0.35, Math.sin(angle) * dims.radius * 0.4);
+      lockPin.rotation.y = -angle;
+      group.add(lockPin);
     }
     const evapMat = new MeshStandardMaterial({ color: 13395490, roughness: 0.5, metalness: 0.4, emissive: 4460800, emissiveIntensity: 0.3 });
     for (let i = 0; i < 4; i++) {
@@ -43630,6 +49366,25 @@ var VAB3DPreview = class {
     );
     drillTip.position.y = -dims.height * 0.66;
     group.add(drillTip);
+    for (let ti = 0; ti < 12; ti++) {
+      const ta = ti / 12 * Math.PI * 2;
+      const tooth = new Mesh(
+        new BoxGeometry(0.025, 0.012, dims.radius * 0.1),
+        new MeshStandardMaterial({ color: 10066329, metalness: 0.95, roughness: 0.1 })
+      );
+      tooth.position.set(Math.cos(ta) * dims.radius * 0.5, -dims.height * 0.55, Math.sin(ta) * dims.radius * 0.5);
+      tooth.rotation.y = -ta;
+      group.add(tooth);
+    }
+    for (let ri = 0; ri < 6; ri++) {
+      const roller = new Mesh(
+        new CylinderGeometry(0.02, 0.02, dims.radius * 0.4, 8),
+        this.mats.copper
+      );
+      roller.position.set(0, dims.height * 0.15, dims.radius * (0.5 - ri * 0.1));
+      roller.rotation.x = Math.PI / 2;
+      group.add(roller);
+    }
     for (let i = 0; i < 2; i++) {
       const sx = (i === 0 ? -1 : 1) * dims.radius * 0.85;
       const tank = new Mesh(
@@ -43734,19 +49489,20 @@ var VAB3DPreview = class {
       group.add(bolt);
     }
     const windowMat = new MeshStandardMaterial({ color: 16768392, emissive: 16755268, emissiveIntensity: 0.5 });
-    const winCount = 8;
+    const winCount = 16;
     for (let i = 0; i < winCount; i++) {
       const angle = i / winCount * Math.PI * 2;
+      const yOff = i % 2 === 0 ? 0.08 : -0.04;
       const frame2 = new Mesh(
-        new TorusGeometry(0.05, 0.01, 6, 12),
+        new TorusGeometry(0.04, 8e-3, 6, 12),
         this.mats.dark
       );
-      frame2.position.set(Math.cos(angle) * dims.radius * 0.92, 0.05, Math.sin(angle) * dims.radius * 0.92);
-      frame2.lookAt(Math.cos(angle) * 5, 0.05, Math.sin(angle) * 5);
+      frame2.position.set(Math.cos(angle) * dims.radius * 0.92, yOff, Math.sin(angle) * dims.radius * 0.92);
+      frame2.lookAt(Math.cos(angle) * 5, yOff, Math.sin(angle) * 5);
       group.add(frame2);
-      const win = new Mesh(new CircleGeometry(0.04, 12), windowMat);
-      win.position.set(Math.cos(angle) * dims.radius * 0.92, 0.05, Math.sin(angle) * dims.radius * 0.92);
-      win.lookAt(Math.cos(angle) * 5, 0.05, Math.sin(angle) * 5);
+      const win = new Mesh(new CircleGeometry(0.032, 12), windowMat);
+      win.position.set(Math.cos(angle) * dims.radius * 0.92, yOff, Math.sin(angle) * dims.radius * 0.92);
+      win.lookAt(Math.cos(angle) * 5, yOff, Math.sin(angle) * 5);
       group.add(win);
     }
     const antenna = new Mesh(
@@ -43774,6 +49530,26 @@ var VAB3DPreview = class {
     handle.position.set(dims.radius * 0.97, 0, 0);
     handle.rotation.y = Math.PI / 2;
     group.add(handle);
+    for (let gi = 0; gi < 2; gi++) {
+      const seal = new Mesh(
+        new TorusGeometry(0.09, 6e-3, 6, 20),
+        this.mats.copper
+      );
+      seal.position.set(dims.radius * 0.96, (gi - 0.5) * 0.06, 0);
+      seal.rotation.y = Math.PI / 2;
+      group.add(seal);
+    }
+    const solarStripMat = new MeshStandardMaterial({ color: 2241450, metalness: 0.4, roughness: 0.3, emissive: 1118532, emissiveIntensity: 0.2 });
+    for (let si = 0; si < 18; si++) {
+      const sa = si / 18 * Math.PI * 2;
+      const panel = new Mesh(
+        new BoxGeometry(0.06, 0.12, 4e-3),
+        solarStripMat
+      );
+      panel.position.set(Math.cos(sa) * dims.radius * 1.02, dims.radius * 0.05, Math.sin(sa) * dims.radius * 1.02);
+      panel.rotation.y = -sa + Math.PI / 2;
+      group.add(panel);
+    }
     for (let i = 0; i < 6; i++) {
       const angle = i / 6 * Math.PI * 2;
       const rib = new Mesh(
@@ -43817,18 +49593,30 @@ var VAB3DPreview = class {
     vessel.castShadow = true;
     group.add(vessel);
     const glow = new Mesh(
-      new SphereGeometry(dims.radius * 0.28, 16, 12),
+      new SphereGeometry(dims.radius * 0.28, 24, 18),
       new MeshStandardMaterial({ color: 16729343, emissive: 13378252, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 })
     );
     group.add(glow);
-    for (let i = 0; i < 3; i++) {
+    const annihChamber = new Mesh(
+      new SphereGeometry(dims.radius * 0.15, 16, 12),
+      new MeshStandardMaterial({ color: 16772863, emissive: 16738047, emissiveIntensity: 2, transparent: true, opacity: 0.5 })
+    );
+    group.add(annihChamber);
+    const ringConfigs = [
+      { rotX: Math.PI / 2, rotY: 0, yOff: 0 },
+      { rotX: 0, rotY: Math.PI / 2, yOff: 0 },
+      { rotX: Math.PI / 3, rotY: 0, yOff: dims.height * 0.15 },
+      { rotX: Math.PI / 3, rotY: 0, yOff: -dims.height * 0.15 },
+      { rotX: 0, rotY: Math.PI / 3, yOff: 0 }
+    ];
+    for (let i = 0; i < 5; i++) {
       const ring = new Mesh(
         new TorusGeometry(dims.radius * 0.72, 0.04, 8, 32),
         new MeshStandardMaterial({ color: 4500223, emissive: 2254540, emissiveIntensity: 0.6, metalness: 0.8 })
       );
-      if (i === 0) ring.rotation.x = Math.PI / 2;
-      if (i === 1) ring.rotation.y = Math.PI / 2;
-      ring.position.y = (i - 1) * dims.height * 0.15;
+      ring.rotation.x = ringConfigs[i].rotX;
+      ring.rotation.y = ringConfigs[i].rotY;
+      ring.position.y = ringConfigs[i].yOff;
       group.add(ring);
     }
     for (let i = 0; i < 4; i++) {
@@ -44021,14 +49809,23 @@ var VAB3DPreview = class {
     chamberRing.rotation.x = Math.PI / 2;
     chamberRing.position.y = dims.height * 0.08;
     group.add(chamberRing);
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) {
       const coil = new Mesh(
-        new TorusGeometry(dims.radius * 0.6 - i * 0.05, 0.03, 6, 20),
+        new TorusGeometry(dims.radius * 0.6 - i * 0.04, 0.03, 6, 20),
         new MeshStandardMaterial({ color: 4491468, emissive: 2245768, emissiveIntensity: 0.4, metalness: 0.8 })
       );
       coil.rotation.x = Math.PI / 2;
-      coil.position.y = dims.height * 0.05 - i * dims.height * 0.06;
+      coil.position.y = dims.height * 0.05 - i * dims.height * 0.05;
       group.add(coil);
+    }
+    for (let ri = 0; ri < 4; ri++) {
+      const resRing = new Mesh(
+        new TorusGeometry(dims.radius * 0.45 - ri * 0.02, 8e-3, 6, 16),
+        new MeshStandardMaterial({ color: 8965375, emissive: 4491519, emissiveIntensity: 0.6, metalness: 0.6 })
+      );
+      resRing.rotation.x = Math.PI / 2;
+      resRing.position.y = dims.height * 0.1 - ri * 0.02;
+      group.add(resRing);
     }
     const nozzlePts = [];
     for (let i = 0; i <= 6; i++) {
@@ -45054,10 +50851,39 @@ var SpaceCenter3DScene = class {
   constructor(container2) {
     this.animationId = 0;
     this.disposed = false;
+    this._r5SunLight = null;
+    this._r5Ambient = null;
+    this._r5TimeOfDay = 0.3;
+    this._r5TimeLabel = null;
+    this._r5WeatherLabel = null;
+    this._r5Weather = "\u6674";
     this.animate = () => {
       if (this.disposed) return;
       this.animationId = requestAnimationFrame(this.animate);
       this.controls.update();
+      this._r5TimeOfDay = (this._r5TimeOfDay + 15e-5) % 1;
+      const sunAngle = this._r5TimeOfDay * Math.PI * 2 - Math.PI / 2;
+      const sunY = Math.sin(sunAngle);
+      const sunX = Math.cos(sunAngle);
+      if (this._r5SunLight) {
+        this._r5SunLight.position.set(sunX * 50, Math.max(5, sunY * 50), 20);
+        const isLowSun = Math.abs(sunY) < 0.3;
+        this._r5SunLight.color.setHex(isLowSun ? 16746564 : 16772812);
+        this._r5SunLight.intensity = Math.max(0.2, sunY * 1.5 + 0.3);
+      }
+      if (this._r5Ambient) {
+        this._r5Ambient.intensity = 0.2 + Math.max(0, sunY) * 0.3;
+      }
+      if (this._r5TimeLabel) {
+        const hours = Math.floor(this._r5TimeOfDay * 24);
+        const mins = Math.floor((this._r5TimeOfDay * 24 - hours) * 60);
+        this._r5TimeLabel.textContent = `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
+      }
+      if (this._r5WeatherLabel && Math.random() < 1e-3) {
+        const weathers = ["\u6674", "\u591A\u4E91", "\u5C0F\u96E8", "\u8584\u96FE", "\u6674"];
+        this._r5Weather = weathers[Math.floor(Math.random() * weathers.length)];
+        this._r5WeatherLabel.textContent = `\u2601 ${this._r5Weather}`;
+      }
       this.renderer.render(this.scene, this.camera);
     };
     this.canvas = document.createElement("canvas");
@@ -45104,6 +50930,7 @@ var SpaceCenter3DScene = class {
     this.camera.position.set(40, 35, 40);
     const ambient = new AmbientLight(4478344, 0.4);
     this.scene.add(ambient);
+    this._r5Ambient = ambient;
     const hemi = new HemisphereLight(6719658, 2236979, 0.3);
     this.scene.add(hemi);
     const sunLight = new DirectionalLight(16772812, 1.5);
@@ -45121,6 +50948,7 @@ var SpaceCenter3DScene = class {
     sunLight.shadow.normalBias = 0.02;
     sunLight.shadow.radius = 2;
     this.scene.add(sunLight);
+    this._r5SunLight = sunLight;
     const fillLight = new DirectionalLight(4491519, 0.4);
     fillLight.position.set(-20, 10, -20);
     this.scene.add(fillLight);
@@ -45269,12 +51097,14 @@ var StartMenu = class {
     this.overlay.id = "start-menu";
     this.overlay.innerHTML = `
       <div class="menu-stars" id="menu-stars"></div>
+      <div id="r5-rocket-bg" style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-size:8rem;opacity:0.08;pointer-events:none;transition:all 3s ease;" id="r5-rocket-emoji">\u{1F680}</div>
       <div class="menu-content">
         <h1 class="game-title">\u592A\u7A7A<br>\u8BA1\u5212</h1>
         <p class="game-subtitle">\u661F\u9645\u63A2\u7D22\u6A21\u62DF\u5668</p>
         <div class="menu-buttons">
           <button class="menu-btn primary" id="btn-start">\u5F00\u59CB\u4EFB\u52A1</button>
           <button class="menu-btn" id="btn-settings">\u8BBE\u7F6E</button>
+          <button class="menu-btn" id="btn-help">\u5E2E\u52A9</button>
           <button class="menu-btn" id="btn-credits">\u5173\u4E8E</button>
         </div>
         <div class="quality-selector" id="quality-selector" style="display:none">
@@ -45285,6 +51115,13 @@ var StartMenu = class {
             <label><input type="radio" name="quality" value="high" checked> \u9AD8\uFF08\u6700\u4F73\uFF09</label>
           </div>
           <p class="quality-hint">\u8D28\u91CF\u8D8A\u9AD8 = \u7EB9\u7406\u66F4\u5927\u3001\u9634\u5F71\u66F4\u591A\u3001\u661F\u661F\u66F4\u591A</p>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #333;">
+            <label style="display:block;font-size:0.8rem;color:#88a;margin-bottom:6px;">\u97F3\u6548</label>
+            <select id="r5-sound-select" style="background:#1a1a2e;color:#ccc;border:1px solid #444;padding:4px 8px;border-radius:4px;width:100%;">
+              <option value="on">\u5F00\u542F</option>
+              <option value="off">\u5173\u95ED</option>
+            </select>
+          </div>
           <button class="menu-btn" id="btn-back">\u8FD4\u56DE</button>
         </div>
         <div class="credits-panel" id="credits-panel" style="display:none">
@@ -45295,8 +51132,20 @@ var StartMenu = class {
           <p>\u7A0B\u5E8F\u5316\u884C\u661F\u7EB9\u7406\uFF0C\u5206\u5757\u661F\u8868\u52A0\u8F7D</p>
           <button class="menu-btn" id="btn-back-credits">\u8FD4\u56DE</button>
         </div>
+        <div id="help-panel" style="display:none">
+          <h3 style="color:#4af;">\u5E2E\u52A9 & \u6559\u7A0B</h3>
+          <div style="font-size:0.82rem;color:#99aabb;line-height:1.8;text-align:left;max-width:400px;">
+            <p>\u{1F680} <b>\u5F00\u59CB\u4EFB\u52A1</b>\uFF1A\u8FDB\u5165\u592A\u7A7A\u4E2D\u5FC3</p>
+            <p>\u{1F3D7}\uFE0F <b>VAB\u7EC4\u88C5</b>\uFF1A\u5728\u822A\u5929\u5668\u7EC4\u88C5\u5927\u697C\u8BBE\u8BA1\u706B\u7BAD</p>
+            <p>\u{1F4E1} <b>\u8FFD\u8E2A\u7AD9</b>\uFF1A\u67E5\u770B\u5728\u8F68\u98DE\u884C\u5668</p>
+            <p>\u{1F468}\u200D\u{1F680} <b>\u5B87\u822A\u5458\u4E2D\u5FC3</b>\uFF1A\u7BA1\u7406\u5B87\u822A\u5458\u961F\u4F0D</p>
+            <p>\u{1F52C} <b>\u7814\u53D1\u4E2D\u5FC3</b>\uFF1A\u89E3\u9501\u65B0\u79D1\u6280</p>
+            <p style="margin-top:8px;color:#68a;">\u5FEB\u6377\u952E\uFF1AR\u65CB\u8F6C | X\u5BF9\u79F0 | Del\u5220\u9664 | Esc\u53D6\u6D88 | Ctrl+Z\u64A4\u9500</p>
+          </div>
+          <button class="menu-btn" id="btn-back-help">\u8FD4\u56DE</button>
+        </div>
         <div class="menu-footer">
-          <span>v2.0 | GAIA DR2 \u7248</span>
+          <span>v2.0 | GAIA DR2 \u7248 | \u2605 R5-54</span>
         </div>
       </div>
       <div id="loading-screen" style="display:none">
@@ -45306,6 +51155,7 @@ var StartMenu = class {
             <div class="loading-bar" id="loading-bar-fill"></div>
           </div>
           <p id="loading-text">\u52A0\u8F7D\u592A\u9633\u7CFB\u6570\u636E...</p>
+          <p id="loading-percent" style="font-size:0.75rem;color:#68a;margin-top:4px;">0%</p>
         </div>
       </div>
     `;
@@ -45337,6 +51187,14 @@ var StartMenu = class {
     document.getElementById("btn-credits").addEventListener("click", () => {
       document.querySelector(".menu-buttons").setAttribute("style", "display:none");
       document.getElementById("credits-panel").style.display = "block";
+    });
+    document.getElementById("btn-help").addEventListener("click", () => {
+      document.querySelector(".menu-buttons").setAttribute("style", "display:none");
+      document.getElementById("help-panel").style.display = "block";
+    });
+    document.getElementById("btn-back-help").addEventListener("click", () => {
+      document.getElementById("help-panel").style.display = "none";
+      document.querySelector(".menu-buttons").setAttribute("style", "display:flex");
     });
     document.getElementById("btn-back").addEventListener("click", () => {
       document.getElementById("quality-selector").style.display = "none";
@@ -45376,12 +51234,20 @@ var StartMenu = class {
         return;
       }
       const step = steps[i];
-      bar.style.width = `${step.progress}%`;
+      bar.style.width = step.progress + "%";
       text.textContent = step.text;
+      const pct = document.getElementById("loading-percent");
+      if (pct) pct.textContent = step.progress + "%";
       i++;
-      setTimeout(nextStep, 300 + Math.random() * 200);
+      setTimeout(nextStep, 400 + Math.random() * 300);
     };
     nextStep();
+    const rocketBg = document.getElementById("r5-rocket-bg");
+    if (rocketBg) {
+      rocketBg.style.transition = "bottom 4s ease-out, opacity 4s ease-out";
+      rocketBg.style.bottom = "120%";
+      rocketBg.style.opacity = "0.02";
+    }
   }
   destroy() {
     this.overlay.remove();
@@ -45404,6 +51270,19 @@ var SpaceCenter = class {
     this.renderSpaceCenter();
     document.body.appendChild(this.overlay);
     this.scene3D = new SpaceCenter3DScene(this.overlay);
+    const timeWeatherBox = document.createElement("div");
+    timeWeatherBox.style.cssText = "position:absolute;top:12px;right:16px;z-index:10;display:flex;gap:12px;align-items:center;background:rgba(15,15,25,0.7);border:1px solid #334;border-radius:6px;padding:6px 12px;font-size:0.8rem;color:#aac;";
+    const timeLabel = document.createElement("span");
+    timeLabel.style.cssText = "color:#cef;font-weight:600;";
+    timeLabel.textContent = "06:00";
+    const weatherLabel = document.createElement("span");
+    weatherLabel.style.cssText = "color:#ace;";
+    weatherLabel.textContent = "\u2601 \u6674";
+    timeWeatherBox.appendChild(timeLabel);
+    timeWeatherBox.appendChild(weatherLabel);
+    this.overlay.appendChild(timeWeatherBox);
+    this.scene3D._r5TimeLabel = timeLabel;
+    this.scene3D._r5WeatherLabel = weatherLabel;
   }
   // 主样式
   applyOverlayStyle() {
@@ -45477,7 +51356,7 @@ var SpaceCenter = class {
           if (this.selectedParts.length === 0) {
             this.showComingSoon("\u8BF7\u5148\u5728VAB\u4E2D\u5EFA\u9020\u706B\u7BAD");
           } else {
-            this.callbacks.onLaunch();
+            this.openLaunchPad();
           }
         }
       },
@@ -45676,12 +51555,42 @@ var SpaceCenter = class {
       <input type="text" id="vab-search" placeholder="\u{1F50D} \u641C\u7D22\u96F6\u4EF6..."
         style="width: 100%; background: #1a1a1a; border: 1px solid #444; color: #ddd;
         padding: 6px 10px; border-radius: 3px; font-size: 0.82rem; outline: none; box-sizing: border-box;" />
+      <div id="vab-search-filter" style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;"></div>
+      <div id="vab-search-hint" style="font-size:0.62rem;color:#666;margin-top:4px;display:none;"></div>
     `;
     leftPanel.appendChild(searchBox);
+    const filterBar = searchBox.querySelector("#vab-search-filter");
+    const filters = [
+      { label: "\u26A1\u6709\u63A8\u529B", test: (p) => p.thrust > 0 },
+      { label: "\u26FD\u6709\u71C3\u6599", test: (p) => p.fuelMass > 0 },
+      { label: "\u{1F4B2}\u4F4E\u6210\u672C", test: (p) => p.cost < 200 },
+      { label: "\u{1FAB6}\u8F7B\u91CF", test: (p) => p.mass < 200 }
+    ];
+    const activeFilters = [false, false, false, false];
+    filters.forEach((f, fi) => {
+      const fBtn = document.createElement("div");
+      fBtn.style.cssText = "background:#1a1a1a;border:1px solid #444;color:#888;padding:2px 8px;border-radius:3px;font-size:0.66rem;cursor:pointer;transition:all 0.12s;";
+      fBtn.textContent = f.label;
+      fBtn.addEventListener("click", () => {
+        activeFilters[fi] = !activeFilters[fi];
+        fBtn.style.background = activeFilters[fi] ? "rgba(60,100,160,0.5)" : "#1a1a1a";
+        fBtn.style.borderColor = activeFilters[fi] ? "#4a8" : "#444";
+        fBtn.style.color = activeFilters[fi] ? "#cef" : "#888";
+        this._r5ActiveFilters = activeFilters;
+        this.refreshPartsList();
+      });
+      filterBar.appendChild(fBtn);
+    });
     const searchInput = searchBox.querySelector("#vab-search");
+    const searchHint = searchBox.querySelector("#vab-search-hint");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
         this.vabSearchText = e.target.value.toLowerCase();
+        const matched = ROCKET_PARTS.filter(
+          (p) => p.name.toLowerCase().includes(this.vabSearchText) || (p.description || "").toLowerCase().includes(this.vabSearchText) || p.id.toLowerCase().includes(this.vabSearchText)
+        );
+        searchHint.style.display = this.vabSearchText ? "block" : "none";
+        searchHint.textContent = `\u5339\u914D ${matched.length} / ${ROCKET_PARTS.length} \u4E2A\u96F6\u4EF6`;
         this.refreshPartsList();
       });
     }
@@ -45717,6 +51626,28 @@ var SpaceCenter = class {
       <div style="font-size: 0.85rem; color: #444;">\u9F20\u6807\u62D6\u62FD\u65CB\u8F6C\u89C6\u89D2 \xB7 \u6EDA\u8F6E\u7F29\u653E \xB7 \u53F3\u952E/ESC\u53D6\u6D88\u653E\u7F6E \xB7 Delete\u5220\u9664\u9009\u4E2D</div>
     `;
     viewportContainer.appendChild(hintDiv);
+    const hotkeyBar = document.createElement("div");
+    hotkeyBar.id = "vab-hotkey-bar";
+    hotkeyBar.style.cssText = `
+      position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 6px; z-index: 10; pointer-events: none;
+      background: rgba(20,20,20,0.7); border-radius: 4px; padding: 3px 8px;
+    `;
+    const hotkeys = [
+      { key: "R", desc: "\u65CB\u8F6C" },
+      { key: "X", desc: "\u5BF9\u79F0" },
+      { key: "Del", desc: "\u5220\u9664" },
+      { key: "Esc", desc: "\u53D6\u6D88" },
+      { key: "Ctrl+Z", desc: "\u64A4\u9500" },
+      { key: "Ctrl+Y", desc: "\u91CD\u505A" }
+    ];
+    hotkeys.forEach((hk) => {
+      const span = document.createElement("span");
+      span.style.cssText = "font-size:0.62rem;color:#888;display:flex;align-items:center;gap:3px;";
+      span.innerHTML = `<kbd style="background:#333;border:1px solid #555;border-radius:2px;padding:1px 4px;color:#ccc;font-size:0.6rem;">${hk.key}</kbd><span style="color:#666;">${hk.desc}</span>`;
+      hotkeyBar.appendChild(span);
+    });
+    viewportContainer.appendChild(hotkeyBar);
     const viewportBottom = document.createElement("div");
     viewportBottom.id = "vab-viewport-bottom";
     viewportBottom.style.cssText = `
@@ -46001,6 +51932,16 @@ var SpaceCenter = class {
         (p) => p.name.toLowerCase().includes(this.vabSearchText) || (p.description || "").toLowerCase().includes(this.vabSearchText) || p.id.toLowerCase().includes(this.vabSearchText)
       );
     }
+    const activeFilters = this._r5ActiveFilters || [false, false, false, false];
+    const filterTests = [
+      (p) => p.thrust > 0,
+      (p) => p.fuelMass > 0,
+      (p) => p.cost < 200,
+      (p) => p.mass < 200
+    ];
+    if (activeFilters.some((a) => a)) {
+      parts = parts.filter((p) => activeFilters.every((a, i) => !a || filterTests[i](p)));
+    }
     if (parts.length === 0) {
       container2.innerHTML = '<div style="text-align:center;color:#555;padding:20px;font-size:0.82rem;">\u65E0\u5339\u914D\u96F6\u4EF6</div>';
       return;
@@ -46019,6 +51960,7 @@ var SpaceCenter = class {
       border: 1px solid ${isPickedUp ? "rgba(100,255,100,0.5)" : "#3a3a3a"};
       border-radius: 5px; padding: 8px 10px; margin-bottom: 4px; cursor: pointer;
       transition: all 0.12s; display: flex; align-items: flex-start; gap: 8px;
+      position: relative;
     `;
     const statsLines = [];
     statsLines.push(`<span style="color:#88a;">\u8D28\u91CF</span> ${part.mass}kg`);
@@ -46036,17 +51978,37 @@ var SpaceCenter = class {
         <div style="font-size: 0.66rem; color: #888; margin-top: 3px; line-height: 1.5;">${statsLines.join(" | ")}</div>
       </div>
     `;
+    let r5Tooltip = null;
+    const showR5Tooltip = () => {
+      r5Tooltip = document.createElement("div");
+      r5Tooltip.style.cssText = "position:fixed;z-index:9999;background:rgba(15,15,20,0.96);border:1px solid #4a6;border-radius:6px;padding:10px 12px;font-size:0.72rem;color:#ccc;max-width:260px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.6);backdrop-filter:blur(6px);";
+      const ispInfo = part.thrust > 0 ? `<div style="margin-top:4px;color:#8ac;">\u6BD4\u51B2: ${part.isp}s</div>` : "";
+      const fuelInfo = part.fuelMass > 0 ? `<div style="color:#8c8;">\u71C3\u6599: ${part.fuelMass}kg</div>` : "";
+      r5Tooltip.innerHTML = `<div style="font-weight:700;color:#fff;font-size:0.82rem;margin-bottom:4px;">${PART_TYPE_ICON[part.type]} ${part.name}</div><div style="color:#888;font-size:0.66rem;margin-bottom:6px;">${part.description || ""}</div><div style="border-top:1px solid #333;padding-top:4px;"><div>\u8D28\u91CF: <span style="color:#fff;">${part.mass} kg</span></div>${fuelInfo}${ispInfo}<div style="color:#cca;">\u8D39\u7528: ${part.cost} \u79D1\u6717</div></div>`;
+      document.body.appendChild(r5Tooltip);
+      const rect = item.getBoundingClientRect();
+      r5Tooltip.style.left = rect.right + 8 + "px";
+      r5Tooltip.style.top = rect.top + "px";
+    };
+    const hideR5Tooltip = () => {
+      if (r5Tooltip) {
+        r5Tooltip.remove();
+        r5Tooltip = null;
+      }
+    };
     item.addEventListener("mouseenter", () => {
       if (!isPickedUp) {
         item.style.background = "rgba(55,55,65,0.8)";
         item.style.borderColor = "#555";
       }
+      showR5Tooltip();
     });
     item.addEventListener("mouseleave", () => {
       if (!isPickedUp) {
         item.style.background = "rgba(40,40,40,0.6)";
         item.style.borderColor = "#3a3a3a";
       }
+      hideR5Tooltip();
     });
     item.addEventListener("click", () => {
       if (this.vabPreview) {
@@ -46137,9 +52099,25 @@ var SpaceCenter = class {
     if (bottomMass) bottomMass.textContent = totalMass.toLocaleString() + " kg";
     const bottomStatus = document.getElementById("vab-bottom-status");
     if (bottomStatus) {
-      const ready = parts.length > 0 && parts.some((p) => p.type === "command") && parts.some((p) => p.type === "engine");
-      bottomStatus.textContent = ready ? "\u5DF2\u5C31\u7EEA" : "\u672A\u5C31\u7EEA";
-      bottomStatus.style.color = ready ? "#4f4" : "#fa4";
+      const checks = [];
+      checks.push({ label: "\u96F6\u4EF6\u6570\u91CF", ok: parts.length <= 200, detail: `${parts.length}/200` });
+      checks.push({ label: "\u603B\u8D28\u91CF", ok: totalMass <= 5e4, detail: `${totalMass.toLocaleString()}/50000kg` });
+      const maxR = parts.length > 0 ? Math.max(...parts.map((p) => {
+        const d = this.vabPreview?.getPartDimensions(p);
+        return d ? d.radius : 0;
+      })) : 0;
+      checks.push({ label: "\u6700\u5927\u76F4\u5F84", ok: maxR <= 2.5, detail: `${(maxR * 2).toFixed(2)}/5.0m` });
+      checks.push({ label: "\u603B\u6210\u672C", ok: totalCost <= 1e5, detail: `${totalCost}/100000` });
+      checks.push({ label: "\u63A7\u5236\u90E8\u4EF6", ok: parts.some((p) => p.type === "command"), detail: parts.some((p) => p.type === "command") ? "\u2713" : "\u2717 \u7F3A\u5931" });
+      checks.push({ label: "\u63A8\u8FDB\u5F15\u64CE", ok: parts.some((p) => p.type === "engine" || p.type === "booster"), detail: parts.some((p) => p.type === "engine" || p.type === "booster") ? "\u2713" : "\u2717 \u7F3A\u5931" });
+      const hasEngine = parts.some((p) => p.type === "engine" || p.type === "booster");
+      checks.push({ label: "\u71C3\u6599\u4F9B\u7ED9", ok: !hasEngine || totalFuel > 0, detail: totalFuel > 0 ? `${totalFuel}kg` : hasEngine ? "\u2717 \u7F3A\u5931" : "\u2014" });
+      checks.push({ label: "\u63A8\u91CD\u6BD4", ok: twr >= 1, detail: `${twr.toFixed(2)} ${twr >= 1 ? "\u2713" : "\u2717"}` });
+      const allOk = checks.every((c) => c.ok);
+      const anyParts = parts.length > 0;
+      bottomStatus.textContent = anyParts ? allOk ? "\u2713 \u5DF2\u5C31\u7EEA" : "\u26A0 \u672A\u5C31\u7EEA" : "\u7A7A";
+      bottomStatus.style.color = anyParts && allOk ? "#4f4" : anyParts ? "#fa4" : "#888";
+      bottomStatus.title = checks.map((c) => `${c.ok ? "\u2713" : "\u2717"} ${c.label}: ${c.detail}`).join("\n");
     }
   }
   // 生成火箭分级
@@ -46219,6 +52197,48 @@ var SpaceCenter = class {
   // ============================================
   // 追踪站 (Tracking Station) - 显示在轨/已着陆的火箭
   // ============================================
+  // ★ R5-45: 发射台 — 发射前检查清单
+  openLaunchPad() {
+    const panel = this.createInfoOverlay("\u{1F6F0}\uFE0F", "\u53D1\u5C04\u53F0", "LAUNCH PAD");
+    const parts = this.getSelectedParts();
+    const totalMass = parts.reduce((s, p) => s + p.mass, 0);
+    const totalThrust = parts.reduce((s, p) => s + p.thrust, 0);
+    const totalFuel = parts.reduce((s, p) => s + p.fuelMass, 0);
+    const twr = totalMass > 0 ? totalThrust / (totalMass * 9.81) : 0;
+    const hasCommand = parts.some((p) => p.type === "command");
+    const hasEngine = parts.some((p) => p.type === "engine" || p.type === "booster");
+    const content = document.createElement("div");
+    content.style.cssText = "flex:1;overflow-y:auto;padding:20px 30px;width:100%;max-width:700px;margin:0 auto;box-sizing:border-box;";
+    const checks = [
+      { label: "\u63A7\u5236\u90E8\u4EF6\u5C31\u7EEA", ok: hasCommand },
+      { label: "\u63A8\u8FDB\u5F15\u64CE\u5C31\u7EEA", ok: hasEngine },
+      { label: "\u71C3\u6599\u4F9B\u7ED9\u5145\u8DB3", ok: totalFuel > 0 },
+      { label: `\u63A8\u91CD\u6BD4 \u2265 1.0 (\u5F53\u524D ${twr.toFixed(2)})`, ok: twr >= 1 },
+      { label: `\u603B\u8D28\u91CF ${totalMass.toLocaleString()}kg`, ok: totalMass <= 5e4 },
+      { label: `\u96F6\u4EF6\u6570 ${parts.length} \u2264 200`, ok: parts.length <= 200 }
+    ];
+    content.innerHTML = `<div style="font-size:0.9rem;color:#99aabb;margin-bottom:16px;">\u98DE\u884C\u5668\u300C${this.escapeHtml(this.vabCraftName)}\u300D\u53D1\u5C04\u524D\u68C0\u67E5\u6E05\u5355\uFF1A</div>`;
+    checks.forEach((c) => {
+      const row = document.createElement("div");
+      row.style.cssText = `display:flex;align-items:center;gap:10px;padding:8px 14px;margin-bottom:6px;border-radius:6px;background:rgba(20,30,55,0.5);border:1px solid ${c.ok ? "rgba(80,255,120,0.25)" : "rgba(255,100,100,0.25)"};`;
+      row.innerHTML = `<span style="font-size:1.2rem;">${c.ok ? "\u2705" : "\u274C"}</span><span style="color:${c.ok ? "#8c8" : "#c88"};">${c.label}</span>`;
+      content.appendChild(row);
+    });
+    const allOk = checks.every((c) => c.ok);
+    const launchBtn = document.createElement("button");
+    launchBtn.textContent = allOk ? "\u{1F680} \u786E\u8BA4\u53D1\u5C04" : "\u26A0 \u65E0\u6CD5\u53D1\u5C04\uFF08\u68C0\u67E5\u672A\u901A\u8FC7\uFF09";
+    launchBtn.style.cssText = `margin-top:16px;width:100%;padding:12px;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:${allOk ? "pointer" : "not-allowed"};background:${allOk ? "linear-gradient(135deg,#2a6,#4c8)" : "#444"};color:#fff;`;
+    if (allOk) {
+      launchBtn.addEventListener("click", () => {
+        panel.remove();
+        this.callbacks.onLaunch();
+      });
+    }
+    content.appendChild(launchBtn);
+    panel.appendChild(content);
+    this.appendBackButton(panel, () => panel.remove());
+    document.body.appendChild(panel);
+  }
   openTracking() {
     const panel = this.createInfoOverlay("\u{1F4E1}", "\u8FFD\u8E2A\u7AD9", "TRACKING STATION");
     const content = document.createElement("div");
@@ -46270,6 +52290,8 @@ var SpaceCenter = class {
             <div>\u8F68\u9053\u503E\u89D2: <span style="color: #cce;">${v.inclination}\xB0</span></div>
             <div>\u8FD1\u5730\u70B9: <span style="color: #cce;">${v.periapsis} km</span></div>
             <div>\u8FDC\u5730\u70B9: <span style="color: #cce;">${v.apoapsis} km</span></div>
+            <div>\u71C3\u6599\u72B6\u6001: <span style="color: ${v.parts > 5 ? "#8c8" : "#cc8"};">${v.parts > 5 ? "\u5145\u8DB3" : "\u6B63\u5E38"}</span></div>
+            <div>\u4E58\u5458\u72B6\u6001: <span style="color: #8cf;">${v.parts > 3 ? "\u5728\u5C97" : "\u81EA\u52A8"}</span></div>
           </div>
         `;
         content.appendChild(card);
@@ -46486,7 +52508,7 @@ var SpaceCenter = class {
       gap: 14px;
     `;
     const unlockedState = this.getTechUnlockState();
-    TECH_TREE2.forEach((tech, idx) => {
+    TECH_TREE.forEach((tech, idx) => {
       const card = document.createElement("div");
       const isUnlocked = unlockedState[tech.id] ?? tech.unlocked;
       const canUnlock = !isUnlocked && currentScience >= tech.cost;
@@ -46514,7 +52536,7 @@ var SpaceCenter = class {
           <div style="font-size: 1.0rem; font-weight: 700; color: ${isUnlocked ? "#8f8" : canUnlock ? "#ddf" : "#667"};">
             ${isUnlocked ? "\u2705" : canUnlock ? "\u{1F513}" : "\u{1F512}"} ${this.escapeHtml(tech.name)}
           </div>
-          ${idx < TECH_TREE2.length - 1 ? '<div style="color: #445;">\u2193</div>' : ""}
+          ${idx < TECH_TREE.length - 1 ? '<div style="color: #445;">\u2193</div>' : ""}
         </div>
         <div style="font-size: 0.78rem; color: #8899aa; line-height: 1.5; margin-bottom: 10px;">
           ${this.escapeHtml(tech.desc)}
@@ -46554,14 +52576,14 @@ var SpaceCenter = class {
     } catch (e) {
     }
     const state = {};
-    TECH_TREE2.forEach((t) => {
+    TECH_TREE.forEach((t) => {
       state[t.id] = t.unlocked;
     });
     return state;
   }
   // 解锁科技节点
   unlockTech(techId, panel) {
-    const tech = TECH_TREE2.find((t) => t.id === techId);
+    const tech = TECH_TREE.find((t) => t.id === techId);
     if (!tech) return;
     const unlockedState = this.getTechUnlockState();
     if (unlockedState[techId]) return;
